@@ -1,0 +1,51 @@
+(Calculation for the NiH molecule)
+
+(Nuclear masses for 1-H )
+masses 1.0072764695237966 1.0072764695237966 
+
+molecule xy
+
+nstates 1    (Total number of states taken into account)
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0.0  0.0
+
+(Defining the integration grid)
+grid
+  npoints  501  (odd)
+  range  1.00,3.00
+  type 0   (nsub)
+end
+
+
+DIAGONALIZER
+ SYEVR
+  enermax  15000.0
+  nroots 100
+end
+
+
+CONTRACTION
+  vib
+  vmax  6   ( enermax  25000 )
+END
+
+
+(All potential functions must appear first followed by the couplings)
+
+
+poten 1
+name "1 Sigma +"
+lambda 0
+symmetry +
+mult   1
+units cm-1 
+units bohrs
+type   morse
+N 4
+values
+V0            0.0    0.0000 
+RE            0.0    1.40108
+A0            0.0    1.0297082
+De            0.0    38293.04041977516 
+end

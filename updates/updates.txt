@@ -1,0 +1,113 @@
+06.08.2014
+SS-o selection rules corrected to abs(nint(sigmaj-sigmai))==1
+
+05.08.2014
+The morphing part in grid is combined with the main after applying factor 
+
+01.08.2014
+Number of abinitio objects was incorrectly defined and was causing crashes for small Nstates
+
+21.11.2014
+Debye added; new checks for LX added 
+
+23.11.2014
+Bug with bobrot: should be a product of <v|brot|v'><v|bobrot|v'> v|brot x bobrot|v'>
+New object lambdao is added to the input but not to the Hamiltonian matrix yet
+
+23.11.2014
+ - Changed to the 2-column input form for the parameters 
+ - The fitting is now switched on by adding "f" after the parameter value nbut before "link"
+ - omega is now a part of the fitting. It is used to "lock" the experimental assignemt
+ - The new format for the energies/frequencies in the FITTING: omega collumn has to be present as the last before weights
+ - In "lock" only absolute values are now used
+
+24.11.2014
+ - Three new duo objects added for Lambda-doubling: lambda-opq, lambda-o2q, lambda-q (still under construction)
+ - One more checks for LX: cannot be diagonal 
+
+26.11.2014
+ - MOLPRO section, a number of changes and fixes
+
+28.11.2014
+ - SO MOLPRO: lambda+/- is selected based on the selection rules with sigma provided in input
+ - MOLPRO: the first root is always positive unless the swap above 
+ - dipole-x is introduced 
+
+29.11.2014
+ - INTENSITY NONE to skip intensity block
+ - FIT or F to switch variation of parameter on
+ - Lx is now working with MOLPRO as well
+ - poten%jx_lz_y should not be used <- was replaced by ix_lz_y
+
+12.12.2014
+ - in intensity J accepts now " - " format
+ - in freq-window and energy-low/upper 0 means 0-small_
+
+25.12.2014
+ - swap sigma and omega in output of frequencies
+ - readl -> reada to allow for case-sensitive input
+
+03.01.2015
+ - lpambda-doubling implemented using Ref. JOURNAL OF MOLECULAR SPECTROSCOPY 74, 488-494 (1979)
+   and tested for lambda-p2q for PS - seems to work
+ - Bugs in the molpro convertion routine were found related to the non-diagonal SO-coupling 
+ - Jmax =300 increased to Jmax=500
+
+16.03.2015
+ - C2v symmetry added for homonuclear molecules
+
+11.04.2015
+ - omp for intensities 
+
+14.04.2015
+ - make the intensities to be re-startable 
+
+20.04.2015
+ - changed in refinement.f90 nroots to nroots_max to prevent it to change later after duo_j0
+
+05.06.2015
+ - bug in molpro dipole for <Sigma||Pi> fixed
+
+10.07.2015
+
+- gns is now obtained from the nuclear spins, keyword nuclear-spin or nspin
+- the selection rules are 1 1  for hetero- and 1 1 2 2 for homo-nuclear molecules. 
+- Qstat is recomputed if Q=0 or not given
+- ZPE=0 is default
+
+12.08.2015
+- poten_Hulbert_Hirschfelder added for SO
+
+26.09.2015
+- deviat -> wrms in fitting
+- exomol format for integer J as integer i 
+- fitting input can now contain integer J,Omega,sigma (hopefully)
+
+09.10.2015
+- bug with not defined  eigen(irot,irrep)%Ndimen= is fixed 
+- input memory is implemented
+
+10.10.2015
+ - modified the function cosh-polynom
+
+11.10.2015
+ - iverbose is added to check_and_set_atomic_data 
+
+18.10.2015
+ - eigenfunc save and checkpointing are implemented; missing arraystop, deallocates are added to the fields in duo_j0
+ - energy_filter removed
+
+22.10.2015
+ - improved header and format in the eigenfunc printouts 
+
+26.10.2015
+ - fixed bug in the eigen-save
+ - added a new feature for the automatic weighting of ab initio field using PS1997 approach 
+ - fixed a bug for molpro conversion of the ab initio fields. Potentially can affect the results of the the previous calculations. 
+
+27.10.2015
+ - poten_laura is implemented 
+
+07.11.2015 
+ - check of the allocated objects is introduced to prevent multiply allocation of fields during fitting
+

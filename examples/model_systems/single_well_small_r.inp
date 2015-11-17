@@ -1,0 +1,39 @@
+masses 40000. 40000.
+
+nstates 1
+jrot  0.0
+
+SolutionMethod Sinc
+
+grid
+  npoints  200
+  range  7.00, 13.00
+  type 0
+end 
+
+CONTRACTION
+  vib  
+  vmax  50
+END
+
+DIAGONALIZER 
+  SYEV
+  enermax  15000.0
+  nroots 100
+end
+
+
+poten 1
+name "SWell"
+type   polynomial
+lambda 0
+mult   1
+symmetry +
+units  cm-1
+values
+a0   0.00000
+re   9.278986556699559
+a1   0.00000
+a2   3.380822009198914
+end
+

@@ -1,0 +1,78 @@
+This file contains a list of desired new features or of bugs to be fixed.
+
+
+-In the 'grid' section, allow specification of grid step or point density
+instead of number of grid points, at least for the uniformely-spaced grid.
+This is useful because when we increase rmax we would like to keep the density
+of points about constant, and at the moment this has to be done by hand.
+
+-In the grid section allow a UNITS keyword so that rmin, rmax can be specified
+in bohrs
+
+-Duo could issue warning if it thinks the grid parameters rmin, rmax, npoints
+are too loose (or too tight). 
+
+-Duo could check the value of vibrational wavefunctions at the borders of the
+grid. If |psi| >> 0 probably rmin or rmax need to be increased
+
+-Duo could fully automatically determine rmin, rmax, npoints from the number
+of vibrational states required and the maximum energy required. 
+
+-Duo should provide an easy way to output the vibrational wave function to a
+text file, for plotting etc. 
+
+-Allow finding minimum and equilibrium derivatives also for GRID objects.
+
+-Implement fitting also for GRID type object, Pashov-style.
+
+-For GRID objects, implement arbitrary-order polynomial or spline
+interpolation.
+
+-Improve the form of the long and short range extrapolation.
+
+-Implement ZEEMAN effect
+
+-Implement STARK effect
+
+-Duo could optionally output the form used for the analytic functions. Eg it could say:
+Using the Extended Morse Oscillator (EMO) form:
+V(r) = Te + (Ae-Te)(1 - exp( beta(r)(r-re))**2
+where Te = 12450 cm-1 Ae =  4570 cm-1 re = 1.8452 angstroms etc.
+
+
+-FITTING: implementing derivatives with respect to the parameters could
+improve fitting (faster and more stable). According the Hellman-Feymann
+theorem, the derivative of energy E_i with respect to the potential parameter
+a_k is:
+dE_i / da_k = < psi_i |d V / d a_k | psi_i >
+
+The various dV / d a_k can be computed analytically and implemented in functions.f90.
+This however add a rather large overhead at each step of the fitting routine.
+In the general case each psi_i is a superposition of J=0 vibrational 
+functions belonging to different electronic states:
+psi_i  = sum_alpha c_alpha phi_alpha
+where alpha = 1, ... Nvib*Nstates (supposing we keep Nvib vibrational
+functions for each of the Nstates potential curves.)
+All in all for each fitting iteration we need to do this many flops
+(floating-point operations):
+flop =~ Nparams*(Nvib*Nstates)**2 * Npoints
+
+If we have Nstates=5, Nparams=25 (5 parameters per potential), Nvib=30 and
+Npoints = 120 we get ~ 3.4e8 flop; a normal CPU does ~1e9 flop/sec, so one
+fitting iteration would take ~0.3 seconds.
+
+If coupling between states were absent this would be much faster, 
+as the number of flop per fitting iteration would be 
+flop =~Nparams*Nvib*Nstates* Npoints
+
+and one iteration of the above example would take ~0.5 milliseconds.
+
+-Should the idea of analytical derivative work, one could think about
+hessians.
+
+
+-Implement the 'contraction' scheme where the vibrational basis functions are
+J-dependent, being solutions of the diagonal part of the hamiltonian including
+the [J*(J+1)-Omega**2]/2mr^2 part.
+
+

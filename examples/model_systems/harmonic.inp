@@ -1,0 +1,52 @@
+( This is a test system with a harmonic potential                                   )
+( The potential is V(r) = 1 cm^{-1}/ang^2 (r/ang-100)^2                             )
+( The minimum is chosen to be at 100 angstroms so that we are very far from r=0     )
+( The mass is set to give eigenvalues 0.5,1.5,2.5,...                               )
+( Given (cgs system) h=6.62606957e-27, c=2.99792458e10, uma =1.660538921e-24 grams  )
+(      then mass = h *1e16 / (4*pi^2*c) ; the 1e16 is conversion from cm^2 to angstroms^2 )
+
+masses 33.71525838831536 33.71525838831536
+molecule fictitious
+
+nstates 1
+jrot  0.0
+SYMMETRY Cs(M)
+
+( SolutionMethod 5PointDifferences)
+SolutionMethod Sinc
+
+( With SolutionMethod Sinc 110 points are enough to converge all levels to 1e-6 cm-1)
+( With SolutionMethod 5PointDifferences 6900 points are enough to converge all levels to 1e-6 cm-1)
+
+
+grid
+  npoints  120
+  range  80.00, 120.00
+  type 0
+end 
+
+DIAGONALIZER 
+  SYEV
+  enermax  15000.0
+  nroots 100
+end
+
+CONTRACTION
+  vib  
+  vmax  50
+END
+
+poten 1
+name "Harmonic"
+type   polynomial
+lambda 0
+mult   1
+symmetry +
+units  cm-1
+values
+c0 0.0     0.0000000
+re 0.0   100.0000000
+c1 0.0     0.0000000
+c2 0.0     0.2500000
+end
+

@@ -1,0 +1,127 @@
+masses 1.00000  1.000000
+molecule fictitious
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot  0.0
+
+SYMMETRY Cs(M)
+
+(SolutionMethod 5PointDifferences )
+SolutionMethod Sinc
+
+(Defining the integration grid)
+grid
+  npoints  50
+  range  0.30, 4.50
+  type 0
+end 
+
+DIAGONALIZER 
+  SYEV
+  enermax  15000.0
+  nroots 100
+end
+
+CONTRACTION
+  vib  
+  vmax  10
+END
+
+( sampling of 40000*(1-exp( -(r-2)) )^2  )
+poten 1
+name "Morse"
+type   grid
+lambda 0
+mult   1
+symmetry +
+units  cm-1
+units  angstroms
+interpolationType CubicSplines
+values
+1.45    21506.3995
+1.50    16833.5715
+1.55    12919.1496
+1.60    9675.6613
+1.65    7024.7044
+1.70    4896.0474
+1.75    3226.8175
+1.80    1960.7673
+1.85    1047.6129
+1.90    442.4369
+1.95    105.1490
+2.00    0.0000
+2.05    95.1428
+2.10    362.2367
+2.15    776.0907
+2.20    1314.3416
+2.25    1957.1637
+2.30    2687.0078
+2.35    3488.3650
+2.40    4347.5549
+2.45    5252.5343
+2.50    6192.7249
+2.55    7158.8585
+2.60    8142.8376
+2.65    9137.6096
+2.70    10137.0543
+2.75    11135.8822
+2.80    12129.5436
+2.85    13114.1464
+2.90    14086.3827
+2.95    15043.4629
+3.00    15983.0560
+3.05    16903.2372
+3.10    17802.4396
+3.15    18679.4122
+3.20    19533.1812
+3.25    20363.0162
+3.30    21168.3997
+3.35    21948.9997
+3.40    22704.6454
+3.45    23435.3058
+3.50    24141.0699
+end
+
+( totaly fictitious dipoles)
+dipole 1 1
+name "Simple-dipole"
+type   grid
+lambda 0 0
+mult   1  1
+values
+1.0000  0.334512
+1.2000  0.203446
+1.4000  0.082607
+1.6000  -0.011786
+1.8000  -0.073148
+2.0000  -0.102422
+2.2000  -0.105441
+2.4000  -0.090370
+2.6000  -0.065617
+2.8000  -0.038387
+3.0000  -0.013911
+3.2000  0.004751
+3.4000  0.016490
+end
+
+END
+
+poten 1
+name "null"
+type   grid
+lambda 0
+mult   1
+symmetry +
+units  cm-1
+units  angstroms
+values
+1.1     0.00000
+1.2     0.00000
+1.3     0.00000
+1.4     0.00000
+1.5     0.00000
+end
+

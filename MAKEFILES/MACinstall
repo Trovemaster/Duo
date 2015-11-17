@@ -1,0 +1,9 @@
+For Mac OS, the lapack libraries are found in: 
+
+LAPACK = -framework Accelerate 
+
+and gfortran runs fine with: 
+
+FOR  = gfortran 
+FFLAGS = -O3
+
