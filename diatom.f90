@@ -230,9 +230,9 @@ module diatom_module
   type gridT
       integer(ik)   :: npoints = 1000       ! grid size
       real(rk)      :: rmin = 1.0,rmax=3.00 ! range of the grid
-      real(rk)      :: step = 1e-3          ! step size
-      real(rk)      :: alpha = 5.0          ! grid parameter
-      real(rk)      :: re = 5.0             ! grid parameter
+      real(rk)      :: step = 1e-2          ! step size
+      real(rk)      :: alpha = 0.2          ! grid parameter
+      real(rk)      :: re = 1.0             ! grid parameter
       integer(ik)   :: nsub = 0             ! grid type parameter (0=uniformly spaced)
       real(rk),pointer :: r(:)=>null()      ! the molecular geometry at the grid point
   end type gridT
@@ -298,6 +298,7 @@ module diatom_module
   type thresholdsT
      real(rk) :: intensity    = -1e0    ! threshold defining the output intensities
      real(rk) :: linestrength = -1e0    ! threshold defining the output linestrength
+     real(rk) :: dipole       = -1e0    ! threshold defining the output linestrength
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
   end type thresholdsT
@@ -416,7 +417,7 @@ module diatom_module
     integer(ik)  :: itau,lambda_,x_lz_y_
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
-    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_,rtop,DeltaR
+    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_
     !
     character(len=cl) :: w,ioname
     character(len=wl) :: large_fmt
@@ -467,8 +468,6 @@ module diatom_module
     ! To count objects
     iobject = 0
     !
-
-
     if( job%zEchoInput) then
       write(out,"('(Transcript of the input --->)')")
       call input_options(echo_lines=.true.,error_flag=1)
@@ -800,7 +799,7 @@ module diatom_module
              !
            case('VECTOR-FILENAME','VECTOR','FILENAME')
              !
-             call readu(w)
+             call reada(w)
              !
              job%eigenfile%vectors = trim(w)
              !
@@ -2017,8 +2016,10 @@ module diatom_module
                enddo loop_istate_abiso
                !
                if (trim(w)=='SPIN-ORBIT-X') then
-                 field%molpro = .true.
+                 abinitio(iabi_)%molpro = .true.
                endif
+               !
+               w = "SPINORBIT"
                !
              case("LXLY","LYLX","L+","L_+","LX")
                !
@@ -2039,8 +2040,10 @@ module diatom_module
                enddo loop_istatex_abi
                !
                if (trim(w)=='LX') then
-                 field%molpro = .true.
+                 abinitio(iabi_)%molpro = .true.
                endif
+               !
+               w = "LX"
                !
              case("SPIN-SPIN")
                !
@@ -2192,7 +2195,7 @@ module diatom_module
                enddo loop_istate_abdip
                !
                if (trim(w)=='DIPOLE-X') then
-                 field%molpro = .true.
+                 abinitio(iabi_)%molpro = .true.
                endif
              end select
              !
@@ -2230,7 +2233,7 @@ module diatom_module
              !
              field%iref = iref
              field%jref = jref
-             field%class = "ABINITIO"//trim(w)
+             field%class = "ABINITIO-"//trim(w)
              !
              field%refvalue = 0
              !
@@ -2798,11 +2801,34 @@ module diatom_module
          !
        case("SYMGROUP","SYMMETRY","SYMM","SYM","SYM_GROUP") 
          !
+         if (symmetry_defined) then 
+            !
+            write (out,"('input: Symmetry is already defined, SYMGROUP should not apear after INTENSITY')") 
+            stop 'input - SYMGROUP should not apear after INTENSITY'
+            !
+         endif 
+         !
          call readu(w)
          !
          job%symmetry = trim(w)
          !
-         if (trim(job%symmetry)=="C") job%symmetry = "C(S)"
+         if (trim(job%symmetry)=="CS") job%symmetry = "CS(M)"
+         if (trim(job%symmetry)=="C2V") job%symmetry = "C2V(M)"
+         !
+         if (trim(job%symmetry)/="CS(M)".and.trim(job%symmetry)/="C2V(M)") then 
+           call report ("SYMGROUP: ONLY CS(M) or C2V(M) are allowed, not "//trim(w),.true.)
+         endif 
+         !
+         ! Initialize the group symmetry 
+         !
+         call SymmetryInitialize(job%symmetry)
+         !
+         symmetry_defined = .true.
+         !
+         allocate(job%isym_do(sym%Nrepresen),stat=alloc)
+         if (alloc/=0)  stop 'input, isym_do - out of memory'
+         !
+         job%isym_do = .true.
          !
        case("INTENSITY")
          !
@@ -2827,16 +2853,41 @@ module diatom_module
          endif 
          !
          if (.not.symmetry_defined) then 
-            !
-            write (out,"('input: INTENSITY cannot appear before symmetry is defined')") 
-            stop 'input - INTENSITY defined before symmetry'
-            !
+           !
+           ! Initialize symmetry if it has not been done before 
+           !
+           if ((m1<small_.or.m2<small_).and.(trim(symbol1)=="Undefined".or.trim(symbol2)=="Undefined")) then 
+               write(out,"('at least one of MASSES or ATOMS should be defined before INTENSITY')")
+               call report("either masses or atom should be defined before INTENSITY",.true.) 
+           endif 
+           !
+           if ( ( m1>0.and.abs(m1-m2)<small_ ).or.( trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2) ) ) then
+             !
+             job%symmetry = "C2V(M)"
+             !
+           else
+             !
+             job%symmetry = "CS(M)"
+             !
+           endif
+           !
+           ! Initialize the group symmetry 
+           !
+           call SymmetryInitialize(job%symmetry)
+           !
+           symmetry_defined = .true.
+           !
+           allocate(job%isym_do(sym%Nrepresen),stat=alloc)
+           if (alloc/=0)  stop 'input, isym_do - out of memory'
+           !
+           job%isym_do = .true.
+           !
          endif 
          !
          allocate(intensity%gns(sym%Nrepresen),intensity%isym_pairs(sym%Nrepresen),stat=alloc)
          if (alloc/=0) stop 'input, intensity-arrays - out of memory'
          !
-         if (abs(m1-m2)<small_) then
+         if (sym%Nrepresen==4) then
            !
            intensity%isym_pairs(1:2) = 1
            intensity%isym_pairs(3:4) = 2
@@ -2889,6 +2940,10 @@ module diatom_module
              !
              call readf(intensity%threshold%linestrength)
              !
+           case('THRESH_DIPOLE')
+             !
+             call readf(intensity%threshold%dipole)
+             !
            case('THRESH_COEFF','THRESH_COEFFICIENTS')
              !
              call readf(intensity%threshold%coeff)
@@ -2901,14 +2956,15 @@ module diatom_module
              !
              call readf(intensity%part_func)
              !
-           case ("NSPIN","NUCLEAR-SPIN")
+           case ("NSPIN","NUCLEAR-SPIN","NSPINS")
              !
-             if (m1<small_.or.m2<small_) call report("masses should be defined before nuclear-spins",.true.)
+             if ((m1<small_.or.m2<small_).and.(trim(symbol1)=="Undefined".or.trim(symbol2)=="Undefined")) & 
+                 call report("masses or atom should be defined before nuclear-spins",.true.)
              !
              call readf(Nspin1)
              call readf(Nspin2)
              !
-             if (abs(m1-m2)<small_) then
+             if ( ( m1>0.and.abs(m1-m2)<small_ ).or.( trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2) ) ) then
                !
                gns_a = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2+(2.0_rk*Nspin1+1.0_rk))
                gns_b = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2-(2.0_rk*Nspin1+1.0_rk))
@@ -3222,18 +3278,26 @@ module diatom_module
     !    call report ("Too many ab initio fields given in the input for"//trim(w),.true.)
     !endif
     !
-    ! Initialize the group symmetry 
+    if (.not.symmetry_defined) then
+         !
+         ! Initialize the group symmetry  (NB: use capital letters)
+         !
+         job%symmetry = "CS(M)"
+         !
+         call SymmetryInitialize(job%symmetry)
+         !
+         symmetry_defined = .true.
+         !
+         allocate(job%isym_do(sym%Nrepresen),stat=alloc)
+         if (alloc/=0)  stop 'input, isym_do - out of memory'
+         !
+         job%isym_do = .true.
+         !
+    endif 
     !
-    call SymmetryInitialize(job%symmetry)
+    write(out,"('The dipole threshold of ',e18.8,' will be used')") intensity%threshold%dipole
     !
-    symmetry_defined = .true.
-    !
-    allocate(job%isym_do(sym%Nrepresen),stat=alloc)
-    if (alloc/=0)  stop 'input, isym_do - out of memory'
-    !
-    job%isym_do = .true.
-    !
-    ! check the number of total states
+    write(out,"('Symmetry was not specified ',a,' is assumed based on the masses/atoms')") trim(job%symmetry)
     !
     if (iobject(1)/=nestates) then
       write(out,'("The number of states required ",i8," is inconcistent (smaller) with the number of PECs ",i8," included")') & 
@@ -4352,7 +4416,7 @@ subroutine map_fields_onto_grid(iverbose)
             ! Check the selection rules
             select case(trim(field%class))
               !
-            case('SPINORBIT')
+            case('SPINORBIT','ABINITIO-SPINORBIT')
               !
               if ((nint(field%sigmaj-field%sigmai))/=(field%lambda-field%lambdaj)) then
                 !
@@ -4416,7 +4480,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               endif
               ! 
-            case ('L+')
+            case ('L+','ABINITIO-LX')
               !
               !write(out,"('molpro_duo: this L+-part is not implemented')")
               !stop 'molpro_duo: this L+-part is not implemented'
@@ -4428,8 +4492,8 @@ subroutine map_fields_onto_grid(iverbose)
               !
             case default
               !
-              write(out,"(/'molpro_duo: this XX-part is not implemented')")
-              stop 'molpro_duo: this XX-part is not implemented'
+              write(out,"(/'molpro_duo: this part is not implemented:',a)") trim(field%class)
+              stop 'molpro_duo: this part is not implemented'
               !
             end select
             !
@@ -4452,7 +4516,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
                 select case(trim(field%class))
                   !
-                case('SPINORBIT')
+                case('SPINORBIT','ABINITIO-SPINORBIT')
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
@@ -4484,7 +4548,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case ('L+')
+                case ('L+','ABINITIO-LX')
                   !
                   ! eigen-vector 2 is for Lambda
                   !
@@ -4517,7 +4581,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
                 select case(trim(field%class)) 
                   !
-                case('SPINORBIT')
+                case('SPINORBIT','ABINITIO-SPINORBIT')
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
@@ -4556,7 +4620,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case('L+')
+                case('L+','ABINITIO-LX')
                   !
                   ! eigen-vector 1 is for Lambda
                   !
@@ -4581,7 +4645,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
                 select case(trim(field%class))
                   !
-                case('SPINORBIT')
+                case('SPINORBIT','ABINITIO-SPINORBIT')
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
@@ -4627,7 +4691,7 @@ subroutine map_fields_onto_grid(iverbose)
                   coupling(2,1) = -c*conjg(a(1,2))/conjg(a(2,2))
                   coupling(2,2) =  c*b(1,2)*conjg(a(1,2))/(conjg(a(2,2))*b(2,2))
                   !
-                case('L+')
+                case('L+','ABINITIO-LX')
                   !
                   if (abs(field%lambda-field%lambdaj)/=1) then
                     !
@@ -4662,7 +4726,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
                 select case(trim(field%class))
                   !
-                case('SPINORBIT')
+                case('SPINORBIT','ABINITIO-SPINORBIT')
                   !
                   if (nint(field%sigmaj-field%sigmai)/=0) then
                     !
@@ -5120,7 +5184,7 @@ end subroutine map_fields_onto_grid
      !logical                    :: passed
      real(ark),allocatable      :: psipsi_ark(:)
      !real(ark),allocatable      :: contrfunc_ark(:,:),vibmat_ark(:,:),matelem_ark(:,:),grid_ark(:)
-     real(ark)                  :: f_ark
+     !real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit
      !
@@ -5252,7 +5316,7 @@ end subroutine map_fields_onto_grid
          vibmat(igrid,igrid) = epot + erot
 
          method_choice: select case(solution_method)
-           case ("5POINTDIFFERENCES") ! default 
+           case ("5POINTDIFFERENCES")
              vibmat(igrid,igrid) = vibmat(igrid,igrid) + d2dr(igrid)
              !
              ! The nondiagonal matrix elemenets are:
@@ -5275,7 +5339,13 @@ end subroutine map_fields_onto_grid
               vibmat(igrid-2,igrid) = vibmat(igrid,igrid-2)
             endif
 
-            case("SINC")   ! Experimental part using Colbert Miller sinc DVR (works only for uniform grids at the moment)
+            case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
+                           ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
+              if( grid%nsub /=0) then
+                write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
+                write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
+                stop
+              endif
               vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* PI**2 / 3._rk
 
                do jgrid =igrid+1, ngrid
@@ -5552,13 +5622,16 @@ end subroutine map_fields_onto_grid
               !
               field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
               !
-              field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+              ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
               !
-              !if (abs(field%matelem(ilevel,jlevel))<10.0*small_) field%matelem(ilevel,jlevel) = 0 
+              if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+              !
+              field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
               !
               !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel))
               !
-              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )*contrfunc_ark(:,jlevel))
+              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )* & 
+              !                                                                        contrfunc_ark(:,jlevel))
               !
               !psipsi_ark = contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel)
               !
@@ -5598,12 +5671,13 @@ end subroutine map_fields_onto_grid
                      if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
                           jstate==field%jstate ) then 
                        !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
-                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es23.15)') icontrvib(ilevel)%istate,       &
+                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es23.15)') icontrvib(ilevel)%istate,    &
                                                                                           icontrvib(ilevel)%v,            &
-                                                                                          trim(field%name),                     &
+                                                                                          trim(field%name),               &
                                                                                           icontrvib(jlevel)%istate,       &
                                                                                           icontrvib(jlevel)%v,            &
-                                                                                          field%matelem(ilevel,jlevel) !,matelem_ark(ilevel,jlevel)
+                                                                                          field%matelem(ilevel,jlevel)  ! & 
+                                                                                          !,matelem_ark(ilevel,jlevel)
                        !
                      endif
                     !
@@ -5670,18 +5744,18 @@ end subroutine map_fields_onto_grid
         write(iunit,'(" Molecule = ",a,1x,a)' ) symbol1,symbol2
         write(iunit,'(" masses   = ",2f20.12)') m1,m2
         write(iunit,'(" Nroots   = ",i8)') Nroots
-        write(iunit,'(" Nbasis   = ",i8)') Ntotal
+        write(iunit,'(" Nbasis   = ",i8)') totalroots
         write(iunit,'(" Nestates = ",i8)') nestates
         write(iunit,'(" Npoints   = ",i8)') grid%npoints
         write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
         !
         do k =1,nestates
-          write(iunit, '(a,"_")',advance='no') trim(poten(k)%name)
+          write(iunit, '(a,", ")',advance='no') trim(poten(k)%name)
         enddo
         !
         write(iunit,'(a)') '   <- States'
         !
-        write(iunit,"(6x,'|   N |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega|')")
+        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega|')")
         !
         filename =  trim(job%eigenfile%vectors)//'_vib.chk'
         write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -6245,7 +6319,8 @@ end subroutine map_fields_onto_grid
                     !
                     ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
                     ! avoid the double counting.
-                    if( isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 ) cycle
+                    if( isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 ) &
+                                                                                                                           cycle
                     !
                     ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                     ilambda_ = ilambda_we*(-1)**isigmav
@@ -7244,7 +7319,9 @@ end subroutine map_fields_onto_grid
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
-                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1)')  total_roots,J_list(irot),irrep,vec(k),icontr(k)%istate,icontr(k)%ivib,icontr(k)%ilambda,icontr(k)%sigma,icontr(k)%spin
+                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1)')  total_roots,     & 
+                          J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%ivib,icontr(k)%ilambda,icontr(k)%sigma, &
+                          icontr(k)%spin
                   enddo
                   !
                 endif

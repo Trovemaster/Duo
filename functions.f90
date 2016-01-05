@@ -18,8 +18,8 @@ module functions
       use accuracy
       !
       real(rk)                      :: analytical_fieldT !NB: NAG Fortran 6.0 doesn't like in-line declaration
-      real(rk),intent(in)           :: r             ! geometry (Ang)
-      real(rk),intent(in)           :: parameters(:) ! potential parameters
+      real(rk),intent(in)           :: r                 ! geometry (Ang)
+      real(rk),intent(in)           :: parameters(:)     ! potential parameters
       !
     end function analytical_fieldT
     !

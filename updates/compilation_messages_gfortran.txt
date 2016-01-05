@@ -1,0 +1,575 @@
+ucapllo@login08|duo_submitted_version/>make
+gfortran -c atomic_and_nuclear_data.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c accuracy.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c input.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+input.f90:988.12:
+
+  colour(:)=c
+            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
+input.f90:1000.12:
+
+  colour(1)=r/255d0
+            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
+input.f90:1002.12:
+
+  colour(2)=g/255d0
+            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
+input.f90:1004.12:
+
+  colour(3)=b/255d0
+            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
+input.f90:703.2:
+
+a=aa
+  1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1)
+input.f90:313.19:
+
+      file(level)=f
+                   1
+Warning: CHARACTER expression will be truncated in assignment (40/255) at (1)
+input.f90:315.14:
+
+      concat=f
+              1
+Warning: CHARACTER expression will be truncated in assignment (8/255) at (1)
+gfortran -c grids.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+grids.f90:221.4:
+
+if (h.eq.0._rk) stop 'bad xa input in splint'
+    1
+Warning: Equality comparison for REAL(8) at (1)
+grids.f90:473.5:
+
+  190 RETURN
+     1
+Warning: Label 190 at (1) defined but not used
+grids.f90:322.4:
+
+IF (Q /= 0.D0) D(2) = 6.D0*Q*Q2/(QR*QR)
+    1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:335.8:
+
+     if(Q /= 0.d0) goto 20
+        1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:336.8:
+
+     if(Q == 0.d0) goto 10
+        1
+Warning: Equality comparison for REAL(8) at (1)
+grids.f90:354.7:
+
+40 IF (R.NE.0.D0) D(M) = D(M) + 6.D0*R*R2/(QR*QR)
+       1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:361.12:
+
+        IF (X(I).NE.X(I-1)) GO TO 50
+            1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:369.12:
+
+        IF (X(I).NE.X(I-2)) GO TO 70
+            1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:417.9:
+
+      if(QR /=0.d0) goto 140
+         1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:418.9:
+
+      if(QR ==0.d0) goto 130
+         1
+Warning: Equality comparison for REAL(8) at (1)
+grids.f90:426.10:
+
+      IF (Q.NE.0.D0) F(1) = V/Q
+          1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:438.12:
+
+        IF (QR.NE.0.D0) T = (C(I+1)-C(I))/QR
+            1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:442.12:
+
+         if(PQ /=0.d0) goto 170
+            1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:443.12:
+
+         if(PQ ==0.d0) goto 160
+            1
+Warning: Equality comparison for REAL(8) at (1)
+grids.f90:451.12:
+
+        IF (Q.NE.0.D0) F(I) = V/Q
+            1
+Warning: Inequality comparison for REAL(8) at (1)
+grids.f90:506.4:
+
+if (h == 0._rk) stop 'bad xa input in splint'
+    1
+Warning: Equality comparison for REAL(8) at (1)
+grids.f90:147.27:
+
+subroutine spline(x,y,n,yp1,ypn,y2)
+                           1
+Warning: Unused dummy argument 'yp1' at (1)
+grids.f90:147.31:
+
+subroutine spline(x,y,n,yp1,ypn,y2)
+                               1
+Warning: Unused dummy argument 'ypn' at (1)
+gfortran -c timer.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c lapack.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c functions.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+functions.f90:415.10:
+
+      N = parameters(7)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:418.10:
+
+      N = parameters(8)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:330.10:
+
+      N = parameters(6)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:332.10:
+
+      N = parameters(7)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:345.11:
+
+    Npot = max(parameters(6),parameters(7))+1
+           1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:285.10:
+
+      N = parameters(7)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:288.10:
+
+      N = parameters(8)
+          1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+functions.f90:291.8:
+
+    if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+        1
+Warning: Inequality comparison for REAL(8) at (1)
+gfortran -c symmetry.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c diatom.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+diatom.f90:98.28:
+
+    integer(ik) :: ilambda = 0.0_rk
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:99.28:
+
+    integer(ik) :: jlambda = 0.0_rk
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:333.40:
+
+     integer(ik)         :: int_increm = 1e9 ! used to print out the lower energies needed to select int_increm intensities
+                                        1
+Warning: Possible change of value in conversion from REAL(4) to INTEGER(4) at (1)
+diatom.f90:200.39:
+
+      integer(ik)         :: nroots(4)=1e8_rk ! number of the roots to be found in variational diagonalization with syevr
+                                       1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:7444.9:
+
+      if(-1.0_rk*ga.ne.al+be) return
+         1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:5336.11:
+
+       if (job%vibmax(istate)/=1e8) then
+           1
+Warning: Inequality comparison for REAL(4) at (1)
+diatom.f90:6058.56:
+
+                      if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                                                        1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:6058.26:
+
+                      if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                          1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:6288.99:
+
+                    if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or.abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                                                                                                   1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:6414.52:
+
+                  if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                                                    1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:6414.22:
+
+                  if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                      1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:4307.28:
+
+            a(1,1) =  cmplx(1.0_rk,0.0_rk)
+                            1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4308.28:
+
+            b(1,1) =  cmplx(1.0_rk,0.0_rk)
+                            1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4309.28:
+
+            a(2,2) =  cmplx(1.0_rk,0.0_rk)
+                            1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4310.28:
+
+            b(2,2) =  cmplx(1.0_rk,0.0_rk)
+                            1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4317.29:
+
+              a(1,2) = cmplx(0.0_rk,ix_lz_y)
+                             1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4318.29:
+
+              a(2,1) = cmplx(0.0_rk,-ix_lz_y)
+                             1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4328.24:
+
+              il_temp = lambda_i(2)
+                        1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4334.26:
+
+              a = a*cmplx(0.0_rk,1.0_rk)
+                          1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4338.30:
+
+              a(1,1) =  cmplx(0.0_rk,1.0_rk)
+                              1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4344.29:
+
+              b(1,2) = cmplx(0.0_rk,jx_lz_y)
+                             1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4345.29:
+
+              b(2,1) = cmplx(0.0_rk,-jx_lz_y)
+                             1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4357.24:
+
+              il_temp = lambda_j(2)
+                        1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4363.26:
+
+              b = b*cmplx(0.0_rk,1.0_rk)
+                          1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4369.30:
+
+              b(1,1) =  cmplx(0.0_rk,1.0_rk)
+                              1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4382.40:
+
+                if (field%lambda/=0.and.(nint(field%sigmaj-field%sigmai))==( lambda_i(2)-field%lambdaj ) ) then
+                                        1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:4384.28:
+
+                  il_temp = lambda_i(2)
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4394.45:
+
+                elseif( field%lambdaj/=0.and.(nint(field%sigmaj-field%sigmai))==( field%lambda-lambda_j(2) ) ) then
+                                             1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:4396.28:
+
+                  il_temp = lambda_j(2)
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4407.45:
+
+                elseif( field%lambdaj/=0.and.(nint(field%sigmaj-field%sigmai))==( lambda_i(2)-lambda_j(2) ) ) then
+                                             1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:4409.28:
+
+                  il_temp = lambda_i(2)
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4415.28:
+
+                  il_temp = lambda_j(2)
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4512.75:
+
+                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk)  
+                                                                           1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4513.75:
+
+                  coupling(2,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk)*conjg(a(1,2))/conjg(a(2,2))
+                                                                           1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4584.75:
+
+                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk)  
+                                                                           1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4585.75:
+
+                  coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk)*b(1,2)/b(2,2)
+                                                                           1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:4109.19:
+
+            imin = (field%grid(1)-rmin) / real( np-1, rk)
+                   1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+diatom.f90:4173.11:
+
+       if( poten(istate)%Vimin == poten(istate)%Vimax        ) poten(istate)%zHasMinimum = .false.
+           1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:4214.25:
+
+                      if(der2 ==0._rk)   der2 = tiny(1._rk) ! because we are going to divide by der2 
+                         1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:3442.21:
+
+    iquanta2ilevel = 1e4
+                     1
+Warning: Possible change of value in conversion from REAL(4) to INTEGER(4) at (1)
+diatom.f90:674.23:
+
+          job%vibmax = 1e8
+                       1
+Warning: Possible change of value in conversion from REAL(4) to INTEGER(4) at (1)
+diatom.f90:1114.22:
+
+                  if (fitting%J_list(i)/=fitting%obs(iobs)%Jrot) cycle
+                      1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:1177.24:
+
+                    if (fitting%J_list(i)/=fitting%obs(iobs)%Jrot_) cycle
+                        1
+Warning: Inequality comparison for REAL(8) at (1)
+diatom.f90:2478.38:
+
+              field%complex_f = cmplx(1.0_rk,0.0_rk)
+                                      1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2488.42:
+
+                  field%complex_f = cmplx(0.0_rk,1.0_rk)
+                                          1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2490.42:
+
+                  field%complex_f = cmplx(0.0_rk,-1.0_rk)
+                                          1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2520.40:
+
+                field%complex_f = cmplx(0.0_rk,0.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2522.40:
+
+                field%complex_f = cmplx(0.0_rk,1.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2524.40:
+
+                field%complex_f = cmplx(0.0_rk,-1.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2526.40:
+
+                field%complex_f = cmplx(1.0_rk,0.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2528.40:
+
+                field%complex_f = cmplx(sqrt(2.0_rk),0.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2530.40:
+
+                field%complex_f = cmplx(-sqrt(2.0_rk),0.0_rk)
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2532.40:
+
+                field%complex_f = cmplx(0.0_rk,sqrt(2.0_rk))
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:2534.40:
+
+                field%complex_f = cmplx(0.0_rk,-sqrt(2.0_rk))
+                                        1
+Warning: Conversion from REAL(8) to default-kind COMPLEX(4) at (1) might lose precision, consider using the KIND argument
+diatom.f90:3082.59:
+
+               if (i/=j.and.intensity%isym_pairs(j)==0.and.intensity%gns(i)==intensity%gns(j)) then 
+                                                           1
+Warning: Equality comparison for REAL(8) at (1)
+diatom.f90:5138.40:
+
+     double precision,parameter :: alpha = 1.0d0,beta=0.0d0
+                                        1
+Warning: Unused parameter 'alpha' declared at (1)
+diatom.f90:5138.53:
+
+     double precision,parameter :: alpha = 1.0d0,beta=0.0d0
+                                                     1
+Warning: Unused parameter 'beta' declared at (1)
+diatom.f90:5144.40:
+
+     real(ark)                  :: f_ark
+                                        1
+Warning: Unused variable 'f_ark' declared at (1)
+diatom.f90:419.75:
+
+    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_,rtop,DeltaR
+                                                                           1
+Warning: Unused variable 'deltar' declared at (1)
+diatom.f90:419.68:
+
+    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_,rtop,DeltaR
+                                                                    1
+Warning: Unused variable 'rtop' declared at (1)
+gfortran -c refinement.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+refinement.f90:1685.4:
+
+6553   format(/3X,85('-')/'   |  Iter  | Points | Params |   w-rms(total)|',&
+    1
+Warning: Label 6553 at (1) defined but not used
+refinement.f90:2067.14:
+
+          if (fitting%J_list(j)/=-1) nj = nj + 1
+              1
+Warning: Inequality comparison for REAL(8) at (1)
+refinement.f90:2071.15:
+
+       iJmax = maxval(fitting%J_list(:))
+               1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+refinement.f90:2072.15:
+
+       iJmin = minval(fitting%J_list(:),mask=fitting%J_list.gt.-1)
+               1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+refinement.f90:2018.17:
+
+      do i = 1,-1
+                 1
+Warning: DO loop at (1) will be executed zero times (use -Wno-zerotrip to suppress)
+refinement.f90:1910.10:
+
+      if (a0(i,i).eq.0) then
+          1
+Warning: Equality comparison for REAL(8) at (1)
+refinement.f90:1005.22:
+
+                  if (jrot_/=fitting%obs(iener)%jrot.or.itau_ /= fitting%obs(iener)%iparity+1) k0 = 1
+                      1
+Warning: Inequality comparison for REAL(8) at (1)
+refinement.f90:1624.16:
+
+            if (wtsum/=0) ssq1 = sqrt( sum(eps(1:en_npts)**2*dble(wt_bit(1:en_npts)))/wtsum )
+                1
+Warning: Inequality comparison for REAL(8) at (1)
+refinement.f90:1628.16:
+
+            if (wtsum/=0) ssq2 = sqrt( sum(eps(1+en_npts:npts)**2*dble(wt_bit(1+en_npts:npts)))/wtsum )
+                1
+Warning: Inequality comparison for REAL(8) at (1)
+refinement.f90:15.26:
+
+   real(rk) :: stadev_best=1e-04,stab_best=1e-12  ! best standard error and stability 
+                          1
+Warning: Unused PRIVATE module variable 'stadev_best' declared at (1)
+gfortran -c dipole.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+dipole.f90:1706.9:
+
+      if(-1.0_rk*ga.ne.al+be) return
+         1
+Warning: Inequality comparison for REAL(8) at (1)
+dipole.f90:1633.25:
+
+               isigmaF = basis(indF)%icontr(icontrF)%sigma
+                         1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+dipole.f90:1639.28:
+
+                  isigmaI = basis(indI)%icontr(icontrI)%sigma
+                            1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1)
+dipole.f90:1238.36:
+
+             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+                                    1
+Warning: Inequality comparison for REAL(8) at (1)
+dipole.f90:1238.14:
+
+             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+              1
+Warning: Inequality comparison for REAL(8) at (1)
+dipole.f90:1097.13:
+
+        if ( intensity%gns(igammaI)/=intensity%gns(igamma_pair(igammaI)) ) then 
+             1
+Warning: Inequality comparison for REAL(8) at (1)
+dipole.f90:14.46:
+
+ real(rk),allocatable,save  :: dipole_me(:, :)
+                                              1
+Warning: Unused PRIVATE module variable 'dipole_me' declared at (1)
+dipole.f90:45.45:
+
+ type(dipoleT),allocatable     :: wigner(:,:) ! Rotational component of the dipole moment matrix elements 
+                                             1
+Warning: Unused PRIVATE module variable 'wigner' declared at (1)
+dipole.f90:1259:0: warning: ‘jgamma_filter’ defined but not used [-Wunused-function]
+      subroutine Jgamma_filter(jI,jF,isymI,isymF,igamma_pair,passed)
+ ^
+gfortran -c header_info.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -c duo.f90 -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g  
+gfortran -o duo.exe atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -ffpe-trap=zero,overflow,underflow -g   duo.o -L/shared/ucl/apps/atlas/3.10.2/gnu-4.9.2/lib -lsatlas -lgfortran  
+ucapllo@login08|duo_submitted_version/>
+

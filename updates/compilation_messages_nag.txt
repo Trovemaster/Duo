@@ -1,0 +1,426 @@
+ucapllo@login08|duo_submitted_version/>make
+nagfor    -c atomic_and_nuclear_data.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: atomic_and_nuclear_data.f90, line 2787: Variable MY_NUCLEAR_PLUS_CORE_MASS2 set but never referenced
+Info: atomic_and_nuclear_data.f90, line 65: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 65: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 66: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 67: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 68: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 69: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 69: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 70: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 70: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 71: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 71: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 72: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 72: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 73: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 73: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 74: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 75: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 76: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 77: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 78: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 79: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 79: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 80: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 80: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 81: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 82: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 83: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 83: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 84: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 85: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 86: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 87: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 87: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 88: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 89: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 90: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 91: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 92: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 93: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 94: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 95: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 96: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 97: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 98: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 99: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 100: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 101: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 102: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 103: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 103: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 104: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 105: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 106: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 107: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 108: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 109: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 110: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 111: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 112: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 113: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 114: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 115: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 116: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 117: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 117: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 118: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 119: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 120: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 121: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 122: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 123: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 124: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 125: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 126: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 127: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 128: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 129: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 130: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 131: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 132: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 133: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 134: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 135: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 136: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 137: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 138: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 138: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 139: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 140: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 141: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 142: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 143: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 144: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 145: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 146: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 147: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 148: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 149: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 150: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 151: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 152: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 153: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 154: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 155: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 156: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 156: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 157: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 158: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 159: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 160: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 161: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 162: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 163: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 164: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 165: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 166: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 167: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 168: Character data-value padded with blanks (shorter than data-object)
+Info: atomic_and_nuclear_data.f90, line 169: Character data-value padded with blanks (shorter than data-object)
+Questionable: atomic_and_nuclear_data.f90, line 2660: Last statement of DO loop body is an unconditional RETURN statement
+[NAG Fortran Compiler normal termination, 2 warnings, 119 info messages]
+nagfor    -c accuracy.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Warning: accuracy.f90, line 21: Unused PARAMETER NFILELEGENDRE
+[NAG Fortran Compiler normal termination, 1 warning]
+nagfor    -c input.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Info: input.f90, line 30: Initialisation expression for CHAR padded with blanks
+Warning: input.f90, line 39: Unused PARAMETER PLUS
+Warning: input.f90, line 39: Unused PARAMETER MINUS
+Warning: input.f90, line 39: Unused PARAMETER DOT
+Info: input.f90, line 43: Initialisation expression for CONCAT padded with blanks
+Info: input.f90, line 44: Initialisation expression for FILE padded with blanks
+[NAG Fortran Compiler normal termination, 3 warnings, 3 info messages]
+nagfor    -c grids.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Warning: grids.f90, line 196: Unused dummy variable YP1
+Warning: grids.f90, line 196: Unused dummy variable YPN
+Info: grids.f90, line 514: Unterminated last line of file
+Questionable: grids.f90, line 514: Variable Q set but never referenced
+[NAG Fortran Compiler normal termination, 3 warnings, 1 info message]
+nagfor    -c timer.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: timer.f90, line 652: Variable MEM set but never referenced
+Questionable: timer.f90, line 689: Variable MEM set but never referenced
+Questionable: timer.f90, line 800: Variable IO_APPEAR set but never referenced
+[NAG Fortran Compiler normal termination, 3 warnings]
+nagfor    -c lapack.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: lapack.f90, line 217: Variable TOL set but never referenced
+Questionable: lapack.f90, line 710: Comment begins with the OpenMP sentinel but the -openmp option was not used
+Questionable: lapack.f90, line 744: Variable LDZ set but never referenced
+Questionable: lapack.f90, line 895: Variable LDZ set but never referenced
+Questionable: lapack.f90, line 1028: Variable JOBZ set but never referenced
+Info: lapack.f90, line 141: Expression in logical IF is constant
+Info: lapack.f90, line 146: Expression in logical IF is constant
+Info: lapack.f90, line 150: Expression in logical IF is constant
+Info: lapack.f90, line 159: Expression in logical IF is constant
+Info: lapack.f90, line 163: Expression in logical IF is constant
+Info: lapack.f90, line 172: Expression in logical IF is constant
+Info: lapack.f90, line 176: Expression in logical IF is constant
+Info: lapack.f90, line 215: Expression in logical IF is constant
+Info: lapack.f90, line 308: Expression in logical IF is constant
+Info: lapack.f90, line 347: Expression in logical IF is constant
+Info: lapack.f90, line 363: Expression in logical IF is constant
+Info: lapack.f90, line 403: Expression in logical IF is constant
+Info: lapack.f90, line 477: Expression in logical IF is constant
+Info: lapack.f90, line 515: Expression in logical IF is constant
+Info: lapack.f90, line 621: Expression in logical IF is constant
+Info: lapack.f90, line 661: Expression in IF construct is constant
+Info: lapack.f90, line 680: Expression in logical IF is constant
+Info: lapack.f90, line 684: Expression in logical IF is constant
+Info: lapack.f90, line 703: Expression in logical IF is constant
+Info: lapack.f90, line 708: Expression in logical IF is constant
+Info: lapack.f90, line 723: Expression in IF construct is constant
+Info: lapack.f90, line 742: Expression in logical IF is constant
+Info: lapack.f90, line 766: Expression in logical IF is constant
+Info: lapack.f90, line 811: Expression in IF construct is constant
+Info: lapack.f90, line 821: Expression in logical IF is constant
+Info: lapack.f90, line 830: Expression in logical IF is constant
+Info: lapack.f90, line 839: Expression in logical IF is constant
+Info: lapack.f90, line 843: Expression in logical IF is constant
+Info: lapack.f90, line 857: Expression in logical IF is constant
+Info: lapack.f90, line 874: Expression in IF construct is constant
+Info: lapack.f90, line 883: Expression in logical IF is constant
+Info: lapack.f90, line 893: Expression in logical IF is constant
+Info: lapack.f90, line 916: Expression in logical IF is constant
+Info: lapack.f90, line 950: Expression in IF construct is constant
+Info: lapack.f90, line 959: Expression in logical IF is constant
+Info: lapack.f90, line 968: Expression in logical IF is constant
+Info: lapack.f90, line 971: Expression in logical IF is constant
+Info: lapack.f90, line 977: Expression in logical IF is constant
+Info: lapack.f90, line 989: Expression in logical IF is constant
+Info: lapack.f90, line 1007: Expression in IF construct is constant
+Info: lapack.f90, line 1026: Expression in logical IF is constant
+Info: lapack.f90, line 972: Array section passed to old style dummy
+Info: lapack.f90, line 972: Array section passed to old style dummy
+Info: lapack.f90, line 972: Array section passed to old style dummy
+Info: lapack.f90, line 991: Array section passed to old style dummy
+Info: lapack.f90, line 991: Array section passed to old style dummy
+Info: lapack.f90, line 991: Array section passed to old style dummy
+Info: lapack.f90, line 840: Array section passed to old style dummy
+Info: lapack.f90, line 840: Array section passed to old style dummy
+Info: lapack.f90, line 840: Array section passed to old style dummy
+Info: lapack.f90, line 859: Array section passed to old style dummy
+Info: lapack.f90, line 859: Array section passed to old style dummy
+Info: lapack.f90, line 681: Array section passed to old style dummy
+Info: lapack.f90, line 681: Array section passed to old style dummy
+Info: lapack.f90, line 681: Array section passed to old style dummy
+Info: lapack.f90, line 705: Array section passed to old style dummy
+Info: lapack.f90, line 705: Array section passed to old style dummy
+Info: lapack.f90, line 705: Array section passed to old style dummy
+Info: lapack.f90, line 585: Array section passed to old style dummy
+Info: lapack.f90, line 585: Array section passed to old style dummy
+Info: lapack.f90, line 592: Array section passed to old style dummy
+Info: lapack.f90, line 592: Array section passed to old style dummy
+Info: lapack.f90, line 538: Array section passed to old style dummy
+Info: lapack.f90, line 538: Array section passed to old style dummy
+Info: lapack.f90, line 549: Array section passed to old style dummy
+Info: lapack.f90, line 549: Array section passed to old style dummy
+Info: lapack.f90, line 553: Array section passed to old style dummy
+Info: lapack.f90, line 553: Array section passed to old style dummy
+Info: lapack.f90, line 490: Array section passed to old style dummy
+Info: lapack.f90, line 490: Array section passed to old style dummy
+Info: lapack.f90, line 500: Array section passed to old style dummy
+Info: lapack.f90, line 500: Array section passed to old style dummy
+Info: lapack.f90, line 504: Array section passed to old style dummy
+Info: lapack.f90, line 504: Array section passed to old style dummy
+Info: lapack.f90, line 435: Array section passed to old style dummy
+Info: lapack.f90, line 435: Array section passed to old style dummy
+Info: lapack.f90, line 445: Array section passed to old style dummy
+Info: lapack.f90, line 445: Array section passed to old style dummy
+Info: lapack.f90, line 449: Array section passed to old style dummy
+Info: lapack.f90, line 449: Array section passed to old style dummy
+Info: lapack.f90, line 379: Array section passed to old style dummy
+Info: lapack.f90, line 391: Array section passed to old style dummy
+Info: lapack.f90, line 324: Array section passed to old style dummy
+Info: lapack.f90, line 336: Array section passed to old style dummy
+Info: lapack.f90, line 290: Array section passed to old style dummy
+Info: lapack.f90, line 290: Array section passed to old style dummy
+Info: lapack.f90, line 271: Array section passed to old style dummy
+Info: lapack.f90, line 271: Array section passed to old style dummy
+Info: lapack.f90, line 252: Array section passed to old style dummy
+Info: lapack.f90, line 252: Array section passed to old style dummy
+Info: lapack.f90, line 252: Array section passed to old style dummy
+Info: lapack.f90, line 232: Array section passed to old style dummy
+Info: lapack.f90, line 232: Array section passed to old style dummy
+Info: lapack.f90, line 232: Array section passed to old style dummy
+Info: lapack.f90, line 167: Array section passed to old style dummy
+Info: lapack.f90, line 167: Array section passed to old style dummy
+Info: lapack.f90, line 185: Array section passed to old style dummy
+Info: lapack.f90, line 185: Array section passed to old style dummy
+Info: lapack.f90, line 119: Array section passed to old style dummy
+Info: lapack.f90, line 119: Array section passed to old style dummy
+Info: lapack.f90, line 98: Array section passed to old style dummy
+Info: lapack.f90, line 98: Array section passed to old style dummy
+Info: lapack.f90, line 75: Array section passed to old style dummy
+Info: lapack.f90, line 75: Array section passed to old style dummy
+[NAG Fortran Compiler normal termination, 5 warnings, 104 info messages]
+nagfor    -c functions.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: functions.f90, line 204: Variable Z set but never referenced
+Questionable: functions.f90, line 471: Variable RREF set but never referenced
+Questionable: functions.f90, line 511: Variable RREF set but never referenced
+Questionable: functions.f90, line 782: Variable V0 set but never referenced
+[NAG Fortran Compiler normal termination, 4 warnings]
+nagfor    -c symmetry.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: symmetry.f90, line 289: Variable ALLOC set but never referenced
+Info: symmetry.f90, line 19: Initialisation expression for GROUP padded with blanks
+[NAG Fortran Compiler normal termination, 1 warning, 1 info message]
+nagfor    -c diatom.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Info: diatom.f90, line 1: CRLF (DOS text) format
+Warning: diatom.f90, line 3382: Unused local variable DELTAR
+Questionable: diatom.f90, line 3382: Variable IPOT set but never referenced
+Warning: diatom.f90, line 3382: Unused local variable RTOP
+Questionable: diatom.f90, line 3382: Variable ZNPARAM_DEFINED set but never referenced
+Questionable: diatom.f90, line 3949: Comment begins with the OpenMP sentinel but the -openmp option was not used
+Questionable: diatom.f90, line 4764: Variable IROOT set but never referenced
+Questionable: diatom.f90, line 4764: Variable JROOT set but never referenced
+Questionable: diatom.f90, line 5095: Variable IFTERM set but never referenced
+Questionable: diatom.f90, line 5095: Variable IMIN set but never referenced
+Questionable: diatom.f90, line 5095: Variable SC set but never referenced
+Warning: diatom.f90, line 7353: Unused local variable F_ARK
+Questionable: diatom.f90, line 7353: Variable JMULTI set but never referenced
+Warning: diatom.f90, line 7353: LAPACK_HEEV explicitly imported into DUO_J0 but not used
+Questionable: diatom.f90, line 7353: Variable TAU_LAMBDAI set but never referenced
+Questionable: diatom.f90, line 7353: Variable ZPE set but never referenced
+Questionable: diatom.f90, line 7515: Variable DELTA set but never referenced
+Info: diatom.f90, line 20: Initialisation expression for SOLUTION_METHOD padded with blanks
+Info: diatom.f90, line 77: Initialisation expression for SYMBOL1 padded with blanks
+Info: diatom.f90, line 77: Initialisation expression for SYMBOL2 padded with blanks
+Warning: diatom.f90, line 98: Type BRAKETT component ILAMBDA is of type INTEGER but its initial value is of type DOUBLE PRECISION
+Warning: diatom.f90, line 99: Type BRAKETT component JLAMBDA is of type INTEGER but its initial value is of type DOUBLE PRECISION
+Info: diatom.f90, line 116: Initialisation expression for WTYPE padded with blanks
+Info: diatom.f90, line 124: Initialisation expression for TYPE padded with blanks
+Info: diatom.f90, line 125: Initialisation expression for CLASS padded with blanks
+Info: diatom.f90, line 131: Initialisation expression for INTERPOLATION_TYPE padded with blanks
+Warning: diatom.f90, line 200: Type JOBT component NROOTS is of type INTEGER but its initial value is of type DOUBLE PRECISION
+Info: diatom.f90, line 206: Initialisation expression for DIAGONALIZER padded with blanks
+Info: diatom.f90, line 207: Initialisation expression for MOLECULE padded with blanks
+Info: diatom.f90, line 208: Initialisation expression for CONTRACTION padded with blanks
+Info: diatom.f90, line 218: Initialisation expression for IO_EIGEN padded with blanks
+Info: diatom.f90, line 219: Initialisation expression for IO_DIPOLE padded with blanks
+Info: diatom.f90, line 222: Initialisation expression for SYMMETRY padded with blanks
+Info: diatom.f90, line 330: Initialisation expression for SWAP padded with blanks
+Info: diatom.f90, line 331: Initialisation expression for SWAP_FILE padded with blanks
+Info: diatom.f90, line 332: Initialisation expression for LINELIST_FILE padded with blanks
+Warning: diatom.f90, line 333: Type INTENSITYT component INT_INCREM is of type INTEGER but its initial value is of type REAL
+Info: diatom.f90, line 358: Initialisation expression for GEOM_FILE padded with blanks
+Info: diatom.f90, line 359: Initialisation expression for OUTPUT_FILE padded with blanks
+Info: diatom.f90, line 360: Initialisation expression for FIT_TYPE padded with blanks
+Warning: diatom.f90, line 5138: Unused PARAMETER ALPHA
+Warning: diatom.f90, line 5138: Unused PARAMETER BETA
+Questionable: diatom.f90, line 2478: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2488: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2490: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2520: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2522: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2524: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2526: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2528: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2530: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2532: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 2534: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4307: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4308: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4309: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4310: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4317: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4318: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4334: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4338: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4344: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4345: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4363: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4369: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4512: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4513: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4584: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 4585: Intrinsic function CMPLX with double precision argument and no KIND= argument returns single precision result
+Questionable: diatom.f90, line 6343: Last statement of DO loop body is an unconditional CYCLE statement
+Info: diatom.f90, line 3947: Array pointer passed to old style dummy
+Info: diatom.f90, line 3947: Array pointer passed to old style dummy
+Info: diatom.f90, line 3952: Array pointer passed to old style dummy
+Info: diatom.f90, line 3952: Array pointer passed to old style dummy
+Info: diatom.f90, line 3970: Array pointer passed to old style dummy
+Info: diatom.f90, line 3970: Array pointer passed to old style dummy
+Info: diatom.f90, line 3977: Array pointer passed to old style dummy
+Info: diatom.f90, line 3977: Array pointer passed to old style dummy
+[NAG Fortran Compiler normal termination, 50 warnings, 28 info messages]
+nagfor    -c refinement.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: refinement.f90, line 303: Comment begins with the OpenMP sentinel but the -openmp option was not used
+Questionable: refinement.f90, line 1872: Variable DERIV_RECALC set but never referenced
+Questionable: refinement.f90, line 1872: Variable JLISTMAX set but never referenced
+Questionable: refinement.f90, line 1872: Variable NGRID set but never referenced
+Questionable: refinement.f90, line 1872: Variable NLEVELS set but never referenced
+Questionable: refinement.f90, line 1872: Variable RMS set but never referenced
+Questionable: refinement.f90, line 1872: Variable RMS1 set but never referenced
+Questionable: refinement.f90, line 1872: Variable RMS2 set but never referenced
+Questionable: refinement.f90, line 1872: Variable SPINC_ set but never referenced
+Warning: refinement.f90, line 2095: NABI explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: NBOBROT explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: NDIABATIC explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: NLAMBDAOPQ explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: NLAMBDAP2Q explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: NLAMBDAQ explicitly imported into REFINEMENT but not used
+Warning: refinement.f90, line 2095: Local variable STADEV_BEST is initialised but never used
+Info: refinement.f90, line 95: Expression in logical IF is constant
+Info: refinement.f90, line 245: Expression in logical IF is constant
+Info: refinement.f90, line 1635: Expression in logical IF is constant
+Info: refinement.f90, line 2006: Expression in logical IF is constant
+Warning: refinement.f90, line 2018: DO loop has zero iteration count
+Info: refinement.f90, line 2039: Expression in logical IF is constant
+Info: refinement.f90, line 2052: Expression in logical IF is constant
+Info: refinement.f90, line 1362: Array section passed to old style dummy
+Info: refinement.f90, line 1392: Array section passed to old style dummy
+Info: refinement.f90, line 1438: Array section passed to old style dummy
+Info: refinement.f90, line 1438: Array section passed to old style dummy
+[NAG Fortran Compiler normal termination, 17 warnings, 10 info messages]
+nagfor    -c dipole.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Questionable: dipole.f90, line 257: Variable JMIN set but never referenced
+Questionable: dipole.f90, line 839: Comment begins with the OpenMP sentinel but the -openmp option was not used
+Questionable: dipole.f90, line 1019: Variable ENER_ set but never referenced
+Questionable: dipole.f90, line 1019: Variable INTENS_CM_MOL set but never referenced
+Questionable: dipole.f90, line 1019: Variable IVIBF set but never referenced
+Questionable: dipole.f90, line 1019: Variable IVIBI set but never referenced
+Questionable: dipole.f90, line 1019: Variable MATSIZE set but never referenced
+Questionable: dipole.f90, line 1019: Variable NLEVELS set but never referenced
+Questionable: dipole.f90, line 1019: Variable NMAX set but never referenced
+Questionable: dipole.f90, line 1019: Variable SPINF set but never referenced
+Questionable: dipole.f90, line 1019: Variable SPINI set but never referenced
+Questionable: dipole.f90, line 1614: Variable IOMEGAF_ set but never referenced
+Questionable: dipole.f90, line 1656: Variable ISIGMAF set but never referenced
+Questionable: dipole.f90, line 1656: Variable ISIGMAI set but never referenced
+Warning: dipole.f90, line 1790: ARK explicitly imported into DIPOLE but not used
+Warning: dipole.f90, line 1790: ARRAYMINUS explicitly imported into DIPOLE but not used
+Warning: dipole.f90, line 1790: AVOGNO explicitly imported into DIPOLE but not used
+Warning: dipole.f90, line 1790: Unused local variable DIPOLE_ME
+Warning: dipole.f90, line 1790: MEMORY_LIMIT explicitly imported into DIPOLE but not used
+Warning: dipole.f90, line 1790: MEMORY_NOW explicitly imported into DIPOLE but not used
+Warning: dipole.f90, line 1790: Unused local variable WIGNER
+[NAG Fortran Compiler normal termination, 21 warnings]
+nagfor    -c header_info.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+[NAG Fortran Compiler normal termination]
+nagfor    -c duo.f90 -f2003 -C=all -C=undefined -info -g -gline  
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+Info: duo.f90, line 29: Expression in logical IF is constant
+Info: duo.f90, line 41: Expression in logical IF is constant
+Info: duo.f90, line 43: Expression in logical IF is constant
+Info: duo.f90, line 92: Expression in logical IF is constant
+Info: duo.f90, line 94: Expression in logical IF is constant
+Info: duo.f90, line 96: Expression in logical IF is constant
+[NAG Fortran Compiler normal termination, 6 info messages]
+nagfor    -o duo.exe atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o -f2003 -C=all -C=undefined -info -g -gline   duo.o -L/shared/ucl/apps/atlas/3.10.2/gnu-4.9.2/lib -lsatlas   
+NAG Fortran Compiler Release 6.0(Hibiya) Build 1044
+ucapllo@login08|duo_submitted_version/>
+

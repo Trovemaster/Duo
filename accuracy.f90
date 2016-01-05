@@ -14,7 +14,8 @@ module accuracy
                                                                  ! memory address
   integer, parameter :: drk         = selected_real_kind(12,25)  ! double    precision floating-point numbers 
   integer, parameter :: rk          = selected_real_kind(12,25)  ! single    precision floating-point numbers
-  integer, parameter :: ark         = selected_real_kind(25,32)  ! quadruple precision floating-point numbers
+!  integer, parameter :: ark         = selected_real_kind(25,32)  ! quadruple precision floating-point numbers
+  integer, parameter :: ark         = selected_real_kind(12,25)  ! double precision floating-point numbers
   integer, parameter :: inp         = 5                          ! Output I/O channel
   integer, parameter :: out         = 6                          ! Output I/O channel
   integer, parameter :: nfilelegendre = 101                      ! Damp-output channel for eigenfunction 

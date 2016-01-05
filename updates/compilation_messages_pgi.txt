@@ -1,0 +1,27 @@
+ucapllo@login08|duo_submitted_version/>make
+pgfortran    -c atomic_and_nuclear_data.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c accuracy.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c input.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+PGF90-I-0035-Predefined intrinsic char loses intrinsic property (input.f90: 30)
+PGF90-I-0035-Predefined intrinsic loc loses intrinsic property (input.f90: 33)
+pgfortran    -c grids.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c timer.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+PGF90-I-0035-Predefined intrinsic cpu_time loses intrinsic property (timer.f90: 159)
+PGF90-I-0035-Predefined intrinsic cpu_time loses intrinsic property (timer.f90: 222)
+PGF90-I-0035-Predefined intrinsic count loses intrinsic property (timer.f90: 278)
+PGF90-I-0035-Predefined intrinsic date loses intrinsic property (timer.f90: 308)
+PGF90-I-0035-Predefined intrinsic time loses intrinsic property (timer.f90: 308)
+pgfortran    -c lapack.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c functions.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c symmetry.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+PGF90-I-0035-Predefined intrinsic gamma loses intrinsic property (symmetry.f90: 69)
+pgfortran    -c diatom.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+PGF90-I-0035-Predefined intrinsic scale loses intrinsic property (diatom.f90: 3711)
+PGF90-I-0035-Predefined intrinsic scale loses intrinsic property (diatom.f90: 5180)
+pgfortran    -c refinement.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+PGF90-I-0035-Predefined intrinsic nchar loses intrinsic property (refinement.f90: 1486)
+pgfortran    -c dipole.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c header_info.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -c duo.f90 -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px 
+pgfortran    -o duo.exe atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o -Mbackslash -g -O0 -Mbounds -Mchkstk -Mchkptr -Mchkfpstk  -Minform=inform -C  -tp=px  duo.o -llapack -lblas -L./
+

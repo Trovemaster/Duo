@@ -2669,7 +2669,7 @@ subroutine print_atomic_and_nuclear_info(my_string,verbose,unit)
  integer, optional, intent(in)  :: unit
  integer :: u1, ioption, zi, ai, m
  character(len=20) my_element_name
- character(len=8 ) my_element_symbol
+ character(len=15) my_element_symbol
  character(len=30) my_nuclide_name
  real(kind=dp)  :: my_atomic_mass, my_atomic_mass_unc, my_nuclear_mass, my_nuclear_plus_core_mass, &
                    my_nuclear_plus_core_mass2, my_nuclear_spin, my_half_life, my_iso_abundance
@@ -2764,7 +2764,8 @@ subroutine print_atomic_and_nuclear_info(my_string,verbose,unit)
      return
   endif
   my_fmt = '(A,F20.12,A, es9.2,a)'
-  if (iverbose>=4) write(u1,my_fmt)          'Atomic mass                = ', my_atomic_mass, ' +/- ', my_atomic_mass_unc , ' Daltons'
+  if (iverbose>=4) write(u1,my_fmt)          'Atomic mass                = ', my_atomic_mass, ' +/- ', my_atomic_mass_unc , &
+                                             ' Daltons'
   if (iverbose>=4) write(u1,'(A,F20.12,A)')  'Nuclear mass               = ', my_nuclear_mass,'   (=atomic mass - Z*me)'
 
   if (iverbose>=4) write(u1,'(A,F20.12,A,i3,a)')     'Nuclear mass + core elec.  = ', my_nuclear_plus_core_mass, &

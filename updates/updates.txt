@@ -111,3 +111,16 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
 07.11.2015 
  - check of the allocated objects is introduced to prevent multiply allocation of fields during fitting
 
+18.11.2015
+ - a bug in the molpro-abinitio section is fixed
+
+17.12.2015
+ - the new feature with "atoms" did not work with "nspin" - which is now fixed.
+ - two equivalent masses could be treated as C2V without having to introduce symgroup. 
+   However something is not working in connection with atoms, so symgroup has to be specified for now. 
+
+20.12.2015
+ - If the symgroup is not defined before intensity, it is guessed based on atoms/masses
+ - thresh_dipole is introduced to remove the transition dipoles generated from noise
+ - In checkpoints, Nstates is the number of vibrational states, parity = 0,1 
+

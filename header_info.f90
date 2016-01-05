@@ -15,7 +15,12 @@ subroutine write_logo
     write(out,'(a)') "|  __/| | | (_) | (_| | | | (_| | | | | | | | |_| | |_| | |_| |"
     write(out,'(a)') "|_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_| |____/ \___/ \___/"
     write(out,'(a)') "                 |___/"
-    write(out,'(a)')
+    write(out,'(a)') 
+  !  write(out,'(a)') 'Version: 17 December 2015' 
+  !  write(out,'(a)') 'Compiled with: Intel(R) Fortran Intel(R) 64 Compiler XE for applications ' & 
+  !                   // 'running on Intel(R) 64, Version 12.1.2.273 Build 20111128'
+  !  write(out,'(a)') 'Compilation flags: -O0 -ip -openmp -mkl=parallel -static'
+  !  write(out,'(a)')
     write(out,'(a)') "Please refer to:"
     write(out,'(a)') " Sergei N. Yurchenko, Lorenzo Lodi, Jonathan Tennyson and Andrey V. Stolyarov, "
     write(out,'(a)') " `DUO: a general program for calculating spectra of diatomic molecules',"
@@ -23,6 +28,7 @@ subroutine write_logo
     write(out,'(a)') "  Contacts: s.yurchenko@ucl.ac.uk; l.lodi@ucl.ac.uk; j.tennyson@ucl.ac.uk; "
     write(out,'(a)') "            avstol@phys.chem.msu.ru"
 !     write(out,'(a)') "University College London, Gower Street, London WC1 6BT, United Kingdom"
+    write(out,'(a)') "  See https://github.com/Trovemaster"
     write(out,'(a)')
 
 end subroutine write_logo

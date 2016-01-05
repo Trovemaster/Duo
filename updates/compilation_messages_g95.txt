@@ -1,0 +1,200 @@
+bash-4.1$ make
+g95    -c atomic_and_nuclear_data.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+In file atomic_and_nuclear_data.f90:2675
+
+                   my_nuclear_plus_core_mass2, my_nuclear_spin, my_half_life, m
+                   1
+Warning (112): Variable 'my_nuclear_plus_core_mass2' at (1) is set but never used
+g95    -c accuracy.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+g95    -c input.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+In file input.f90:703
+
+a=aa
+  1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file input.f90:988
+
+  colour(:)=c
+            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file input.f90:1000
+
+  colour(1)=r/255d0
+                   1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file input.f90:1002
+
+  colour(2)=g/255d0
+                   1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file input.f90:1004
+
+  colour(3)=b/255d0
+                   1
+Warning (140): Implicit conversion at (1) may cause precision loss
+g95    -c grids.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+In file grids.f90:473
+
+  190 RETURN
+  1
+Warning (110): Label 190 at (1) defined but not used
+In file grids.f90:489
+
+real(kind=rk) ::  p, q
+                     1
+Warning (112): Variable 'q' at (1) is set but never used
+g95    -c timer.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+In file timer.f90:127
+
+      t_active = t_active + 1
+                          1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:172
+
+      t_active = t_active - 1
+                          1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:248
+
+          omitted = omitted + 1
+                            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:324
+
+      pos = string_hash(name)
+            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:330
+
+          t_count = t_count + 1
+                            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:353
+
+        pos = 1 + modulo(pos-2,table_size)
+                1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:414
+
+      io_active = io_active + 1
+                            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:447
+
+      io_active = io_active - 1
+                            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:462
+
+      pos = string_hash(name)
+            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:468
+
+          io_count = io_count + 1
+                              1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:487
+
+        pos = 1 + modulo(pos-2,table_size)
+                1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:584
+
+        array_active = array_active + 1
+                                    1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:648
+
+        array_active = array_active - 1
+                                    1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:626
+
+      real(rk)           :: mem
+                            1
+Warning (112): Variable 'mem' at (1) is set but never used
+In file timer.f90:685
+
+        array_active = array_active - 1
+                                    1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:663
+
+      real(rk)           :: mem
+                            1
+Warning (112): Variable 'mem' at (1) is set but never used
+In file timer.f90:699
+
+      pos = string_hash(name)
+            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:705
+
+          array_count = array_count + 1
+                                    1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:728
+
+        pos = 1 + modulo(pos-2,tarray_size)
+                1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:778
+
+          omitted = omitted + 1
+                            1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file timer.f90:91
+
+  integer(ik)       :: io_appear(table_size) ! Appearance order for the i/o-unit
+                                 1
+Warning (112): Variable 'io_appear' at (1) is set but never used
+g95    -c lapack.f90 -std=f2003 -Wall -pedantic -fbounds-check -ftrace=full  
+In file lapack.f90:143
+
+    na1 = size(a,dim=1) ; na2 = size(a,dim=2)
+          1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file lapack.f90:143
+
+    na1 = size(a,dim=1) ; na2 = size(a,dim=2)
+                                1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file lapack.f90:144
+
+    nb1 = size(b,dim=1) ; nb2 = size(b,dim=2)
+          1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file lapack.f90:144
+
+    nb1 = size(b,dim=1) ; nb2 = size(b,dim=2)
+                                1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file lapack.f90:170
+
+    iw = int(work(1))
+         1
+Warning (140): Implicit conversion at (1) may cause precision loss
+In file lapack.f90:134
+
+    double precision    :: s    (   min(size(a,dim=1),size(a,dim=2))),tol
+                                                                      1
+Warning (112): Variable 'tol' at (1) is set but never used
+In file lapack.f90:320
+
+    call ArrayStart('lapack_gesvd-arrays-work',info,size(u),kind(u))
+                                               1
+Error: Type mismatch in parameter 'alloc' at (1).  Passing INTEGER(8) to INTEGER(4)
+In file lapack.f90:321
+
+    call ArrayStart('lapack_gesvd-arrays-work',info,size(vt),kind(vt))
+                                               1
+Error: Type mismatch in parameter 'alloc' at (1).  Passing INTEGER(8) to INTEGER(4)
+In file lapack.f90:322
+
+    call ArrayStart('lapack_gesvd-arrays-work',info,size(s),kind(s))
+                                               1
+Error: Type mismatch in parameter 'alloc' at (1).  Passing INTEGER(8) to INTEGER(4)
+make: *** [lapack.o] Error 1
+bash-4.1$ 
+
