@@ -308,12 +308,12 @@ contains
        isym = 1
        !
      elseif (iparity==2.and.gu==1) then 
-       ! B2
-       isym = 4
-       !
-     elseif (iparity==1.and.gu==-1) then 
        ! B1
        isym = 3
+       !
+     elseif (iparity==1.and.gu==-1) then 
+       ! B2
+       isym = 4
        !
      else
        ! A2

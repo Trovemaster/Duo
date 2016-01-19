@@ -3698,7 +3698,7 @@ subroutine map_fields_onto_grid(iverbose)
      real(rk),allocatable    :: spline_wk_vec_E(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: spline_wk_vec_F(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: xx(:), yy(:), ww(:)! tmp vectors for extrapolation
-     real(rk) :: yp1, ypn, Vtop, beta, vmin
+     real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR
      integer(ik) :: imin
      !
      type(fieldT),pointer      :: field
@@ -4152,9 +4152,15 @@ subroutine map_fields_onto_grid(iverbose)
             imin = (field%grid(1)-rmin) / real( np-1, rk)
             Vmin = minval(poten(istate)%gridvalue(:))
             !
+            DeltaR = (rmax-rmin)/real(ngrid-1,rk)
+            !
             do i=1,field%Nterms
               !
-              field%weight(i) = ( tanh(-beta*( poten(istate)%gridvalue(i) - Vmin - Vtop ) ) +1.002002002_rk )/2.002002002_rk
+              np = nint(( field%grid(i) - rmin )/ DeltaR)
+              !
+              np = max(min(ngrid,np),1)
+              !
+              field%weight(i) = ( tanh(-beta*( poten(istate)%gridvalue(np) - Vmin - Vtop ) ) +1.002002002_rk )/2.002002002_rk
               !
             enddo
             !
