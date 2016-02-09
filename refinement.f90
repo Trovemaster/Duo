@@ -1039,6 +1039,7 @@ module refinement
                           if (abs( fitting%obs(iener)%energy-(energy_(irot,itau,i0)-ezero(1)) )<= & 
                                                       & real(iter_th,rk)*abs(fitting%threshold_lock).and.&
                               ( ( abs(calc(irot,itau,i0)%ilambda)==abs(fitting%obs(iener)%quanta%ilambda).and.&
+                                  calc(irot,itau,i0)%istate ==fitting%obs(iener)%quanta%istate.and.&
                                   calc(irot,itau,i0)%v      ==fitting%obs(iener)%quanta%v.and.&
                                   nint(abs(calc(irot,itau,i0)%omega)-abs(fitting%obs(iener)%quanta%omega) )==0.and.&
                                   nint(abs(calc(irot,itau,i0)%sigma)-abs(fitting%obs(iener)%quanta%sigma) )==0 ).or.& 

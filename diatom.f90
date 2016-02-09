@@ -130,25 +130,25 @@ module diatom_module
     !
     character(len=cl)    :: interpolation_type='QUINTICSPLINES'
     !
-    integer(ik)          :: iref         ! reference number of the term as given in input (bra in case of the coupling)
-    integer(ik)          :: jref         ! reference number of the coupling term as given in input (ket in case of the coupling)
-    integer(ik)          :: istate       ! the actual state number (bra in case of the coupling)
-    integer(ik)          :: jstate       ! the actual state number (ket in case of the coupling)
-    integer(ik)          :: Nterms       ! Number of terms or grid points
-    integer(ik)          :: Lambda       ! identification of the electronic state Lambda
-    integer(ik)          :: Lambdaj      ! identification of the electronic state Lambda (ket)
-    integer(ik)          :: omega        ! identification of the electronic state omega
-    integer(ik)          :: multi        ! identification of the electronic spin (bra for the coupling)
-    integer(ik)          :: jmulti       ! identification of the ket-multiplicity
-    real(rk)             :: sigmai       ! the bra-projection of the spin
-    real(rk)             :: sigmaj       ! the ket-projection of the spin
-    real(rk)             :: spini        ! electronic spin (bra component for couplings)
-    real(rk)             :: spinj        ! electronic spin of the ket vector for couplings
+    integer(ik)          :: iref=1         ! reference number of the term as given in input (bra in case of the coupling)
+    integer(ik)          :: jref=1         ! reference number of the coupling term as given in input (ket in case of the coupling)
+    integer(ik)          :: istate=1       ! the actual state number (bra in case of the coupling)
+    integer(ik)          :: jstate=1       ! the actual state number (ket in case of the coupling)
+    integer(ik)          :: Nterms=1       ! Number of terms or grid points
+    integer(ik)          :: Lambda=1       ! identification of the electronic state Lambda
+    integer(ik)          :: Lambdaj=1      ! identification of the electronic state Lambda (ket)
+    integer(ik)          :: omega=0.0_rk   ! identification of the electronic state omega
+    integer(ik)          :: multi=1        ! identification of the electronic spin (bra for the coupling)
+    integer(ik)          :: jmulti=1       ! identification of the ket-multiplicity
+    real(rk)             :: sigmai=0.0_rk  ! the bra-projection of the spin
+    real(rk)             :: sigmaj=0.0_rk  ! the ket-projection of the spin
+    real(rk)             :: spini=0.0_rk   ! electronic spin (bra component for couplings)
+    real(rk)             :: spinj=0.0_rk   ! electronic spin of the ket vector for couplings
     complex(rk)          :: complex_f=(1._rk,0._rk)  ! defines if the term is imaginary or real
-    real(rk)             :: factor=1.0_rk      ! defines if the term is imaginary or real
-    real(rk)             :: fit_factor=1.0     ! defines if the term is imaginary or real
-    real(rk),pointer     :: value(:)=>null()   ! Expansion parameter or grid values from the input
-    type(symmetryT)      :: parity       ! parity of the electronic state as defined by the molecular inversion (g,u), 
+    real(rk)             :: factor=1.0_rk    ! defines if the term is imaginary or real
+    real(rk)             :: fit_factor=1.0   ! defines if the term is imaginary or real
+    real(rk),pointer     :: value(:)=>null() ! Expansion parameter or grid values from the input
+    type(symmetryT)      :: parity           ! parity of the electronic state as defined by the molecular inversion (g,u), 
      !                                        or laboratory inversion (+,-)
     real(rk),pointer     :: gridvalue(:) ! Expansion parameter or a grid value on the grid used inside the program
     real(rk),pointer     :: weight(:)    ! fit (1) or no fit (0)
@@ -4830,7 +4830,7 @@ subroutine map_fields_onto_grid(iverbose)
            istate = fl(i)%istate
            jstate = fl(i)%jstate
            !
-           if (abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj) then
+           if (trim(fl(i)%class)=='SPINORBIT'.and.abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj) then
               write(out,'("For N =",i4," one of sigmas (",2f8.1,") large than  spins (",2f8.1,")")') & 
                         i,fl(i)%sigmai,fl(i)%sigmaj,fl(i)%spini,fl(i)%spinj
               stop 'illegal sigma or spin'

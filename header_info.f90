@@ -16,11 +16,11 @@ subroutine write_logo
     write(out,'(a)') "|_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_| |____/ \___/ \___/"
     write(out,'(a)') "                 |___/"
     write(out,'(a)') 
-  !  write(out,'(a)') 'Version: 17 December 2015' 
+  !  write(out,'(a)') 'Version: 20 December 2015' 
   !  write(out,'(a)') 'Compiled with: Intel(R) Fortran Intel(R) 64 Compiler XE for applications ' & 
   !                   // 'running on Intel(R) 64, Version 12.1.2.273 Build 20111128'
-  !  write(out,'(a)') 'Compilation flags: -O0 -ip -openmp -mkl=parallel -static'
-  !  write(out,'(a)')
+  !  write(out,'(a)') 'Compilation flags: -O0 -ip -openmp -m32 -mkl=parallel -static'
+    write(out,'(a)')
     write(out,'(a)') "Please refer to:"
     write(out,'(a)') " Sergei N. Yurchenko, Lorenzo Lodi, Jonathan Tennyson and Andrey V. Stolyarov, "
     write(out,'(a)') " `DUO: a general program for calculating spectra of diatomic molecules',"

@@ -123,4 +123,7 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
  - If the symgroup is not defined before intensity, it is guessed based on atoms/masses
  - thresh_dipole is introduced to remove the transition dipoles generated from noise
  - In checkpoints, Nstates is the number of vibrational states, parity = 0,1 
+24.01.2016
+ - in fitting for energies/lock "state" added in the assignment section to the v,lambda,omega,sigma set 
+
 
