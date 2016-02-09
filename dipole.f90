@@ -320,7 +320,7 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
     real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
@@ -329,11 +329,10 @@ contains
     character(len=1) :: branch,ef,pm
     character(len=2) :: dir
     character(len=10) :: statename
-    !character(len=1) :: plusminus(2)=(/'+','-'/)
     !
     type(quantaT),pointer  :: quantaI,quantaF
     !
-    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int
+    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer(ik)  :: enunit,transunit
@@ -511,11 +510,15 @@ contains
     !
     call TimerStop('Intens_Filter-1')
     !
+    !
     !loop over final states -> count states for each symmetry
     !
     nlevelsG = 0
     !
     if (mod(eigen(1,1)%quanta(1)%imulti,2)==0) integer_spin = .false.
+    !
+    allocate(vecI(dimenmax), stat = info)
+    call ArrayStart('intensity-vecI',info,size(vecI),kind(vecI))
     !
     do indI = 1, nJ
        !
@@ -526,6 +529,8 @@ contains
        do igammaI=1,Nrepresen
          !
          nlevelsI = eigen(indI,igammaI)%Nlevels
+         !
+         dimenI = eigen(indI,igammaI)%Ndimen
          !
          !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
          !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
@@ -571,18 +576,58 @@ contains
                ef = "e"
              endif
              !
-             if (integer_spin) then 
+             !Mikhail Semenov: Lande g-factor for the selected eigenstate
+             !
+             if (intensity%lande_calc) then
                !
-               write(enunit,"(i12,1x,f12.6,1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)") & 
-                         iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                         pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+               lande = 0
+               !
+               vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
+               !
+               do k = 1,dimenI
+                 !
+                 omegaF = basis(indI)%icontr(k)%omega
+                 sigmaF = basis(indI)%icontr(k)%sigma
+                 ilambdaF = basis(indI)%icontr(k)%ilambda
+                 !
+                 if ( Ji > 0) then
+                   !
+                   lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
+                   !
+                 endif
+                 !
+               enddo
+               !
+               if (integer_spin) then 
+                 !
+                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)") & 
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                           lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                 !
+               else
+                 !
+                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)") & 
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                           !
+               endif
                !
              else
                !
-               write(enunit,"(i12,1x,f12.6,1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)") & 
-                         iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                         pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                         !
+               if (integer_spin) then 
+                 !
+                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)") & 
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                           pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                 !
+               else
+                 !
+                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)") & 
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                           !
+               endif
+               !
              endif
              !
            endif           
@@ -602,6 +647,9 @@ contains
          enddo
        enddo
     enddo
+    !
+    deallocate(vecI)
+    call ArrayStop('intensity-vecI')
     !
     if (trim(intensity%linelist_file)/="NONE") close(enunit,status='keep')
     !

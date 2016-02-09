@@ -302,8 +302,11 @@ module diatom_module
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
   end type thresholdsT
-
-
+  !
+  type landeT
+    real, allocatable :: ar(:)          !
+  end type landeT
+  !
   type IntensityT
      logical             :: do = .false.     ! process (.true.) or not (.false.) the intensity (or TM) calculations 
      character(cl)       :: action           ! type of the intensity calculations:
@@ -334,6 +337,7 @@ module diatom_module
      integer(ik)         :: int_increm = 1e9 ! used to print out the lower energies needed to select int_increm intensities
      real(rk)            :: factor = 1.0d0   ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
      logical             :: matelem =.false.  ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
+     logical             :: lande_calc = .false.   ! checks whether calculation for Lande should be conducted
      !
  end type IntensityT
   !
@@ -398,6 +402,7 @@ module diatom_module
   !
   logical :: gridvalue_allocated  = .false.
   logical :: fields_allocated  = .false.
+  real(rk),parameter :: enermax = 100000.0_rk  ! largest energy allowed 
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
          jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j
@@ -671,7 +676,7 @@ module diatom_module
           ! initializing the fields
           !
           job%vibmax = 1e8
-          job%vibenermax = 1e8
+          job%vibenermax = enermax
           !
           allocate(abinitio(nestates*Nobjects+4*ncouples),stat=alloc)
           !
@@ -2929,6 +2934,10 @@ module diatom_module
                intensity%do = .true.
                !
              endif
+             !
+           case ('LANDE')
+             !
+             intensity%lande_calc= .true.
              !
            case('LINELIST')
              !
