@@ -126,4 +126,7 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
 24.01.2016
  - in fitting for energies/lock "state" added in the assignment section to the v,lambda,omega,sigma set 
 
+09.02.2016
+ - fix in the inout.f90
+ - fix in diatom.f90 related to imulti being undefined
 

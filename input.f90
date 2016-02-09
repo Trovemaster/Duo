@@ -710,6 +710,7 @@ SUBROUTINE readi(I)
 !  Read an integer from the current record
 
 INTEGER, INTENT(INOUT) :: i
+DOUBLE PRECISION :: itmp
 
 CHARACTER(LEN=50) :: string
 
@@ -722,7 +723,14 @@ string=""
 call reada(string)
 !  If the item is null, I is unchanged
 if (string == "") return
-read (unit=string,fmt=*,err=99) i
+  !read (unit=string,fmt=*,err=99) i
+  ! read in as a doubleprecision and then round
+ read (unit=string,fmt=*,err=99) itmp 
+ i = nint(itmp)
+ if( abs( dble(i)-itmp) >= 1d-6) then
+  print "(2a)", "Error: expecting an integer but found a floating-point. Input is ", trim(string)
+  call report("Error while reading integer",.true.)
+ endif
 return
 
 99 i=0

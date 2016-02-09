@@ -24,10 +24,11 @@ subroutine write_logo
     write(out,'(a)') "Please refer to:"
     write(out,'(a)') " Sergei N. Yurchenko, Lorenzo Lodi, Jonathan Tennyson and Andrey V. Stolyarov, "
     write(out,'(a)') " `DUO: a general program for calculating spectra of diatomic molecules',"
-    write(out,'(a)') "  Computer Physics Communication, (to be submitted), 2015."
+    write(out,'(a)') "  Computer Physics Communication, (in press), 2016."
     write(out,'(a)') "  Contacts: s.yurchenko@ucl.ac.uk; l.lodi@ucl.ac.uk; j.tennyson@ucl.ac.uk; "
     write(out,'(a)') "            avstol@phys.chem.msu.ru"
 !     write(out,'(a)') "University College London, Gower Street, London WC1 6BT, United Kingdom"
+    write(out,'(a)') "  http://arxiv.org/abs/1601.06531"
     write(out,'(a)') "  See https://github.com/Trovemaster"
     write(out,'(a)')
 
