@@ -564,16 +564,17 @@ contains
              !
              pm = "+" ; if (iparityI==1) pm = "-"
              ef = "e" ; 
+             !
              if ( mod( nint( 2.0*jI ),2 )==1 ) then
-               itau = mod( nint( jI-0.5 )+1,2 )
+               itau = mod( nint( jI-0.5 ),2 )
              else
                itau = mod( nint( jI ),2 )
              endif
              !
              if (itau==iparityI) then 
-               ef = "f"
-             else
                ef = "e"
+             else
+               ef = "f"
              endif
              !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate

@@ -470,7 +470,7 @@ IF (M < 2) GO TO 40
       D(N) = 0.D0
       C(N) = C(N-1) + 10.D0*T
       B(N) = B(N) + (C(N)-T)*Q
-  190 RETURN
+      RETURN
 
 END SUBROUTINE QUINAT
 

@@ -118,6 +118,8 @@ module diatom_module
     real(rk) :: Vtop = 10000.0_rk
   end type weightT
   !
+  integer(ik), parameter :: bad_value=-10000    ! default `impossible' value for some quantum numbers
+  !
   type fieldT
     !
     character(len=cl)    :: name         ! Identifying name of the  function
@@ -135,13 +137,12 @@ module diatom_module
     integer(ik)          :: istate       ! the actual state number (bra in case of the coupling)
     integer(ik)          :: jstate       ! the actual state number (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
-    integer(ik)          :: Lambda       ! identification of the electronic state Lambda
-    integer(ik)          :: Lambdaj      ! identification of the electronic state Lambda (ket)
-    integer(ik)          :: omega        ! identification of the electronic state omega
+    integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
+    integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
     integer(ik)          :: multi        ! identification of the electronic spin (bra for the coupling)
     integer(ik)          :: jmulti       ! identification of the ket-multiplicity
-    real(rk)             :: sigmai       ! the bra-projection of the spin
-    real(rk)             :: sigmaj       ! the ket-projection of the spin
+    real(rk)             :: sigmai=real(bad_value,rk)    ! the bra-projection of the spin
+    real(rk)             :: sigmaj=real(bad_value,rk)    ! the ket-projection of the spin
     real(rk)             :: spini        ! electronic spin (bra component for couplings)
     real(rk)             :: spinj        ! electronic spin of the ket vector for couplings
     complex(rk)          :: complex_f=(1._rk,0._rk)  ! defines if the term is imaginary or real
@@ -1384,13 +1385,8 @@ module diatom_module
              !
              field => dipoletm(idip)
              !
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
-             field%lambda  = -10000
-             field%lambdaj = -10000
-             field%jref = jref
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = "DIPOLE"
              !
              if (trim(w)=='DIPOLE-X') then
@@ -1437,14 +1433,14 @@ module diatom_module
              !
              field => spinorbit(iso)
              !
+             !call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%iref = iref
              field%jref = jref
              field%istate = istate_
              field%jstate = jstate_
              field%lambda  = -10000
              field%lambdaj = -10000
-             field%sigmai  = -10000.0
-             field%sigmaj  = -10000.0
              !
              if (action%fitting) call report ("SPIN-ORBIT cannot appear after FITTING",.true.)
              field%class = "SPINORBIT"
@@ -1493,13 +1489,8 @@ module diatom_module
              !
              field => lxly(ilxly)
              !
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             call set_field_refs(field,iref,jref,istate_,jstate_)
              field%class = "L+"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("LXLY (L+) cannot appear after FITTING",.true.)
              !
@@ -1614,13 +1605,10 @@ module diatom_module
              ibobrot = iobject(7)
              !
              field => bobrot(ibobrot)
-             field%iref = iref
-             field%jref = iref
-             field%istate = istate_
-             field%jstate = istate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = "BOBROT"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("BOBrot cannot appear after FITTING",.true.)
              !
@@ -1657,13 +1645,10 @@ module diatom_module
              iss = iobject(5)
              !
              field => spinspin(iss)
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = "SPIN-SPIN"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("Spin-spin cannot appear after FITTING",.true.)
              !
@@ -1702,13 +1687,9 @@ module diatom_module
              isso = iobject(6)
              !
              field => spinspino(isso)
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
              field%class = "SPIN-SPIN-O"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("Spin-spin-o cannot appear after FITTING",.true.)
              !
@@ -1747,13 +1728,10 @@ module diatom_module
              isr = iobject(8)
              !
              field => spinrot(isr)
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = "SPIN-ROT"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("Spin-rot cannot appear after FITTING",.true.)
              !
@@ -1793,13 +1771,9 @@ module diatom_module
              idiab = iobject(9)
              !
              field => diabatic(idiab)
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
              field%class = "DIABATIC"
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("DIABATIC cannot appear after FITTING",.true.)
              !
@@ -1837,13 +1811,10 @@ module diatom_module
              endif
              !
              field => lambdaopq(iobject(10))
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = trim(CLASSNAMES(10))
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
              !
@@ -1883,13 +1854,10 @@ module diatom_module
              endif
              !
              field => lambdap2q(iobject(11))
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = trim(CLASSNAMES(11))
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
              !
@@ -1927,13 +1895,10 @@ module diatom_module
              endif
              !
              field => lambdaq(iobject(12))
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
              field%class = trim(CLASSNAMES(12))
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
              !
@@ -2284,10 +2249,6 @@ module diatom_module
               !
               field%name = trim(w)
               !
-            case("OMEGA")
-              !
-              call readi(field%omega)
-              !
             case("LAMBDA")
               !
               call readi(field%lambda)
@@ -2479,7 +2440,7 @@ module diatom_module
               !
             case("FACTOR")
               !
-              field%complex_f = cmplx(1.0_rk,0.0_rk)
+              field%complex_f = cmplx(1.0_rk,0.0_rk, kind=rk)
               field%factor = 1.0_rk
               !
               do while (item<min(Nitems,3))
@@ -2489,9 +2450,9 @@ module diatom_module
                 select case (trim(w))
                   !
                 case('I')
-                  field%complex_f = cmplx(0.0_rk,1.0_rk)
+                  field%complex_f = cmplx(0.0_rk,1.0_rk, kind=rk)
                 case('-I')
-                  field%complex_f = cmplx(0.0_rk,-1.0_rk)
+                  field%complex_f = cmplx(0.0_rk,-1.0_rk, kind=rk)
                 case('SQRT(2)')
                   field%factor =  field%factor*sqrt(2.0_rk)
                 case('-SQRT(2)')
@@ -2521,21 +2482,21 @@ module diatom_module
               select case (trim(w))
                 !
               case('0')
-                field%complex_f = cmplx(0.0_rk,0.0_rk)
+                field%complex_f = cmplx(0.0_rk,0.0_rk, kind=rk)
               case('I')
-                field%complex_f = cmplx(0.0_rk,1.0_rk)
+                field%complex_f = cmplx(0.0_rk,1.0_rk, kind=rk)
               case('-I')
-                field%complex_f = cmplx(0.0_rk,-1.0_rk)
+                field%complex_f = cmplx(0.0_rk,-1.0_rk, kind=rk)
               case('1')
-                field%complex_f = cmplx(1.0_rk,0.0_rk)
+                field%complex_f = cmplx(1.0_rk,0.0_rk, kind=rk)
               case('SQRT(2)')
-                field%complex_f = cmplx(sqrt(2.0_rk),0.0_rk)
+                field%complex_f = cmplx(sqrt(2.0_rk),0.0_rk, kind=rk)
               case('-SQRT(2)')
-                field%complex_f = cmplx(-sqrt(2.0_rk),0.0_rk)
+                field%complex_f = cmplx(-sqrt(2.0_rk),0.0_rk, kind=rk)
               case('I*SQRT(2)')
-                field%complex_f = cmplx(0.0_rk,sqrt(2.0_rk))
+                field%complex_f = cmplx(0.0_rk,sqrt(2.0_rk), kind=rk)
               case('-I*SQRT(2)')
-                field%complex_f = cmplx(0.0_rk,-sqrt(2.0_rk))
+                field%complex_f = cmplx(0.0_rk,-sqrt(2.0_rk), kind=rk)
               case default
                 call report ("Illegal input field"//trim(w),.true.)
               end select
@@ -2624,6 +2585,7 @@ module diatom_module
               !if (mod(field%multi,2)==0) integer_spin = .true.
               !
               field%spini = real(field%multi-1,rk)*0.5_rk
+              field%spinj = field%spini ! set the `ket' spin to the same value as the bra by default
               !
               field%jmulti = field%multi
               if (nitems>2) then
@@ -3273,7 +3235,6 @@ module diatom_module
             abinitio(iabi)%sigmai  = field%sigmai
             abinitio(iabi)%sigmaj  = field%sigmaj
             abinitio(iabi)%multi   = field%multi
-            abinitio(iabi)%omega   = field%omega
             abinitio(iabi)%lambda  = field%lambda
             abinitio(iabi)%lambdaj = field%lambdaj
             !
@@ -3435,7 +3396,23 @@ module diatom_module
      !
     end subroutine input_quanta
 
-
+    !
+    ! set some default values of diffferent fields based on the descritpion of the corresponding poten-s
+    !
+    subroutine set_field_refs(field,iref,jref,istate,jstate)
+      !
+      integer(ik),intent(in) :: iref,jref,istate,jstate
+      type(fieldT),pointer,intent(in)  :: field
+         !
+         field%iref = iref
+         field%jref = jref
+         field%istate = istate
+         field%jstate = jstate
+         if (abs(field%sigmai)>bad_value-1) field%sigmai  = field%spini ! `sigma' should be irrelevant; but we define it to `spin'
+         if (abs(field%sigmaj)>bad_value-1) field%sigmaj  = field%spinj
+         !
+    end subroutine set_field_refs
+    !
     !
   end subroutine ReadInput
 
@@ -3520,7 +3497,8 @@ module diatom_module
       do itau = 0,taumax
         ilambda = (-1)**itau*poten(istate)%lambda
         !
-        sigma = -poten(istate)%spini
+        sigma = -poten(istate)%spini          !set sigma to -S (its most negative possible value
+        if( sigma == -0.0_rk) sigma = +0.0_rk  !if sigma=0 use `positive signed' zero (for consistency across compilers)
         !
         do imulti = 1,multi
           !
@@ -4368,18 +4346,18 @@ subroutine map_fields_onto_grid(iverbose)
             !
             a = 0 ; b = 0
             !
-            a(1,1) =  cmplx(1.0_rk,0.0_rk)
-            b(1,1) =  cmplx(1.0_rk,0.0_rk)
-            a(2,2) =  cmplx(1.0_rk,0.0_rk)
-            b(2,2) =  cmplx(1.0_rk,0.0_rk)
+            a(1,1) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            b(1,1) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            a(2,2) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            b(2,2) =  cmplx(1.0_rk,0.0_rk, kind=rk)
             !
             iroot = 1
             jroot = 1
             !
             if (ix_lz_y/=0) then
               a = 0 
-              a(1,2) = cmplx(0.0_rk,ix_lz_y)
-              a(2,1) = cmplx(0.0_rk,-ix_lz_y)
+              a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
+              a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
               !
               call lapack_zheev(a,lambda_i)
               !
@@ -4395,18 +4373,18 @@ subroutine map_fields_onto_grid(iverbose)
               !
               field%lambda = nint(lambda_i(1))
               !
-              a = a*cmplx(0.0_rk,1.0_rk)
+              a = a*cmplx(0.0_rk,1.0_rk, kind=rk)
               !
             elseif (poten(field%istate)%parity%pm==-1) then 
               !
-              a(1,1) =  cmplx(0.0_rk,1.0_rk)
+              a(1,1) =  cmplx(0.0_rk,1.0_rk, kind=rk)
               !
             endif
             !
             if (jx_lz_y/=0) then
               b = 0 
-              b(1,2) = cmplx(0.0_rk,jx_lz_y)
-              b(2,1) = cmplx(0.0_rk,-jx_lz_y)
+              b(1,2) = cmplx(0.0_rk,jx_lz_y , kind=rk)
+              b(2,1) = cmplx(0.0_rk,-jx_lz_y, kind=rk)
               !
               b0 = b
               !
@@ -4424,13 +4402,13 @@ subroutine map_fields_onto_grid(iverbose)
               !
               field%lambdaj = nint(lambda_j(1))
               !
-              b = b*cmplx(0.0_rk,1.0_rk)
+              b = b*cmplx(0.0_rk,1.0_rk, kind=rk)
               !
               f_t = matmul( conjg(transpose(b)),matmul(b0,(b)) )
               !
             elseif (poten(field%jstate)%parity%pm==-1) then 
               !
-              b(1,1) =  cmplx(0.0_rk,1.0_rk)
+              b(1,1) =  cmplx(0.0_rk,1.0_rk, kind=rk)
               !
             endif
             !
@@ -4573,8 +4551,8 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   ! eigen-vector 2 is for Lambda
                   !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk)  
-                  coupling(2,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk)*conjg(a(1,2))/conjg(a(2,2))
+                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)  
+                  coupling(2,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)*conjg(a(1,2))/conjg(a(2,2))
                   ! 
                 case ('DIPOLE')
                   !
@@ -4645,8 +4623,8 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   ! eigen-vector 1 is for Lambda
                   !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk)  
-                  coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk)*b(1,2)/b(2,2)
+                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)  
+                  coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)*b(1,2)/b(2,2)
                   ! 
                 case ('DIPOLE')
                   !
