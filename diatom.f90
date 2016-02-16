@@ -1439,8 +1439,6 @@ module diatom_module
              field%jref = jref
              field%istate = istate_
              field%jstate = jstate_
-             field%lambda  = -10000
-             field%lambdaj = -10000
              !
              if (action%fitting) call report ("SPIN-ORBIT cannot appear after FITTING",.true.)
              field%class = "SPINORBIT"
@@ -1564,13 +1562,9 @@ module diatom_module
              il2 = iobject(3)
              !
              field => l2(il2)
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
-             field%class = "L2"
-             field%lambda  = -10000
-             field%lambdaj = -10000
+             field%class = trim(classnames(3))
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
              !
              if (action%fitting) call report ("L2 cannot appear after FITTING",.true.)
              !
@@ -1606,9 +1600,9 @@ module diatom_module
              !
              field => bobrot(ibobrot)
              !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
+             call set_field_refs(field,iref,jref,istate_,istate_)
              !
-             field%class = "BOBROT"
+             field%class = trim(classnames(7))
              !
              if (action%fitting) call report ("BOBrot cannot appear after FITTING",.true.)
              !
@@ -1648,7 +1642,7 @@ module diatom_module
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
              !
-             field%class = "SPIN-SPIN"
+             field%class = trim(classnames(5))
              !
              if (action%fitting) call report ("Spin-spin cannot appear after FITTING",.true.)
              !
@@ -1689,7 +1683,7 @@ module diatom_module
              field => spinspino(isso)
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = "SPIN-SPIN-O"
+             field%class = trim(classnames(6))
              !
              if (action%fitting) call report ("Spin-spin-o cannot appear after FITTING",.true.)
              !
@@ -1731,7 +1725,7 @@ module diatom_module
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
              !
-             field%class = "SPIN-ROT"
+             field%class = trim(classnames(8))
              !
              if (action%fitting) call report ("Spin-rot cannot appear after FITTING",.true.)
              !
@@ -1773,7 +1767,7 @@ module diatom_module
              field => diabatic(idiab)
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = "DIABATIC"
+             field%class = trim(classnames(9))
              !
              if (action%fitting) call report ("DIABATIC cannot appear after FITTING",.true.)
              !
@@ -3408,8 +3402,8 @@ module diatom_module
          field%jref = jref
          field%istate = istate
          field%jstate = jstate
-         if (abs(field%sigmai)>bad_value-1) field%sigmai  = field%spini ! `sigma' should be irrelevant; but we define it to `spin'
-         if (abs(field%sigmaj)>bad_value-1) field%sigmaj  = field%spinj
+         if ( field%sigmai<bad_value+1 ) field%sigmai  = field%spini ! `sigma' should be irrelevant; but we define it to `spin'
+         if ( field%sigmaj<bad_value+1 ) field%sigmaj  = field%spinj
          !
     end subroutine set_field_refs
     !
@@ -4823,7 +4817,7 @@ subroutine map_fields_onto_grid(iverbose)
            istate = fl(i)%istate
            jstate = fl(i)%jstate
            !
-           if (trim(fl(i)%class)=='SPINORBIT'.and.abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj) then
+           if (trim(fl(i)%class)=='SPINORBIT'.and.(abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj)) then
               write(out,'("For N =",i4," one of sigmas (",2f8.1,") large than  spins (",2f8.1,")")') & 
                         i,fl(i)%sigmai,fl(i)%sigmaj,fl(i)%spini,fl(i)%spinj
               stop 'illegal sigma or spin'
@@ -4836,7 +4830,7 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal multi in map_fields_onto_grid'
            endif
            !
-           if (  fl(i)%lambda<-9999.or.fl(i)%lambdaj<-9999 ) then
+           if (  fl(i)%lambda<bad_value+1.or.fl(i)%lambdaj<bad_value+1 ) then
               write(out,'("For N =",i3," lambdas  are undefined of states ",i2," and ",i2," ",a)') &
                         i,istate,jstate,trim(name)
               stop 'lambdas are undefined: map_fields_onto_grid'
@@ -4850,20 +4844,20 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal lambdas in map_fields_onto_grid'
            endif
            !
-           if (  trim(name)=="Spin-Orbit:".and.abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj ) then
+           if (  trim(name)=="Spin-Orbit:".and.(abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj) ) then
               write(out,'("For N =",i3," sigmas (",2f9.2,") dont agree with their spins (",2f9.2,") of states ",i2," and ",i2)') &
                         i,fl(i)%sigmai,fl(i)%sigmai,fl(i)%spini, &
                         fl(i)%spinj,istate,jstate
               stop 'illegal sigmas in map_fields_onto_grid'
            endif
            !
-           if ( trim(name)=="Spin-Orbit:".and.fl(i)%sigmai<-9999.0.or.fl(i)%sigmaj<-9999.0 ) then
+           if ( trim(name)=="Spin-Orbit:".and.(fl(i)%sigmai<bad_value+1.0.or.fl(i)%sigmaj<bad_value+1) ) then
               write(out,'("For N =",i3," sigmas are undefined for states ",i2," and ",i2," ",a)') &
                         i,istate,jstate,trim(name)
               stop 'sigmas are undefined: map_fields_onto_grid'
            endif
            !
-           if ( trim(name)=="Spin-Orbit:".and.fl(i)%sigmai<-9999.0.or.fl(i)%sigmaj<-9999.0 ) then
+           if ( trim(name)=="Spin-Orbit:".and.(fl(i)%sigmai<bad_value+1.0.or.fl(i)%sigmaj<bad_value+1.0) ) then
               write(out,'("For N =",i3," sigmas are undefined for states ",i2," and ",i2," ",a)') &
                         i,istate,jstate,trim(name)
               stop 'sigmas are undefined: map_fields_onto_grid'
