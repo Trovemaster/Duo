@@ -131,9 +131,12 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
  - fix in diatom.f90 related to imulti being undefined
  - Lande factors (Mikhail Semenov)
 
-13.11.2016
+13.02.2016
  - the e/f label was incorrect for closed-shell molecules in the linelist generation - corrected
  - Sigma and lambda are initialized to bad_values in order to trigger error-stop. For all fields
    but spin-orbits, sigma is set to spin.  
  - in the input/definition section, iref,jref are moved to set_field_refs
+
+24.02.2016
+ - a check introduced in the input-section to prevent repeated objects in input files 
 
