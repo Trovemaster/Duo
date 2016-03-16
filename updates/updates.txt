@@ -140,3 +140,9 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
 24.02.2016
  - a check introduced in the input-section to prevent repeated objects in input files 
 
+03.03.2016
+ - jmin_global introduced to make sure that Jmin is respected in all modules, which is to address the 
+  bug of accessing not allocated J<Jmin in eigen(J,i).
+
+04.03.2016
+ - bug with iref in the poten input-section is fixed. 

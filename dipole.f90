@@ -1,7 +1,7 @@
 module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j
+ use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -72,10 +72,12 @@ contains
     Jmin = minval(intensity%J(1:2))
     Jmax = maxval(intensity%J(1:2))
     !
+    Jmin = max(jmin_global,Jmin)
     !
     ! This is the lowest possible J, 0 or 0.5 to make sure all computed energies J>0 are included into 
     ! the line list for any intensity%J in order to guarantee consistent Energy list numbering 
     Jval_min = 0 ; if (mod(nint(2.0_rk*job%j_list(1)),2)/=0) Jval_min = 0.5
+    Jval_min = max(jmin_global,Jval_min)
     !
     Jval_ = Jval_min
     nJ = 1
@@ -301,7 +303,9 @@ contains
  ! Electric dipole moment intensities and transition moments calculations 
  !
  subroutine dm_intensity(Jval,iverbose)
-
+    !
+    implicit none
+    !
     real(rk),intent(in)  :: Jval(:)
     integer(ik),intent(in)   :: iverbose
 
@@ -515,6 +519,7 @@ contains
     !
     nlevelsG = 0
     !
+    ! guessing if this is a half-integer spin case
     if (mod(eigen(1,1)%quanta(1)%imulti,2)==0) integer_spin = .false.
     !
     allocate(vecI(dimenmax), stat = info)
@@ -1245,7 +1250,7 @@ contains
               !
               ! absorption/emission go only in one direction
               !
-              nu_if>-small_.and.                                           &
+              nu_if>small_.and.                                           &
               !
               ! spectroscopic window
               !

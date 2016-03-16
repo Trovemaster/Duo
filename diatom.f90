@@ -395,6 +395,8 @@ module diatom_module
                    Nlambdaopq,Nlambdap2q,Nlambdaq,vmax
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
+  real(rk)      :: jmin_global
+  !
   !type(fieldT),pointer :: refined(:)
   type(fieldmapT) :: fieldmap(Nobjects)
   type(eigenT),allocatable :: eigen(:,:)
@@ -1515,13 +1517,6 @@ module diatom_module
                  cycle
              endif
              !
-             ! Check if it was defined before 
-             do istate=1,iobject(1)-1
-                if (iref==poten(istate)%iref) then
-                  call report ("poten object is repeated",.true.)
-                endif
-             enddo
-             !
              ipot = iobject(1)
              !
              field => poten(iobject(1))
@@ -1530,6 +1525,13 @@ module diatom_module
              call readi(field%iref)
              field%jref = field%iref
              field%class = "POTEN"
+             !
+             ! Check if it was defined before 
+             do istate=1,iobject(1)-1
+                if (field%iref==poten(istate)%iref) then
+                  call report ("poten object is repeated",.true.)
+                endif
+             enddo
              !
              if (action%fitting) call report ("POTEN cannot appear after FITTING",.true.)
              !
@@ -3385,6 +3387,8 @@ module diatom_module
     !
     jmin = omega_
     if (jmax<jmin) jmax = jmin
+    !
+    jmin_global = Jmin
     !
     ! check the L2 terms:
     !
