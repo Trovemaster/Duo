@@ -212,6 +212,7 @@ module diatom_module
       real(rk)            :: potmin              ! absolute minimum of the PEC with the lowest rotational-vibrational state
       logical             :: zShiftPECsToZero = .false.
       logical             :: zEchoInput = .true.
+      logical             :: zExclude_JS_coupling =.false. ! If set to true will disable J.S coupling (aka S-uncoupling)
       integer(ik)         :: total_parameters =0  !  total number of parameters used to define different hamiltonian fields
       real(rk)            :: degen_threshold = 1e-6_rk
       real(rk),pointer    :: j_list(:)     ! J values processed
@@ -498,6 +499,9 @@ module diatom_module
         case("DO_NOT_SHIFT_PECS") ! 
           job%zShiftPECsToZero = .false.
 
+        case("DO_NOT_INCLUDE_JS_COUPLING") ! 
+          job%zExclude_JS_coupling = .true.
+
         case("") ! do nothing in case of blank lines
 
          !
@@ -715,7 +719,7 @@ module diatom_module
              !
            case default
              !
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword in GRID: "//trim(w),.true.)
              !
            end select
            !
@@ -726,7 +730,7 @@ module diatom_module
          !
          if (trim(w)/="".and.trim(w)/="END") then
             !
-            call report ("Unrecognized unit name in GRID "//trim(w),.true.)
+            call report ("Unrecognized keyword in GRID: "//trim(w),.true.)
             !
          endif
          !
@@ -761,7 +765,7 @@ module diatom_module
              !
            case default
              !
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword in CONTRACTION: "//trim(w),.true.)
              !
            end select
            !
@@ -915,7 +919,7 @@ module diatom_module
              !
            case default
              !
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword in DIAGONALIZER: "//trim(w),.true.)
              !
            end select
            !
@@ -1318,7 +1322,7 @@ module diatom_module
              !
            case default
              !
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword name (error 01): "//trim(w),.true.)
              !
            end select
            !
@@ -2236,7 +2240,7 @@ module diatom_module
              end select
              !
              if (.not.include_state) then
-                 write(out,"('The ab potential  ',i8,' is skipped')") iref
+                 write(out,"('The ab initio potential  ',i8,' is skipped')") iref
                  iabi = iabi - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -2256,7 +2260,7 @@ module diatom_module
              !field%jstate = jstate_
              !
              if (.not.include_state) then
-                 write(out,"('The ab potential  ',i8,' is skipped')") iref
+                 write(out,"('The ab initio potential  ',i8,' is skipped')") iref
                  iabi = iabi - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -2286,7 +2290,7 @@ module diatom_module
              enddo loop_istate_ai
              !
           case default
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
           end select
           !
           ! refnumbers of the states to couple
@@ -2294,7 +2298,7 @@ module diatom_module
           call read_line(eof,iut) ; if (eof) exit
           call readu(w)
           !
-          do while (trim(w)/="".and.trim(w)/="END")
+          do while (trim(w)/="".and.trim(w)/="END") !we read until the END the object input block
             !
             select case(w)
             !
@@ -2830,7 +2834,7 @@ module diatom_module
                  !
             case default
                  !
-                 call report ("Unrecognized unit name "//trim(w),.true.)
+                 call report ("Unrecognized keyword (error 03): "//trim(w),.true.)
                  !
             end select
             !
@@ -3140,7 +3144,7 @@ module diatom_module
            !  !
            case default
              !
-             call report ("Unrecognized unit name "//trim(w),.true.)
+             call report ("Unrecognized keyword (error 04): "//trim(w),.true.)
              !
            end select 
            !
@@ -4879,6 +4883,8 @@ subroutine map_fields_onto_grid(iverbose)
        integer(ik),intent(in)  :: N,iverbose
        character(len=*),intent(in) :: name
        integer(ik)             :: i,istate
+       character(len=200) :: filename
+       integer, parameter :: u1=1002
          !
          if (N<=0.or.iverbose<5) return
          !
@@ -4954,12 +4960,33 @@ subroutine map_fields_onto_grid(iverbose)
          do istate=1,N
            write(out,'(i4,2x,a)') istate,trim(fl(istate)%name)
          enddo
+         !
+         ! Lorenzo Lodi; sets up filename for output
+         write(filename, '(a)') trim(name)
+         i=len_trim(filename)
+         if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
+         do i=1, len_trim(filename) ! remove/change some character in the file name
+            if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
+            if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
+            if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
+            if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
+            if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
+            if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
+            if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
+         enddo
+         filename=trim(filename) // '.dat'
+         open(unit=u1, file=trim(filename), status='unknown',action='write')
+         !
+         !
          write(my_fmt,'(A,I0,A)') '("        r(Ang)  ",2x,', N, '(i9,10x))'
          write(out,my_fmt) (istate,istate=1,N)
          write(my_fmt,'(A,I0,A)') '(f18.8,', N, '(1x,f18.8))'
          do i=1,ngrid
             write(out,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
+            write(u1 ,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
          enddo
+         !
+         close(u1)
          !
      end subroutine check_and_print_coupling
      !
@@ -4971,6 +4998,8 @@ subroutine map_fields_onto_grid(iverbose)
        integer(ik),intent(in)  :: N,iverbose
        character(len=*),intent(in) :: name
        integer(ik)             :: i,istate
+       character(len=100)   :: filename ! file containing tabulated field (for plotting etc)
+       integer, parameter  :: u1=1001
            !
            if (N<=0.or.iverbose<5) return
            !
@@ -4988,12 +5017,32 @@ subroutine map_fields_onto_grid(iverbose)
               endif
               !
            enddo
+           !
+           ! Lorenzo Lodi; sets up filename for output
+           write(filename, '(a)') trim(name)
+           i=len_trim(filename)
+           if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
+           do i=1, len_trim(filename) ! remove/change some character in the file name
+              if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
+              if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
+              if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
+              if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
+              if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
+              if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
+              if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
+           enddo
+           filename=trim(filename) // '.dat'
+           open(unit=u1, file=trim(filename), status='unknown',action='write')
+           !
+           ! 
            write(my_fmt, '(A,I0,A)') '("            r(Ang)",', N, '(i22))'
            write(out,my_fmt) (istate,istate=1,N)
            write(my_fmt, '(A,I0,A)') '(f18.8,', N, '(es22.8))'
            do i=1,ngrid
               write(out,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
+              write(u1, my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
            enddo
+           close(u1)
            !
            ! write equilibrium properties
            write(out,*)
@@ -5237,12 +5286,12 @@ end subroutine map_fields_onto_grid
      integer(ik)             :: isigma2
      character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
      character(cl)           :: printout_
-     real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2)
+     real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
      integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
      real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
-     integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:)
+     integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
      character(len=250),allocatable :: printout(:)
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
@@ -5253,7 +5302,7 @@ end subroutine map_fields_onto_grid
      !real(ark),allocatable      :: contrfunc_ark(:,:),vibmat_ark(:,:),matelem_ark(:,:),grid_ark(:)
      !real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
-     integer(ik)                :: iunit,vibunit
+     integer(ik)                :: iunit,vibunit,imaxcontr,i0
      !
      ! define verbose level
      !
@@ -6239,7 +6288,7 @@ end subroutine map_fields_onto_grid
               ! 
             enddo
             !
-            ! J*S part
+            ! J*S part (S-uncoupling)
             !
             ! The selection rules are Delta Spin=0, Delta Lambda = 0, Delta Sigma = +/- 1
             ! and (CHECK!!) istate==jstate (?)
@@ -6256,19 +6305,21 @@ end subroutine map_fields_onto_grid
               f_t = sqrt( spini*(spini+1.0_rk)-sigmai*(sigmai+f_s) )*&  !== sqrt( ... sigmai*sigmaj)
                     sqrt( jval* (jval +1.0_rk)-omegai*(omegai+f_s) )    !== sqrt( ... omegai*omegaj)
               !
+              if( job%zExclude_JS_coupling .eqv. .true.)  f_t = 0.0_rk ! do not include J.S coupling if flag is set
+              !
               hmat(i,j) = hmat(i,j) - f_t*f_rot
               !
               !hmat(j,i) = hmat(i,j)
               !
               if ((nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
-                write(out,'("S*J: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
+                write(out,'("J*S: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
                                                                                                        sigmai,sigmaj,i,j
-                stop 'S*J: omegai/=omegaj+/-1 '
+                stop 'J*S: omegai/=omegaj+/-1 '
               endif
               !
               ! print out the internal matrix at the first grid point
               if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                 write(printout_,'("  JS(",2i3,")=")') ilevel,jlevel
+                 write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                  if (abs(hmat(i,j))>sqrt(small_)) then
                    write(printout_,'(F12.4, A)') hmat(i,j)/sc, " ;"
@@ -6535,7 +6586,7 @@ end subroutine map_fields_onto_grid
                   !
                   ! <Lx> and <Ly> don't depend on Sigma
                   !
-                  ! L*S part
+                  ! L*S part (spin-electronic coupling)
                   !
                   ! the selection rules are Delta Sigma = - Delta Lambda (Delta Spin = 0)
                   !
@@ -6597,7 +6648,7 @@ end subroutine map_fields_onto_grid
                     !
                   endif
                   !
-                  ! L*J part
+                  ! L*J part (L-uncoupling)
                   !
                   ! The selection rule is simple: Delta Sigma = 0, Delta Spin = 0,
                   ! i.e. bra and ket sigma are equal:
@@ -7176,19 +7227,6 @@ end subroutine map_fields_onto_grid
                rng = 'V'
             endif
             !
-            !allocate(eigenval_(Ntotal),hmat_(Ntotal,Ntotal),stat=alloc)
-            !
-            !hmat_ = hmat
-            !
-            !call lapack_syev(hmat_,eigenval_)
-            !
-            !call lapack_syevr(hmat_,eigenval_,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
-            !
-            !eigenval_ = eigenval_/sc
-            !
-            !
-            !deallocate(hmat_,eigenval_)
-            !
             call lapack_syevr(hsym,eigenval,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
             !
             !
@@ -7220,14 +7258,58 @@ end subroutine map_fields_onto_grid
           !
           ! Assign the eigevalues with quantum numbers and print them out
           !
+          allocate(QNs(Nroots),stat=alloc)
+          call ArrayStart('QNs',alloc,size(QNs),kind(QNs))
+          !
           !omp parallel do private(i,mterm,f_t,plusminus) shared(maxTerm) schedule(dynamic)
           do i=1,Nroots
             !
             ! to get the assignement we find the term with the largest contribution
             !
-            j = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
+            imaxcontr = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
             !
-            mlevel = transform(irrep)%irec(j)
+            ! check if this contribution has already been used and take the second largest coefficient in this case
+            !
+            maxcontr = hsym(imaxcontr,i)**2
+            !
+            i0 = 0 
+            !
+            loop_check : do
+              !
+              loop_ilevel : do ilevel = 1,i-1
+               !
+               if (imaxcontr==QNs(ilevel)) then
+                 !
+                 j = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_.and.hsym(:,i)**2.lt.maxcontr)
+                 !
+                 imaxcontr = j
+                 !
+                 maxcontr = hsym(imaxcontr,i)**2
+                 !
+                 !print*,i,ilevel,imaxcontr
+                 !
+                 i0 = i0 + 1 
+                 !
+                 if (i0>10) then 
+                   !
+                   imaxcontr = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
+                   exit loop_check
+                   !
+                 endif 
+                 !
+                 cycle loop_check 
+                 !
+               endif
+               !
+              enddo loop_ilevel
+              !
+              exit loop_check
+              !
+            enddo loop_check
+            !
+            QNs(i) = imaxcontr
+            !
+            mlevel = transform(irrep)%irec(imaxcontr)
             mterm = ilevel2i(mlevel,irrep)
             !
             istate = icontr(mterm)%istate
@@ -7273,6 +7355,8 @@ end subroutine map_fields_onto_grid
                endif
             endif
           enddo
+          !
+          deallocate(QNs)
           !
           if (iverbose>=4) call TimerStop('Assignment')
           !

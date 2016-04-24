@@ -16,31 +16,30 @@
       end function
     end interface
 
-
+    !
+     if (verbose>=3) call write_logo
+ !    if (verbose>=3) call write_compilation_details
+    !
     if (isatty(0) /= 0) then
       write(out, *) "DUO was called without an input file. Exiting..."
       write(out, *) "The input file should be provided after a less-than sign."
       write(out, *) "Example: duo.exe < my_input.inp"
       stop
     end if
-
-
+     !
+     if (verbose>=3) call print_physical_constants
      !
      if (verbose>=3) call TimerStart('Duo')
      !
      ! --------------------------------------------------------
      !
-     ! initializing some constants 
+     ! initializing some constants (superfluous?) 
      !
-     call accuracyInitialize
+     !call accuracyInitialize
      !
      ! read input data
      !
      call ReadInput
-     !
-     if (verbose>=3) call write_logo
- !    if (verbose>=3) call write_compilation_details
-     if (verbose>=3) call print_physical_constants
      !
      !call check_and_set_atomic_data(verbose)
      !

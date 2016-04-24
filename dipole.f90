@@ -339,6 +339,7 @@ contains
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
     !
     character(len=130) :: my_fmt !format for I/O specification
+    integer :: ndecimals
     integer(ik)  :: enunit,transunit
     character(len=cl) :: filename,ioname
     !
@@ -582,6 +583,13 @@ contains
                ef = "f"
              endif
              !
+             ! ndecimals contains the number of decimal digits to print for energy levels
+             ! we use 6 decimals for energy levels up to 100,000 cm-1, then sacrify more and more decimals 
+             ! to make larger numbers fit in 12 spaces.
+             ! The present format works for energy levels larger than -10000 cm-1 and less than 1e11 cm-1
+             ! By Lorenzo Lodi
+             ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+             !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate
              !
              if (intensity%lande_calc) then
@@ -606,13 +614,15 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)") & 
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                 write(enunit,my_fmt) & 
                            iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
                            lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
                  !
                else
                  !
-                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)") & 
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                 write(enunit,my_fmt) & 
                            iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
                            lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
                            !
@@ -620,15 +630,18 @@ contains
                !
              else
                !
+               ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
                if (integer_spin) then 
                  !
-                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)") & 
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                 write(enunit,my_fmt) & 
                            iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
                            pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
                  !
                else
                  !
-                 write(enunit,"(i12,1x,f12.6,1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)") & 
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                 write(enunit,my_fmt) & 
                            iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
                            pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
                            !

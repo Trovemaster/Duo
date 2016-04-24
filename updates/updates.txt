@@ -146,3 +146,11 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
 
 04.03.2016
  - bug with iref in the poten input-section is fixed. 
+
+25.03.2016
+ - updates from Lorenzo: new outputs with objects; improved outputs of rms in fittings and energies > 100000 in linelists 
+
+26.03.2016
+ - improved the largest contriibution approach to avoid states with duplicated quantum numbers 
+
+
