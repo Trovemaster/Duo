@@ -466,7 +466,7 @@ module refinement
           if (numpar==0.and.itmax/=0) then 
             !
             write (out,"('No varying paramters, check input!')") 
-            stop 'sf_fitting: No varying paramters'
+            stop  ! 'sf_fitting: No varying paramters'
             !
           endif 
           !
@@ -1507,13 +1507,13 @@ module refinement
                    !
                    if (flink%iobject/=0) then
                      !
-                     write (out,"(a8,3x,e22.14,2x,a3,6x,'link',3(1x,i3))") objects(iobject,ifield)%field%forcename(iterm), & 
+                     write (out,"(a8,3x,es22.14,2x,a3,6x,'link',3(1x,i3))") objects(iobject,ifield)%field%forcename(iterm), & 
                            objects(iobject,ifield)%field%value(iterm),mark_f,&
                            flink%iobject,flink%ifield,flink%iparam
                      !
                    else
                      !
-                     write (out,"(a8,3x,e22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
+                     write (out,"(a8,3x,es22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
                            objects(iobject,ifield)%field%value(iterm),mark_f
                            !
                    endif
@@ -1680,14 +1680,14 @@ module refinement
 6552   format(/3X,85('-')/'   |  Iter  | Points | Params |   w-rms(total)|',&
        '    rms_ener   |   rms_pot   | Stability |'/&
        3X,85('-')/,&
-       '   | ',i6,' | ',i6,' | ',i6,' |  ',ES12.5,' | ',ES12.5,'  |  ',&
+       '-->| ',i6,' | ',i6,' | ',i6,' |  ',ES12.5,' | ',ES12.5,'  |  ',&
             ES10.3,' |',ES10.3,' |',/3X,85('-')/)
 
-6553   format(/3X,85('-')/'   |  Iter  | Points | Params |   w-rms(total)|',&
-       '    rms_ener   |   rms_pot   | Stability |'/&
-       3X,85('-')/,&
-       '   | ',i6,' | ',i6,' | ',i6,' |  ',ES12.5,' | ',ES12.5,'  |  ',&
-            ES10.3,' |',ES10.3,' |',/3X,85('-')/)
+!6553   format(/3X,85('-')/'   |  Iter  | Points | Params |   w-rms(total)|',&
+!       '    rms_ener   |   rms_pot   | Stability |'/&
+!       3X,85('-')/,&
+!       '   | ',i6,' | ',i6,' | ',i6,' |  ',ES12.5,' | ',ES12.5,'  |  ',&
+!            ES10.3,' |',ES10.3,' |',/3X,85('-')/)
 
 
   contains 

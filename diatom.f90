@@ -128,9 +128,9 @@ module diatom_module
     !
     ! variable used for GRID curves to specify interpolation and extrapolation  options
     ! 
-    ! character(len=cl)    :: interpolation_type='CUBICSPLINES'
+    character(len=cl)    :: interpolation_type='CUBICSPLINES'
     !
-    character(len=cl)    :: interpolation_type='QUINTICSPLINES'
+    !character(len=cl)    :: interpolation_type='QUINTICSPLINES'
     !
     integer(ik)          :: iref         ! reference number of the term as given in input (bra in case of the coupling)
     integer(ik)          :: jref         ! reference number of the coupling term as given in input (ket in case of the coupling)
@@ -226,6 +226,7 @@ module diatom_module
                                             !  due to L^2 = LxLx+LyLy+LzLz
       logical,pointer     :: isym_do(:)     ! process or not the symmetry in question
       logical             :: intensity      ! switch on the intensity calculations
+      logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
       !
   end type jobT
   !
@@ -492,6 +493,9 @@ module diatom_module
         !
         case("STOP","FINISH","END")
           exit
+
+       case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
+         job%print_pecs_and_couplings_to_file = .true.
 
         case("DO_NOT_ECHO_INPUT") !
           job%zEchoInput = .false.
@@ -3340,10 +3344,11 @@ module diatom_module
          job%isym_do = .true.
          !
     endif 
+    ! !I think the following message should be outputed only if line intensity
+    ! are computed, not all the time.
+    !write(out,"('A dipole threshold of ',e18.8,' will be used')") intensity%threshold%dipole
     !
-    write(out,"('The dipole threshold of ',e18.8,' will be used')") intensity%threshold%dipole
-    !
-    write(out,"('Symmetry was not specified ',a,' is assumed based on the masses/atoms')") trim(job%symmetry)
+    write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
     !
     if (iobject(1)/=nestates) then
       write(out,'("The number of states required ",i8," is inconcistent (smaller) with the number of PECs ",i8," included")') & 
@@ -4066,6 +4071,14 @@ subroutine map_fields_onto_grid(iverbose)
                !
                ! -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- .
             case("QUINTICSPLINES")  ! quintic spline
+               ! Lorenzo Lodi, 7 April 2016
+               ! Tests show that the present quintic spline interpolation does not give better interpolation results
+               ! than cubic splines. Furthermore the error seems to decrease as npoints**(-4)
+               ! instead of npoints**(-6). The reason for this behaviour is yet unknown, but possibly related 
+               ! to a bad choice of the boundary conditions. 
+               !
+               ! FOR NOW USE OF QUINTIC SPLINE INTERPOLATION IS NOT RECOMMENDED.
+               ! USE CUBIC SPLINES INSTEAD
                !
                if (iverbose>=6) write(out, '(A, I20)') 'Interpolating with quintic splines'
                nterms=field%Nterms
@@ -4961,32 +4974,38 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,'(i4,2x,a)') istate,trim(fl(istate)%name)
          enddo
          !
-         ! Lorenzo Lodi; sets up filename for output
-         write(filename, '(a)') trim(name)
-         i=len_trim(filename)
-         if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
-         do i=1, len_trim(filename) ! remove/change some character in the file name
-            if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
-            if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
-            if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
-            if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
-            if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
-            if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
-            if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
-         enddo
-         filename=trim(filename) // '.dat'
-         open(unit=u1, file=trim(filename), status='unknown',action='write')
          !
+         ! write to file if required
+         if(job%print_pecs_and_couplings_to_file .eqv. .true.) then
+           ! set up filename
+           write(filename, '(a)') trim(name)
+           i=len_trim(filename)
+           if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
+           do i=1, len_trim(filename) ! remove/change some character in the file name
+             if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
+             if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
+             if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
+             if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
+             if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
+             if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
+             if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
+           enddo
+           filename=trim(filename) // '.dat'
+           open(unit=u1, file=trim(filename), status='unknown',action='write')
+           write(my_fmt,'(A,I0,A)') '(f18.10,', N, '(f18.9))'
+           do i=1,ngrid
+            write(u1 ,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
+           enddo
+           close(u1)
+         endif
          !
          write(my_fmt,'(A,I0,A)') '("        r(Ang)  ",2x,', N, '(i9,10x))'
          write(out,my_fmt) (istate,istate=1,N)
+         !
          write(my_fmt,'(A,I0,A)') '(f18.8,', N, '(1x,f18.8))'
          do i=1,ngrid
             write(out,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
-            write(u1 ,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
          enddo
-         !
-         close(u1)
          !
      end subroutine check_and_print_coupling
      !
@@ -5017,32 +5036,38 @@ subroutine map_fields_onto_grid(iverbose)
               endif
               !
            enddo
-           !
-           ! Lorenzo Lodi; sets up filename for output
-           write(filename, '(a)') trim(name)
-           i=len_trim(filename)
-           if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
-           do i=1, len_trim(filename) ! remove/change some character in the file name
-              if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
-              if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
-              if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
-              if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
-              if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
-              if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
-              if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
-           enddo
-           filename=trim(filename) // '.dat'
-           open(unit=u1, file=trim(filename), status='unknown',action='write')
-           !
            ! 
+           ! write to file if required
+           if(job%print_pecs_and_couplings_to_file .eqv. .true.) then
+             ! set up filename for output
+             write(filename, '(a)') trim(name)
+             i=len_trim(filename)
+             if( filename(i:i) == ':') filename(i:i)=' ' !remove trailing colons
+             do i=1, len_trim(filename) ! remove/change some character in the file name
+               if( filename(i:i) == ' ') filename(i:i)='_' !spaces to underscores
+               if( filename(i:i) == '*') filename(i:i)='_' !stars to underscores
+               if( filename(i:i) == '<') filename(i:i)='_' !< to underscores
+               if( filename(i:i) == '>') filename(i:i)='_' !> to underscores
+               if( filename(i:i) == '(') filename(i:i)='_' !( to underscores
+               if( filename(i:i) == ')') filename(i:i)='_' !) to underscores
+               if( filename(i:i) == '+') filename(i:i)='p' !+ to `p'
+             enddo
+             filename=trim(filename) // '.dat'
+             open(unit=u1, file=trim(filename), status='unknown',action='write')
+             write(my_fmt, '(A,I0,A)') '(f18.10,', N, '(es22.14))'
+             do i=1,ngrid
+               write(u1, my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
+             enddo
+             close(u1)
+           endif
+           !
            write(my_fmt, '(A,I0,A)') '("            r(Ang)",', N, '(i22))'
            write(out,my_fmt) (istate,istate=1,N)
+           !
            write(my_fmt, '(A,I0,A)') '(f18.8,', N, '(es22.8))'
            do i=1,ngrid
               write(out,my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
-              write(u1, my_fmt) r(i),(fl(istate)%gridvalue(i),istate=1,N)
            enddo
-           close(u1)
            !
            ! write equilibrium properties
            write(out,*)
@@ -5575,7 +5600,7 @@ end subroutine map_fields_onto_grid
      ! print out the vibrational fields in the J=0 representaion
      if (iverbose>=4) then
         write(out,'(/"Vibrational (contracted) energies: ")')
-        write(out,'("    N        Energy/cm    State v"/)')
+        write(out,'("    i        Energy/cm    State v"/)')
         do i = 1,totalroots
           istate = icontrvib(i)%istate
           write(out,'(i5,f18.6," [ ",2i4," ] ",a)') i,(contrenergy(i)-contrenergy(1))/sc,istate,icontrvib(i)%v, &
@@ -7178,7 +7203,7 @@ end subroutine map_fields_onto_grid
           !
           if (Nsym_<1) cycle
           !
-          if (iverbose>=3) write(out,'(/"       J      N        Energy/cm  State   v  lambda spin   sigma   omega  parity")')
+          if (iverbose>=3) write(out,'(/"       J      i        Energy/cm  State   v  lambda spin   sigma   omega  parity")')
           !
           if (iverbose>=4) call TimerStart('Diagonalization')
           !
