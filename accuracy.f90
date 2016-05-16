@@ -59,6 +59,10 @@ module accuracy
   real(drk), parameter :: alpha      =  2._rk*pi*bohr*hartree*1e-8_rk     ! fine structure alpha =~ 1/137.035999074
   real(drk), parameter :: todebye    =  e_charge*planck*1e17_rk/(2._rk*pi*me*alpha)   ! 1 a.u. of dipole in debye
   real(drk), parameter :: ev         =  1e7_rk*e_charge/(planck*vellgt)           ! ev in cm-1
+  real(drk), parameter :: kJoule     =  1.e10_rk / (planck*vellgt*avogno)         ! 1kJ/mol in cm-1
+  real(drk), parameter :: kCal       =  kJoule*4.184_rk   !1 Cal (thermochemical)= 4.184 Joules
+  real(drk), parameter :: THz        =  1e12_rk / vellgt
+  real(drk), parameter :: hc         =  vellgt*planck
   
   contains
 
@@ -76,12 +80,18 @@ module accuracy
       write(out,'(A40,F20.13,2x,a12)')  'Unified atomic mass unit u = ', umatoau, 'me'
       write(out,'(A40,ES20.12,2x,a12)') 'Electron charge e = ', e_charge, 'Coulombs'
       write(out,'(A40,ES20.12,2x,a12)') 'Boltzmann constant kB = ', boltz, 'erg/Kelvin'
+      write(out,'(A40,F20.16,2x,a12)') 'Boltzmann constant kB = ', boltz/hc, 'cm^-1/Kelvin'
       write(out,'(A40,ES20.12,2x,a12)') "Avogadro constant = ", avogno, 'mol^-1'
 
       write(out,'(A40,F20.14)')   'Fine structure constant 1/alpha = ', 1._rk / alpha
       write(out,'(A40,ES20.12,2x,a12)') 'Electron mass me = ', me, 'grams'
       write(out,'(A40,F20.12,2x,a12)') 'a.u. of dipole e*a0 = ', todebye, 'debyes'
-      write(out,'(A40,F20.10,2x,a12)') "1 eV = ", ev, 'cm^-1'
+      write(out,'(A40,ES20.12,2x,a12)') "1 erg      => ",1e-7_rk , 'Joule'
+      write(out,'(A40,ES20.12,2x,a12)') "1 erg      => ", 1._rk/hc, 'cm^-1'
+      write(out,'(A40,F20.10,2x,a12)') "1 eV       => ", ev, 'cm^-1'
+      write(out,'(A40,F20.10,2x,a12)') "1 kCal/mol => ", kcal, 'cm^-1'
+      write(out,'(A40,F20.10,2x,a12)') "1 kJ/mol   => ", kjoule, 'cm^-1'
+      write(out,'(A40,F20.10,2x,a12)') "1 THz      => ", thz, 'cm^-1'
       write(out,'(a)')
 
     end subroutine print_physical_constants

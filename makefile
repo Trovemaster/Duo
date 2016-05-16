@@ -9,7 +9,7 @@ checkin:
 
 #FPATH = 
 
-EXE = j-duo-0902.x
+EXE = j-duo-2402.x
 
 FOR  = ifort   # Fortran compiler 
 
@@ -47,6 +47,8 @@ FOR  = ifort   # Fortran compiler
 #  -C compile only (=make .o files), but do not link .o files to produce executable
 #  -prof-value-profiling=all   All value profile types are enabled and value profiling is performed.
 
+#NOTE: -fpe0 will stop on floating-point exceptions. Do not use this flag because LAPACK makes use of divide by zero etc.
+#
 #FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
 
 FFLAGS = -O3 -ip -openmp 
@@ -112,7 +114,7 @@ atomic_and_nuclear_data.o: atomic_and_nuclear_data.f90
 	$(FOR) -c atomic_and_nuclear_data.f90 $(FFLAGS)
 
 clean:
-	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0*
+	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat        Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat
 
 test:  test_duo.f90
-	$(FOR) $(FFLAGS) test_duo.f90 -o duo_test.exe
+	$(FOR) -O0 test_duo.f90 -o duo_test.exe

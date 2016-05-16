@@ -47,9 +47,6 @@
      if (action%fitting) then 
        !
        ! Here we map all fields onto the same grid 
-       !call map_fields_onto_grid
-       !
-       ! Here we map all fields onto the same grid 
        call map_fields_onto_grid(verbose)
        !
        call define_jlist

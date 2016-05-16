@@ -122,7 +122,7 @@ module diatom_module
   !
   type fieldT
     !
-    character(len=cl)    :: name         ! Identifying name of the  function
+    character(len=cl)    :: name='(unnamed)' ! Identifying name of the function (default to avoid garbled outputs)
     character(len=cl)    :: type='NONE'  ! Identifying type of the function
     character(len=cl)    :: class='NONE' ! Identifying class of the function (poten, spinorbit,dipole,abinitio etc)
     !
@@ -226,6 +226,8 @@ module diatom_module
                                             !  due to L^2 = LxLx+LyLy+LzLz
       logical,pointer     :: isym_do(:)     ! process or not the symmetry in question
       logical             :: intensity      ! switch on the intensity calculations
+      logical             :: print_vibrational_energies_to_file = .false. ! if .true. prints to file
+      logical             :: print_rovibronic_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
       !
   end type jobT
@@ -496,6 +498,12 @@ module diatom_module
 
        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
          job%print_pecs_and_couplings_to_file = .true.
+
+       case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
+         job%print_vibrational_energies_to_file = .true.
+
+       case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+         job%print_rovibronic_energies_to_file = .true.
 
         case("DO_NOT_ECHO_INPUT") !
           job%zEchoInput = .false.
@@ -3803,7 +3811,7 @@ subroutine map_fields_onto_grid(iverbose)
      !
      ! mapping grid
      !
-     call  check_and_set_atomic_data(iverbose)
+     call check_and_set_atomic_data(iverbose)
      ! check masses make sense
      if( m1 <= 0._rk .or. m2 <= 0._rk) then
        write(out, '(A,2F20.8)') 'Illegal value for masses! m1, m2= ', m1, m2
@@ -5289,6 +5297,9 @@ end subroutine map_fields_onto_grid
      !
      implicit none
      !
+     integer, parameter :: u1=102 ! unit for output file with J=0 energies
+     integer, parameter :: u2=103 ! unit for output file with rovibronic energies
+     !
      integer(ik),intent(in),optional  :: iverbose_
      !
      real(rk),intent(in),optional  :: J_list_(:) ! range of J values
@@ -5328,6 +5339,11 @@ end subroutine map_fields_onto_grid
      !real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0
+
+     ! open file for later (if option is set)
+     if (job%print_rovibronic_energies_to_file ) &
+         open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
+     !
      !
      ! define verbose level
      !
@@ -5607,6 +5623,19 @@ end subroutine map_fields_onto_grid
                                                     trim(poten(istate)%name)
         enddo
      endif
+
+     if (job%print_vibrational_energies_to_file ) then
+        open(unit=u1, file='J0_vibrational_energies.dat',status='replace',action='write')
+        write(u1,'(/"Vibrational (contracted) energies: ")')
+        write(u1,'("    i        Energy/cm    State v"/)')
+        do i = 1,totalroots
+          istate = icontrvib(i)%istate
+          write(u1,'(i5,f18.6," [ ",2i4," ] ",a)') i,(contrenergy(i)-contrenergy(1))/sc,istate,icontrvib(i)%v, &
+                                                    trim(poten(istate)%name)
+        enddo
+        close(u1)
+     endif
+
      !
      ! check the orthogonality of the basis
      !
@@ -6984,8 +7013,8 @@ end subroutine map_fields_onto_grid
        enddo
        !omp end parallel do
        !
-       ! Nleveles is the number of states disregarding the degeneracy 
-       ! Nroots is the total number of roots inlcuding the degenerate states 
+       ! Nlevels is the number of states disregarding the degeneracy 
+       ! Nroots is the total number of roots including the degenerate states 
        !
        allocate(transform(1)%matrix(max(1,Nsym(1)),max(1,Nsym(1))),stat=alloc)
        allocate(transform(2)%matrix(max(1,Nsym(2)),max(1,Nsym(2))),stat=alloc)
@@ -7190,7 +7219,7 @@ end subroutine map_fields_onto_grid
          !
        enddo
        !
-       ! Now we diagonalize the two matrices contrcuted one by one 
+       ! Now we diagonalize the two matrices contructed one by one 
        !
        if (iverbose>=2) write(out,'(/"Eigenvalues for J = ",f8.1)') jval
        !
@@ -7348,6 +7377,14 @@ end subroutine map_fields_onto_grid
             if (iverbose>=3) write(out,'(2x,f8.1,i5,f18.6,1x,i3,2x,2i4,3f8.1,3x,a1,4x,"||",a)') & 
                              jval,i,eigenval(i)-job%ZPE,istate,v,ilambda,spini,sigma,omega,plusminus(irrep), &
                                                   trim(poten(istate)%name)
+
+            if (job%print_rovibronic_energies_to_file ) then
+               !  open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
+                 write(u2,'(2x,f8.1,i5,f18.6,1x,i3,2x,2i4,3f8.1,3x,a1,4x,"||",a)') & 
+                     jval,i,eigenval(i)-job%ZPE,istate,v,ilambda,spini,sigma,omega,plusminus(irrep), &
+                                                  trim(poten(istate)%name)
+               !  close(u2)
+             endif
             !
             ! do not count degenerate solutions
             !
@@ -7571,6 +7608,8 @@ end subroutine map_fields_onto_grid
      !
      deallocate(J_list)
      !
+     if (job%print_rovibronic_energies_to_file ) close(u2)
+     !
   end subroutine duo_j0
 
 
@@ -7740,14 +7779,14 @@ end subroutine map_fields_onto_grid
   ! 
   function faclog(a)   result (v)
     real(rk),intent(in) ::  a
-    real(ark)              :: v 
+    real(rk)            :: v 
     integer(ik) j,k
 
     v=0
     k=nint(a)
     if(k>=2) then 
       do j=2,k
-         v=v+log(real(j,ark))
+         v=v+log(real(j,rk))
       enddo 
     endif 
     

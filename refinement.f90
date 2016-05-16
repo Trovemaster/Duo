@@ -957,7 +957,7 @@ module refinement
                                    energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
                                    istate, ivib, ilambda ,sigmai ,omega ,spin ,&
                                    istate_,ivib_,ilambda_,sigmai_,omega_,spin_,&
-                                   mark(jener),poten(istate)%name
+                                   mark(jener),trim( poten(istate)%name )
                                 !
                              endif 
                              !
@@ -975,7 +975,7 @@ module refinement
                                 !
                                 write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f17.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,3f8.1,')',2x,a)") &
                                    i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                   istate_,ivib_,ilambda_,sigmai_,omega_,spin_,poten(istate_)%name
+                                   istate_,ivib_,ilambda_,sigmai_,omega_,spin_,trim( poten(istate_)%name )
                                 !
                            endif
                            !
