@@ -324,10 +324,11 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
+    integer(ik)  :: ivF_,ilambdaF_
+    real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
     integer(hik) :: matsize
     !
     character(len=1) :: branch,ef,pm
@@ -598,19 +599,63 @@ contains
                !
                vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
                !
-               do k = 1,dimenI
+               !do k = 1,dimenI
+               !  !
+               !  omegaF = basis(indI)%icontr(k)%omega
+               !  sigmaF = basis(indI)%icontr(k)%sigma
+               !  ilambdaF = basis(indI)%icontr(k)%ilambda
+               !  !
+               !  if ( Ji > 0) then
+               !    !
+               !    lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
+               !    !
+               !  endif
+               !  !
+               !enddo
+               !
+               ! This version of Lande factor takes into account the non-diagonal Sigma/Sigma+/-1 terms
+               !
+               if (Ji>0) then
                  !
-                 omegaF = basis(indI)%icontr(k)%omega
-                 sigmaF = basis(indI)%icontr(k)%sigma
-                 ilambdaF = basis(indI)%icontr(k)%ilambda
-                 !
-                 if ( Ji > 0) then
+                 do k = 1,dimenI
                    !
-                   lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
+                   omegaF   = basis(indI)%icontr(k)%omega
+                   sigmaF   = basis(indI)%icontr(k)%sigma
+                   ilambdaF = basis(indI)%icontr(k)%ilambda
+                   spinF    = basis(indI)%icontr(k)%spin
+                   ivF      = basis(indI)%icontr(k)%ivib
                    !
-                 endif
+                   do k_ = 1,dimenI
+                     !
+                     omegaF_   = basis(indI)%icontr(k_)%omega
+                     sigmaF_   = basis(indI)%icontr(k_)%sigma
+                     ilambdaF_ = basis(indI)%icontr(k_)%ilambda
+                     spinF_    = basis(indI)%icontr(k_)%spin
+                     ivF_      = basis(indI)%icontr(k_)%ivib
+                     !
+                     if (ilambdaF/=ilambdaF_.or.nint(spinF-spinF_)/=0.or.ivF/=ivF_) cycle
+                     !
+                     if ( k==k_ ) then
+                       !
+                       ! ilambda + 2 sigma is reaplced by omega + sigma
+                       !
+                       lande = lande + vecI(k)*vecI(k)*( omegaF+sigmaF )*omegaF
+                       !
+                     elseif (nint(abs(sigmaF_-sigmaF))==1) then
+                       !
+                       lande = lande + vecI(k)*vecI(k_)*&
+                               sqrt( spinF*(spinF+1.0_rk)-sigmaF*(sigmaF+sigmaF_-sigmaF) )*&
+                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )
+                       !
+                     endif
+                     !
+                   enddo
+                   !
+                 enddo
                  !
-               enddo
+                 lande = lande/( Ji*(Ji + 1.0_rk) )
+                 !
+               endif
                !
                if (integer_spin) then 
                  !

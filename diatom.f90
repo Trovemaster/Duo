@@ -1576,7 +1576,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(3)-1
-                if (iref==l2(istate)%iref.and.jref==l2(jstate)%iref) then
+                if (iref==l2(istate)%iref.and.jref==l2(istate)%jref) then
                   call report ("L2 object is repeated",.true.)
                 endif
              enddo
@@ -1620,7 +1620,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(7)-1
-                if (iref==bobrot(istate)%iref.and.jref==bobrot(jstate)%iref) then
+                if (iref==bobrot(istate)%iref.and.jref==bobrot(istate)%jref) then
                   call report ("BROT object is repeated",.true.)
                 endif
              enddo
@@ -1667,7 +1667,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(5)-1
-                if (iref==spinspin(istate)%iref.and.jref==spinspin(jstate)%iref) then
+                if (iref==spinspin(istate)%iref.and.jref==spinspin(istate)%jref) then
                   call report ("Spin-spin object is repeated",.true.)
                 endif
              enddo
@@ -1716,7 +1716,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(6)-1
-                if (iref==spinspino(istate)%iref.and.jref==spinspino(jstate)%iref) then
+                if (iref==spinspino(istate)%iref.and.jref==spinspino(istate)%jref) then
                   call report ("SS-o object is repeated",.true.)
                 endif
              enddo
@@ -1764,7 +1764,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(8)-1
-                if (iref==spinrot(istate)%iref.and.jref==spinrot(jstate)%iref) then
+                if (iref==spinrot(istate)%iref.and.jref==spinrot(istate)%jref) then
                   call report ("SR object is repeated",.true.)
                 endif
              enddo
@@ -1814,7 +1814,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(9)-1
-                if (iref==diabatic(istate)%iref.and.jref==diabatic(jstate)%iref) then
+                if (iref==diabatic(istate)%iref.and.jref==diabatic(istate)%jref) then
                   call report ("diabatic object is repeated",.true.)
                 endif
              enddo
@@ -1863,7 +1863,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(10)-1
-                if (iref==lambdaopq(istate)%iref.and.jref==lambdaopq(jstate)%iref) then
+                if (iref==lambdaopq(istate)%iref.and.jref==lambdaopq(istate)%jref) then
                   call report ("lambdaopq object is repeated",.true.)
                 endif
              enddo
@@ -1913,7 +1913,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(11)-1
-                if (iref==lambdap2q(istate)%iref.and.jref==lambdap2q(jstate)%iref) then
+                if (iref==lambdap2q(istate)%iref.and.jref==lambdap2q(istate)%jref) then
                   call report ("lambdap2q object is repeated",.true.)
                 endif
              enddo
@@ -1961,7 +1961,7 @@ module diatom_module
              !
              ! Check if it was defined before 
              do istate=1,iobject(12)-1
-                if (iref==lambdaq(istate)%iref.and.jref==lambdaq(jstate)%iref) then
+                if (iref==lambdaq(istate)%iref.and.jref==lambdaq(istate)%jref) then
                   call report ("lambdaq object is repeated",.true.)
                 endif
              enddo
