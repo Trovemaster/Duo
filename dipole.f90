@@ -637,15 +637,15 @@ contains
                      !
                      if ( k==k_ ) then
                        !
-                       ! ilambda + 2 sigma is reaplced by omega + sigma
+                       ! g_e = 2.0023
                        !
-                       lande = lande + vecI(k)*vecI(k)*( omegaF+sigmaF )*omegaF
+                       lande = lande + vecI(k)*vecI(k)*( real(ilambdaF,rk)+2.0023_rk*sigmaF )*omegaF
                        !
                      elseif (nint(abs(sigmaF_-sigmaF))==1) then
                        !
                        lande = lande + vecI(k)*vecI(k_)*&
                                sqrt( spinF*(spinF+1.0_rk)-sigmaF*(sigmaF+sigmaF_-sigmaF) )*&
-                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )
+                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )*2.0023_rk/2.0_rk
                        !
                      endif
                      !
