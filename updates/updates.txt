@@ -153,4 +153,11 @@ New object lambdao is added to the input but not to the Hamiltonian matrix yet
 26.03.2016
  - improved the largest contriibution approach to avoid states with duplicated quantum numbers 
 
+17.05,2016
+ - Lande g-factors reprogrammed to be more general 
+
+3.06.2016
+ - gs = 2.002319 
+
+
 

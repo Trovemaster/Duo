@@ -645,7 +645,7 @@ contains
                        !
                        lande = lande + vecI(k)*vecI(k_)*&
                                sqrt( spinF*(spinF+1.0_rk)-sigmaF*(sigmaF+sigmaF_-sigmaF) )*&
-                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )*2.0023_rk/2.0_rk
+                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )*2.002319_rk/2.0_rk
                        !
                      endif
                      !

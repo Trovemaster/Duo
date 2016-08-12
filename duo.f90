@@ -46,6 +46,11 @@
 
      if (action%fitting) then 
        !
+       if (action%intensity) then 
+          write(out, '(a)') 'Fitting and intensity should not be used at the same time'
+          stop 'please switch-off/remove either fitting or intensity'
+       endif 
+       !
        ! Here we map all fields onto the same grid 
        call map_fields_onto_grid(verbose)
        !

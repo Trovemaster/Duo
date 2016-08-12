@@ -117,6 +117,10 @@ module functions
       !
       fanalytical_field => poten_Murrell_Sorbie
       !
+    case("PADE_GOODISMAN2","PADE2")
+      !
+      fanalytical_field => poten_Pade_Goodisman_2
+      !
     case("NONE")
       !
       write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
@@ -701,7 +705,7 @@ module functions
   end function poten_polynom
   !
   ! The Chebyshev polynomial is evaluated at a point y=[x-(b + a)/2]/[(b - a)/2],
-  ! and the result is returned as the function value.
+  ! and the result is returned as the function value = \sum_{k=0} a_k P_k  - a0/2
   !
   real(rk) function poten_cheb(x,c)
     real(rk),intent(in) :: x,c(:)
@@ -805,5 +809,41 @@ module functions
           exp((-parameters(2)+r)/parameters(3)))**2)
     !
   end function poten_fermi_deriv
+  !
+  ! Dipole moment Pade-2 by J. Goodisman, Dipole-moment function for diatomic molecules, 
+  ! J. Chem. Phys. 38 (1963) 2597-2599. doi: 10.1063/1.1733557.
+  ! based on Chebyshev polynomials
+  !
+  function poten_Pade_Goodisman_2(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: z,y,v0,r0,f
+    integer(ik)            :: k,N
+    real(rk)               :: a(100)        ! temporal array of fixed size
+    !
+    N = size(parameters)
+    !
+    if (N+1>100) stop 'too many parameters requested in poten_Pade2'
+    !
+    r0 = parameters(1)
+    !
+    if (abs(r0)<small_) stop 'It is illegal to set re to zero'
+    !
+    z = r/r0
+    y = (z-1.0_rk)/(z+1.0_rk)
+    !
+    a = 0
+    !
+    a(1) = -1.0_rk
+    a(2) =  1.0_rk
+    !
+    a(3:N+1) = parameters(2:N)
+    !
+    f = poten_cheb(y,a(1:N+1))+a(3)*0.5_rk
+    !
+    f = z**3/(1+z**7)*f
+    !
+  end function poten_Pade_Goodisman_2
   !
 end module functions
