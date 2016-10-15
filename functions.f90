@@ -818,8 +818,8 @@ module functions
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: z,y,v0,r0,f
-    integer(ik)            :: k,N
+    real(rk)               :: z,y,r0,f
+    integer(ik)            :: N
     real(rk)               :: a(100)        ! temporal array of fixed size
     !
     N = size(parameters)
@@ -846,4 +846,26 @@ module functions
     !
   end function poten_Pade_Goodisman_2
   !
+  !
+  function poten_laura_SO(r,parameters) result(fun)
+    implicit none
+    real(rk),intent(in) :: r,parameters(:)
+    integer(ik)  :: m
+    real(rk)            :: fun,r0,SO0,SOinf,k,q
+    !
+    m=size(parameters)
+    !
+    if(m/=4) stop 'poten_laura_SO: illegal number of parameters parameters (/=4)'
+    !
+    r0     = parameters(1)
+    SO0    = parameters(2)
+    SOinf  = parameters(3)
+    k      = parameters(4)
+    !
+    q = (r-r0)*k
+    !
+    fun = 0.5_rk*(SO0+SOinf)+pi*(SO0-SOinf)*atan(q)
+    !
+  end function poten_laura_SO
+    !
 end module functions
