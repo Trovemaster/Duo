@@ -105,9 +105,9 @@ module functions
       !
       fanalytical_field => poten_exponential
       !
-    case("POTEN_LAURA")
+    case("LAURA_SO","ATAN_SO")
       !
-      fanalytical_field => poten_laura
+      fanalytical_field => SO_arctan
       !
     case("POTEN_FERMI_T")
       !
@@ -120,6 +120,14 @@ module functions
     case("PADE_GOODISMAN2","PADE2")
       !
       fanalytical_field => poten_Pade_Goodisman_2
+      !
+    case("DOUBLEEXP2")
+      !
+      fanalytical_field => dipole_doubleexp
+      !
+    case("DIABATIC_MU_DIAG","AVOIDEDCROSSING_DIAG_MU")
+      !
+      fanalytical_field => dipole_avoidedcrossing_diag_mu
       !
     case("NONE")
       !
@@ -847,7 +855,7 @@ module functions
   end function poten_Pade_Goodisman_2
   !
   !
-  function poten_laura_SO(r,parameters) result(fun)
+  function SO_arctan(r,parameters) result(fun)
     implicit none
     real(rk),intent(in) :: r,parameters(:)
     integer(ik)  :: m
@@ -855,7 +863,7 @@ module functions
     !
     m=size(parameters)
     !
-    if(m/=4) stop 'poten_laura_SO: illegal number of parameters parameters (/=4)'
+    if(m/=4) stop 'SO_arctan: illegal number of parameters parameters (/=4)'
     !
     r0     = parameters(1)
     SO0    = parameters(2)
@@ -864,8 +872,55 @@ module functions
     !
     q = (r-r0)*k
     !
-    fun = 0.5_rk*(SO0+SOinf)+pi*(SO0-SOinf)*atan(q)
+    fun = 0.5_rk*(SO0+SOinf)+(1.0_rk/pi)*(SO0-SOinf)*atan(q)
     !
-  end function poten_laura_SO
+  end function SO_arctan
+  !
+  function dipole_doubleexp(r,parameters) result(fun)
+    implicit none
+    real(rk),intent(in) :: r,parameters(:)
+    integer(ik)  :: m
+    real(rk)            :: fun,c1,c2,a1,a2,m1,m2
     !
+    m=size(parameters)
+    !
+    if(m/=6) stop 'dipole_doubleexp: illegal number of parameters parameters (/=6)'
+    !
+    c1=parameters(1)
+    a1=parameters(2)
+    m1=parameters(3)
+    c2=parameters(4)
+    a2=parameters(5)
+    m2=parameters(6)
+    !
+    fun = c1*exp(-a1*r**m1)+c2*exp(-a2*r**m2)
+    !
+  end function dipole_doubleexp
+  !
+  function dipole_avoidedcrossing_diag_mu(r,parameters) result(fun)
+    implicit none
+    real(rk),intent(in) :: r,parameters(:)
+    integer(ik)  :: m
+    real(rk)            :: fun,j0,m0,d0,k0,t0,l1,l2,lambda,inter,muionic
+    !
+    m=size(parameters)
+    !
+    if(m/=7) stop 'dipole_avoidedcrossing_diag_mu: illegal number of parameters parameters (/=7)'
+    !
+    j0=parameters(1)
+    m0=parameters(2)
+    d0=parameters(3)
+    k0=parameters(4)
+    t0=parameters(5)
+    l1=parameters(6)
+    l2=parameters(7)
+    !
+    lambda=m0*(r-d0)*(r-k0)
+    inter=(sqrt(4*j0**2+lambda**2)+lambda)**2
+    muionic=t0*r+l1/r+l2/(r**3)
+    !    
+    fun = inter*muionic/(inter+4.0_rk*j0**2)
+    !
+  end function dipole_avoidedcrossing_diag_mu
+  !
 end module functions

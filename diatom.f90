@@ -4246,7 +4246,8 @@ subroutine map_fields_onto_grid(iverbose)
               !
               np = max(min(ngrid,np),1)
               !
-              field%weight(i) = ( tanh(-beta*( poten(istate)%gridvalue(np) - Vmin - Vtop ) ) +1.000020000200002_rk )/2.000020000200002_rk
+              field%weight(i) = ( tanh(-beta*( poten(istate)%gridvalue(np) - Vmin - Vtop ) ) & 
+                                   +1.000020000200002_rk )/2.000020000200002_rk
               !
             enddo
             !
