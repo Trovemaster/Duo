@@ -2334,8 +2334,12 @@ pure function element_symbol(zin, ain)
      element_symbol = 'Unknown'
    case(1) ! special case for hydrogen
      element_symbol = Symbol(zin)
-     if( present(ain) .and. ain == 2) element_symbol = 'D'
-     if( present(ain) .and. ain == 3) element_symbol = 'T'
+     if( present(ain) ) then 
+      if (ain == 2) element_symbol = 'D'
+     endif
+     if( present(ain) ) then 
+      if (ain == 3) element_symbol = 'T'
+     endif
    case(2:zmax)
     element_symbol = Symbol(zin)
   end select
