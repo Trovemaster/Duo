@@ -999,6 +999,8 @@ contains
                    !
                    nu_if = energyF - energyI 
                    !
+                   ! no zero-frequency transitions should be produced 
+                   if ( nu_if < small_) cycle
                    !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if 
                    !
                    ! Count the processed transitions 

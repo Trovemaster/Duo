@@ -2450,6 +2450,8 @@ module diatom_module
                   !
                   unit_field = hartree
                   !
+                  if (trim(field%class)=="DIPOLE") unit_field = todebye
+                  !
                 case ('EA0')
                   !
                   unit_field = todebye
@@ -5640,29 +5642,43 @@ end subroutine map_fields_onto_grid
      !
      ! check the orthogonality of the basis
      !
-     if (iverbose>=6) then
+     if (iverbose>=3) then
        !
-       write(out,'(/"Check the contracted basis for ortho-normality")')
+       if (iverbose>=6) write(out,'(/"Check the contracted basis for ortho-normality")')
        !
-       !$omp parallel do private(ilevel,jlevel,psipsi_t) schedule(guided)
+       write(out,'(/"Vibrational overkap integrals: ")')
+!        write(out,'("    State-i    <i|j>   State-j"/)')
+       write(out,"(1x,a7,1x,a7,6x,a10)") 'State-i','State-j', '<i|j>'
+       !
+       !omp parallel do private(ilevel,jlevel,psipsi_t) schedule(guided)
        do ilevel = 1,totalroots
          do jlevel = 1,ilevel
            !
-           if (icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) cycle
            !
            psipsi_t  = sum(contrfunc(:,ilevel)*contrfunc(:,jlevel))
            !
-           if (ilevel/=jlevel.and.abs(psipsi_t)>sqrt(small_)) then
-              write(out,"('orthogonality is brocken : <',i4,'|',i4,'> (',f16.6,')')") ilevel,jlevel,psipsi_t
-              stop 'Brocken orthogonality'
-           endif
-           !
-           if (ilevel==jlevel.and.abs(psipsi_t-1.0_rk)>sqrt(small_)) then
-              write(out,"('normalization is brocken:  <',i4,'|',i4,'> (',f16.6,')')") ilevel,jlevel,psipsi_t
-              stop 'Brocken normalization'
+           if (iverbose>=6) then
+              if (icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate.and.ilevel/=jlevel.and.abs(psipsi_t)>sqrt(small_)) then
+                 write(out,"('orthogonality is brocken : <',i4,'|',i4,'> (',f16.6,')')") ilevel,jlevel,psipsi_t
+                 stop 'Brocken orthogonality'
+              endif
+              !
+              if (ilevel==jlevel.and.abs(psipsi_t-1.0_rk)>sqrt(small_)) then
+                 write(out,"('normalization is brocken:  <',i4,'|',i4,'> (',f16.6,')')") ilevel,jlevel,psipsi_t
+                 stop 'Brocken normalization'
+              endif
            endif
            !
            ! Reporting the quality of the matrix elemenst
+           !
+           if (icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) then
+              !
+              write(out,'("<",i2,",",i4,"|",i2,",",i4,"> = ",es18.8)') icontrvib(ilevel)%istate,    &
+                                                                       icontrvib(ilevel)%v,            &
+                                                                       icontrvib(jlevel)%istate,       &
+                                                                       icontrvib(jlevel)%v,            &
+                                                                       psipsi_t 
+           endif
            !
            if (iverbose>=6) then
              if (ilevel/=jlevel) then
@@ -5674,7 +5690,7 @@ end subroutine map_fields_onto_grid
            !
          enddo
        enddo
-       !$omp end parallel do
+       !omp end parallel do
        !
      endif
      !
@@ -5714,7 +5730,7 @@ end subroutine map_fields_onto_grid
         !
         if (iobject==Nobjects-2) cycle
         !
-        if (iobject==Nobjects.and.iverbose>=4.and.action%intensity) then 
+        if (iobject==Nobjects.and.iverbose>=3.and.action%intensity) then 
            !
            write(out,'(/"Vibrational transition moments: ")')
 !            write(out,'("    State    TM   State"/)')

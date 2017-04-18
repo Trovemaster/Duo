@@ -57,6 +57,10 @@ module functions
       !
       fanalytical_field => poten_MLR
       !
+    case("MLR_DS") ! "Morse/Long-Range with Douketis-dumping"
+      !
+      fanalytical_field => poten_MLR_Douketis
+      !
     case("MARQUARDT") ! "Marquardt"
       !
       fanalytical_field => poten_Marquardt
@@ -405,6 +409,112 @@ module functions
     f = de*y**2+v0
     !
   end function poten_MLR
+ 
+ 
+   ! Morse/Long-Range with Douketis dumping, see Le Roy manuals
+  !
+  function poten_MLR_Douketis(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,rref,z,beta,betainf,betaN,yq,yp,uLR,uLR0,rho,b,c,s,dump
+    integer(ik)            :: k,N,p,M,Nstruc,Ntot,Npot,q
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    rref = parameters(4)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(5))
+    q = nint(parameters(6))
+    N = parameters(7)
+    rho = parameters(8)
+    !
+    ! Number of structural parameters 
+    !
+    Nstruc = 8
+    !
+    ! total number of parameters 
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    ! Number of pot-parameters
+    !
+    Npot = N+1
+    !
+    ! number of long range parameters 
+    !
+    M = Ntot-Npot-Nstruc
+    !
+    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+    !  stop 'poten_EMO: Illegal number of parameters, check NS and NL'
+    !endif 
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    yp = (r**p-rref**p)/(r**p+rref**p)
+    yq = (r**q-rref**q)/(r**q+rref**q)
+    !
+    ! double check uLR parameters
+    !
+    uLR = sum(parameters(1+Npot+Nstruc:M+Npot+Nstruc)**2)
+    !
+    if (uLR<small_) then
+      write(out,"('poten_MLR: At least one uLR should be non-zero')")
+      stop 'poten_MLR: At least one uLR should be non-zer'
+    endif
+    ! 
+    ! For the Dumping part   
+    ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
+    !
+    s = -1.0_rk
+    b = 3.3_rk
+    c = 4.23_rk
+    !
+    ! long-range part
+    !
+    uLR = 0
+    do k=1,M
+     !
+     ! Douketis dumping function
+     Dump = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     !
+     uLR = uLR + Dump*parameters(k+Npot+Nstruc)/r**k
+     !
+    enddo
+    !
+    !
+    ! at R=Re
+    uLR0 = 0
+    do k=1,M
+     ! Douketis dumping function
+     Dump = ( 1.0_rk-exp( -b*rho*r0/real(k,rk)-c*(rho*r0)**2/sqrt(real(k,rk)) ) )**(real(k)+s)
+     !
+     uLR0 = uLR0 + parameters(k+Npot+Nstruc)/r0**k
+    enddo
+
+
+    !
+    betaN = 0
+    do k=0,N
+     betaN = betaN + parameters(k+Nstruc+1)*yq**k
+    enddo
+    !
+    betainf = log(2.0_rk*de/uLR0)
+    !
+    beta = (1.0_rk-yp)*betaN+yp*betainf
+    ! 
+    y  = 1.0_rk-uLR/uLR0*exp(-beta*z)
+    !
+    f = de*y**2+v0
+    !
+  end function poten_MLR_Douketis
+ 
+ 
   !
   function poten_Marquardt(r,parameters) result(f)
     !
