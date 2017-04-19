@@ -637,7 +637,7 @@ module diatom_module
              !
              if (i>1.and.mod(nint(2.0_rk*jrot+1.0_rk),2)==0.and.integer_spin) then
                !
-               call report("The multiplicities of jrot in J-list are inconsistent",.true.)
+               call report("The multiplicities of J-s in J-list/Jrot are inconsistent",.true.)
                !
              endif
              !
@@ -2645,7 +2645,7 @@ module diatom_module
               if (nitems>2) call readf(field%spinj)
               !
               if (mod(nint(2.0_rk*field%spini+1.0_rk),2)==0.and.integer_spin) then
-                call report("The multiplicity of j-s in J_lits are inconcistent with the SPIN of the field defined at:",.true.)
+                call report("The spin of the field is inconsistent with the multiplicity of J-s in J_list/Jrot (top)",.true.)
               endif
               !
             case("MULT","MULTIPLICITY")
@@ -2658,11 +2658,12 @@ module diatom_module
                 call report("Error: multiplicity should be an integer greater or equal to one")
               endif
               !
-              if (mod(field%multi,2)==0.and.integer_spin) then
+              if (mod(field%multi-1,2)==0.and.integer_spin) then
                 !
                 write(out,'(A,i4," of the field ",i4," is inconsistent with multiplicity of jmin/jmax = ",2f8.1)') &
                             "The multiplicity ", field%multi,field%iref,jmin,jmax
-                call report("The multiplicity of the field is inconsistent with jmin/jmax")
+                write(out,'("Please check that Jrot at the top of input is integer/half-integer.")') &
+                call report("The multiplicity of the field is inconsistent with Jrot/Jlist")
                 !
               endif
               !
@@ -5646,7 +5647,7 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=6) write(out,'(/"Check the contracted basis for ortho-normality")')
        !
-       write(out,'(/"Vibrational overkap integrals: ")')
+       write(out,'(/"Vibrational overlap integrals: ")')
 !        write(out,'("    State-i    <i|j>   State-j"/)')
        write(out,"(1x,a7,1x,a7,6x,a10)") 'State-i','State-j', '<i|j>'
        !
@@ -5858,7 +5859,7 @@ end subroutine map_fields_onto_grid
                      if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
                           jstate==field%jstate ) then 
                        !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
-                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es23.15)') icontrvib(ilevel)%istate,    &
+                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
                                                                                           icontrvib(ilevel)%v,            &
                                                                                           trim(field%name),               &
                                                                                           icontrvib(jlevel)%istate,       &
