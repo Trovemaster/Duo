@@ -2662,7 +2662,7 @@ module diatom_module
                 !
                 write(out,'(A,i4," of the field ",i4," is inconsistent with multiplicity of jmin/jmax = ",2f8.1)') &
                             "The multiplicity ", field%multi,field%iref,jmin,jmax
-                write(out,'("Please check that Jrot at the top of input is integer/half-integer.")') &
+                write(out,'("Please check that Jrot at the top of input is integer/half-integer.")') 
                 call report("The multiplicity of the field is inconsistent with Jrot/Jlist")
                 !
               endif

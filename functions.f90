@@ -57,7 +57,7 @@ module functions
       !
       fanalytical_field => poten_MLR
       !
-    case("MLR_DS") ! "Morse/Long-Range with Douketis-dumping"
+    case("MLR_DS") ! "Morse/Long-Range with Douketis-damping"
       !
       fanalytical_field => poten_MLR_Douketis
       !
@@ -411,13 +411,13 @@ module functions
   end function poten_MLR
  
  
-   ! Morse/Long-Range with Douketis dumping, see Le Roy manuals
+   ! Morse/Long-Range with Douketis damping, see Le Roy manuals
   !
   function poten_MLR_Douketis(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: y,v0,r0,de,f,rref,z,beta,betainf,betaN,yq,yp,uLR,uLR0,rho,b,c,s,dump
+    real(rk)               :: y,v0,r0,de,f,rref,z,beta,betainf,betaN,yq,yp,uLR,uLR0,rho,b,c,s,damp
     integer(ik)            :: k,N,p,M,Nstruc,Ntot,Npot,q
     !
     v0 = parameters(1)
@@ -468,22 +468,28 @@ module functions
       stop 'poten_MLR: At least one uLR should be non-zer'
     endif
     ! 
-    ! For the Dumping part   
+    ! For the Damping part   
     ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
     !
     s = -1.0_rk
     b = 3.3_rk
-    c = 4.23_rk
+    c = 0.423_rk
+
+    !s = -2.0_rk
+    !b = 2.50_rk
+    !c = 0.468_rk
+
+
     !
     ! long-range part
     !
     uLR = 0
     do k=1,M
      !
-     ! Douketis dumping function
-     Dump = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     ! Douketis damping function
+     Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
      !
-     uLR = uLR + Dump*parameters(k+Npot+Nstruc)/r**k
+     uLR = uLR + Damp*parameters(k+Npot+Nstruc)/r**k
      !
     enddo
     !
@@ -491,10 +497,11 @@ module functions
     ! at R=Re
     uLR0 = 0
     do k=1,M
-     ! Douketis dumping function
-     Dump = ( 1.0_rk-exp( -b*rho*r0/real(k,rk)-c*(rho*r0)**2/sqrt(real(k,rk)) ) )**(real(k)+s)
+     ! Douketis damping function
+     Damp = ( 1.0_rk-exp( -b*rho*r0/real(k,rk)-c*(rho*r0)**2/sqrt(real(k,rk)) ) )**(real(k)+s)
      !
-     uLR0 = uLR0 + parameters(k+Npot+Nstruc)/r0**k
+     uLR0 = uLR0 + Damp*parameters(k+Npot+Nstruc)/r0**k
+     !
     enddo
 
 
@@ -960,7 +967,7 @@ module functions
     !
     f = poten_cheb(y,a(1:N+1))+a(3)*0.5_rk
     !
-    f = z**3/(1+z**7)*f
+    f = z**3/(1.0_rk+z**7)*f
     !
   end function poten_Pade_Goodisman_2
   !
