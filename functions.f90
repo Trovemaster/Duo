@@ -125,6 +125,10 @@ module functions
       !
       fanalytical_field => poten_Pade_Goodisman_2
       !
+    case("POLYNOM_DECAY")
+      !
+      fanalytical_field => dipole_polynom_exp
+      !
     case("DOUBLEEXP2")
       !
       fanalytical_field => dipole_doubleexp
@@ -971,6 +975,33 @@ module functions
     !
   end function poten_Pade_Goodisman_2
   !
+  !
+  ! polynomial with exp decay
+  !
+  function dipole_polynom_exp(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: beta,z,f,r0
+    integer(ik)            :: N,k
+    !
+    N = size(parameters)
+    !
+    r0 = parameters(1)
+    beta = parameters(2)
+    !
+    if (abs(r0)<small_) stop 'It is illegal to set re to zero'
+    !
+    z = (r-r0)*exp(-beta*(r-r0)**2)
+    !
+    f =  0
+    do k=0,N-3
+      f = f + parameters(k+3)*z**k
+    enddo
+    !
+  end function dipole_polynom_exp
+  !
+
   !
   function SO_arctan(r,parameters) result(fun)
     implicit none
