@@ -954,7 +954,7 @@ module diatom_module
          ! skip if fitting NONE
          if (Nitems>1) then
             call readu(w)
-            if (trim(w)=="NONE") then
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
                action%fitting = .false.
                do while (trim(w)/="".and.trim(w)/="END")
                  call read_line(eof,iut) ; if (eof) exit
@@ -1171,11 +1171,11 @@ module diatom_module
                     itau = mod( nint( fitting%obs(iobs)%Jrot )+1,2 )
                   endif
                   !
-                case ('+')
+                case ('+','+1','1')
                   !
                   itau = 0
                   !
-                case ('-')
+                case ('-','-1')
                   !
                   itau = 1
                   !
@@ -2062,14 +2062,14 @@ module diatom_module
                      !
                      iabi_ = Nestates + i
                      !
+                     if (trim(w)=='SPIN-ORBIT-X') then
+                       abinitio(iabi_)%molpro = .true.
+                     endif
+                     !
                      exit loop_istate_abiso
                    endif
                    !
                enddo loop_istate_abiso
-               !
-               if (trim(w)=='SPIN-ORBIT-X') then
-                 abinitio(iabi_)%molpro = .true.
-               endif
                !
                w = "SPINORBIT"
                !
@@ -2894,7 +2894,7 @@ module diatom_module
          !
          if (Nitems>1) then
            call readu(w)
-           if (trim(w)=="NONE") then
+           if (trim(w)=="NONE".or.trim(w)=="OFF") then
              do while (trim(w)/="".and.trim(w)/="END")
                call read_line(eof,iut) ; if (eof) exit
                call readu(w)

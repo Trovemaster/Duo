@@ -129,6 +129,10 @@ module functions
       !
       fanalytical_field => dipole_polynom_exp
       !
+    case("POLYNOM_DECAY_24")
+      !
+      fanalytical_field => dipole_polynom_exp24
+      !
     case("DOUBLEEXP2")
       !
       fanalytical_field => dipole_doubleexp
@@ -1001,6 +1005,36 @@ module functions
     !
   end function dipole_polynom_exp
   !
+  function dipole_polynom_exp24(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: beta,z,f,r0,gamma,y,tinf,p
+    integer(ik)            :: N,k
+    !
+    N = size(parameters)
+    !
+    r0 = parameters(1)
+    beta = parameters(2)
+    gamma = parameters(3)
+    p = parameters(4)
+    !
+    if (abs(r0)<small_) stop 'It is illegal to set re to zero'
+    !
+    z = (r-r0)*exp(-beta*(r-r0)**2-gamma*(r-r0)**4)
+    !
+    f =  0
+    do k=0,N-5-1
+      f = f + parameters(k+5)*z**k
+    enddo
+    !
+    y = (r**p-r0**p)/(r**p+r0**p)
+    !
+    tinf = parameters(N)
+    !
+    f = (1.0_rk-y)*f+y*tinf
+    !
+  end function dipole_polynom_exp24
 
   !
   function SO_arctan(r,parameters) result(fun)
