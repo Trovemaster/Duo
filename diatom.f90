@@ -210,7 +210,7 @@ module diatom_module
       real(rk),pointer    :: vibenermax(:)    !     contraction parameter: energy
       integer(ik),pointer :: vibmax(:)           !     contraction parameter: vibration quantum
       real(rk)            :: potmin              ! absolute minimum of the PEC with the lowest rotational-vibrational state
-      logical             :: zShiftPECsToZero = .false.
+      logical             :: zShiftPECsToZero = .true.
       logical             :: zEchoInput = .true.
       logical             :: zExclude_JS_coupling =.false. ! If set to true will disable J.S coupling (aka S-uncoupling)
       integer(ik)         :: total_parameters =0  !  total number of parameters used to define different hamiltonian fields
@@ -2410,9 +2410,9 @@ module diatom_module
                   !
                   if (poten(field%jstate)%ix_lz_y/=field%jx_lz_y) then
                     !
-                    write(out,"('input: ',a,2i4,' <x|lz|y> disagree with the poten-value ',2i8)") & 
+                    write(out,"('input: ',a,2i4,' <x|lz|y> disagree with previsouly given <x|Lz|z> value ',2i8)") & 
                             field%class,field%iref,field%jref,poten(field%istate)%ix_lz_y/=field%jx_lz_y
-                    call report (" <x|lz|y> disagree with the poten-value",.true.)
+                    call report (" <x|lz|y> disagree with the pprevisouly given <x|Lz|z>-value",.true.)
                     !
                   endif
                 endif
@@ -2658,7 +2658,7 @@ module diatom_module
                 call report("Error: multiplicity should be an integer greater or equal to one")
               endif
               !
-              if (mod(field%multi-1,2)==0.and.integer_spin) then
+              if (mod(field%multi,2)==0.and.integer_spin) then
                 !
                 write(out,'(A,i4," of the field ",i4," is inconsistent with multiplicity of jmin/jmax = ",2f8.1)') &
                             "The multiplicity ", field%multi,field%iref,jmin,jmax
@@ -4299,7 +4299,7 @@ subroutine map_fields_onto_grid(iverbose)
      ! equilibrium quantities
      !
      loop_pecs: do istate=1,Nestates ! loop over potential energy curves
-       ! find minimum and maximum on the grid 
+        ! find minimum and maximum on the grid 
        poten(istate)%imin  = minloc(poten(istate)%gridvalue,dim=1)
        poten(istate)%Vimin = poten(istate)%gridvalue( poten(istate)%imin )
        poten(istate)%imax  = maxloc(poten(istate)%gridvalue,dim=1)
