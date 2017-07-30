@@ -61,6 +61,10 @@ module functions
       !
       fanalytical_field => poten_MLR_Douketis
       !
+    case("MLR_DS_DARBY") ! "Morse/Long-Range with Douketis-damping"
+      !
+      fanalytical_field => poten_MLR_Douketis_Darby
+      !
     case("MARQUARDT") ! "Marquardt"
       !
       fanalytical_field => poten_Marquardt
@@ -72,6 +76,10 @@ module functions
     case("BOBLEROY","BOB","SURKUS") ! "BOB expansion"
       !
       fanalytical_field => poten_BOBLeRoy
+      !
+    case("BOBNA") ! "BOB-NA expansion"
+      !
+      fanalytical_field => poten_BOBna
       !
     case("BOBLEROY_DAMP","BOB_DAMP","SURKUS_DAMP") ! "BOB expansion with damping to zero at r=0"
       !
@@ -140,6 +148,10 @@ module functions
     case("DIABATIC_MU_DIAG","AVOIDEDCROSSING_DIAG_MU")
       !
       fanalytical_field => dipole_avoidedcrossing_diag_mu
+      !
+    case("TWO_COUPLED_EMOS")
+      !
+      fanalytical_field => poten_two_coupled_EMOs
       !
     case("NONE")
       !
@@ -530,6 +542,146 @@ module functions
   end function poten_MLR_Douketis
  
  
+ 
+   function poten_MLR_Douketis_Darby(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,rref,z,beta,betainf,betaN,yq,yp,uLR,uLR0,rho,b,c,s,damp,u,uinf,ma,mb
+    integer(ik)            :: k,N,p,M,Nstruc,Ntot,Npot,q,NUa,NUb
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    rref = parameters(4)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(5))
+    q = nint(parameters(6))
+    N = parameters(7)
+    rho = parameters(8)
+    !
+    ! Number of structural parameters 
+    !
+    Nstruc = 8
+    !
+    ! total number of parameters 
+    !
+    ! Number of pot-parameters
+    !
+    Npot = N+1
+    !
+    ! number of long range parameters 
+    !
+    M = parameters(Nstruc+Npot+1)
+    !
+    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+    !  stop 'poten_EMO: Illegal number of parameters, check NS and NL'
+    !endif 
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    yp = (r**p-rref**p)/(r**p+rref**p)
+    yq = (r**q-rref**q)/(r**q+rref**q)
+    !
+    ! double check uLR parameters
+    !
+    uLR = sum(parameters(2+Npot+Nstruc:M+Npot+Nstruc)**2)
+    !
+    if (uLR<small_) then
+      write(out,"('poten_MLR: At least one uLR should be non-zero')")
+      stop 'poten_MLR: At least one uLR should be non-zer'
+    endif
+    ! 
+    ! For the Damping part   
+    ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
+    !
+    s = -1.0_rk
+    b = 3.3_rk
+    c = 0.423_rk
+
+    !s = -2.0_rk
+    !b = 2.50_rk
+    !c = 0.468_rk
+
+
+    !
+    ! long-range part
+    !
+    uLR = 0
+    do k=1,M
+     !
+     ! Douketis damping function
+     Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     !
+     uLR = uLR + Damp*parameters(1+k+Npot+Nstruc)/r**k
+     !
+    enddo
+    !
+    !
+    ! at R=Re
+    uLR0 = 0
+    do k=1,M
+     ! Douketis damping function
+     Damp = ( 1.0_rk-exp( -b*rho*r0/real(k,rk)-c*(rho*r0)**2/sqrt(real(k,rk)) ) )**(real(k)+s)
+     !
+     uLR0 = uLR0 + Damp*parameters(1+k+Npot+Nstruc)/r0**k
+     !
+    enddo
+    !
+    betaN = 0
+    do k=0,N
+     betaN = betaN + parameters(k+Nstruc+1)*yq**k
+    enddo
+    !
+    betainf = log(2.0_rk*de/uLR0)
+    !
+    beta = (1.0_rk-yp)*betaN+yp*betainf
+    ! 
+    y  = 1.0_rk-uLR/uLR0*exp(-beta*z)
+    !
+
+
+
+    !
+    ma = 1.0_rk - parameters(2+M+Npot+Nstruc)/parameters(3+M+Npot+Nstruc)
+    mb = 1.0_rk - parameters(4+M+Npot+Nstruc)/parameters(5+M+Npot+Nstruc)
+    !
+    
+!    write(out,*) parameters(2+M+Npot+Nstruc), parameters(3+M+Npot+Nstruc)
+!    write(out,*) parameters(4+M+Npot+Nstruc), parameters(5+M+Npot+Nstruc)
+
+
+    p = nint(parameters(6+M+Npot+Nstruc))
+    q = nint(parameters(7+M+Npot+Nstruc))
+    !
+    NUa = nint(parameters(8+M+Npot+Nstruc))
+    !
+    NUb = nint(parameters(9+M+Npot+Nstruc))
+    !
+    yp = (r**p-r0**p)/(r**p+r0**p)
+    yq = (r**q-r0**q)/(r**q+r0**q)
+    !
+    u = 0
+    do k=0,NUa
+     u = u + ma*parameters(k+10+M+Npot+Nstruc)*yq**k
+    enddo
+    do k=0,NUb
+     u = u + mb*parameters(k+12+NUa+M+Npot+Nstruc)*yq**k
+    enddo
+    !
+    uinf = parameters(11+NUa+M+Npot+Nstruc)*ma + parameters(13+NUa+NUb+M+Npot+Nstruc)*mb
+
+
+
+    f = de*y**2+v0 + ( (1.0_rk-yp)*u + uinf*yp )
+    !
+  end function poten_MLR_Douketis_Darby
+
+ 
   !
   function poten_Marquardt(r,parameters) result(f)
     !
@@ -598,7 +750,7 @@ module functions
     !
     t = 0
     do k=0,N
-     t = t + parameters(k+5)*z**k
+     t = t + parameters(k+4)*z**k
     enddo
     !
     tinf = parameters(N+6)
@@ -646,6 +798,43 @@ module functions
     f = ( (1.0_rk-z)*t+z*tinf )*f_damp+t_0*(1.0_rk-f_damp)
     !
   end function poten_BOBLeRoy_damp
+  !
+  function poten_BOBna(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,yq,t,tinf,ma,mb,q
+    integer(ik)            :: k,NTa,NTb
+    !
+    r0 = parameters(1)
+    !
+    ma = parameters(2)/parameters(3)
+    mb = parameters(4)/parameters(5)
+!    write(out,*) r, ma, parameters(2), parameters(3), mb, parameters(4), parameters(5)
+    !
+    q = parameters(6)
+    !
+    NTa = nint(parameters(7))
+    !
+    NTb = nint(parameters(8))
+    !
+    yq = (r**q-r0**q)/(r**q+r0**q)
+    !
+    t = 0
+    do k=0,NTa
+     t = t + ma*parameters(k+9)*yq**k
+    enddo
+    do k=0,NTb
+     t = t + mb*parameters(k+11+NTa)*yq**k
+    enddo
+    !
+    tinf = parameters(10+NTa)*ma + parameters(12+NTa+NTb)*mb
+    !
+!    write(out,*) r, ( (1.0_rk-yq)*t + tinf*yq ),( (1.0_rk-yq)*t + tinf*yq )+1.0_rk
+    f = ( (1.0_rk-yq)*t + tinf*yq )
+    !
+  end function poten_BOBna
+  !
   !
   function poten_dunham(r,parameters) result(f)
     !
@@ -1104,5 +1293,39 @@ module functions
     fun = inter*muionic/(inter+4.0_rk*j0**2)
     !
   end function dipole_avoidedcrossing_diag_mu
+
+
+  function poten_two_coupled_EMOs(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component 
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    a  = poten_cosh_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr) 
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr) 
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs
+
+
+
   !
 end module functions

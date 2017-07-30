@@ -1234,11 +1234,11 @@ module diatom_module
                       itau = mod( nint( fitting%obs(iobs)%Jrot_ )+1,2 )
                     endif
                     !
-                  case ('+')
+                  case ('+','+1','1')
                     !
                     itau = 0
                     !
-                  case ('-')
+                  case ('-','-1')
                     !
                     itau = 1
                     !
@@ -3383,15 +3383,9 @@ module diatom_module
        sigma_=-spin_ + real(i, rk)
        omega_=min(omega_,abs(real(lambda_, rk) +sigma_) )
       end do
-       poten(istate)%Omega_min = omega_
-      !
-      !if (poten(istate)%lambda<lambda_) then
-      !  lambda_ = poten(istate)%lambda
-      !  spin_ = poten(istate)%spini
-      !endif
-      !
+      poten(istate)%Omega_min = omega_
     enddo
-
+    !
     ! find globally minimum Omega
     omega_= safe_max
     do istate=1,Nestates
@@ -4778,9 +4772,10 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   c = -field%gridvalue(i)*field%complex_f*sqrt(0.5_rk)
                   !
-                  ! maple:
+                  ! maple for Lx
                   !c = -conjugate(A[1,2])*a/conjugate(A[2,2]), b = -a*B[1,2]/B[2,2], 
                   !d = B[1,2]*conjugate(A[1,2])*a/(B[2,2]*conjugate(A[2,2]))
+                  ! m+ = -1/sqrt(2)l+
                   !
                   coupling(1,1) =  c
                   coupling(1,2) = -c*b(1,2)/b(2,2)
