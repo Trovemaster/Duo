@@ -255,6 +255,7 @@ module diatom_module
     integer(ik)  :: ivib = 1   ! vibrational quantum number counting all vib-contracted states
     integer(ik)  :: ilevel = 1  ! primitive quantum
     integer(ik)  :: iroot       ! running number
+    integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1
     character(len=cl) :: name         ! Identifying name of the  function
@@ -2990,7 +2991,7 @@ module diatom_module
              !
              call reada (intensity%linelist_file)
              !
-           case('MATELEM')
+           case('MATELEM','RICHMOL')
              !
              intensity%matelem = .true.
              !
