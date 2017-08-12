@@ -25,7 +25,7 @@ module timer
          MemoryReport,memory_limit,maxmemory,memory_now
   !
   integer, parameter :: trk        = selected_real_kind(12)
-  integer, parameter :: table_size = 1000 ! Max number of entries to track
+  integer, parameter :: table_size = 2000 ! Max number of entries to track
   integer, parameter :: tarray_size = 10000 ! Max number of entries to track
   integer, parameter :: name_len   =   40 ! Max length of timer name
   !
@@ -466,9 +466,9 @@ module timer
           ! This is a new key, insert it
           !
           io_count = io_count + 1
-          if (io_count>=table_size/5) then
+          if (io_count>=table_size/2) then
             write (out,"('Too many io_units. Increase table_size in "// &
-                       "timer.f90 to at least ',i5)") io_count*5
+                       "timer.f90 to at least ',i5)") io_count*2+1
             stop 'timer%insert_item'
           end if
           io_appear(io_count)      = pos

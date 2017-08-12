@@ -324,7 +324,7 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
     integer(ik)  :: ivF_,ilambdaF_
@@ -348,10 +348,10 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,indI_,indF_,iMs
-    real(rk) :: J_,jI_,jF_
-    character(len=12) :: char_Jf,char_Ji
-    integer(ik),allocatable :: richunit(:,:)
+    integer(ik) :: Jmax_,ID_J,nMs
+    real(rk) :: J_
+    character(len=12) :: char_Jf,char_Ji,char_LF
+    integer(ik),allocatable :: richunit(:,:,:)
     !
     call TimerStart('Intensity calculations')
     !
@@ -397,7 +397,7 @@ contains
         !
         Jmax_ = nint(maxval(Jval(:))) 
         !
-        allocate(richunit(nJ,nJ))
+        allocate(richunit(nJ,nJ,3))
         !
         do indI = 1, nJ
           !
@@ -409,27 +409,36 @@ contains
             ! 
             ! selection rules: Delta J<=1
             !
-            if (nint(jI-jF)>1) cycle
+            if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
             !
             write(char_Jf,'(i12)') nint(jF)
             !
-            filename =  "matelem_MU_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_b1.rchm"
-            !
-            call IOstart(trim(filename),richunit(indI,indF))
-            !
-            open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
-            !
-            write(richunit(indI,indF),"('Start richmol format')")
-            write(richunit(indI,indF),"('   1  -1')")
-            write(richunit(indI,indF),"('LF-block')")
-            !
-            ! count the number of M-elemints 
-            call do_LF_matrix_elements(richunit(indI,indF),jI,jF,jmax_,iMs)
-            write(richunit(indI,indF),"(i7)") iMs
-            call do_LF_matrix_elements(richunit(indI,indF),jI,jF,jmax_)
-            !
-            write(richunit(indI,indF),"('MF-block')")
-            !
+            ! three cartesian LF-components 
+            do iLF = 1,3
+              !
+              write(char_LF,'(i12)') iLF
+              !
+              filename =  "matelem_MU_"//trim(adjustl(char_LF))//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_b1.rchm"
+              !
+              call IOstart(trim(filename),richunit(indI,indF,iLF))
+              !
+              open(unit = richunit(indI,indF,iLF), action = 'write',status='replace' , file = filename)
+              !
+              ! this flag is 0 for real M-values, 1 for imaginary and -1 for i**2
+              iflag_rich = 0 ; if (iLF==2) iflag_rich = 1
+              !
+              write(richunit(indI,indF,iLF),"('Start richmol format')")
+              write(richunit(indI,indF,iLF),"('   1',1x,i3)") iflag_rich
+              write(richunit(indI,indF,iLF),"('LF-block')")
+              !
+              ! count the number of M-elemints 
+              call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF,nMs)
+              write(richunit(indI,indF,iLF),"(i7)") nMs
+              call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF)
+              !
+              write(richunit(indI,indF,iLF),"('MF-block')")
+              !
+            enddo
           enddo
         enddo
       endif 
@@ -579,6 +588,8 @@ contains
        !
        jI = jval(indI)
        !
+       J_ = -1 ! For RichMol count
+       !
        do igammaI=1,Nrepresen
          !
          nlevelsI = eigen(indI,igammaI)%Nlevels
@@ -629,8 +640,6 @@ contains
              else
                ef = "f"
              endif
-             !
-             J_ = -1 ! For RichMol count
              !
              ! ndecimals contains the number of decimal digits to print for energy levels
              ! we use 6 decimals for energy levels up to 100,000 cm-1, then sacrify more and more decimals 
@@ -737,10 +746,10 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,a1,1x,i2,1x,f12.",ndecimals,",1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                 write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,i7,1x,i6,1x,i4,1x,i4,1x,a1,1x,a10)"
                  write(enunit,my_fmt) & 
-                           nint(J_),ID_J,pm,1,energyI-intensity%ZPE,nint(jI),&
-                           pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                           nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,nint((omegaI)),&
+                           ivI,(ilambdaI),nint((sigmaI)),pm,statename
                  !
                else
                  !
@@ -1147,9 +1156,12 @@ contains
                          if (trim(intensity%linelist_file)/="NONE") then
                            !
                            if ( intensity%matelem ) then 
-                              !
-                              write(richunit(indI,indF),"(2i8,2i4,2x,f24.16)") & 
-                                              quantaF%iJ_ID,quantaI%iJ_ID,1,1,linestr
+                             !
+                             do iLF = 1,3
+                               !
+                               write(richunit(indI,indF,iLF),"(2i8,2i4,2x,f24.16)") & 
+                                               quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
+                             enddo
                              !
                              !write(transunit,"(2i12,2x,e17.8,4x,f16.6)") & 
                              !          quantaF%iroot,quantaI%iroot,linestr,nu_if
@@ -1198,21 +1210,26 @@ contains
            !
          enddo
          !
-      enddo
-      !
+       enddo
+       !
+       ! close some J-files for Richmol:
+       if ( intensity%matelem ) then 
+         !
+         do indF = max(1,indI-1),min(nJ,indI+1)
+           !
+           jF = Jval(indF)
+           if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
+           !
+           do iLF = 1,3
+             write(richunit(indI,indF,iLF),"('End richmol format')")
+             close(richunit(indI,indF,iLF))
+           enddo
+           !
+         enddo
+         !
+       endif
+       !
     enddo
-    if ( intensity%matelem ) then 
-      !
-      do indI_ = 1, nJ
-        do indF_ = 1, nJ
-          !
-          write(richunit(indI_,indF_),"('End richmol format')")
-          close(richunit(indI_,indF_))
-          !
-        enddo
-      enddo
-      !
-    endif
     !
     deallocate(vecI)
     call ArrayStop('intensity-vectors')
@@ -1865,72 +1882,74 @@ contains
 
 
 
-      subroutine do_LF_matrix_elements(iunit,jI,jF,jmax,icount)
+      subroutine do_LF_matrix_elements(iLF,iunit,jI,jF,icount)
         implicit none 
         real(rk),intent(in)     :: jI,jF
-        integer(ik),intent(in)  :: iunit,jmax
+        integer(ik),intent(in)  :: iLF,iunit
         integer(ik),intent(out),optional :: icount
         !real(rk),intent(out)    :: M(-jmax:jmax,-jmax:jmax,3)
-        integer(ik)             :: iomegaI_,iomegaF_,ix,icount_
-        real(rk)                :: f3j, omegaI,omegaF,isigma,M_
-        complex(rk)                :: f_t,M_t(-jmax:jmax,-jmax:jmax,3)
-        complex(rk)             :: t(3,-1:1)
-        type(fieldT),pointer    :: field
+        integer(ik)             :: iomegaI_,iomegaF_,icount_,isigma
+        real(rk)                :: f3j, omegaI,omegaF,M_
+        real(rk)                :: f_t
+        real(rk)                :: t(3,-1:1)
           !
           t = 0
           !
-          t(1,-1) = cmplx(-1.0_rk/sqrt(2.0_rk),0.0_rk)
-          t(1,1)  = cmplx( 1.0_rk/sqrt(2.0_rk),0.0_rk)
-          t(2,-1) = cmplx(0.0_rk,1.0_rk/sqrt(2.0_rk))
-          t(2,1)  = cmplx(0.0_rk,1.0_rk/sqrt(2.0_rk))
-          t(3,0)  = cmplx(1.0_rk,0.0_rk)
+          !t(1,-1) = cmplx(-1.0_rk/sqrt(2.0_rk),0.0_rk)
+          !t(1,1)  = cmplx( 1.0_rk/sqrt(2.0_rk),0.0_rk)
+          !t(2,-1) = cmplx(0.0_rk,1.0_rk/sqrt(2.0_rk))
+          !t(2,1)  = cmplx(0.0_rk,1.0_rk/sqrt(2.0_rk))
+          !t(3,0)  = cmplx(1.0_rk,0.0_rk)
+          !
+          ! Only the y-component is imaginary, which we make real here but indicate in richmol file
+          !
+          t(1,-1) = -1.0_rk/sqrt(2.0_rk)
+          t(1,1)  =  1.0_rk/sqrt(2.0_rk)
+          t(2,-1) = 1.0_rk/sqrt(2.0_rk)
+          t(2,1)  = 1.0_rk/sqrt(2.0_rk)
+          t(3,0)  = 1.0_rk
           !
           !dms_tmp = dipole_me
           !
           call TimerStart('do_LF_matrix_elements')
           !
-          M_t  = 0
           M_ = 0
           !
           icount_ = 0
           !
-          do ix = 1,3
-            !
-            loop_F : do iomegaF_ = -nint(Jf), nint(Jf)
+          loop_F : do iomegaF_ = -nint(Jf), nint(Jf)
+             !
+             omegaF = iomegaF_
+             if (mod(nint(2.0_rk*omegaF+1.0_rk),2)==0 ) omegaF = iomegaF_+0.5_rk
+             !
+             loop_I : do iomegaI_ = -nint(Ji), nint(Ji)
+                  !
+                  omegaI = iomegaI_
+                  !
+                  isigma = nint(omegaF - omegaI)
+                  !
+                  if (abs(isigma)>1) cycle
+                  !
+                  if (mod(nint(2.0_rk*iomegaI_+1.0_rk),2)==0 ) omegaI = iomegaI_+0.5_rk
+                  !
+                  f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  !
+                  f_t = 0
+                  !
+                  f_t = T(iLF,isigma)
+                  !
+                  !M_t(iomegaI_,iomegaF_,iLF) = f_t
+                  !
+                  M_ = (-1.0_rk)**(omegaI)*f_t*f3j*sqrt(( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk ))
+                  !
+                  if (abs(M_)>small_) then 
+                    icount_ = icount_ + 1
+                    if (.not.present(icount)) write(iunit,"(2i8,1x,e18.9)") iomegaI_,iomegaF_,M_
+                  endif
+                  !
+               end do  loop_I
                !
-               omegaF = iomegaF_
-               if (mod(nint(2.0_rk*omegaF+1.0_rk),2)==0 ) omegaF = iomegaF_+0.5_rk
-               !
-               loop_I : do iomegaI_ = -nint(Ji), nint(Ji)
-                    !
-                    omegaI = iomegaI_
-                    if (mod(nint(2.0_rk*iomegaI_+1.0_rk),2)==0 ) omegaI = iomegaI_+0.5_rk
-                    !
-                    f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
-                    !
-                    f_t = 0
-                    !
-                    do isigma = -1,1
-                          !
-                          f_t = f_t + f3j*T(ix,isigma)
-                          !
-                     enddo
-                     !
-                     M_t(iomegaI_,iomegaF_,ix) = f_t
-                     !
-                     !M(iomegaI_,iomegaF_,ix) = 
-                     !
-                     M_ = (-1.0_rk)**(omegaI)*imag(f_t)*sqrt(( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk ))
-                     !
-                     if (abs(M_)>small_) then 
-                       icount_ = icount_ + 1
-                       if (.not.present(icount)) write(iunit,"(2i8,1x,e18.9)") iomegaI_,iomegaF_,M_
-                     endif
-                     !
-                 end do  loop_I
-                 !
-            end do   loop_F
-          enddo
+          end do   loop_F
           !
           if (present(icount)) icount = icount_ 
           !omp end parallel do

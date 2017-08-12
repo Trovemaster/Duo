@@ -750,7 +750,7 @@ module functions
     !
     t = 0
     do k=0,N
-     t = t + parameters(k+4)*z**k
+     t = t + parameters(k+5)*z**k
     enddo
     !
     tinf = parameters(N+6)
@@ -782,7 +782,7 @@ module functions
     !
     t = 0
     do k=0,N
-     t = t + parameters(k+5)*z**k
+     t = t + parameters(k+4)*z**k
     enddo
     !
     tinf = parameters(N+6)
