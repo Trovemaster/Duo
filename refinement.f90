@@ -724,6 +724,7 @@ module refinement
                                 !
                                 if ( abs( fitting%obs(iener)%energy-( energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1) )  )<= & 
                                                             & lock_factor*abs(fitting%threshold_lock).and.&
+                                      ! threshold_lock > 0, search for a QN match
                                     ( ( calc(irot,itauC,i0)%istate==fitting%obs(iener)%quanta%istate.and.&
                                         abs(calc(irot,itauC,i0)%ilambda)==abs(fitting%obs(iener)%quanta%ilambda).and.&
                                         calc(irot,itauC,i0)%v==fitting%obs(iener)%quanta%v.and.&
@@ -734,8 +735,9 @@ module refinement
                                         abs(calc(irot_,itauC_,i1)%ilambda)==abs(fitting%obs(iener)%quanta_%ilambda).and.&
                                         calc(irot_,itauC_,i1)%v==fitting%obs(iener)%quanta_%v.and.&
                                         nint(abs(calc(irot_,itauC_,i1)%sigma)-abs(fitting%obs(iener)%quanta_%sigma))==0 .and.&
-                                        nint(abs(calc(irot_,itauC_,i1)%omega)-abs(fitting%obs(iener)%quanta_%omega))==0).or.&
-                                        fitting%threshold_lock<0 ) ) then 
+                                        nint(abs(calc(irot_,itauC_,i1)%omega)-abs(fitting%obs(iener)%quanta_%omega))==0 ).or.&
+                                      ! threshold_lock < 0, only frequency match 
+                                      (  fitting%threshold_lock<0 ) ) ) then 
                                     !
                                     fitting%obs(iener)%N = i0
                                     fitting%obs(iener)%N_= i1
@@ -1038,12 +1040,16 @@ module refinement
                           !
                           if (abs( fitting%obs(iener)%energy-(energy_(irot,itau,i0)-ezero(1)) )<= & 
                                                       & real(iter_th,rk)*abs(fitting%threshold_lock).and.&
+                                ! threshold_lock>0, QN match
                               ( ( abs(calc(irot,itau,i0)%ilambda)==abs(fitting%obs(iener)%quanta%ilambda).and.&
                                   calc(irot,itau,i0)%istate ==fitting%obs(iener)%quanta%istate.and.&
                                   calc(irot,itau,i0)%v      ==fitting%obs(iener)%quanta%v.and.&
                                   nint(abs(calc(irot,itau,i0)%omega)-abs(fitting%obs(iener)%quanta%omega) )==0.and.&
                                   nint(abs(calc(irot,itau,i0)%sigma)-abs(fitting%obs(iener)%quanta%sigma) )==0 ).or.& 
-                                  fitting%threshold_lock<0 ) ) then 
+                                 ! energy match + state + vib QN match 
+                                 ( fitting%threshold_lock<0.and. &
+                                  calc(irot,itau,i0)%istate ==fitting%obs(iener)%quanta%istate.and.&
+                                  calc(irot,itau,i0)%v      ==fitting%obs(iener)%quanta%v ) ) ) then 
                               !
                               fitting%obs(iener)%N = i0
                               mark(iener) = ' '
