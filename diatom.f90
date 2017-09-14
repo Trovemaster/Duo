@@ -7546,9 +7546,9 @@ end subroutine map_fields_onto_grid
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
-                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1)')  total_roots,     & 
+                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,i4)')  total_roots,     & 
                           J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%ivib,icontr(k)%ilambda,icontr(k)%sigma, &
-                          icontr(k)%spin
+                          icontr(k)%spin,icontr(k)%v
                   enddo
                   !
                 endif

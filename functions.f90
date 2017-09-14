@@ -326,6 +326,7 @@ module functions
     !
     if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
       write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+      print*,parameters(:)
       stop 'poten_EMO: Illegal number of parameters, check NS and NL'
     endif 
     !
@@ -1224,28 +1225,29 @@ module functions
     f = (1.0_rk-y)*f+y*tinf
     !
   end function dipole_polynom_exp24
-
   !
   function SO_arctan(r,parameters) result(fun)
-    implicit none
-    real(rk),intent(in) :: r,parameters(:)
-    integer(ik)  :: m
-    real(rk)            :: fun,r0,SO0,SOinf,k,q
-    !
-    m=size(parameters)
-    !
-    if(m/=4) stop 'SO_arctan: illegal number of parameters parameters (/=4)'
-    !
-    r0     = parameters(1)
-    SO0    = parameters(2)
-    SOinf  = parameters(3)
-    k      = parameters(4)
-    !
-    q = (r-r0)*k
-    !
-    fun = 0.5_rk*(SO0+SOinf)+(1.0_rk/pi)*(SO0-SOinf)*atan(q)
-    !
-  end function SO_arctan
+     implicit none
+     real(rk),intent(in) :: r,parameters(:)
+     integer(ik)  :: m
+     real(rk)            :: fun,r0,SO0,SOinf,k,q,f
+     !
+     m=size(parameters)
+     !
+     if(m/=5) stop 'SO_arctan: illegal number of parameters parameters (/=5)'
+     !
+     r0     = parameters(1)
+     SO0    = parameters(2)
+     SOinf  = parameters(3)
+     k      = parameters(4)
+     f      = parameters(5)
+     !
+     q = (r-r0)*k
+     !
+     fun = f*(0.5_rk*(SO0+SOinf)+(1.0_rk/pi)*(SO0-SOinf)*atan(q))
+     !
+   end function SO_arctan
+   !
   !
   function dipole_doubleexp(r,parameters) result(fun)
     implicit none
