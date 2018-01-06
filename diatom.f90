@@ -190,8 +190,8 @@ module diatom_module
     logical               :: morphing = .false.    ! When morphing is the field is used to morph the ab initio couterpart
     !                                                towards the final object
     logical               :: molpro = .false.      ! The object is given in the molpro representaion (|x> and |y>) 
-    integer(ik)           :: ix_lz_y = 0           ! The value of the matrix element (-I)<x|Lz|y> for i-state
-    integer(ik)           :: jx_lz_y = 0           ! The value of the matrix element (-I)<x|Lz|y> for j-state
+    integer(ik)           :: ix_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for i-state, 1000 is for undefined 
+    integer(ik)           :: jx_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for j-state, 1000 is for undefined 
     type(weightT)         :: weighting             ! When morphing is the field is used to morph the ab initio couterpart
     !
   end type fieldT
@@ -430,7 +430,7 @@ module diatom_module
     integer(ik)  :: itau,lambda_,x_lz_y_
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
-    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_
+    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_,hstep = -1.0_rk
     !
     character(len=cl) :: w,ioname
     character(len=wl) :: large_fmt
@@ -713,6 +713,10 @@ module diatom_module
              !
              call readi(grid%npoints)
              !
+           case ("STEP")
+             !
+             call readf(hstep)
+             !
            case ("NSUB","TYPE")
              !
              call readi(grid%nsub)
@@ -735,6 +739,15 @@ module diatom_module
              call report ("Unrecognized keyword in GRID: "//trim(w),.true.)
              !
            end select
+           !
+           if (hstep>0.and.grid%npoints/=0) then 
+             write(out,"('Illegal grid-input: npoints and step should not appear together')")
+             stop "Illegal grid-input: npoints and step should not appear together"
+           endif
+           !
+           if (hstep>0) then 
+             grid%npoints = (grid%rmax - grid%rmin)/hstep+1
+           endif
            !
            call read_line(eof,iut) ; if (eof) exit
            call readu(w)
@@ -1606,7 +1619,7 @@ module diatom_module
              !
              iobject(7) = iobject(7) + 1
              !
-             call readi(iref)
+             call readi(iref) ; jref = iref
              !
              ! find the corresponding potential
              !
@@ -2092,7 +2105,7 @@ module diatom_module
                    !
                enddo loop_istatex_abi
                !
-               if (trim(w)=='LX') then
+               if (trim(w)=='LX'.and.iabi_>0) then
                  abinitio(iabi_)%molpro = .true.
                endif
                !
@@ -2391,13 +2404,13 @@ module diatom_module
                   !
                   field%ix_lz_y = x_lz_y_
                   !
-                  if (poten(field%istate)%ix_lz_y==0) poten(field%istate)%ix_lz_y = field%ix_lz_y
+                  if (poten(field%istate)%ix_lz_y==1000) poten(field%istate)%ix_lz_y = field%ix_lz_y
                   !
                   if (poten(field%istate)%ix_lz_y/=field%ix_lz_y) then
                     !
-                    write(out,"('input: ',a,2i4,' <x|lz|y> disagree with the poten-value ',2i8)") & 
-                            field%class,field%iref,field%jref,poten(field%istate)%ix_lz_y/=field%ix_lz_y
-                    call report (" <x|lz|y> disagree with the poten-value",.true.)
+                    write(out,"('input: ',a,2i4,' <x|lz|y> disagrees with the poten-value ',2i8)") & 
+                            trim(field%class),field%iref,field%jref,poten(field%istate)%ix_lz_y/=field%ix_lz_y
+                    call report (" <x|lz|y> disagrees with the poten-value",.true.)
                     !
                   endif
                   !
@@ -2407,13 +2420,13 @@ module diatom_module
                   !
                   ! poten can have only one ix_lz_y, i.e. diagonal, its jx_lz_y should not be used
                   !
-                  if (poten(field%jstate)%ix_lz_y==0) poten(field%jstate)%ix_lz_y = field%jx_lz_y
+                  if (poten(field%jstate)%ix_lz_y==1000) poten(field%jstate)%ix_lz_y = field%jx_lz_y
                   !
                   if (poten(field%jstate)%ix_lz_y/=field%jx_lz_y) then
                     !
-                    write(out,"('input: ',a,2i4,' <x|lz|y> disagree with previsouly given <x|Lz|z> value ',2i8)") & 
-                            field%class,field%iref,field%jref,poten(field%istate)%ix_lz_y/=field%jx_lz_y
-                    call report (" <x|lz|y> disagree with the pprevisouly given <x|Lz|z>-value",.true.)
+                    write(out,"('input: ',a,2i4,' <x|lz|y> disagrees with previsouly given <x|Lz|z> value ',2i8)") & 
+                            trim(field%class),field%iref,field%jref,poten(field%istate)%ix_lz_y/=field%jx_lz_y
+                    call report (" <x|lz|y> disagrees with the previsouly given <x|Lz|z>-value",.true.)
                     !
                   endif
                 endif
@@ -2698,6 +2711,11 @@ module diatom_module
               !write(my_fmt, '(A,I0,A)') '(A',cl,')'
               !
               call input_options(echo_lines=.false.)
+              !
+              if (field%molpro.and.(field%ix_lz_y==1000.or.field%jx_lz_y==1000)) then
+                write(out,"('For MOLPRO-X representaion please define <x|lx|y>',a,2i4)") trim(field%class),field%iref,field%jref
+                stop '<x|lz|y> is undefined in dipole-x or spin-orbit-x'
+              endif
               !
               do while (trim(w)/="END")
                  !
@@ -3354,13 +3372,13 @@ module diatom_module
          if (alloc/=0)  stop 'input, isym_do - out of memory'
          !
          job%isym_do = .true.
+    !
+    write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
          !
     endif 
     ! !I think the following message should be outputed only if line intensity
     ! are computed, not all the time.
     !write(out,"('A dipole threshold of ',e18.8,' will be used')") intensity%threshold%dipole
-    !
-    write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
     !
     if (iobject(1)/=nestates) then
       write(out,'("The number of states required ",i8," is inconcistent (smaller) with the number of PECs ",i8," included")') & 
@@ -4563,10 +4581,10 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                 else
                   !
-                  write(out,"(/'molpro_duo: cannot find the selecion rule to work for ',2i8)") field%iref,field%jref
+                  write(out,"(/'molpro_duo: cannot find the selecion rule to work for ',2i8,3x,a)") field%iref,field%jref,trim(field%class)
                   write(out,"(' sigma = ',2f8.1,' lambda (i) = ',i4,' lamda (j) = ',i4)") field%sigmai, field%sigmaj, &
-                                                                                                      lambda_i,lambda_j
-                  !
+                                                                                                      int(lambda_i(1)),int(lambda_j(1))                  !
+                  stop 'molpro_duo: cannot find the selecion rules'
                 endif
                 !
               endif
@@ -4611,7 +4629,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
-                    write(out,"('molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
                          field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
                     stop 'molpro_duo: illegal selection rules '
                     !
@@ -4655,7 +4673,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                 case default
                   !
-                  write(out,"('molpro_duo (lambdaj=0): for class ',a,' is not implemented ')") field%class
+                  write(out,"(/'molpro_duo (lambdaj=0): for class ',a,' is not implemented ')") field%class
                   stop 'molpro_duo: not for this object'
                   !
                 end select
@@ -4676,7 +4694,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
-                    write(out,"('molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") & 
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") & 
                           field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
                     stop 'molpro_duo: illegal selection rules '
                     !
@@ -4727,7 +4745,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                 case default
                   !
-                  write(out,"('molpro_duo (lambdai=0): for class ',a,' is not implemented ')") field%class
+                  write(out,"(/'molpro_duo (lambdai=0): for class ',a,' is not implemented ')") field%class
                   stop 'molpro_duo: not for this object'
                   !
                 end select
@@ -4740,7 +4758,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
                     !
-                    write(out,"('molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
                           field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
                     stop 'molpro_duo: illegal selection rules '
                     !
@@ -4860,10 +4878,15 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   c = field%gridvalue(i)*field%complex_f
                   !
-                  coupling(1,1) =  0
-                  coupling(1,2) =  c
-                  coupling(2,1) = -conjg(a(1,1))*c*b(2,2)/(conjg(a(2,1))*b(1,2))
-                  coupling(2,2) =  0
+                  !coupling(1,1) =  0
+                  !coupling(1,2) =  c
+                  !coupling(2,1) = -conjg(a(1,1))*c*b(2,2)/(conjg(a(2,1))*b(1,2))
+                  !coupling(2,2) =  0
+                  !
+                  coupling(1,1) =  c
+                  coupling(1,2) =  0
+                  coupling(2,1) =  0
+                  coupling(2,2) =  c
                   !
                 case default
                   !
@@ -4880,8 +4903,8 @@ subroutine map_fields_onto_grid(iverbose)
               !
               if (any( abs( aimag( f_t ) )>small_ ) ) then
                 !
-                write(out,"('molpro_duo: ',a,' ',2i3,'; duo-complex values ',8f8.1)") trim(field%class),field%iref,&
-                                                                                                 field%jref,f_t(:,:)
+                write(out,"(/'molpro_duo: ',a,' ',2i3,'; duo-complex values ',8f8.1)") trim(field%class),field%iref,&
+                                                                                       field%jref,f_t(:,:)
                 stop 'molpro_duo: duo-complex values ?'
                 !
               endif
@@ -4919,7 +4942,7 @@ subroutine map_fields_onto_grid(iverbose)
            jstate = fl(i)%jstate
            !
            if (trim(fl(i)%class)=='SPINORBIT'.and.(abs(fl(i)%sigmai)>fl(i)%spini.or.abs(fl(i)%sigmaj)>fl(i)%spinj)) then
-              write(out,'("For N =",i4," one of sigmas (",2f8.1,") large than  spins (",2f8.1,")")') & 
+              write(out,'("For N =",i4," one of sigmas (",2f8.1,") large than  spins or undefined (",2f8.1,")")') & 
                         i,fl(i)%sigmai,fl(i)%sigmaj,fl(i)%spini,fl(i)%spinj
               stop 'illegal sigma or spin'
            endif
@@ -5643,9 +5666,13 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=6) write(out,'(/"Check the contracted basis for ortho-normality")')
        !
-       write(out,'(/"Vibrational overlap integrals: ")')
-!        write(out,'("    State-i    <i|j>   State-j"/)')
-       write(out,"(1x,a7,1x,a7,6x,a10)") 'State-i','State-j', '<i|j>'
+       if (action%intensity) then 
+         !
+         write(out,'(/"Vibrational overlap integrals: ")')
+         ! write(out,'("    State-i    <i|j>   State-j"/)')
+         write(out,"(1x,a7,1x,a7,6x,a10)") 'State-i','State-j', '<i|j>'
+         !
+       endif
        !
        !omp parallel do private(ilevel,jlevel,psipsi_t) schedule(guided)
        do ilevel = 1,totalroots
@@ -5668,7 +5695,8 @@ end subroutine map_fields_onto_grid
            !
            ! Reporting the quality of the matrix elemenst
            !
-           if (icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) then
+           if (action%intensity.and.&
+               icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) then
               !
               write(out,'("<",i2,",",i4,"|",i2,",",i4,"> = ",es18.8)') icontrvib(ilevel)%istate,    &
                                                                        icontrvib(ilevel)%v,            &

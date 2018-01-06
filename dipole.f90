@@ -418,7 +418,8 @@ contains
               !
               write(char_LF,'(i12)') iLF
               !
-              filename =  "matelem_MU_"//trim(adjustl(char_LF))//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_b1.rchm"
+              filename =  &
+              "matelem_MU_"//trim(adjustl(char_LF))//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_b1.rchm"
               !
               call IOstart(trim(filename),richunit(indI,indF,iLF))
               !
@@ -1844,7 +1845,7 @@ contains
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
         real(rk),intent(out)    :: half_tm(:)
-        integer(ik)             :: icontrF,icontrI, ivibF,ivibI,idip,istateI,istateF,isigmaF,isigmaI
+        integer(ik)             :: icontrF,icontrI, ivibF,ivibI,idip,istateI,istateF
         real(rk)                :: f
           !
           half_tm    = 0
@@ -1855,13 +1856,13 @@ contains
                !
                ivibF = basis(indF)%icontr(icontrF)%ivib
                istateF = basis(indF)%icontr(icontrF)%istate
-               isigmaF = basis(indF)%icontr(icontrF)%sigma
+               !isigmaF = basis(indF)%icontr(icontrF)%sigma
                !
                loop_I : do icontrI = 1, dimenI
                   !
                   ivibI = basis(indI)%icontr(icontrI)%ivib
                   istateI = basis(indI)%icontr(icontrI)%istate
-                  isigmaI = basis(indI)%icontr(icontrI)%sigma
+                  !isigmaI = basis(indI)%icontr(icontrI)%sigma
                   !
                   !compute TM
                   !

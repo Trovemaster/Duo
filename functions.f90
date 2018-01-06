@@ -137,6 +137,10 @@ module functions
       !
       fanalytical_field => dipole_polynom_exp
       !
+    case("POLYNOM_DECAY_DAMP")
+      !
+      fanalytical_field => dipole_polynom_exp_damp
+      !
     case("POLYNOM_DECAY_24")
       !
       fanalytical_field => dipole_polynom_exp24
@@ -507,7 +511,7 @@ module functions
     uLR = 0
     do k=1,M
      !
-     ! Douketis damping function
+     ! Douketis damping function    
      Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
      !
      uLR = uLR + Damp*parameters(k+Npot+Nstruc)/r**k
@@ -1225,6 +1229,50 @@ module functions
     f = (1.0_rk-y)*f+y*tinf
     !
   end function dipole_polynom_exp24
+
+
+  !
+  ! polynomial with exp decay
+  !
+  function dipole_polynom_exp_damp(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: beta,z,f,r0,s,b,c,damp,tinf,p,y
+    integer(ik)            :: N,k
+    !
+    N = size(parameters)
+    !
+    r0   = parameters(1)
+    beta = parameters(2)
+    !
+    p = parameters(3)
+    s = parameters(4)
+    b = parameters(5)
+    c = parameters(6)
+    !
+    tinf = parameters(N)
+    !
+    if (abs(r0)<small_) stop 'It is illegal to set re to zero'
+    !
+    z = (r-r0)*exp(-beta*(r-r0)**2)
+    !
+    f =  0
+    do k=7,N-1
+      f = f + parameters(k)*z**(k-7)
+    enddo
+    !
+    ! Douketis damping function    
+    Damp = ( 1.0_rk-exp( -b*r-c*r**2 ) )**s
+    !
+    y = (r**p-r0**p)/(r**p+r0**p)
+    !
+    f = ((1.0_rk-y)*f+y*tinf)*damp
+    !
+  end function dipole_polynom_exp_damp
+
+
+
   !
   function SO_arctan(r,parameters) result(fun)
      implicit none
