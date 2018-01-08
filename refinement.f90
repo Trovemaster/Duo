@@ -496,19 +496,19 @@ module refinement
             ! Only fitted energies are printed. 
             !
             if (action%frequency) then 
-              char_fmt = "(/1X,225('-'),/'|  ## |  N |     J  p |  N |     J  p |        Obs.      |      Calc.    &
-                         & |   Obs.-Calc.   |   Weight | State vib Lambda  Sigma Omega State vib Lambda Sigma &
-                         &Omega    State vib Lambda  Sigma Omega  State vib Lambda Sigma Omega',/1X,225('-'))"
+              char_fmt = "(/1X,250('-'),/'|  ## |  N |    J  p |  N |    J  p |      Obs.     |     Calc.   &
+                         &|  Obs.-Calc. |   Weight |      Eup      |     Elow    |  State vib Lambda  Sigma Omega State vib Lambda Sigma &
+                         &Omega    State vib Lambda  Sigma Omega  State vib Lambda Sigma Omega',/1X,250('-'))"
             else
-              char_fmt = "(/1X,166('-'),/'| ## |  N |      J  p |        Obs.      |      Calc.     |   Obs.-Calc.   | &
-                        &  Weight | States  vib  Lambda  Sigma  Omega  Spin  States   vib Lambda Sigma &
-                        &  Omega  Spin ',/1X,166('-'))"
+              char_fmt = "(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
+                        &  Weight | States  vib  Lambda Sigma  Omega  States  vib Lambda Sigma &
+                        & Omega ',/1X,145('-'))"
             endif 
             !
             write(out ,char_fmt)
-            write(enunit,"(/1X,166('-'),/'| ## |  N |      J  p |        Obs.      |      Calc.     |   Obs.-Calc.   | & 
-                         &  Weight | States  vib Lambda  Sigma  Omega  Spin | States vib Lambda Sigma & 
-                         &  Omega  Spin ',/1X,166('-'))")
+            write(enunit,"(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
+                        &  Weight | States  vib  Lambda Sigma  Omega  States  vib Lambda Sigma &
+                        & Omega ',/1X,145('-'))")
             !
             deriv_recalc = .true.
             !
@@ -819,9 +819,9 @@ module refinement
                  spinC_   = calc(irot_,itau_,i_)%spin
                  ivibC_   = calc(irot_,itau_,i_)%v
                  
-                 write (out,"(i5,2(i5,1x,f8.1,1x,a1),2x,' ',3f17.4,2x,e9.2,2x,2f17.4,2x," &
-                            // " '(',1x,i3,2x,2i4,2f8.1,', <-',1x,i3,2x,2i4,2f8.1,')', " &
-                            // " '(',1x,i3,2x,2i4,2f8.1,', <-',1x,i3,2x,2i4,2f8.1,')',a)") &
+                 write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
+                            // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
+                            // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
                         iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                         wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
                         istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
@@ -887,9 +887,9 @@ module refinement
                        spinC_   = calc(irot_,itau_,k_)%spin
                        ivibC_   = calc(irot_,itau_,k_)%v
                        !
-                       write (frequnit,"(i5,2(i5,1x,f8.1,1x,a1),2x,' ',3f17.4,2x,e9.2,2x,2f17.4,2x,&
-                              &'(',1x,i3,2x,2i4,2f8.1,' <-',1x,i3,2x,2i4,2f8.1,')" &
-                              // "(',1x,i3,2x,2i4,2f8.1,' <-',1x,i3,2x,2i4,2f8.1,')',a)") &
+                       write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
+                              &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
+                              // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
                               iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
                               fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
                               fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
@@ -951,14 +951,14 @@ module refinement
                                 irot_ = fitting%obs(jener)%irot_
                                 itau_ = fitting%obs(jener)%iparity_+1
                                 !
-                                write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f17.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,3f8.1,')', &
-                                      &'(',1x,i3,2x,2i4,3f8.1,')',a1,2x,a)") & 
+                                write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
+                                      &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
                                    i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                    enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
                                    energy_(irot,itau,i)-ezero(1),&
                                    energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
-                                   istate, ivib, ilambda ,sigmai ,omega ,spin ,&
-                                   istate_,ivib_,ilambda_,sigmai_,omega_,spin_,&
+                                   istate, ivib, ilambda ,sigmai ,omega ,&
+                                   istate_,ivib_,ilambda_,sigmai_,omega_,&
                                    mark(jener),trim( poten(istate)%name )
                                 !
                              endif 
@@ -975,9 +975,9 @@ module refinement
                                 spin_    = calc(irot,itau,i)%spin
                                 ivib_    = calc(irot,itau,i)%v
                                 !
-                                write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f17.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,3f8.1,')',2x,a)") &
+                                write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
                                    i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                   istate_,ivib_,ilambda_,sigmai_,omega_,spin_,trim( poten(istate_)%name )
+                                   istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
                                 !
                            endif
                            !
@@ -1108,12 +1108,12 @@ module refinement
                  spinC   = calc(irot,itau,i)%spin
                  ivibC   = calc(irot,itau,i)%v
                  !
-                 write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3F17.4,2x,e9.2,2x,&
-                        &'(',1x,i3,2x,2i4,3f8.1,')','(',1x,i3,2x,2i4,3f8.1,')',a)") &
+                 write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
+                        &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
                         iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                         wtall(iener),&
-                        istateC,ivibC,ilambdaC,sigmaC,omegaC,spinC,&
-                        istate ,ivib ,ilambda ,sigmai,omega ,spin,&
+                        istateC,ivibC,ilambdaC,sigmaC,omegaC,&
+                        istate ,ivib ,ilambda ,sigmai,omega ,&
                         mark(iener)
               enddo
               !
@@ -1160,13 +1160,13 @@ module refinement
                           spinC   = calc(irot,itau,i)%spin
                           ivibC   = calc(irot,itau,i)%v
                           !
-                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3F17.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,3f8.1,')', &
-                                       & '(',1x,i3,2x,2i4,3f8.1,')',a)") &
+                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
+                                       & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
                              i,fitting%obs(jener)%N,Jrot,pm(itau),&
                              enercalc(jener)+eps(jener),&
                              enercalc(jener),eps(jener),wtall(jener),&
-                             istateC,ivibC,ilambdaC,sigmaC,omegaC,spinC,&
-                             istate,ivib  ,ilambda,sigmai,omega,spin,&
+                             istateC,ivibC,ilambdaC,sigmaC,omegaC,&
+                             istate,ivib  ,ilambda,sigmai,omega,&
                              mark(jener)
                           !
                         else
@@ -1179,9 +1179,9 @@ module refinement
                           spin_ = calc(irot,itau,i)%spin
                           ivib_ = calc(irot,itau,i)%v
                           !
-                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3F17.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,3f8.1,')')") &
+                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
                              i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
-                             istate_,ivib_,ilambda_,sigmai_,omega_,spin_
+                             istate_,ivib_,ilambda_,sigmai_,omega_
                         endif 
                         !
                      endif 
@@ -1192,6 +1192,21 @@ module refinement
                  !
               enddo
               !
+            endif 
+            !
+            ! switch off energies with large obs-calc assuming unwanted swapping 
+            if (fitting%threshold_obs_calc>small_) then
+               do iener = 1,en_npts
+                  if (abs(eps(iener))>fitting%threshold_obs_calc.and.wtall(iener)>small_) then
+                    wtall(iener) = 0
+                    sigma(iener) = 0
+                    eps(iener) = 0
+                    nused = nused - 1
+                  endif
+               enddo
+               nused = max(nused,1)
+               wtsum = sum(wtall(1:npts))
+               wtall(1:npts) = wtall(1:npts)/wtsum
             endif 
             !
             ! Here the potential energy section starts. 

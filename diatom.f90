@@ -371,6 +371,7 @@ module diatom_module
      character(len=cl)    :: fit_type = 'LINUR'      ! to switch between fitting methods.
      real(rk)             :: threshold_coeff    = -1e-18
      real(rk)             :: threshold_lock     = -1e-18
+     real(rk)             :: threshold_obs_calc  = -1e-16
      type(obsT),pointer   :: obs(:)           ! experimental data
      !
      !type(paramT),pointer :: param(:)         ! fitting parameters
@@ -1050,6 +1051,11 @@ module diatom_module
              !
              call readf(fitting%threshold_lock)
              !
+           case('THRESH_OBS-CALC') 
+             ! switch off weights for residuals larger than THRESH_OBS-CALC
+             !
+             call readf(fitting%threshold_obs_calc)
+             !
            case("IPARAM")
              !
              call readi(fitting%iparam(1))
@@ -1401,7 +1407,7 @@ module diatom_module
              enddo loop_istated
              !
              if (.not.include_state) then
-                 write(out,"('The interaction ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
                  idip = idip - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1447,7 +1453,7 @@ module diatom_module
              enddo loop_istate
              !
              if (.not.include_state) then
-                 write(out,"('The interaction ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
                  iobject(2) = iobject(2) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1501,7 +1507,7 @@ module diatom_module
              enddo loop_istatex
              !
              if (.not.include_state) then
-                 write(out,"('The interaction ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
                  iobject(4) = iobject(4) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1596,7 +1602,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The L2 term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The L2 term ',2i8,' is skipped')") iref,jref
                  iobject(3) = iobject(3) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1640,7 +1646,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The BOB-ROT term ',1i8,' is skipped')") iref
+                 !write(out,"('The BOB-ROT term ',1i8,' is skipped')") iref
                  iobject(7) = iobject(7) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1687,7 +1693,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The SS term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The SS term ',2i8,' is skipped')") iref,jref
                  iobject(5) = iobject(5) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1736,7 +1742,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The SS-o term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The SS-o term ',2i8,' is skipped')") iref,jref
                  iobject(6) = iobject(6) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1784,7 +1790,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The SR term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The SR term ',2i8,' is skipped')") iref,jref
                  iobject(8) = iobject(8) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1834,7 +1840,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The DIABATIC term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The DIABATIC term ',2i8,' is skipped')") iref,jref
                  iobject(9) = iobject(9) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1883,7 +1889,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The LAMBDA-O term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The LAMBDA-O term ',2i8,' is skipped')") iref,jref
                  iobject(10) = iobject(10) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1933,7 +1939,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The LAMBDA-P term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The LAMBDA-P term ',2i8,' is skipped')") iref,jref
                  iobject(11) = iobject(11) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -1981,7 +1987,7 @@ module diatom_module
              enddo
              !
              if (.not.include_state) then
-                 write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
+                 !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
                  iobject(12) = iobject(12) - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -2266,7 +2272,7 @@ module diatom_module
              end select
              !
              if (.not.include_state) then
-                 write(out,"('The ab initio potential  ',i8,' is skipped')") iref
+                 !write(out,"('The ab initio potential  ',i8,' is skipped')") iref
                  iabi = iabi - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
@@ -2286,7 +2292,7 @@ module diatom_module
              !field%jstate = jstate_
              !
              if (.not.include_state) then
-                 write(out,"('The ab initio potential  ',i8,' is skipped')") iref
+                 !write(out,"('The ab initio potential  ',i8,' is skipped')") iref
                  iabi = iabi - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
