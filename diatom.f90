@@ -2794,7 +2794,47 @@ module diatom_module
                    call readf(f_t)
                    field%value(iparam) = f_t*unit_field
                    !
-                   if (Nitems>=3) call readf(field%weight(iparam))
+                   ! these fields are to link to other parameters in the refinement
+                   !
+                   field%link(iparam)%iobject = 0
+                   field%link(iparam)%ifield = 0
+                   field%link(iparam)%iparam = 0
+                   !
+                   write(field%forcename(iparam),"(f18.6)") field%grid(iparam)
+                   !
+                   field%weight(iparam) = 0
+                   !
+                   if(nitems>=3) then
+                     !
+                     call readu(w)
+                     !
+                     if (trim(w(1:1))=="F") then 
+                       !
+                       field%weight(iparam) = 1.0_rk
+                       !
+                       if (nitems>=4) call readu(w)
+                       !
+                     elseif(trim(field%class(1:4))=="ABIN") then 
+                       !
+                       call readf(field%weight(iparam))
+                       !
+                     endif
+                     !
+                     if(trim(w(1:1))=="L".and.nitems>5) then
+                       !
+                       call readi(field%link(iparam)%iobject)
+                       call readi(field%link(iparam)%ifield)
+                       call readi(field%link(iparam)%iparam)
+                       !
+                       ! set the weight of the linked parameter to zero
+                       !
+                       field%weight(iparam) = 0
+                       !
+                     endif
+                     !
+                   endif 
+                   !
+                   job%total_parameters = job%total_parameters + 1
                    !
                  case ("NONE")
                    !
