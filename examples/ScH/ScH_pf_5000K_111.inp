@@ -1,0 +1,22 @@
+(CaO cross-sections)
+
+Temperature  298.0 
+Range 0.  17000.0  
+
+partfunc
+ Ntemps     500 
+ tempmax  5000.0 
+end
+
+THRESHOLD 1e-70
+
+Nchars 30
+
+output ScH_5000K_pf_108
+
+States       ScH_111.states 
+Transitions  ScH_111.trans
+
+verbose 3
+
+
