@@ -2798,7 +2798,7 @@ module diatom_module
                    !
                  case ("NONE")
                    !
-                   call report ("The field type (e.g. GRID) is undefined for the current filed "//trim(w),.true.)
+                   call report ("The field type (e.g. GRID) is undefined for the current field "//trim(w),.true.)
                    !
                  case default
                    !

@@ -1199,7 +1199,7 @@ module refinement
                do iener = 1,en_npts
                   if (abs(eps(iener))>fitting%threshold_obs_calc.and.wtall(iener)>small_) then
                     wtall(iener) = 0
-                    sigma(iener) = 0
+                    if (fitting%robust>small_) sigma(iener) = 0
                     eps(iener) = 0
                     nused = nused - 1
                   endif
