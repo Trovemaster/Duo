@@ -777,6 +777,9 @@ module diatom_module
            case ("VMAX","VIBMAX")
              !
              vmax = 0
+             !
+             if (Nitems<2) job%vibmax = grid%npoints-1
+             !
              do i = 1,min(Nitems-1,Nestates)
                call readi(job%vibmax(i))
                job%vibmax(i+1:Nestates) = job%vibmax(i)
@@ -3267,6 +3270,11 @@ module diatom_module
     end do
     !
     Nestates = iobject(1)
+    !
+    ! make sure job%vibmax is not larger than npoints 
+    do i = 1,Nestates
+      if ( job%vibmax(i) == 1e8 ) job%vibmax(i) = grid%npoints-1
+    enddo
     !
     if (Nestates<1) call report ("At least one POTEN object must be present (abinitio poten does not count)",.true.)
     !
