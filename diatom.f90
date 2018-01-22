@@ -203,7 +203,7 @@ module diatom_module
       real(rk)            :: tolerance = 0.0_rk   ! tolerance for arpack diagonalization, 0 means the machine accuracy
       real(rk)            :: upper_ener = 1e9_rk  ! upper energy limit for the eigenvalues found by diagonalization with syevr
       real(rk)            :: thresh = -1e-18_rk   ! thresh of general use
-      real(rk)            :: zpe=0         ! zero-point-energy
+      real(rk)            :: zpe=-1e6            ! zero-point-energy
       character(len=cl)   :: diagonalizer = 'SYEV'
       character(len=cl)   :: molecule = 'H2'
       character(len=cl)   :: contraction = 'VIB' ! contraction
@@ -372,6 +372,7 @@ module diatom_module
      real(rk)             :: threshold_coeff    = -1e-18
      real(rk)             :: threshold_lock     = -1e-18
      real(rk)             :: threshold_obs_calc  = -1e-16
+     real(rk)             :: zpe=-1e6
      type(obsT),pointer   :: obs(:)           ! experimental data
      !
      !type(paramT),pointer :: param(:)         ! fitting parameters
@@ -1071,6 +1072,10 @@ module diatom_module
            case('OUTPUT')
              !
              call readl(fitting%output_file)
+             !
+           case('ZPE')
+             !
+             call readf(fitting%zpe)
              !
            case('FIT_FACTOR')
              !
@@ -3401,9 +3406,9 @@ module diatom_module
         enddo
       enddo
       !
-      if (allgrids.and.action%fitting) then
-        call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
-      endif 
+      !if (allgrids.and.action%fitting) then
+      !  call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
+      !endif 
       !
     !endif
     !
@@ -4289,7 +4294,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             if (check_ai<small_) then 
               !
-              write(out,"('Corresponding ab initio field must be defined when using MORPHING for ',a)") field%name
+              write(out,"('Error: Corresponding ab initio field is undefined when using MORPHING for ',a)") trim(field%name)
               stop 'ab initio field is undefined while using MORPHING'
               !
             endif
@@ -7362,8 +7367,11 @@ end subroutine map_fields_onto_grid
             !
             ! some diagonalizers needs the following parameters to be defined
             !
+            zpe = job%ZPE
+            if (zpe<-small_) zpe = minval(hsym)
+            !
             jobz = 'V'
-            vrange(1) = -0.0_rk ; vrange(2) = (job%upper_ener+job%ZPE)*sc
+            vrange(1) = -0.0_rk ; vrange(2) = (job%upper_ener+zpe)*sc
             irange(1) = 1 ; irange(2) = min(job%nroots(1),Ntotal)
             nroots = job%nroots(1)
             !
@@ -7394,9 +7402,13 @@ end subroutine map_fields_onto_grid
           !
           ! The ZPE value can be obtained only for the first J in the J_list tau=1.
           ! Otherwise the value from input must be used.
-          if (irot==1.and.irrep==1.and.abs(job%ZPE)<small_.and.iverbose/=0) then
+          if (irot==1.and.abs(job%ZPE)<-small_.and.iverbose/=0) then
             !
-            job%ZPE = eigenval(1)/sc
+            if (irrep==1) then
+              job%ZPE = eigenval(1)/sc
+            else
+              job%ZPE = min(eigenval(1)/sc,job%ZPE)
+            endif
             !
             if (action%intensity) intensity%ZPE = job%ZPE
             !

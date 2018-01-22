@@ -619,7 +619,11 @@ module refinement
             ! Zero point energy:
             ! obtain the lowest J=0 energies (ZPEs) for each electronic state (if possible)
             !
-            ezero = energy_(1,1,1)
+            ezero = fitting%zpe
+            if (fitting%zpe<-small_) then 
+               ezero = energy_(1,1,1)
+               if (energy_(1,2,i)<ezero(1)) ezero = energy_(1,2,i)
+            endif
             !
             ! find the lowest root for each electronic state  - will be used as a corresponding ZPE
             !
@@ -629,7 +633,11 @@ module refinement
                 !
                 if (istate == calc(1,1,i)%istate.and.nint(2.0*calc(1,1,i)%Jrot)==nint(2.0*fitting%J_list(1))) then 
                   !
-                  ezero(istate) = energy_(1,1,i)
+                  ezero(istate) = fitting%zpe
+                  if (fitting%zpe<-small_) then 
+                    ezero(istate) = energy_(1,1,i)
+                    if (energy_(1,2,i)<ezero(istate)) ezero(istate) = energy_(1,2,i)
+                  endif
                   !
                   iZPE(istate) = i
                   !
