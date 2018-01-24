@@ -12,7 +12,7 @@ module refinement
   !
   private 
    !
-   real(rk) :: stadev_best=1e-04,stab_best=1e-12  ! best standard error and stability 
+   real(rk)    :: stab_best=1e-12  ! best standard error and stability 
    integer(ik) :: maxiter_as = 3                  ! maximal number of iterations to find a match for assignement
    integer(ik) :: Nobjectmax = 9
    integer(ik) :: vmax_ = 100                     ! if vmax in input is undefined vmax_ will be used to predife size
@@ -497,7 +497,7 @@ module refinement
             !
             if (action%frequency) then 
               char_fmt = "(/1X,250('-'),/'|  ## |  N |    J  p |  N |    J  p |      Obs.     |     Calc.   &
-                         &|  Obs.-Calc. |   Weight |      Eup      |     Elow    |  State vib Lambda  Sigma Omega State vib Lambda Sigma &
+               &|  Obs.-Calc. |   Weight |      Eup      |     Elow    |  State vib Lambda  Sigma Omega State vib Lambda Sigma &
                          &Omega    State vib Lambda  Sigma Omega  State vib Lambda Sigma Omega',/1X,250('-'))"
             else
               char_fmt = "(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
@@ -620,9 +620,9 @@ module refinement
             ! obtain the lowest J=0 energies (ZPEs) for each electronic state (if possible)
             !
             ezero = fitting%zpe
-            if (fitting%zpe<-small_) then 
+            if (fitting%shift_to_zpe) then 
                ezero = energy_(1,1,1)
-               if (energy_(1,2,i)<ezero(1)) ezero = energy_(1,2,i)
+               if (energy_(1,2,1)<ezero(1)) ezero = energy_(1,2,1)
             endif
             !
             ! find the lowest root for each electronic state  - will be used as a corresponding ZPE
@@ -634,7 +634,7 @@ module refinement
                 if (istate == calc(1,1,i)%istate.and.nint(2.0*calc(1,1,i)%Jrot)==nint(2.0*fitting%J_list(1))) then 
                   !
                   ezero(istate) = fitting%zpe
-                  if (fitting%zpe<-small_) then 
+                  if (fitting%shift_to_zpe) then 
                     ezero(istate) = energy_(1,1,i)
                     if (energy_(1,2,i)<ezero(istate)) ezero(istate) = energy_(1,2,i)
                   endif
@@ -1651,11 +1651,11 @@ module refinement
             !
             wtsum = sum(wt_bit(1:en_npts))
             !
-            if (wtsum/=0) ssq1 = sqrt( sum(eps(1:en_npts)**2*dble(wt_bit(1:en_npts)))/wtsum )
+            if (wtsum>small_) ssq1 = sqrt( sum(eps(1:en_npts)**2*dble(wt_bit(1:en_npts)))/wtsum )
             !
             wtsum = sum(wt_bit(1+en_npts:npts))
             !
-            if (wtsum/=0) ssq2 = sqrt( sum(eps(1+en_npts:npts)**2*dble(wt_bit(1+en_npts:npts)))/wtsum )
+            if (wtsum>small_) ssq2 = sqrt( sum(eps(1+en_npts:npts)**2*dble(wt_bit(1+en_npts:npts)))/wtsum )
             !
             rms1=sqrt(sum(eps(1:en_npts)**2)/en_npts)
             rms2=sqrt(sum(eps(1+en_npts:npts)**2)/max(pot_npts,1))
@@ -2031,7 +2031,7 @@ module refinement
       real(rk),intent(inout) :: wt(:)
       !
       integer(ik)            :: npts,i,nrow,nused
-      real(rk)               :: da1,da2,wtsum,da
+      real(rk)               :: wtsum
       !
       if (verbose>=4) write(out,"(/'Robust fitting ...')")
       !
@@ -2045,24 +2045,24 @@ module refinement
       !Watson alpha-parameter
       ! 
       ! Comment by Lorenzo Lodi: the following loop is never executed!
-      do i = 1,-1
-        !
-        da1 = 0
-        da2 = 0
-        !
-        do nrow=1,npts
-          if (wt(nrow)>small_) then 
-            da1 = da1+eps(nrow)**2/( sigma(nrow)**2+a_wats*eps(nrow)**2 )
-            da2 = da2+eps(nrow)**4/( sigma(nrow)**2+a_wats*eps(nrow)**2 )**2
-          endif 
-        enddo 
-        !
-        da =( da1 -  real(nused-numpar,rk) )/da2
-        a_wats = a_wats + da
-        !
-        if (a_wats<sqrt(small_)) a_wats = 1e-3+real(i,rk)*1e-2
-        !
-      enddo
+      !do i = 1,-1
+      !  !
+      !  da1 = 0
+      !  da2 = 0
+      !  !
+      !  do nrow=1,npts
+      !    if (wt(nrow)>small_) then 
+      !      da1 = da1+eps(nrow)**2/( sigma(nrow)**2+a_wats*eps(nrow)**2 )
+      !      da2 = da2+eps(nrow)**4/( sigma(nrow)**2+a_wats*eps(nrow)**2 )**2
+      !    endif 
+      !  enddo 
+      !  !
+      !  da =( da1 -  real(nused-numpar,rk) )/da2
+      !  a_wats = a_wats + da
+      !  !
+      !  if (a_wats<sqrt(small_)) a_wats = 1e-3+real(i,rk)*1e-2
+      !  !
+      !enddo
       !
       a_wats = 0.001_rk
       !
@@ -2094,12 +2094,12 @@ module refinement
        !
        do j = 1, size(fitting%J_list)
           !
-          if (fitting%J_list(j)/=-1) nj = nj + 1
+          if (fitting%J_list(j)>-0.5_rk) nj = nj + 1
           !
        end do
        !
-       iJmax = maxval(fitting%J_list(:))
-       iJmin = minval(fitting%J_list(:),mask=fitting%J_list.gt.-1)
+       iJmax = int(maxval(fitting%J_list(:)))
+       iJmin = nint(minval(fitting%J_list(:),mask=fitting%J_list.gt.-1))
        !
        if (iJmin>0) nJ = nJ + 1
        !

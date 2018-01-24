@@ -105,6 +105,31 @@ contains
     !
     !call Sort_levels(iverbose,nJ, Jval(1:nJ))
     !
+    ! update ZPE if not provided as part of the intensity input
+    !
+    if (job%shift_to_zpe) then
+      !
+      do jind = 1,nJ
+        !
+        Jval_ = Jval(jind)
+        !
+        do igamma = 1,sym%NrepresCs
+          !
+          do ilevel = 1,eigen(jind,igamma)%Nlevels
+              !
+              energy = eigen(jind,igamma)%val(ilevel)
+              !
+              intensity%zpe = min(intensity%zpe,energy)
+              !
+           enddo
+           !
+        enddo
+      end do
+      !
+      if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
+      !
+    endif
+    !
     select case (trim(intensity%action))
     !
     case('ABSORPTION', 'EMISSION', 'TM')
@@ -597,13 +622,22 @@ contains
          !
          dimenI = eigen(indI,igammaI)%Ndimen
          !
+         !
          !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
          !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
          do ilevelI = 1, nlevelsI
            !
-           !energy energy and and quanta of the initial state
+           !energy energy and and the symmetry of the state
            !
            energyI = eigen(indI,igammaI)%val(ilevelI)
+           !
+           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+           parity_gu = poten(istateI)%parity%gu
+           ! Obtain the C2v/Cs symmetry 
+           isymI = correlate_to_Cs(igammaI,parity_gu)
+           !
+           ! ignore states with zero nuclear weight 
+           if (intensity%gns(isymI)<small_) cycle 
            !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
@@ -615,7 +649,6 @@ contains
              !energy, quanta, and gedeneracy order of the initial state
              
              quantaI => eigen(indI,igammaI)%quanta(ilevelI)
-             istateI  = quantaI%istate
              ivibI    = quantaI%ivib
              ivI      = quantaI%v
              sigmaI   = quantaI%sigma
@@ -719,14 +752,14 @@ contains
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
                            lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
                  !
                else
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
                            lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
                            !
                endif
@@ -758,7 +791,7 @@ contains
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
                            pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
                            !
                endif
@@ -770,14 +803,14 @@ contains
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
                            pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
                  !
                else
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(igammaI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
                            pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
                            !
                endif
@@ -2006,7 +2039,7 @@ contains
       if(c.lt.abs(a-b)) return
       if(a.lt.0.or.b.lt.0.or.c.lt.0) return
       if(a.lt.abs(al).or.b.lt.abs(be).or.c.lt.abs(ga)) return
-      if(-1.0_rk*ga.ne.al+be) return
+      if(-ga.ne.al+be) return
 !
 !
 !     compute delta(abc)

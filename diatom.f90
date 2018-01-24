@@ -203,7 +203,8 @@ module diatom_module
       real(rk)            :: tolerance = 0.0_rk   ! tolerance for arpack diagonalization, 0 means the machine accuracy
       real(rk)            :: upper_ener = 1e9_rk  ! upper energy limit for the eigenvalues found by diagonalization with syevr
       real(rk)            :: thresh = -1e-18_rk   ! thresh of general use
-      real(rk)            :: zpe=-1e6            ! zero-point-energy
+      real(rk)            :: zpe=0_rk             ! zero-point-energy
+      logical             :: shift_to_zpe = .true. ! 
       character(len=cl)   :: diagonalizer = 'SYEV'
       character(len=cl)   :: molecule = 'H2'
       character(len=cl)   :: contraction = 'VIB' ! contraction
@@ -344,6 +345,8 @@ module diatom_module
      real(rk)            :: factor = 1.0d0   ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
      logical             :: matelem =.false.  ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
      logical             :: lande_calc = .false.   ! checks whether calculation for Lande should be conducted
+     logical             :: overlap = .false.      ! print out overlap integrals (Franck-Condon)
+     logical             :: tdm      = .true.      ! print out dipole transition moments 
      !
  end type IntensityT
   !
@@ -372,7 +375,8 @@ module diatom_module
      real(rk)             :: threshold_coeff    = -1e-18
      real(rk)             :: threshold_lock     = -1e-18
      real(rk)             :: threshold_obs_calc  = -1e-16
-     real(rk)             :: zpe=-1e6
+     real(rk)             :: zpe=0
+     logical              :: shift_to_zpe = .true.   ! 
      type(obsT),pointer   :: obs(:)           ! experimental data
      !
      !type(paramT),pointer :: param(:)         ! fitting parameters
@@ -432,7 +436,7 @@ module diatom_module
     integer(ik)  :: itau,lambda_,x_lz_y_
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
-    real(rk)     :: f_t,jrot,j_list_(1:jlist_max),omega_,sigma_,hstep = -1.0_rk
+    real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
     character(len=cl) :: w,ioname
     character(len=wl) :: large_fmt
@@ -947,6 +951,7 @@ module diatom_module
            case("ZPE")
              !
              call readf(job%zpe)
+             job%shift_to_zpe = .false.
              !
            case default
              !
@@ -1076,6 +1081,7 @@ module diatom_module
            case('ZPE')
              !
              call readf(fitting%zpe)
+             fitting%shift_to_zpe = .false.
              !
            case('FIT_FACTOR')
              !
@@ -3067,6 +3073,19 @@ module diatom_module
              !
              intensity%matelem = .true.
              !
+           case('OVERLAP')
+             !
+             intensity%overlap = .true.
+             if (nitems>1) call readu(w) 
+             if (trim(w)=="OFF") intensity%overlap = .false.
+             !
+           case('VIB-DIPOLE','MU')
+             !
+             intensity%tdm = .true.
+             !
+             if (nitems>1) call readu(w) 
+             if (trim(w)=="OFF") intensity%tdm = .false.
+             !
            case('THRESH_INTES','THRESH_TM','THRESH-INTES')
              !
              call readf(intensity%threshold%intensity)
@@ -3171,6 +3190,7 @@ module diatom_module
              !
              call readf(intensity%zpe)
              job%zpe = intensity%zpe
+             job%shift_to_zpe = .false.
              !
            case('J','JLIST','JROT')
              !
@@ -4640,9 +4660,9 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                 else
                   !
-                  write(out,"(/'molpro_duo: cannot find the selecion rule to work for ',2i8,3x,a)") field%iref,field%jref,trim(field%class)
+                  write(out,"(/'molpro_duo: cannot find selecion rule for',2i8,3x,a)") field%iref,field%jref,trim(field%class)
                   write(out,"(' sigma = ',2f8.1,' lambda (i) = ',i4,' lamda (j) = ',i4)") field%sigmai, field%sigmaj, &
-                                                                                                      int(lambda_i(1)),int(lambda_j(1))                  !
+                                                                                                  int(lambda_i(1)),int(lambda_j(1))
                   stop 'molpro_duo: cannot find the selecion rules'
                 endif
                 !
@@ -5725,7 +5745,7 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=6) write(out,'(/"Check the contracted basis for ortho-normality")')
        !
-       if (action%intensity) then 
+       if (action%intensity.and.intensity%overlap) then 
          !
          write(out,'(/"Vibrational overlap integrals: ")')
          ! write(out,'("    State-i    <i|j>   State-j"/)')
@@ -5754,7 +5774,7 @@ end subroutine map_fields_onto_grid
            !
            ! Reporting the quality of the matrix elemenst
            !
-           if (action%intensity.and.&
+           if (action%intensity.and.intensity%overlap.and.&
                icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) then
               !
               write(out,'("<",i2,",",i4,"|",i2,",",i4,"> = ",es18.8)') icontrvib(ilevel)%istate,    &
@@ -5814,7 +5834,7 @@ end subroutine map_fields_onto_grid
         !
         if (iobject==Nobjects-2) cycle
         !
-        if (iobject==Nobjects.and.iverbose>=3.and.action%intensity) then 
+        if (iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
            !
            write(out,'(/"Vibrational transition moments: ")')
 !            write(out,'("    State    TM   State"/)')
@@ -5867,7 +5887,7 @@ end subroutine map_fields_onto_grid
             endif 
             field%gridvalue(:) = b_rot/r(:)**2*sc
           case (Nobjects)
-            if (.not.action%intensity) cycle 
+            !if (.not.action%intensity) cycle 
             field => dipoletm(iterm)
           end select
           !
@@ -5921,7 +5941,7 @@ end subroutine map_fields_onto_grid
           !
           ! printing out transition moments 
           !
-          if (iobject==Nobjects.and.action%intensity) then
+          if (iobject==Nobjects.and.action%intensity.and.intensity%tdm) then
               !
               !write(out,'(/"Vibrational transition moments: ")')
               !write(out,'("    State    TM   State"/)')
@@ -6026,7 +6046,7 @@ end subroutine map_fields_onto_grid
         !
         write(iunit,'(a)') '   <- States'
         !
-        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega|')")
+        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega ivib|')")
         !
         filename =  trim(job%eigenfile%vectors)//'_vib.chk'
         write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -7368,7 +7388,7 @@ end subroutine map_fields_onto_grid
             ! some diagonalizers needs the following parameters to be defined
             !
             zpe = job%ZPE
-            if (zpe<-small_) zpe = minval(hsym)
+            if (.not.job%shift_to_zpe) zpe = minval(hsym)
             !
             jobz = 'V'
             vrange(1) = -0.0_rk ; vrange(2) = (job%upper_ener+zpe)*sc
@@ -7402,12 +7422,10 @@ end subroutine map_fields_onto_grid
           !
           ! The ZPE value can be obtained only for the first J in the J_list tau=1.
           ! Otherwise the value from input must be used.
-          if (irot==1.and.abs(job%ZPE)<-small_.and.iverbose/=0) then
+          if (irot==1.and.job%shift_to_zpe.and.iverbose/=0) then
             !
             if (irrep==1) then
               job%ZPE = eigenval(1)/sc
-            else
-              job%ZPE = min(eigenval(1)/sc,job%ZPE)
             endif
             !
             if (action%intensity) intensity%ZPE = job%ZPE
@@ -7641,8 +7659,8 @@ end subroutine map_fields_onto_grid
                   !
                   do k = 1,Ntotal
                     write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,i4)')  total_roots,     & 
-                          J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%ivib,icontr(k)%ilambda,icontr(k)%sigma, &
-                          icontr(k)%spin,icontr(k)%v
+                          J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,icontr(k)%sigma, &
+                          icontr(k)%spin,icontr(k)%ivib
                   enddo
                   !
                 endif
