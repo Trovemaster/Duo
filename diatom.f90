@@ -1165,6 +1165,12 @@ module diatom_module
                 !
                 i = 0
                 matchfound = .false.
+                if (.not.associated(fitting%J_list)) then 
+                   fitting%nJ = 1
+                   allocate(fitting%j_list(1),stat=alloc)
+                   fitting%J_list(1) = 0
+                   if (.not.integer_spin) fitting%J_list(1) = 0.5
+                endif 
                 do while( i<fitting%nJ.and..not.matchfound )
                   !
                   i = i + 1
@@ -6054,6 +6060,7 @@ end subroutine map_fields_onto_grid
         open(unit = vibunit, action = 'write',status='replace' , file = filename)
         !
         do i = 1,totalroots
+         istate = icontrvib(i)%istate
           write(vibunit,'(i5,f18.6,3x,2i4,3x,a)') i,(contrenergy(i)-contrenergy(1))/sc,icontrvib(i)%istate,icontrvib(i)%v, &
                                                      trim(poten(istate)%name)
           do k = 1,grid%npoints
