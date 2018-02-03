@@ -622,7 +622,7 @@ module refinement
             ezero = fitting%zpe
             if (fitting%shift_to_zpe) then 
                ezero = energy_(1,1,1)
-               if (energy_(1,2,1)<ezero(1)) ezero = energy_(1,2,1)
+               if (energy_(1,2,1)<ezero(1).and.nenergies(1,2)>0) ezero = energy_(1,2,1)
             endif
             !
             ! find the lowest root for each electronic state  - will be used as a corresponding ZPE
@@ -636,7 +636,7 @@ module refinement
                   ezero(istate) = fitting%zpe
                   if (fitting%shift_to_zpe) then 
                     ezero(istate) = energy_(1,1,i)
-                    if (energy_(1,2,i)<ezero(istate)) ezero(istate) = energy_(1,2,i)
+                    if (energy_(1,2,i)<ezero(istate).and.nenergies(1,2)>0) ezero(istate) = energy_(1,2,i)
                   endif
                   !
                   iZPE(istate) = i
