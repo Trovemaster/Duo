@@ -157,6 +157,14 @@ module functions
       !
       fanalytical_field => poten_two_coupled_EMOs
       !
+    case("COUPLED_EMO_REPULSIVE")
+      !
+      fanalytical_field => poten_two_coupled_EMO_repulsive
+      !
+    case("REPULSIVE")
+      !
+      fanalytical_field => poten_repulsive
+      !
     case("NONE")
       !
       write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
@@ -1375,7 +1383,65 @@ module functions
     !
   end function poten_two_coupled_EMOs
 
+  !
+  ! Morse/Long-Range, see Le Roy manuals
+  !
+  function poten_repulsive(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,f,uLR
+    integer(ik)            :: k,N
+    !
+    N = parameters(1)
+    v0 = parameters(2)
+    !
+    if (N/=size(parameters)-1) then
+      write(out,"('Repulsive: Npar inconsistent with total number of parameters:',2i9)") N,size(parameters)+1
+      stop 'Repulsive: illegal number of parameters'
+    endif 
+    !
+    ! long-range part
+    !
+    uLR = V0
+    do k=2,N
+     uLR = uLR + parameters(k+1)/r**(k-1)
+    enddo
+    !
+    f = uLR
+    !
+  end function poten_repulsive
 
+
+  function poten_two_coupled_EMO_repulsive(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+1)+1
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component 
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_repulsive(r,parameters(nparams1+1:nparams1+nparams2))
+    a  = poten_cosh_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr) 
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr) 
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMO_repulsive
 
   !
 end module functions

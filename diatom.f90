@@ -230,6 +230,7 @@ module diatom_module
       logical             :: print_vibrational_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_rovibronic_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
+      logical             :: assign_v_by_count = .false.
       !
   end type jobT
   !
@@ -510,20 +511,24 @@ module diatom_module
          job%print_vibrational_energies_to_file = .true.
 
        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
-         job%print_rovibronic_energies_to_file = .true.
-
-        case("DO_NOT_ECHO_INPUT") !
-          job%zEchoInput = .false.
-
-        case("DO_NOT_SHIFT_PECS") ! 
-          job%zShiftPECsToZero = .false.
-
-        case("DO_NOT_INCLUDE_JS_COUPLING") ! 
-          job%zExclude_JS_coupling = .true.
-
-        case("") ! do nothing in case of blank lines
-
          !
+         job%print_rovibronic_energies_to_file = .true.
+        case("DO_NOT_ECHO_INPUT") 
+          !
+          job%zEchoInput = .false.
+        case("DO_NOT_SHIFT_PECS") 
+          ! 
+          job%zShiftPECsToZero = .false.
+        case("DO_NOT_INCLUDE_JS_COUPLING") 
+          ! 
+          job%zExclude_JS_coupling = .true.
+          !
+        case("") ! do nothing in case of blank lines
+          !
+        case("ASSIGN_V_BY_COUNT")
+          !
+          job%assign_v_by_count = .true.
+          !
         case ("SOLUTIONMETHOD")
           call readu(w)
           solution_method = trim(w)
@@ -815,7 +820,6 @@ module diatom_module
             stop 'input - illegal last line in CONTRACTION'
             !
          endif
-
          !
        case("CHECK_POINT","CHECKPOINT","CHECKPOINTS")
          !
@@ -1076,7 +1080,7 @@ module diatom_module
              !
            case('OUTPUT')
              !
-             call readl(fitting%output_file)
+             call reada(fitting%output_file)
              !
            case('ZPE')
              !
@@ -5431,12 +5435,14 @@ end subroutine map_fields_onto_grid
      character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
      character(cl)           :: printout_
      real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
-     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
+     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,k_,numnod
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
      real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
      integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
+     integer(ik),allocatable :: vib_count(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
+     !real(rk),allocatable    :: psi_vib(:)
      character(len=250),allocatable :: printout(:)
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
      type(matrixT)              :: transform(2)
@@ -5446,7 +5452,7 @@ end subroutine map_fields_onto_grid
      !real(ark),allocatable      :: contrfunc_ark(:,:),vibmat_ark(:,:),matelem_ark(:,:),grid_ark(:)
      !real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
-     integer(ik)                :: iunit,vibunit,imaxcontr,i0
+     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_
 
      ! open file for later (if option is set)
      if (job%print_rovibronic_energies_to_file ) &
@@ -7448,6 +7454,10 @@ end subroutine map_fields_onto_grid
           allocate(QNs(Nroots),stat=alloc)
           call ArrayStart('QNs',alloc,size(QNs),kind(QNs))
           !
+          allocate(vib_count(Nroots),stat=alloc)
+          call ArrayStart('vib_count',alloc,size(vib_count),kind(vib_count))
+          vib_count = 0
+          !
           !omp parallel do private(i,mterm,f_t,plusminus) shared(maxTerm) schedule(dynamic)
           do i=1,Nroots
             !
@@ -7468,20 +7478,13 @@ end subroutine map_fields_onto_grid
                if (imaxcontr==QNs(ilevel)) then
                  !
                  j = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_.and.hsym(:,i)**2.lt.maxcontr)
-                 !
                  imaxcontr = j
-                 !
                  maxcontr = hsym(imaxcontr,i)**2
-                 !
-                 !print*,i,ilevel,imaxcontr
-                 !
                  i0 = i0 + 1 
                  !
                  if (i0>10) then 
-                   !
                    imaxcontr = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
                    exit loop_check
-                   !
                  endif 
                  !
                  cycle loop_check 
@@ -7489,9 +7492,7 @@ end subroutine map_fields_onto_grid
                endif
                !
               enddo loop_ilevel
-              !
               exit loop_check
-              !
             enddo loop_check
             !
             QNs(i) = imaxcontr
@@ -7506,6 +7507,29 @@ end subroutine map_fields_onto_grid
             omega = icontr(mterm)%omega
             spini = icontr(mterm)%spin
             v = icontr(mterm)%v
+            vib_count(i) = v
+            !
+            ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
+            if (job%assign_v_by_count) then
+              !
+              loop_ilevel2 : do ilevel = i-1,1,-1
+                !
+                imaxcontr_ = QNs(ilevel)
+                mlevel = transform(irrep)%irec(imaxcontr_)
+                mterm_ = ilevel2i(mlevel,irrep)
+                istate_ = icontr(mterm_)%istate
+                sigmaj = icontr(mterm_)%sigma
+                ilambda_ = icontr(mterm_)%ilambda
+                !
+                if (istate==istate_.and.ilambda==ilambda_.and.nint(sigmaj-sigma)==0) then
+                  v = vib_count(ilevel)+1
+                  vib_count(i) = v
+                  exit loop_ilevel2
+                endif
+                !
+              enddo loop_ilevel2
+              !
+            endif
             !
             if (iverbose>=3) write(out,'(2x,f8.1,i5,f18.6,1x,i3,2x,2i4,3f8.1,3x,a1,4x,"||",a)') & 
                              jval,i,eigenval(i)-job%ZPE,istate,v,ilambda,spini,sigma,omega,plusminus(irrep), &
@@ -7552,6 +7576,7 @@ end subroutine map_fields_onto_grid
           enddo
           !
           deallocate(QNs)
+          call ArrayStop('QNs')
           !
           if (iverbose>=4) call TimerStop('Assignment')
           !
@@ -7599,6 +7624,9 @@ end subroutine map_fields_onto_grid
                !
             endif
             !
+            !allocate(psi_vib(ngrid),stat=alloc)
+            !call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+            !
             total_roots = 0
             !
             do i=1,Nroots
@@ -7643,7 +7671,8 @@ end subroutine map_fields_onto_grid
                 ilambda = icontr(mterm)%ilambda
                 omega = icontr(mterm)%omega
                 spini = icontr(mterm)%spin
-                v = icontr(mterm)%v
+                !v = icontr(mterm)%v
+                v  = vib_count(i)
                 !
                 if (action%intensity) then 
                    !
@@ -7662,6 +7691,51 @@ end subroutine map_fields_onto_grid
                    !
                 endif
                 !
+                if (present(quantaout)) then
+                   if (nener_total<=size(enerout,dim=3)) then
+                      !
+                      ! in order to use the number of nodes as for the vibrational assignement 
+                      ! we first need to average the eigenfunction over other degrees of freedom
+                      !
+                      !psi_vib = 0
+                      !!
+                      !do k = 1,Ntotal
+                      !  ivib = icontr(k)%ivib
+                      !  do k_ = 1,Ntotal
+                      !     jvib = icontr(k_)%ivib
+                      !     !
+                      !     if (icontr(k)%istate==icontr(k_)%istate.and.icontr(k)%ilambda==icontr(k_)%ilambda.and.icontr(k)%sigma==icontr(k_)%sigma) then
+                      !       !
+                      !       psi_vib(:) = psi_vib(:) + vec(k)*vec(k_)*contrfunc(:,ivib)*contrfunc(:,jvib)
+                      !       !
+                      !     endif
+                      !     !
+                      !  enddo
+                      !enddo
+                      !
+                      ! Now we can count zeros
+                      !
+                      !numnod=0
+                      !do k=2,ngrid-1
+                      !   if (psi_vib(k)<-small_) then
+                      !      write(out,"('psi_vib is negative = ',i6,g12.4)") k,psi_vib(k)
+                      !      stop 'psi_vib negative' 
+                      !   endif
+                      !   if ( psi_vib(k)<1e-4.and.&
+                      !       (psi_vib(k-1)>sqrt(small_).and.psi_vib(k-1)>sqrt(small_)).and.&
+                      !       (psi_vib(k)<psi_vib(k-1).and.psi_vib(k)<psi_vib(k+1)) ) then 
+                      !      numnod=numnod+1
+                      !   endif
+                      !enddo
+                      !
+                      !v = quantaout(irot,irrep,nener_total)%v 
+                      !if (numnod/=v) then 
+                      !  write(out,"('total_roots,v,numnod = ',3i8)") total_roots,v,numnod
+                      !endif
+                      !
+                   endif
+                endif
+                !
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
@@ -7676,6 +7750,9 @@ end subroutine map_fields_onto_grid
               !
             enddo
             !
+            !deallocate(psi_vib)
+            !call ArrayStop('psi_vib')
+            !
             if (action%intensity) then
               !
               eigen(irot,irrep)%Nlevels = total_roots
@@ -7685,6 +7762,9 @@ end subroutine map_fields_onto_grid
             if (iverbose>=4) call TimerStop('Prepare_eigenfuncs_for_intens')
             !
           endif
+          !
+          deallocate(vib_count)
+          call ArrayStop('vib_count')
           !
           deallocate(hsym,eigenval)
           call ArrayStop('hsym')
