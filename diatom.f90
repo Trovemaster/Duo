@@ -7575,15 +7575,14 @@ end subroutine map_fields_onto_grid
             endif
           enddo
           !
-          deallocate(QNs)
-          call ArrayStop('QNs')
-          !
           if (iverbose>=4) call TimerStop('Assignment')
           !
           if (action%intensity.or.job%IO_eigen=='SAVE') then
             !
             ! total number of levels for given J,gamma selected for the intensity calculations
             total_roots = 0
+            !
+            vib_count = 0
             !
             if (iverbose>=4) call TimerStart('Prepare_eigenfuncs_for_intens')
             !
@@ -7661,7 +7660,37 @@ end subroutine map_fields_onto_grid
                 !
                 ! to get the assignement we find the term with the largest contribution
                 !
-                j = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
+                imaxcontr = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
+                !
+                ! check if this contribution has already been used and take the second largest coefficient in this case
+                !
+                maxcontr = hsym(imaxcontr,i)**2
+                !
+                i0 = 0 
+                !
+                loop_check_i : do
+                  loop_ilevel_i : do ilevel = 1,i-1
+                   if (imaxcontr==QNs(ilevel)) then
+                     !
+                     j = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_.and.hsym(:,i)**2.lt.maxcontr)
+                     imaxcontr = j
+                     maxcontr = hsym(imaxcontr,i)**2
+                     i0 = i0 + 1 
+                     !
+                     if (i0>10) then 
+                       imaxcontr = maxloc(hsym(:,i)**2,dim=1,mask=hsym(:,i)**2.ge.small_)
+                       exit loop_check_i
+                     endif 
+                     !
+                     cycle loop_check_i
+                   endif
+                  enddo loop_ilevel_i
+                  exit loop_check_i
+                enddo loop_check_i
+                !
+                j = imaxcontr
+                QNs(i) = imaxcontr
+                !
                 mlevel = transform(irrep)%irec(j)
                 mterm = ilevel2i(mlevel,irrep)
                 !
@@ -7673,6 +7702,29 @@ end subroutine map_fields_onto_grid
                 spini = icontr(mterm)%spin
                 !v = icontr(mterm)%v
                 v  = vib_count(i)
+                vib_count(i) = v
+                !
+                ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
+                if (job%assign_v_by_count) then
+                  !
+                  loop_ilevel3 : do ilevel = i-1,1,-1
+                    !
+                    imaxcontr_ = QNs(ilevel)
+                    mlevel = transform(irrep)%irec(imaxcontr_)
+                    mterm_ = ilevel2i(mlevel,irrep)
+                    istate_ = icontr(mterm_)%istate
+                    sigmaj = icontr(mterm_)%sigma
+                    ilambda_ = icontr(mterm_)%ilambda
+                    !
+                    if (istate==istate_.and.ilambda==ilambda_.and.nint(sigmaj-sigma)==0) then
+                      v = vib_count(ilevel)+1
+                      vib_count(i) = v
+                      exit loop_ilevel3
+                    endif
+                    !
+                  enddo loop_ilevel3
+                  !
+                endif
                 !
                 if (action%intensity) then 
                    !
@@ -7762,6 +7814,9 @@ end subroutine map_fields_onto_grid
             if (iverbose>=4) call TimerStop('Prepare_eigenfuncs_for_intens')
             !
           endif
+          !
+          deallocate(QNs)
+          call ArrayStop('QNs')
           !
           deallocate(vib_count)
           call ArrayStop('vib_count')
