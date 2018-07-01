@@ -1201,7 +1201,7 @@ contains
                              !          quantaF%iroot,quantaI%iroot,linestr,nu_if
                            else
                              !
-                             write(transunit,"(2i12,2x,es10.4,4x,f16.6)") & 
+                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
                                        quantaF%iroot,quantaI%iroot,A_einst,nu_if
                            endif 
                            !
