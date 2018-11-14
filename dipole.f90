@@ -376,7 +376,8 @@ contains
     integer(ik) :: Jmax_,ID_J,nMs
     real(rk) :: J_
     character(len=12) :: char_Jf,char_Ji,char_LF
-    integer(ik),allocatable :: richunit(:,:,:)
+    integer(ik),allocatable :: richunit(:,:)
+    character(1)  :: let_LF ! richmol letters x,y,z
     !
     call TimerStart('Intensity calculations')
     !
@@ -422,7 +423,7 @@ contains
         !
         Jmax_ = nint(maxval(Jval(:))) 
         !
-        allocate(richunit(nJ,nJ,3))
+        allocate(richunit(nJ,nJ))
         !
         do indI = 1, nJ
           !
@@ -438,33 +439,48 @@ contains
             !
             write(char_Jf,'(i12)') nint(jF)
             !
+            !  New RICHMOL format - one file for x,y,z
+            !
+            filename =  &
+            "matelem_MU_"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
+            !
+            call IOstart(trim(filename),richunit(indI,indF))
+            !
+            open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
+            !
+            !
+            write(richunit(indI,indF),"('Start richmol format')")
+            !
+            write(richunit(indI,indF),"('MU','   1','   3')")
+            write(richunit(indI,indF),"('M-tensor')")
+            !
             ! three cartesian LF-components 
             do iLF = 1,3
               !
+              ! set let_LF FOR EACH COMPONENT
+              !
+              let_LF = "x" ; if (iLF==2) let_LF = "y" ; if (iLF==3) let_LF = "z"
+              !
+              iflag_rich = -1 ; if (iLF==2) iflag_rich = 0 ! NEW RICHMOL FORMAT
+              !
               write(char_LF,'(i12)') iLF
               !
-              filename =  &
-              "matelem_MU_"//trim(adjustl(char_LF))//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_b1.rchm"
+              ! this flag is 0 for real M-values, 1 for imaginary and -1 for i**2 (OLD FORMAT)
+              ! iflag_rich = 0 ; if (iLF==2) iflag_rich = 1 ! OLD RICHMOL FORMAT
+              write(richunit(indI,indF),"('alpha',i5,i3,1x,a1)") iLF,iflag_rich,let_LF
               !
-              call IOstart(trim(filename),richunit(indI,indF,iLF))
+              ! count the number of M-elements ! OLD RICHMOL FORMAT
+              ! call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF,nMs) ! OLD RICHMOL FORMAT
+              !write(richunit(indI,indF,iLF),"(i7)") nMs ! OLD RICHMOL FORMAT
               !
-              open(unit = richunit(indI,indF,iLF), action = 'write',status='replace' , file = filename)
+              call do_LF_matrix_elements(iLF,richunit(indI,indF),jI,jF) ! write elements
               !
-              ! this flag is 0 for real M-values, 1 for imaginary and -1 for i**2
-              iflag_rich = 0 ; if (iLF==2) iflag_rich = 1
-              !
-              write(richunit(indI,indF,iLF),"('Start richmol format')")
-              write(richunit(indI,indF,iLF),"('   1',1x,i3)") iflag_rich
-              write(richunit(indI,indF,iLF),"('LF-block')")
-              !
-              ! count the number of M-elemints 
-              call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF,nMs)
-              write(richunit(indI,indF,iLF),"(i7)") nMs
-              call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF)
-              !
-              write(richunit(indI,indF,iLF),"('MF-block')")
+              !write(richunit(indI,indF,iLF),"('MF-block')") ! OLD RICHMOL FORMAT
               !
             enddo
+            !
+            write(richunit(indI,indF),"('K-tensor')") ! NEW RICHMOL FORMAT
+            !
           enddo
         enddo
       endif 
@@ -1191,21 +1207,18 @@ contains
                            !
                            if ( intensity%matelem ) then 
                              !
-                             do iLF = 1,3
-                               !
-                               write(richunit(indI,indF,iLF),"(2i8,2i4,2x,f24.16)") & 
+                             write(richunit(indI,indF),"(i8,1x,i8,2i5,2x,f24.16)") & 
                                                quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
-                             enddo
                              !
-                             !write(transunit,"(2i12,2x,e17.8,4x,f16.6)") & 
-                             !          quantaF%iroot,quantaI%iroot,linestr,nu_if
                            else
+
                              !
                              write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
                                        quantaF%iroot,quantaI%iroot,A_einst,nu_if
                            endif 
                            !
                          endif
+                         !
                          !$omp end critical
                          !
                        endif
@@ -1254,10 +1267,8 @@ contains
            jF = Jval(indF)
            if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
            !
-           do iLF = 1,3
-             write(richunit(indI,indF,iLF),"('End richmol format')")
-             close(richunit(indI,indF,iLF))
-           enddo
+           write(richunit(indI,indF),"('End richmol format')")
+           close(richunit(indI,indF))
            !
          enddo
          !
@@ -1978,7 +1989,7 @@ contains
                   !
                   if (abs(M_)>small_) then 
                     icount_ = icount_ + 1
-                    if (.not.present(icount)) write(iunit,"(2i8,1x,e18.9)") iomegaI_,iomegaF_,M_
+                    if (.not.present(icount)) write(iunit,"(2(i6,1x),e18.9)") iomegaI_,iomegaF_,M_ 
                   endif
                   !
                end do  loop_I
