@@ -803,12 +803,12 @@ contains
                  !
                else
                  !
-                 stop 'not tested'
+                 !stop 'not tested'
                  !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                 write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
                  write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                           int(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,omegaI,&
+                           ivI,(ilambdaI),sigmaI,pm,statename
                            !
                endif
                !
@@ -1933,8 +1933,8 @@ contains
         integer(ik),intent(in)  :: iLF,iunit
         integer(ik),intent(out),optional :: icount
         !real(rk),intent(out)    :: M(-jmax:jmax,-jmax:jmax,3)
-        integer(ik)             :: iomegaI_,iomegaF_,icount_,isigma
-        real(rk)                :: f3j, omegaI,omegaF,M_
+        integer(ik)             :: imI_,imF_,icount_,isigma
+        real(rk)                :: f3j, mI,mF,M_
         real(rk)                :: f_t
         real(rk)                :: t(3,-1:1)
           !
@@ -1962,34 +1962,33 @@ contains
           !
           icount_ = 0
           !
-          loop_F : do iomegaF_ = -nint(Jf), nint(Jf)
+          loop_F : do imF_ = -nint(Jf), nint(Jf)
              !
-             omegaF = iomegaF_
-             if (mod(nint(2.0_rk*omegaF+1.0_rk),2)==0 ) omegaF = iomegaF_+0.5_rk
+             mF = imF_
+             if (mod(nint(2.0_rk*jF+1.0_rk),2)==0 ) mF = imF_+0.5_rk
              !
-             loop_I : do iomegaI_ = -nint(Ji), nint(Ji)
+             loop_I : do imI_ = -nint(Ji), nint(Ji)
                   !
-                  omegaI = iomegaI_
+                  mI = imI_
+                  if (mod(nint(2.0_rk*jI+1.0_rk),2)==0 ) mI = imI_+0.5_rk
                   !
-                  isigma = nint(omegaF - omegaI)
+                  isigma = nint(mF - mI)
                   !
                   if (abs(isigma)>1) cycle
                   !
-                  if (mod(nint(2.0_rk*iomegaI_+1.0_rk),2)==0 ) omegaI = iomegaI_+0.5_rk
-                  !
-                  f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  f3j = three_j(jI, 1.0_rk, jF, mI, mF - mI, -mF)
                   !
                   f_t = 0
                   !
                   f_t = T(iLF,isigma)
                   !
-                  !M_t(iomegaI_,iomegaF_,iLF) = f_t
+                  !M_t(imI_,imF_,iLF) = f_t
                   !
-                  M_ = (-1.0_rk)**(omegaI)*f_t*f3j*sqrt(( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk ))
+                  M_ = (-1.0_rk)**(imI_)*f_t*f3j*sqrt(( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk ))
                   !
                   if (abs(M_)>small_) then 
                     icount_ = icount_ + 1
-                    if (.not.present(icount)) write(iunit,"(2(i6,1x),e18.9)") iomegaI_,iomegaF_,M_ 
+                    if (.not.present(icount)) write(iunit,"(2(i6,1x),e18.9)") imI_,imF_,M_ 
                   endif
                   !
                end do  loop_I
