@@ -1028,11 +1028,14 @@ module functions
     N = size(parameters)
     !
     v0 = parameters(1)
+    !
+    f = v0
+    !
+    if (N==1) return 
+    !
     r0 = parameters(2)
     !
     y = (r-r0)
-    !
-    f = v0
     do k=3,N 
       f = f + parameters(k)*y**(k-2)
     enddo

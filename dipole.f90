@@ -126,6 +126,7 @@ contains
         enddo
       end do
       !
+      if (iverbose>=2) write(out,'(/"Zero point energy (ZPE) = ",f18.6," (global zero, used for intensities)")') intensity%ZPE
       if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
       !
     endif
@@ -1211,7 +1212,6 @@ contains
                                                quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
                              !
                            else
-
                              !
                              write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
                                        quantaF%iroot,quantaI%iroot,A_einst,nu_if
