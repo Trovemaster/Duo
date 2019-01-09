@@ -3,8 +3,9 @@ module diatom_module
   use accuracy
   use timer
   use functions, only : analytical_fieldT
-  use symmetry, only   : sym,SymmetryInitialize
-  !
+  use symmetry,  only   : sym,SymmetryInitialize
+  use Lobatto,   only : LobattoAbsWeights,derLobattoMat
+   !
   implicit none
   !                     by Lorenzo Lodi
   !                     Specifies variables needed for storing a temporary (scratch) copy
@@ -198,7 +199,7 @@ module diatom_module
   !
   type jobT
       logical             :: select_gamma(4) ! the diagonalization will be done only for selected gamma's
-      integer(ik)         :: nroots(4)=1e8_rk ! number of the roots to be found in variational diagonalization with syevr
+      integer(ik)         :: nroots(4)=1e9_rk ! number of the roots to be found in variational diagonalization with syevr
       integer(ik)         :: maxiter = 1000  ! maximal number of iterations in arpack
       real(rk)            :: tolerance = 0.0_rk   ! tolerance for arpack diagonalization, 0 means the machine accuracy
       real(rk)            :: upper_ener = 1e9_rk  ! upper energy limit for the eigenvalues found by diagonalization with syevr
@@ -417,7 +418,7 @@ module diatom_module
   !
   logical :: gridvalue_allocated  = .false.
   logical :: fields_allocated  = .false.
-  real(rk),parameter :: enermax = 100000.0_rk  ! largest energy allowed 
+  real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
          jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j
@@ -3475,6 +3476,11 @@ module diatom_module
       stop "Illegal number of states: ipo/=nestates"
     endif
     !
+    if (trim(solution_method)=="LOBATTO".xor.grid%nsub == 6) then 
+        write(out,"('Error: The grid 6 can be used without LOBATTO  (key word SOLUTIONMETHOD)')")
+        write(out,"('solution_method, grid = ',a,i8)") trim(solution_method),grid%nsub 
+    endif
+    !
     ! find lowest Jmin allowed by the spin and lambda
     ! this is done by computing all possible |Omegas| = | Lambda + Sigma |
     ! we assume Jmin=min( Omegas )
@@ -5422,7 +5428,7 @@ end subroutine map_fields_onto_grid
      !
      real(rk)                :: scale,sigma,omega,omegai,omegaj,spini,spinj,sigmaj,sigmai,jval
      integer(ik)             :: alloc,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
-     integer(ik)             :: ngrid,j,i,igrid, jgrid
+     integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
      integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
      integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav
      integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v
@@ -5438,6 +5444,7 @@ end subroutine map_fields_onto_grid
      integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,k_,numnod
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
      real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
+     real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
      integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      integer(ik),allocatable :: vib_count(:)
@@ -5514,6 +5521,14 @@ end subroutine map_fields_onto_grid
      call ArrayStart('vec',alloc,size(vec),kind(vec))
      call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
      !
+     if (trim(solution_method)=="LOBATTO") then 
+       allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),vibTmat(ngrid,ngrid),stat=alloc)
+       call ArrayStart('LobAbs',alloc,size(LobAbs),kind(LobAbs))
+       call ArrayStart('LobWeights',alloc,size(LobWeights),kind(LobWeights))
+       call ArrayStart('LobDerivs',alloc,size(LobDerivs),kind(LobDerivs))
+       call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
+     endif
+     !
      allocate(icontrvib(ngrid*Nestates),stat=alloc)
      !call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
      !
@@ -5539,6 +5554,12 @@ end subroutine map_fields_onto_grid
      totalroots = 0
      !
      zpe = 0
+     !
+     ! Lobbato grids, abcissas and weighs 
+     if (grid%nsub == 6) then
+       call LobattoAbsWeights(LobAbs,LobWeights,ngrid,grid%rmin,grid%rmax)
+       call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)  ! SY a bug
+     endif
      !
      do istate = 1,Nestates
        !
@@ -5629,6 +5650,7 @@ end subroutine map_fields_onto_grid
              write(out, '(A)') 'Possible options are: '
              write(out, '(A)') '                      5POINTDIFFERENCES'
              write(out, '(A)') '                      SINC'
+             write(out, '(A)') '                      LOBATTO'
             end select method_choice
 
        enddo
@@ -5744,7 +5766,7 @@ end subroutine map_fields_onto_grid
         write(u1,'("    i        Energy/cm    State v"/)')
         do i = 1,totalroots
           istate = icontrvib(i)%istate
-          write(u1,'(i5,f18.6," [ ",2i4," ] ",a)') i,(contrenergy(i)-contrenergy(1))/sc,istate,icontrvib(i)%v, &
+          write(u1,'(i5,f18.6," [ ",2i4," ] ",a)') i,(contrenergy(i))/sc,istate,icontrvib(i)%v, &
                                                     trim(poten(istate)%name)
         enddo
         close(u1)
@@ -6076,9 +6098,24 @@ end subroutine map_fields_onto_grid
         enddo
         !
         write(vibunit,"('End of contracted basis')")
+        if (trim(solution_method)=="LOBATTO") then 
+          write(vibunit,"('Start of Lobatto Weights - needed for internal testing in RmatReact code')")
+           do k=1, grid%npoints
+              write(vibunit,'(e20.12)') LobWeights(k)
+          enddo
+          write(vibunit,"('End of Lobatto Weights')")
+        endif
         !
         close(unit = vibunit, status='keep')
         !
+     endif
+     !
+     if (trim(solution_method)=="LOBATTO") then 
+       deallocate(LobDerivs,LobAbs,LobWeights,vibTmat)
+       call ArrayStop('LobDerivs')
+       call ArrayStop('LobAbs')
+       call ArrayStop('LobWeights')
+       call ArrayStop('vibTmat')
      endif
      !
      if (present(nenerout)) nenerout = 0
@@ -7414,7 +7451,7 @@ end subroutine map_fields_onto_grid
                rng = 'A'
             elseif (irange(2)<Nsym_) then
                rng = 'I'
-            elseif (job%upper_ener<1e8.and.job%upper_ener>small_) then
+            elseif (job%upper_ener<1e15.and.job%upper_ener>small_) then
                rng = 'V'
             endif
             !
@@ -7537,7 +7574,7 @@ end subroutine map_fields_onto_grid
 
             if (job%print_rovibronic_energies_to_file ) then
                !  open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
-                 write(u2,'(2x,f8.1,i5,f18.6,1x,i3,2x,2i4,3f8.1,3x,a1,4x,"||",a)') & 
+                 write(u2,'(2x,f8.1,i5,f20.12,1x,i3,2x,2i4,3f8.1,3x,a1,4x,"||",a)') & 
                      jval,i,eigenval(i)-job%ZPE,istate,v,ilambda,spini,sigma,omega,plusminus(irrep), &
                                                   trim(poten(istate)%name)
                !  close(u2)
@@ -7829,7 +7866,7 @@ end subroutine map_fields_onto_grid
           !
        enddo
        !
-       if (iverbose>=2) write(out,'(/"Zero point energy (ZPE) = ",f18.6)') job%ZPE
+       if (iverbose>=2) write(out,'(/"Zero point energy (ZPE) = ",f20.12)') job%ZPE
        !
        !omp end parallel do
        !
