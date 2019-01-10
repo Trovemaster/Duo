@@ -5,7 +5,7 @@ module diatom_module
   use functions, only : analytical_fieldT
   use symmetry,  only   : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
-   !
+  !
   implicit none
   !                     by Lorenzo Lodi
   !                     Specifies variables needed for storing a temporary (scratch) copy
@@ -17,7 +17,7 @@ module diatom_module
   !                                              ! to avoid feeding in GB of data by mistake.
   !
   ! main method used for solving the J=0 problem, i.e. to solve the one-dimentional Schrodinger equation.
-!   character(len=wl)   :: solution_method = "5POINTDIFFERENCES"  ! kinetic energy approximated by 5-point finite-diff. formula
+  ! character(len=wl)   :: solution_method = "5POINTDIFFERENCES"  ! kinetic energy approximated by 5-point finite-diff. formula
   character(len=wl)   :: solution_method = "SINC"  ! kinetic energy approximated by sinc DVR
   !
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
@@ -4039,7 +4039,8 @@ subroutine map_fields_onto_grid(iverbose)
             ! Lorenzo Lodi, 13 February 2014
             ! This section will add extrapolated points at short and long bond lengths
             ! for tabulated `GRID' functions
-            if( field%grid(1) > rmin) then
+            ! and only for fitting 
+            if( field%grid(1) > rmin .and..not.action%fitting) then
                if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at short bond length curve ' // trim(field%name) // &
                                  ' (class ' // trim(field%class) // ')'
          
@@ -4100,7 +4101,7 @@ subroutine map_fields_onto_grid(iverbose)
             endif
             !*************end of short bond length extrapolation **********************************************
             nterms = field%Nterms
-            if( field%grid(nterms) < rmax) then
+            if( field%grid(nterms) < rmax.and..not.action%fitting) then
                if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at long bond length curve ' // trim(field%name) // &
                                 ' (class ' // trim(field%class) // ')'
                !

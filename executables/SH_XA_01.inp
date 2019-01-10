@@ -316,7 +316,7 @@ END
 (24: p=4)
 
 
-FITTING off
+FITTING
 JLIST    1.5 0.5 2.5 3.5 - 37.5   ( J values )
 itmax   0         (Number of its for the fitting procedure, itmax = 0 means no fit, only one straight through calculation)
 fit_factor   1e9     (weight which is applied to the exp. energies)
