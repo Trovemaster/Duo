@@ -3887,6 +3887,7 @@ subroutine map_fields_onto_grid(iverbose)
      real(rk),allocatable    :: spline_wk_vec_E(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: spline_wk_vec_F(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: xx(:), yy(:), ww(:)! tmp vectors for extrapolation
+     type(linkT),allocatable :: link_(:) ! tmp link values for extrapolation
      real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR
      integer(ik) :: imin
      !
@@ -4040,17 +4041,25 @@ subroutine map_fields_onto_grid(iverbose)
             ! This section will add extrapolated points at short and long bond lengths
             ! for tabulated `GRID' functions
             ! and only for fitting 
-            if( field%grid(1) > rmin .and..not.action%fitting) then
+            if( field%grid(1) > rmin ) then
                if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at short bond length curve ' // trim(field%name) // &
                                  ' (class ' // trim(field%class) // ')'
          
          
                  np = 20              ! I always add `np' short bond length guide points
-                ! I go one step `beyond' rmin to minimize interpolating artifacts at the end of the interval
+                 ! I go one step `beyond' rmin to minimize interpolating artifacts at the end of the interval
          
                  x1=field%grid(1)  ; y1 =field%value(1)
                  x2=field%grid(2)  ; y2 =field%value(2)
-                 allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np) )
+                 allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np),stat=alloc)
+                 call ArrayStart('extrap_tmp',alloc,size(xx),kind(xx))
+                 call ArrayStart('extrap_tmp',alloc,size(ww),kind(ww))
+                 call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
+                 allocate( link_(nterms+np),stat=alloc)
+                 if (alloc/=0) then 
+                   write(out,"('allocation problem: extrap_tmp')")
+                   stop 'allocation problem'
+                 endif
                  xx=0._rk
                  yy=0._rk
                  do i=1, np
@@ -4060,6 +4069,7 @@ subroutine map_fields_onto_grid(iverbose)
                select case(field%class)
                  !
                case ("POTEN")
+                 !
                  if (iverbose>=4) write(out, '(A, I20)') 'Using A + B/r extrapolation; points added = ', np
                  bb = -x1*x2*(y1-y2)/(x1-x2)
                  aa = y1 - bb/x1
@@ -4088,20 +4098,43 @@ subroutine map_fields_onto_grid(iverbose)
                enddo
                !
                ww(np+1:) = field%weight(1:) ; ww(1:np) = 0
+               !
+               link_(1:np)%iobject = 0
+               link_(1:np)%ifield = 0
+               link_(1:np)%iparam = 0
+               link_(np+1:) = field%link(1:)
+               !
                nterms = np+nterms
                field%Nterms = nterms
-               deallocate(field%grid, field%value, field%weight, field%forcename)
+               !
+               call ArrayMinus(trim(field%type),size(field%value),kind(field%value))
+               call ArrayMinus(trim(field%type),size(field%grid),kind(field%grid))
+               call ArrayMinus(trim(field%type),size(field%weight),kind(field%weight))
+               !
+               deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
+               !
+               deallocate(field%link)
+               !
                allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
+               allocate(field%link(nterms),stat=alloc)
+               !
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
+               !
+               field%link(:) = link_(:)
                field%grid  = xx
                field%value = yy
                field%forcename= 'dummy'
                field%weight = ww
-               deallocate(xx, yy, ww)
+               deallocate(xx, yy, ww,link_)
+               call ArrayStop('extrap_tmp')
                !
             endif
+            !
             !*************end of short bond length extrapolation **********************************************
             nterms = field%Nterms
-            if( field%grid(nterms) < rmax.and..not.action%fitting) then
+            if( field%grid(nterms) < rmax) then
                if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at long bond length curve ' // trim(field%name) // &
                                 ' (class ' // trim(field%class) // ')'
                !
@@ -4110,7 +4143,15 @@ subroutine map_fields_onto_grid(iverbose)
                !
                x1=field%grid(nterms-1)  ; y1 =field%value(nterms-1)
                x2=field%grid(nterms)    ; y2 =field%value(nterms)
-               allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np) )
+               allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np),stat=alloc)
+               call ArrayStart('extrap_tmp',alloc,size(xx),kind(xx))
+               call ArrayStart('extrap_tmp',alloc,size(ww),kind(ww))
+               call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
+               allocate( link_(nterms+np),stat=alloc)
+               if (alloc/=0) then 
+                 write(out,"('allocation problem: extrap_tmp')")
+                 stop 'allocation problem'
+               endif
                !
                xx=0._rk
                yy=0._rk
@@ -4150,15 +4191,38 @@ subroutine map_fields_onto_grid(iverbose)
                end select
                !
                ww(1:nterms) = field%weight(1:nterms) ; ww(nterms+1:) = 0
+               !
+               link_(1:np)%iobject = 0
+               link_(1:np)%ifield = 0
+               link_(1:np)%iparam = 0
+               link_(np+1:) = field%link(1:)
+               !
                nterms = np+nterms
                field%Nterms = nterms
-               deallocate(field%grid, field%value, field%weight, field%forcename)
+               !
+               call ArrayMinus(trim(field%type),size(field%value),kind(field%value))
+               call ArrayMinus(trim(field%type),size(field%grid),kind(field%grid))
+               call ArrayMinus(trim(field%type),size(field%weight),kind(field%weight))
+               !
+               deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
+               !
+               deallocate(field%link)
+               !
                allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
+               allocate(field%link(nterms),stat=alloc)
+               !
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
+               call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
+               !
+               field%link(:) = link_(:)
                field%grid  = xx
                field%value = yy
                field%forcename= 'dummy'
                field%weight = ww
-               deallocate(xx, yy, ww)
+               deallocate(xx, yy, ww,link_)
+               call ArrayStop('extrap_tmp')
+               !
             endif
             !
             !*************end of long bond length extrapolation **********************************************

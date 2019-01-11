@@ -653,14 +653,19 @@ module timer
 
 
     !
-    !  End an array-unit
+    !  Reduce the array allocation
     !
-    subroutine ArrayMinus(name)
+    subroutine ArrayMinus(name,isize,ikind,hsize)
       character(len=*), intent(in) :: name  ! Unit name
+      integer(ik), intent(in)      :: isize  ! Unit size
+      integer(ik), intent(in)      :: ikind  ! Unit kind
+      integer(hik), intent(in),optional   :: hsize  ! Unit size
+      !
+      real(hik)                    :: hsize_
       !
       integer(ik)        :: pos        ! unit position
       type(tarray_unit), pointer :: t          ! Current unit (for convenience)
-      real(rk)           :: mem
+      real(rk)           :: mem,size_
       !
       pos =  insert_arrayunit(name)
       t   => array_table(pos)
@@ -670,21 +675,26 @@ module timer
         stop 'ArrayStop - inactive array counter'
       end if
       !
-      memory_now   = memory_now - t%size
-      t%size = 0
+      hsize_ = int(isize,hik)
+      if (present(hsize)) hsize_ = hsize
+      !
+      size_ = (ikind*real(hsize_))/real(1024**3) ! size in GByte
+      !
+      memory_now   = memory_now - size_
+      t%size = max(t%size-size_,0.0_hik)
       mem = memory_now
       !
-      if (memory_now<=0) then
-        !
-        !  Mark as inactive
-        !
-        t%active    = .false.
-        !
-        !  Pop the timer from stack, and update counts for the parent
-        !
-        array_active = array_active - 1
-        !
-      endif
+      !if (t%size<=0) then 
+      !  !
+      !  !  Mark as inactive
+      !  !
+      !  t%active    = .false.
+      !  ! 
+      !  !  Pop the counter from stack, and update counts for the parent
+      !  !
+      !  array_active = array_active - 1
+      !  !
+      !endif 
       !
     end subroutine ArrayMinus
 
