@@ -3476,7 +3476,7 @@ module diatom_module
       stop "Illegal number of states: ipo/=nestates"
     endif
     !
-    if (trim(solution_method)=="LOBATTO".xor.grid%nsub == 6) then 
+    if ((trim(solution_method)=="LOBATTO".and.grid%nsub /= 6).or.(trim(solution_method)/="LOBATTO".and.grid%nsub == 6)) then 
         write(out,"('Error: The grid 6 can be used without LOBATTO  (key word SOLUTIONMETHOD)')")
         write(out,"('solution_method, grid = ',a,i8)") trim(solution_method),grid%nsub 
     endif
@@ -5704,12 +5704,30 @@ end subroutine map_fields_onto_grid
                 stop
               endif
               vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* PI**2 / 3._rk
-
-               do jgrid =igrid+1, ngrid
-                 vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
+              !
+              do jgrid =igrid+1, ngrid
+                vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
+                vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
+              enddo
+              !
+            case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
+                            ! Requires the Lobatto nonuniform grid to work
+              if(grid%nsub /= 6) then
+                write(out, '(A)') 'The Lobatto DVR method only works with the'
+                write(out, '(A)') 'Lobatto grid (grid type 6).'
+                stop
+              endif
+              !
+              do jgrid = igrid,ngrid
+                 do kgrid=1,ngrid
+                    vibTmat(igrid,jgrid) = vibTmat(igrid,jgrid) + (12._rk)*(hstep**2)*(LobWeights(kgrid))*& 
+                                           LobDerivs(igrid,kgrid)*LobDerivs(jgrid,kgrid)
+                 enddo
+                 vibTmat(jgrid,igrid) = vibTmat(igrid,jgrid)
+                 vibmat(igrid,jgrid) = vibmat(igrid,jgrid) + vibTmat(igrid,jgrid)
                  vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
-               enddo
-
+              enddo
+              !
             case default
              write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
              write(out, '(A)') 'Possible options are: '
@@ -5717,7 +5735,7 @@ end subroutine map_fields_onto_grid
              write(out, '(A)') '                      SINC'
              write(out, '(A)') '                      LOBATTO'
             end select method_choice
-
+            !
        enddo
        !$omp end parallel do
        !

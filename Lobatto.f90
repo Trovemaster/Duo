@@ -14,8 +14,10 @@ module Lobatto
 
  subroutine AllLobattoKE(KE,npnt2)
   implicit none
-  real(rk) :: KE(1:npnt2,1:npnt2),a0,rmin
-  integer(ik)::       bra,ket,Ntot,Ntotp2,npnt2
+  integer(ik),intent(in) :: npnt2
+  real(rk),intent(out) :: KE(1:npnt2,1:npnt2)
+  integer(ik)::       bra,ket,Ntot,Ntotp2
+  real(rk) :: a0,rmin
   real(rk),allocatable,dimension(:) ::      rpt, w
   real(rk), allocatable, dimension(:,:) :: derLobMat
   !
@@ -50,10 +52,10 @@ module Lobatto
  !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
  !
  !
-  subroutine OlLobattoDVR(result,bra,ket,Ntot)
+  subroutine OlLobattoDVR(result,bra,ket)
     implicit none
     real(rk), intent(out)::   result
-    integer(ik), intent(in)::   bra, ket, Ntot
+    integer(ik), intent(in)::   bra, ket
     !
     !
      if (bra == ket) then
@@ -71,18 +73,19 @@ module Lobatto
 
 subroutine KeLobattoDVR(result,bra,ket,Ntot,rpt,w,derLobMat)
     implicit none
-    real(rk), intent(out)::   result,rpt(0:Ntot+1),w(0:Ntot+1)
     integer(ik), intent(in)::   bra,ket,Ntot
+    real(rk), intent(out)::   result,rpt(0:Ntot+1),w(0:Ntot+1)
     real(rk), intent(in)::    derLobMat(0:Ntot+1,0:Ntot+1)
     real(rk)::                pf, intresult
-    integer(ik)::               k
-
-
-pf=1d0!/sqrt(w(bra)*w(ket))
-intresult=0d0;
-do k=0,Ntot+1
-    intresult=intresult+w(k)*derLobMat(bra,k)*derLobMat(ket,k)
-end do
+    integer(ik)::             k
+    !
+    rpt = 0
+    w = 0
+    pf=1d0!/sqrt(w(bra)*w(ket))
+    intresult=0d0;
+    do k=0,Ntot+1
+      intresult=intresult+w(k)*derLobMat(bra,k)*derLobMat(ket,k)
+    end do
 
 
 result=intresult*pf;
@@ -117,21 +120,21 @@ end subroutine rminus2LobattoDVR
 
 subroutine derLobattoMat(result,Ntot,rpt,w)
         implicit none
-        real(rk), intent(out)     ::      result(0:Ntot+1,0:Ntot+1)
         integer(ik), intent(in)     ::      Ntot
+        real(rk), intent(out)     ::      result(0:Ntot+1,0:Ntot+1)
         real(rk), intent(in)      ::      rpt(0:Ntot+1),w(0:Ntot+1)
         real(rk)                ::      elementres
         integer(ik)                 ::      n,eta,k
 
-	do n=0,Ntot+1
-        	do eta=n,Ntot+1
-        	        call derLobatto(result(n,eta),n,eta,Ntot,rpt,w)
-			if(n.ne.eta) result(eta,n) = (-1.0d0) * (w(eta)/w(n)) * result(n,eta) 
-			result(n,eta) = result(n,eta) * 1.0d0/sqrt(w(n))
-			if(n.ne.eta) result(eta,n) = result(eta,n) * 1.0d0/sqrt(w(eta))
-        	end do
-	end do
-	return
+        do n=0,Ntot+1
+          do eta=n,Ntot+1
+             call derLobatto(result(n,eta),n,eta,Ntot,rpt,w)
+             if(n.ne.eta) result(eta,n) = (-1.0d0) * (w(eta)/w(n)) * result(n,eta) 
+             result(n,eta) = result(n,eta) * 1.0d0/sqrt(w(n))
+             if(n.ne.eta) result(eta,n) = result(eta,n) * 1.0d0/sqrt(w(eta))
+          end do
+        end do
+        return
 end subroutine derLobattoMat
 
 
@@ -142,41 +145,41 @@ subroutine derLobatto(result,n,eta,Ntot,rpt,w)
 !    Calculates u'_n(r_eta)
 !!!!!!
         implicit none
-	real(rk), intent(out)::   result
+    real(rk), intent(out)::   result
         integer(ik), intent(in)::   n, Ntot,eta
-	real(rk), intent(in)::    w(0:Ntot+1), rpt(0:Ntot+1)
-	real(rk)::                pf, intresult,intpf, factor(0:Ntot+1),signrecorder
+    real(rk), intent(in)::    w(0:Ntot+1), rpt(0:Ntot+1)
+    real(rk)::                pf, intresult,intpf, factor(0:Ntot+1),signrecorder
         integer(ik)::               j,m,Nhalf
 
-	Nhalf=(Ntot+2)/2
-	if (n==eta) then
-        	if (n==0) then
-        	        result=-1d0/(2d0*w(n))
-        	else if (n==Ntot+1) then
-        	        result=1d0/(2d0*w(n))
-        	else
-        	        result=0d0;
-        	end if
-	else
-        	result=1d0/((rpt(n)-rpt(eta)))
-		signrecorder = 1.0
-        	do j=0,Ntot+1
-        	        if ((j .ne. n) .and. (j .ne. eta)) then
-				factor(j) = (rpt(eta)-rpt(j))/(rpt(n)-rpt(j))
-				signrecorder = signrecorder * (factor(j) / abs(factor(j)))
-				factor(j) = abs(factor(j))
-			else
-				 factor(j) = 1.0d0
-        	        end if
-        	end do  
-		call QuickSort(factor,1,Ntot+2)
-		call Riffle(factor,Ntot+2,Nhalf)
-		do j = 0,Ntot+1
-			result = result * factor(j)
-		end do
-		result = result * signrecorder
-	end if
-	return
+    Nhalf=(Ntot+2)/2
+    if (n==eta) then
+            if (n==0) then
+                    result=-1d0/(2d0*w(n))
+            else if (n==Ntot+1) then
+                    result=1d0/(2d0*w(n))
+            else
+                    result=0d0;
+            end if
+    else
+            result=1d0/((rpt(n)-rpt(eta)))
+        signrecorder = 1.0
+            do j=0,Ntot+1
+                    if ((j .ne. n) .and. (j .ne. eta)) then
+               factor(j) = (rpt(eta)-rpt(j))/(rpt(n)-rpt(j))
+               signrecorder = signrecorder * (factor(j) / abs(factor(j)))
+               factor(j) = abs(factor(j))
+           else
+                factor(j) = 1.0d0
+                    end if
+            end do  
+        call QuickSort(factor,1,Ntot+2)
+        call Riffle(factor,Ntot+2,Nhalf)
+        do j = 0,Ntot+1
+           result = result * factor(j)
+        end do
+        result = result * signrecorder
+    end if
+    return
 end subroutine derLobatto
 
 
@@ -232,57 +235,58 @@ end subroutine LobattoAbsWeights
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 recursive subroutine QuickSort(a, first, last)
-	implicit none
-	real(rk) a(*), x, t
-	integer(ik) first, last
-	integer(ik) i,j
+    implicit none
+    real(rk) a(*), x, t
+    integer(ik) first, last
+    integer(ik) i,j
 
-	x = a( (first + last) / 2)
-	i = first
-	j = last
-	do
-		do while (a(i) < x)
-			i = i+1
-		end do
-		do while (x < a(j))
-		j = j-1
-		end do
-		if (i >= j) exit
-		t = a(i); a(i) = a(j); a(j) = t
-		i = i+1
-		j = j-1
-	end do
-	if (first < i-1) call quicksort(a,first,i-1)
-	if (j+1 < last) call quicksort(a,j+1,last)
+    x = a( (first + last) / 2)
+    i = first
+    j = last
+    do
+        do while (a(i) < x)
+           i = i+1
+        end do
+        do while (x < a(j))
+        j = j-1
+        end do
+        if (i >= j) exit
+        t = a(i); a(i) = a(j); a(j) = t
+        i = i+1
+        j = j-1
+    end do
+    if (first < i-1) call quicksort(a,first,i-1)
+    if (j+1 < last) call quicksort(a,j+1,last)
 end subroutine quicksort
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 subroutine Riffle(a,NAbsc,Nhalf)
-	implicit none
-	real(rk) ::  a(1:NAbsc),b(1:Nhalf),c(1:Nhalf)
-	integer(ik) NAbsc,i,Nhalf,Nhalfplusone
+    implicit none
+    integer(ik),intent(in) :: NAbsc,Nhalf
+    real(rk) ::  a(1:NAbsc),b(1:Nhalf),c(1:Nhalf)
+    integer(ik) i,Nhalfplusone
 
-	Nhalfplusone = Nhalf+1
-	if(mod(NAbsc,2).eq.0) then
-		do i=1,Nhalf
-			b(i) = a(i)
-			c(i) = a(NAbsc-i+1)
-		enddo	
-		do i = 1,Nhalf
-			a(2*i) = c(i)
-			a(2*i-1) = b(i)
-		enddo
-	else
-		do i=1,Nhalfplusone
-			b(i) = a(i)
-			c(i) = a(NAbsc-i+1)
-		enddo	
-		do i = 1,Nhalfplusone
-			if(i.ne.Nhalfplusone) a(2*i) = c(i)
-			a(2*i-1) = b(i)
-		enddo
-	endif	
+    Nhalfplusone = Nhalf+1
+    if(mod(NAbsc,2).eq.0) then
+        do i=1,Nhalf
+           b(i) = a(i)
+           c(i) = a(NAbsc-i+1)
+        enddo    
+        do i = 1,Nhalf
+           a(2*i) = c(i)
+           a(2*i-1) = b(i)
+        enddo
+    else
+        do i=1,Nhalfplusone
+           b(i) = a(i)
+           c(i) = a(NAbsc-i+1)
+        enddo    
+        do i = 1,Nhalfplusone
+           if(i.ne.Nhalfplusone) a(2*i) = c(i)
+           a(2*i-1) = b(i)
+        enddo
+    endif
 end subroutine Riffle
 
 end module Lobatto

@@ -681,7 +681,7 @@ module timer
       size_ = (ikind*real(hsize_))/real(1024**3) ! size in GByte
       !
       memory_now   = memory_now - size_
-      t%size = max(t%size-size_,0.0_hik)
+      t%size = max(t%size-size_,0.0_rk)
       mem = memory_now
       !
       !if (t%size<=0) then 

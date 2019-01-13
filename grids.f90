@@ -1,5 +1,7 @@
     subroutine gridred(nsub,alpha,re,mes,rmin,rmax,h,r,z,add,iverbose)
     use accuracy, only : rk, out, bohr
+    use Lobatto,   only : LobattoAbsWeights
+    
     implicit none
 !____________________________________________________________
 !
@@ -18,7 +20,7 @@
 !
      real(kind=rk) :: h      ! uniform step of the z-coordinate treated
      real(kind=rk) :: r(mes) ! nonuniform grid points of the r-coordinate
-     real(kind=rk) :: z(mes),zmin,zmax,y,s,t
+     real(kind=rk) :: z(mes),zmin,zmax,y,s,t,w(mes)
      real(kind=rk) :: add(mes)
 !      intent(out) zmin,zmax,h,r !output variables
 ! -----------------------------------------------------------------
@@ -110,6 +112,13 @@
               z(j)    = r(j)/t/re/(1._rk-y)
               add(j)  = (1._rk-(re**2)*(1._rk+t**2))/(2._rk*r(j))**2
            enddo
+!----------------------------------------------------------------------
+      case (6)         !  |   Lobatto quadrature grid points |
+!----------------------------------------------------------------------
+           CALL LobattoAbsWeights(r,w,mes,rmin,rmax)
+           zmin = rmin 
+           zmax = rmax 
+           h    = ( zmax - zmin )/real( mes - 1, rk)
 !----------------------------------------------------------------------
      case (0)      !   uniform grid points: z=r |
 !----------------------------------------------------------------------
