@@ -313,7 +313,7 @@ module diatom_module
   end type thresholdsT
   !
   type landeT
-    real, allocatable :: ar(:)          !
+    real, allocatable :: ar(:)
   end type landeT
   !
   type IntensityT
