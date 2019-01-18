@@ -5506,7 +5506,7 @@ end subroutine map_fields_onto_grid
      character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
      character(cl)           :: printout_
      real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
-     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,k_,numnod
+     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
      real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
      real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)

@@ -797,9 +797,9 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,i7,1x,i6,1x,i4,1x,i4,1x,a1,1x,a10)"
+                 write(my_fmt,'(a)') "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
                  write(enunit,my_fmt) & 
-                           nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,nint((omegaI)),&
+                           nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
                            ivI,(ilambdaI),nint((sigmaI)),pm,statename
                  !
                else
@@ -1208,7 +1208,7 @@ contains
                            !
                            if ( intensity%matelem ) then 
                              !
-                             write(richunit(indI,indF),"(i8,1x,i8,2i5,2x,f24.16)") & 
+                             write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
                                                quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
                              !
                            else
@@ -1988,7 +1988,7 @@ contains
                   !
                   if (abs(M_)>small_) then 
                     icount_ = icount_ + 1
-                    if (.not.present(icount)) write(iunit,"(2(i6,1x),e18.9)") imI_,imF_,M_ 
+                    if (.not.present(icount)) write(iunit,"(2(i6),3x,e24.14)") imI_,imF_,M_ 
                   endif
                   !
                end do  loop_I
