@@ -348,7 +348,7 @@ contains
     real(rk),    allocatable :: vecI(:), vecF(:)
     real(rk),allocatable     :: half_linestr(:)
     !
-    integer(ik)  :: jind,nlevels
+    integer(ik)  :: jind,nlevels,j1,j2
     !
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
@@ -429,7 +429,7 @@ contains
         do indI = 1, nJ
           !
           jI = Jval(indI)
-          write(char_jI,'(i12)') nint(jI)
+          write(char_jI,'(i12)') min(nint(Ji),nint(jF))
           do indF = 1, nJ
             !
             jF = Jval(indF)
@@ -438,7 +438,7 @@ contains
             !
             if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
             !
-            write(char_Jf,'(i12)') nint(jF)
+            write(char_Jf,'(i12)') max(nint(Ji),nint(jF))
             !
             !  New RICHMOL format - one file for x,y,z
             !
@@ -447,8 +447,8 @@ contains
             !
             call IOstart(trim(filename),richunit(indI,indF))
             !
-            open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
-            !
+            if (Jf>=Ji) &
+                        open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
             !
             write(richunit(indI,indF),"('Start richmol format')")
             !
