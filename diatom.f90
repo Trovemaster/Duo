@@ -4434,8 +4434,23 @@ subroutine map_fields_onto_grid(iverbose)
           !
           if (field%molpro) then
             !
+            if (iverbose>=4) then 
+                write(out,'(/,a)') 'Transforming '//trim(field%class)//' '//trim(field%name)//&
+                ' from MOLPRO (Cartesian) to Duo (Spherical)'            
+                write(out,'(a)') '  Cartesian (complex):'
+                write(out,'(a,t20,i4,x,t30,i4)') '  |Lambda|:',field%lambda,field%lambdaj
+                if (iobject==2) write(out,'(a,t18,f8.1,t28,f8.1)') '  Sigma:',field%sigmai,field%sigmaj 
+                write(out,'(a,t20,i4,a,t30i4,a)') '  <a|Lz|b>:',field%ix_lz_y,'i',field%jx_lz_y,'i'
+                write(out,'(a,t18f8.1,a,f8.1,a)') '  factor',real(field%complex_f),'+',aimag(field%complex_f),'i'
+            endif
+            !
             call molpro_duo(field)
             !
+            if (iverbose>=4) then 
+                write(out,'(a)') '  Spherical (real):'
+                write(out,'(a,t20i4,x,t30i4)') '  Lambda:',field%lambda,field%lambdaj
+                if (iobject==2) write(out,'(a,t18,f8.1,t28,f8.1)') '  Sigma:',field%sigmai,field%sigmaj 
+            endif
           endif
           !
         enddo
