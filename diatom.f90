@@ -4820,24 +4820,46 @@ subroutine map_fields_onto_grid(iverbose)
                   !
                   ! for SOX it is always <1.3| which is given, i.e. we need to solve for the 1st, <1.2| component:
                   !
-                  if (field%lambda>0) then 
+                  !if (field%lambda>0) then 
+                  !  !
+                  !  coupling(2,1) = field%gridvalue(i)*field%complex_f
+                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,2))/conjg(a(1,2))
+                  !  !
+                  !else 
+                  !  !
+                  !  coupling(2,1) = field%gridvalue(i)*field%complex_f
+                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,1))/conjg(a(1,1))
+                  !  !
+                  !endif 
+                  !
+
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(2,1) =-field%gridvalue(i)*field%complex_f*a(1,2)/a(2,2)
+                    !
+                  else
                     !
                     coupling(2,1) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,2))/conjg(a(1,2))
+                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*a(2,2)/a(1,2)
                     !
-                  else 
-                    !
-                    coupling(2,1) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,1))/conjg(a(1,1))
-                    !
-                  endif 
+                  endif
                   ! 
                 case ('L+','ABINITIO-LX')
                   !
                   ! eigen-vector 2 is for Lambda
                   !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)  
-                  coupling(2,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)*conjg(a(1,2))/conjg(a(2,2))
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f !*cmplx(0.0_rk,-1.0_rk,kind=rk)  
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f*a(1,2)/a(2,2) ! conjg(a(1,2))/conjg(a(2,2)) ! cmplx(0.0_rk, 1.0_rk,kind=rk)*
+                    !
+                  else
+                    !
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f !*cmplx(0.0_rk,-1.0_rk,kind=rk)  
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*a(2,2)/a(1,2) ! conjg(a(1,2))/conjg(a(2,2)) ! cmplx(0.0_rk, 1.0_rk,kind=rk)*
+                    !
+                  endif
                   ! 
                 case ('DIPOLE')
                   !
@@ -4892,27 +4914,51 @@ subroutine map_fields_onto_grid(iverbose)
 
                   ! for SOX it is always <1.3| which is given, i.e. we need to solve for the 1st, <1.2| component:
                   !
-                  if (field%lambdaj>0) then 
+                  !if (field%lambdaj>0) then 
+                  !  !
+                  !  coupling(1,2) = field%gridvalue(i)*field%complex_f
+                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,1)/b(1,1)
+                  !  !
+                  !else 
+                  !  !
+                  !  coupling(1,2) = field%gridvalue(i)*field%complex_f
+                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
+                  !  !
+                  !endif 
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
                     !
-                    coupling(1,2) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,1)/b(1,1)
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,2) =-field%gridvalue(i)*field%complex_f*b(1,2)/b(2,2)
                     !
-                  else 
+                  else
                     !
                     coupling(1,2) = field%gridvalue(i)*field%complex_f
                     coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
                     !
-                  endif 
+                  endif
                   ! 
                 case('L+','ABINITIO-LX')
                   !
                   ! eigen-vector 1 is for Lambda
                   !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)  
-                  coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)*b(1,2)/b(2,2)
+                  !coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)  
+                  !coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)*b(1,2)/b(2,2)
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
+                    !
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f*b(1,2)/b(2,2)
+                    !
+                  else
+                    !
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
+                    !
+                  endif
                   ! 
                 case ('DIPOLE')
-                  !
+                  ! ! 
                   ! eigen-vector 1 is for Lambda
                   !
                   coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
