@@ -4791,13 +4791,6 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               elseif(ix_lz_y/=0.and.jx_lz_y==0) then
                 !
-                !if ( lambda_i(1)/=1_rk.or.lambda_i(2)/=-1.0_rk) then
-                !  !
-                !  write(out,"('molpro_duo: lambda_i ',2f8.1,' are not -1 and 1, coupling')") lambda_i,field%iref,field%jref
-                !  !stop 'molpro_duo: not for this object'
-                !  !
-                !endif
-                !
                 select case(trim(field%class))
                   !
                 case('SPINORBIT','ABINITIO-SPINORBIT')
@@ -4810,63 +4803,53 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   !
-                  if ( field%sigmai<0 ) then
-                    !
-                    !write(out,"('molpro_duo: SO ',2i4,'; illegal reference sigmai <0 ?',2f8.1)") &
-                    !    field%iref,field%jref,field%sigmai,field%sigmaj
-                    !stop 'molpro_duo: illegal reference sigmai'
-                    !
-                  endif
+                  ! for SOX it is either <1.2|SOX (regular) or <1.3|SOY (iregular)
                   !
-                  ! for SOX it is always <1.3| which is given, i.e. we need to solve for the 1st, <1.2| component:
-                  !
-                  !if (field%lambda>0) then 
-                  !  !
-                  !  coupling(2,1) = field%gridvalue(i)*field%complex_f
-                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,2))/conjg(a(1,2))
-                  !  !
-                  !else 
-                  !  !
-                  !  coupling(2,1) = field%gridvalue(i)*field%complex_f
-                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*conjg(a(2,1))/conjg(a(1,1))
-                  !  !
-                  !endif 
-                  !
-
                   if (poten(field%jstate)%parity%pm==-1) then 
                     !
+                    ! regular
                     coupling(1,1) = field%gridvalue(i)*field%complex_f
-                    coupling(2,1) =-field%gridvalue(i)*field%complex_f*a(1,2)/a(2,2)
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
                     !
                   else
                     !
+                    ! iregular
                     coupling(2,1) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*a(2,2)/a(1,2)
+                    coupling(1,1) =-coupling(2,1)*conjg(a(2,2)/a(1,2))
                     !
                   endif
                   ! 
                 case ('L+','ABINITIO-LX')
                   !
-                  ! eigen-vector 2 is for Lambda
-                  !
                   if (poten(field%jstate)%parity%pm==-1) then 
                     !
-                    coupling(1,1) = field%gridvalue(i)*field%complex_f !*cmplx(0.0_rk,-1.0_rk,kind=rk)  
-                    coupling(2,1) = field%gridvalue(i)*field%complex_f*a(1,2)/a(2,2) ! conjg(a(1,2))/conjg(a(2,2)) ! cmplx(0.0_rk, 1.0_rk,kind=rk)*
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
                     !
                   else
                     !
-                    coupling(2,1) = field%gridvalue(i)*field%complex_f !*cmplx(0.0_rk,-1.0_rk,kind=rk)  
-                    coupling(1,1) = field%gridvalue(i)*field%complex_f*a(2,2)/a(1,2) ! conjg(a(1,2))/conjg(a(2,2)) ! cmplx(0.0_rk, 1.0_rk,kind=rk)*
+                    ! iregular
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) = -coupling(2,1)*conjg(a(2,2)/a(1,2))
                     !
                   endif
                   ! 
                 case ('DIPOLE')
                   !
-                  ! eigen-vector 1 is for -Lambda
-                  !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
-                  coupling(2,1) = field%gridvalue(i)*field%complex_f*(conjg(a(1,2)/a(2,2))*sqrt(0.5_rk))
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    ! iregular
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,1) =-coupling(2,1)*conjg(a(2,2)/a(1,2))
+                    !
+                  else
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
+                    !
+                  endif
                   !
                 case default
                   !
@@ -4876,14 +4859,6 @@ subroutine map_fields_onto_grid(iverbose)
                 end select
                 !
               elseif(ix_lz_y==0.and.jx_lz_y/=0) then
-                !
-                !if (lambda_j(1)/=1_rk.or.lambda_j(2)/=-1.0_rk) then
-                !  !
-                !  !write(out,"('molpro_duo: lambda_j ',2f8.1,' are not -1 and 1, coupling for states',2i)") lambda_j,
-                !                                                                                field%iref,field%jref
-                !  !stop 'molpro_duo: not for this object'
-                !  !
-                !endif
                 !
                 select case(trim(field%class)) 
                   !
@@ -4897,72 +4872,58 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   !
-                  !if ( field%sigmaj<0 ) then
-                  !  !
-                  !  write(out,"('molpro_duo: SO ',2i4,'; illegal reference sigmaj <0 ',2f8.1)") & 
-                  !        field%iref,field%jref,field%sigmai,field%sigmaj
-                  !  stop 'molpro_duo: illegal reference sigmaj'
-                  !  !
-                  !endif
-                  !
-                  ! eigen-vector 1 is for Lambda
-                  !
-                  ! for SOX the non-zero is for |y> vector, i.e. the second component of coupling
-                  !
-                  !coupling(1,1) = -field%gridvalue(i)*field%complex_f*b(1,2)/b(2,2)
-                  !coupling(1,2) = field%gridvalue(i)*field%complex_f
-
-                  ! for SOX it is always <1.3| which is given, i.e. we need to solve for the 1st, <1.2| component:
-                  !
-                  !if (field%lambdaj>0) then 
-                  !  !
-                  !  coupling(1,2) = field%gridvalue(i)*field%complex_f
-                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,1)/b(1,1)
-                  !  !
-                  !else 
-                  !  !
-                  !  coupling(1,2) = field%gridvalue(i)*field%complex_f
-                  !  coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
-                  !  !
-                  !endif 
+                  ! The following relations are found using the condition <0,Sigma|SOX+SOY|+/-1,Sigma+/-1> = 0
+                  ! Regualr case is for <0|SOX|Pix> and iregular is for <0|SOX|Piy>
                   !
                   if (poten(field%istate)%parity%pm==-1) then 
                     !
+                    ! regular
                     coupling(1,1) = field%gridvalue(i)*field%complex_f
-                    coupling(1,2) =-field%gridvalue(i)*field%complex_f*b(1,2)/b(2,2)
+                    coupling(1,2) =-coupling(1,1)*b(1,2)/b(2,2)
                     !
                   else
                     !
+                    ! iregular
                     coupling(1,2) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) =-field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
+                    coupling(1,1) =-coupling(1,2)*b(2,2)/b(1,2)
                     !
                   endif
                   ! 
                 case('L+','ABINITIO-LX')
                   !
-                  ! eigen-vector 1 is for Lambda
-                  !
-                  !coupling(1,1) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk, 1.0_rk,kind=rk)  
-                  !coupling(1,2) = field%gridvalue(i)*field%complex_f*cmplx(0.0_rk,-1.0_rk,kind=rk)*b(1,2)/b(2,2)
+                  ! The following relations are found using the condition <0|LX+iLY|+1> = 0
+                  ! Regualr case is for <0|LX|Pix> and iregular is for <0|LX|Piy>
                   !
                   if (poten(field%istate)%parity%pm==-1) then 
                     !
+                    ! regular
                     coupling(1,1) = field%gridvalue(i)*field%complex_f
-                    coupling(1,2) = field%gridvalue(i)*field%complex_f*b(1,2)/b(2,2)
+                    coupling(1,2) =-coupling(1,1)*b(1,2)/b(2,2)
                     !
                   else
                     !
+                    ! iregular
                     coupling(1,2) = field%gridvalue(i)*field%complex_f
-                    coupling(1,1) = field%gridvalue(i)*field%complex_f*b(2,2)/b(1,2)
+                    coupling(1,1) =-coupling(1,2)*b(2,2)/b(1,2)
                     !
                   endif
                   ! 
                 case ('DIPOLE')
-                  ! ! 
-                  ! eigen-vector 1 is for Lambda
                   !
-                  coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
-                  coupling(1,2) = field%gridvalue(i)*field%complex_f*(b(1,2)/b(2,2)*sqrt(0.5_rk))
+                  ! The following relations are found using the condition <0|-mux/sqrt(2)+imuy/sqrt(2)|+1> = 0
+                  ! Regualr case is for <0|muX|Pix> and iregular is for <0|mux|Piy>
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
+                    !
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,1) = -coupling(1,2)*b(2,2)/b(1,2)
+                    !
+                  else
+                    !
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,2) = -coupling(1,1)*b(1,2)/b(2,2)
+                    !
+                  endif
                   !
                 case default
                   !
@@ -4985,20 +4946,24 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   !
-                  if ( field%sigmai<0 ) then
-                    !
-                    !write(out,"('molpro_duo: SO ',2i4,'; illegal reference sigmai <0 ?',2f8.1)") &
-                    !      field%iref,field%jref,field%sigmai,field%sigmaj
-                    !stop 'molpro_duo: illegal reference sigmai'
-                    !
-                  endif
-                  !
                   c = field%gridvalue(i)*field%complex_f
                   !
-                  coupling(1,1) =  0
-                  coupling(1,2) =  c
-                  coupling(2,1) =  -c*conjg(a(1,1))*b(2,2)/(conjg(a(2,1))*b(1,2))
-                  coupling(2,2) =  0
+                  !coupling(1,1) =  0
+                  !coupling(1,2) =  c
+                  !coupling(2,1) =  -c*conjg(a(1,1))*b(2,2)/(conjg(a(2,1))*b(1,2))
+                  !coupling(2,2) =  0
+                  !
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba,Sigma|SO|Lambda',Sigma'> = 0 
+                  ! <Lamba,Sigma|SO|-Lambda',Sigma'> = 0 
+                  ! <-Lamba,Sigma|SO|-Lambda',Sigma'> = 0 
+                  ! where we assume 
+                  ! c = <x|LSX|y> and  < Lamba,Sigma|SO|Lambda',Sigma'> /= 0 
+                  !
+                  coupling(1,1) =  -c*b(2,2)/b(1,2)
+                  coupling(1,2) =   c
+                  coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
                   !
                 case('DIPOLE')
                   !
@@ -5017,10 +4982,22 @@ subroutine map_fields_onto_grid(iverbose)
                   !d = B[1,2]*conjugate(A[1,2])*a/(B[2,2]*conjugate(A[2,2]))
                   ! m+ = -1/sqrt(2)l+
                   !
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba|r+|Lambda'> = 0 
+                  ! <Lamba|r+|-Lambda'> = 0 
+                  ! <-Lamba|r+|-Lambda'> = 0 
+                  ! where we assume 
+                  ! c = <x|r+|x> and < Lamba|L+|Lambda'> /= 0 
+                  !
                   coupling(1,1) =  c
                   coupling(1,2) = -c*b(1,2)/b(2,2)
-                  coupling(2,1) = -c*conjg(a(1,2))/conjg(a(2,2))
-                  coupling(2,2) =  c*b(1,2)*conjg(a(1,2))/(conjg(a(2,2))*b(2,2))
+                  coupling(2,1) = -c*conjg(a(1,2)/a(2,2))
+                  coupling(2,2) =  c*conjg(a(1,2)/a(2,2))*b(1,2)/b(2,2)
+                  !
+                  !coupling(1,1) =  -c*b(2,2)/b(1,2)
+                  !coupling(1,2) =   c
+                  !coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  !coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
                   !
                 case('L+','ABINITIO-LX')
                   !
@@ -5041,10 +5018,17 @@ subroutine map_fields_onto_grid(iverbose)
                   !d = -b*conjugate(A[1,2])/conjugate(A[2,2]), c = B[2,2]*b*conjugate(A[1,2])/(B[1,2]*conjugate(A[2,2])), 
                   !a = -B[2,2]*b/B[1,2]
                   !
-                  coupling(1,2) =  c
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba|L+|Lambda'> = 0 
+                  ! <Lamba|L+|-Lambda'> = 0 
+                  ! <-Lamba|L+|-Lambda'> = 0 
+                  ! where we assume 
+                  ! c = <x|L+|y> and  < Lamba|L+|Lambda'> /= 0 
+                  !
                   coupling(1,1) = -c*b(2,2)/b(1,2)
-                  coupling(2,1) =  c*b(2,2)*conjg(a(1,2))/(conjg(a(2,2))*b(1,2))
-                  coupling(2,2) = -c*conjg(a(1,2))/conjg(a(2,2))
+                  coupling(1,2) =  c
+                  coupling(2,1) =  c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  coupling(2,2) = -c*conjg(a(1,2)/a(2,2))
                   !
                 case default
                   !
