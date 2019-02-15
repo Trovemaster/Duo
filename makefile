@@ -70,53 +70,27 @@ LIB     =   $(LAPACK)
 
 OBJ = grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o
 
+diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o
+dipole.o: timer.o accuracy.o diatom.o symmetry.o
+duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o
+functions.o: accuracy.o timer.o
+grids.o: accuracy.o Lobatto.o
+header_info.o: accuracy.o
+lapack.o: accuracy.o timer.o
+Lobatto.o: accuracy.o timer.o
+refinement.o: timer.o accuracy.o diatom.o
+symmetry.o: accuracy.o
+timer.o: accuracy.o
+
+# clear internal suffix rules
+.SUFFIXES:
+# specify our own suffix rules
+.SUFFIXES: .f90 .o
+.f90.o:
+	$(FOR) -c -o $@ $< $(FFLAGS)
+
 duo:	$(OBJ) duo.o
 	$(FOR) -o $(EXE) $(OBJ) $(FFLAGS) duo.o $(LIB)
-
-duo.o:	duo.f90 $(OBJ) 
-	$(FOR) -c duo.f90 $(FFLAGS)
-
-grids.o:	grids.f90 accuracy.o input.o Lobatto.o
-	$(FOR) -c grids.f90 $(FFLAGS)
-
-diatom.o:	diatom.f90 accuracy.o input.o lapack.o functions.o symmetry.o atomic_and_nuclear_data.o  Lobatto.o
-	$(FOR) -c diatom.f90 $(FFLAGS)
-
-refinement.o:	refinement.f90 accuracy.o input.o lapack.o diatom.o
-	$(FOR) -c refinement.f90 $(FFLAGS)
-
-functions.o:	functions.f90 accuracy.o input.o lapack.o
-	$(FOR) -c functions.f90 $(FFLAGS)
-
-dipole.o:	dipole.f90 accuracy.o input.o lapack.o diatom.o
-	$(FOR) -c dipole.f90 $(FFLAGS)
-
-accuracy.o:  accuracy.f90
-	$(FOR) -c accuracy.f90 $(FFLAGS)
-
-symmetry.o:  symmetry.f90
-	$(FOR) -c symmetry.f90 $(FFLAGS)
-
-lapack.o:  lapack.f90 accuracy.o timer.o 
-	$(FOR) -c lapack.f90 $(FFLAGS)
-
-timer.o:  timer.f90
-	$(FOR) -c timer.f90 $(FFLAGS)
-
-input.o:  input.f90
-	$(FOR) -c input.f90 $(FFLAGS)
-
-#compilation_details.o: compilation_details.f90
-#	$(FOR) -c compilation_details.f90 $(FFLAGS)
-
-header_info.o: header_info.f90 accuracy.o
-	$(FOR) -c header_info.f90 $(FFLAGS)
-
-atomic_and_nuclear_data.o: atomic_and_nuclear_data.f90
-	$(FOR) -c atomic_and_nuclear_data.f90 $(FFLAGS)
-
-Lobatto.o: Lobatto.f90 timer.o
-	$(FOR) -c Lobatto.f90 $(FFLAGS)
 
 clean:
 	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat        Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat
