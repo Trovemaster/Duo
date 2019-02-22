@@ -157,6 +157,10 @@ module functions
       !
       fanalytical_field => poten_two_coupled_EMOs
       !
+    case("TWO_COUPLED_BOBS")
+      !
+      fanalytical_field => poten_two_coupled_BOBs
+      !
     case("COUPLED_EMO_REPULSIVE")
       !
       fanalytical_field => poten_two_coupled_EMO_repulsive
@@ -1372,7 +1376,7 @@ module functions
     f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
     a  = poten_cosh_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
     !
-    discr = f1**2-2.0_rk*f1*f2+f2**2+4*a**2
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
     !
     if (discr<-small_) then
       write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
@@ -1386,6 +1390,38 @@ module functions
     !
   end function poten_two_coupled_EMOs
 
+
+  function poten_two_coupled_BOBs(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,f,f_switch,t_0,r_s,a_s
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent,n
+    !
+    nparams1 = parameters(4)+6
+    nparams2 = parameters(nparams1+4)+6
+    nparams3 = 2
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    N = nparams1+nparams2
+    !
+    f1 = poten_BOBLeRoy(r,parameters(1:nparams1))
+    f2 = poten_BOBLeRoy(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    r_s = parameters(N+1)
+    a_s = parameters(N+2)
+    !
+    f_switch = ( 1.0_rk+tanh(a_s*(r-r_s)) )*0.5_rk
+    !
+    f = 0 
+    !
+    if (icomponent==1) then 
+      f = f_switch*f2+f1*(1.0_rk-f_switch)
+    else
+      f = f_switch*f1+f2*(1.0_rk-f_switch)
+    endif
+    !
+  end function poten_two_coupled_BOBs
   !
   ! Morse/Long-Range, see Le Roy manuals
   !

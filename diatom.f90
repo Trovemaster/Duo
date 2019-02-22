@@ -283,6 +283,7 @@ module diatom_module
      logical :: intensity     = .false.
      logical :: frequency     = .false.
      logical :: matelem       = .false.
+     logical :: raman         = .false.
      !
   end type actionT
   !
@@ -3058,7 +3059,7 @@ module diatom_module
            !
            select case(w)
            !
-           case('NONE','ABSORPTION','EMISSION','TM','DIPOLE-TM','RAMAN','POLARIZABILITY-TM','PARTFUNC')
+           case('NONE','ABSORPTION','EMISSION','TM','DIPOLE-TM','PARTFUNC')
              !
              intensity%action = trim(w)
              !
@@ -3083,6 +3084,10 @@ module diatom_module
            case('MATELEM','RICHMOL')
              !
              intensity%matelem = .true.
+             !
+           case('RAMAN','POLARIZABILITY')
+             !
+             action%raman = .true.
              !
            case('OVERLAP')
              !
@@ -5762,6 +5767,8 @@ end subroutine map_fields_onto_grid
                 write(out, '(A)') 'Lobatto grid (grid type 6).'
                 stop
               endif
+              !
+              vibTmat = 0 
               !
               do jgrid = igrid,ngrid
                  do kgrid=1,ngrid

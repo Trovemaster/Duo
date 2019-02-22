@@ -445,7 +445,7 @@ contains
             !  New RICHMOL format - one file for x,y,z
             !
             filename =  &
-            "matelem_MU_"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
+            "matelem_MU"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
             !
             call IOstart(trim(filename),richunit(indI,indF))
             open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
