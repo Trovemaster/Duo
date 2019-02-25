@@ -5793,24 +5793,43 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
        !
-       ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
-       ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
-       ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
-       ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
-       !
-       jobz = 'V'
-       vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
-       irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
-       nroots = Ngrid
-       rng = 'A'
-       !
-       if (job%vibmax(istate)/=1e8) then
-          rng = 'I'
-       elseif (job%vibenermax(istate)<1e8) then
-          rng = 'V'
+       if (job%vibmax(istate)>ngrid/2) then
+          !
+          call lapack_syev(vibmat,vibener)
+          !
+          ! we need only these many roots
+          Nroots = min(ngrid,job%vibmax(istate))
+          !
+          ! or as many as below job%upper_ener if required by the input
+          if ((job%vibenermax(istate))*sc<safe_max) then
+            nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
+          endif
+          !
+        else
+          !
+          ! some diagonalizers needs the following parameters to be defined
+          !
+          ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
+          ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
+          ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
+          ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
+          !
+          jobz = 'V'
+          vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
+          if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
+          irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
+          nroots = Ngrid
+          rng = 'A'
+          !
+          if (job%vibmax(istate)/=1e8) then
+             rng = 'I'
+          elseif (job%vibenermax(istate)<1e8) then
+             rng = 'V'
+          endif
+          !
+          call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+          !
        endif
-       !
-       call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
        !
        if (nroots<1) then
          nroots = 1
@@ -7573,10 +7592,12 @@ end subroutine map_fields_onto_grid
             ! some diagonalizers needs the following parameters to be defined
             !
             zpe = job%ZPE
-            if (.not.job%shift_to_zpe) zpe = minval(hsym)
             !
             jobz = 'V'
             vrange(1) = -0.0_rk ; vrange(2) = (job%upper_ener+zpe)*sc
+            !
+            if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
+            !
             irange(1) = 1 ; irange(2) = min(job%nroots(1),Ntotal)
             nroots = job%nroots(1)
             !
