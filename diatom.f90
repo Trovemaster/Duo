@@ -6234,7 +6234,7 @@ end subroutine map_fields_onto_grid
         !
         write(iunit,'(a)') '   <- States'
         !
-        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega ivib|')")
+        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda Spin     Sigma    Omega ivib|')")
         !
         filename =  trim(job%eigenfile%vectors)//'_vib.chk'
         write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -7984,9 +7984,9 @@ end subroutine map_fields_onto_grid
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
-                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,i4)')  total_roots,     & 
-                          J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,icontr(k)%sigma, &
-                          icontr(k)%spin,icontr(k)%ivib
+                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                          total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                          icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                   enddo
                   !
                 endif
