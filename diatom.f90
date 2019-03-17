@@ -7775,8 +7775,6 @@ end subroutine map_fields_onto_grid
             ! total number of levels for given J,gamma selected for the intensity calculations
             total_roots = 0
             !
-            vib_count = 0
-            !
             if (iverbose>=4) call TimerStart('Prepare_eigenfuncs_for_intens')
             !
             do i=1,Nroots
@@ -7820,6 +7818,8 @@ end subroutine map_fields_onto_grid
             !call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
             !
             total_roots = 0
+            !
+            if (job%assign_v_by_count) vib_count = 0
             !
             do i=1,Nroots
               !
@@ -7895,7 +7895,7 @@ end subroutine map_fields_onto_grid
                 spini = icontr(mterm)%spin
                 !v = icontr(mterm)%v
                 v  = vib_count(i)
-                vib_count(i) = v
+                !vib_count(i) = v
                 !
                 ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
                 if (job%assign_v_by_count) then

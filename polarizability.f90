@@ -2,9 +2,9 @@ module polarizability
   !
   use accuracy,      only : hik, ik, rk, ark, cl, out, vellgt, planck, &
                             avogno, boltz, pi, small_
-  use diatom_module, only : job, Intensity, quantaT, eigen, basis, Ndipoles, &
+  use diatom_module, only : job, Intensity, quantaT, eigen, basis, Ndipoles, Nss, &
                             dipoletm, duo_j0, fieldT, poten, three_j, &
-                            jmin_global,spinspin,Nss
+                            jmin_global,spinspin
   use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus, &
                             Timerstart, Timerstop, MemoryReport, &
                             TimerReport, memory_limit, memory_now
@@ -233,7 +233,9 @@ module polarizability
     call TimerReport
     !
   end subroutine pol_tranint
-
+  !
+  !
+  !
   function cg(j0, k0, dj, dk)
     !
     ! Returns values for some Clebsch-Gordan coefficients
@@ -291,16 +293,17 @@ module polarizability
     integer(ik)    :: info, indI, indF, itransit, Ntransit, Nrepresen
     integer(ik)    :: igammaI, igammaF
     integer(ik)    :: dimenI, dimenF, nmax, parity_gu, isymI, isymF
-    real(rk)       :: energyI, energyF, nu_if, linestr, ener_, linestr2
+    real(rk)       :: energyI, energyF, nu_if, linestr, linestr_zero, &
+                      ener_, linestr2, linestr2_zero
     real(rk)       :: tm, jI, jF, ddot
     logical        :: passed, passed_
     !
     real(rk), allocatable     :: vecI(:), vecF(:)
-    real(rk), allocatable     :: half_linestr(:)
+    real(rk), allocatable     :: half_linestr(:), half_linestr_zero(:)
     !
     integer(ik)  :: jind, nlevels, j1, j2
     !
-    integer(ik)  :: iroot, NlevelsI, NlevelsF, nlower, k,k_, iLF, iflag_rich
+    integer(ik)  :: iroot, NlevelsI, NlevelsF, nlower, k, k_, iLF, iflag_rich
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen), igamma, istateI, istateF,&
                     ivibI, ivibF, ivI, ivF, ilambdaI, ilambdaF, iparityI, itau
@@ -333,7 +336,7 @@ module polarizability
     !
     character(len=12)        :: char_Jf,char_Ji,char_LF
     integer(ik), allocatable :: richunit(:,:)
-    character(len=2)             :: let_LF ! richmol letters x,y,z
+    character(len=2)         :: let_LF ! richmol letters x,y,z
     !
     call TimerStart('Intensity calculations')
     !
@@ -390,8 +393,10 @@ module polarizability
             !
             jF = Jval(indF)
             !
+            if (Jf<Ji) cycle 
+            !
             ! selection rules for SECOND rank spherical component
-            if(nint(abs(jI - jF)) > 2 .or. nint(jI + jF) < 2) cycle
+            if(nint(abs(jI - jF)) > 2) cycle
             !
             write(char_jF, '(i12)') nint(jF)
             !
@@ -402,32 +407,32 @@ module polarizability
             "matelem_ALPHA"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
             !
             call IOstart(trim(filename), richunit(indI, indF))
-            open(unit = richunit(indI, indF), action = 'write',&
+            open(unit = richunit(indI, indF), action = 'write', &
                  status='replace', file=filename)
             !
-            write(richunit(indI, indF), "('Start Richmol format')")
+            write(richunit(indI, indF), "('Start richmol format')")
             !
-            ! '2' and '9' below correspond to the '1' and '3' in dipole.f90,
-            !   assuming they correspond to rank and no. components for tensor
-            write(richunit(indI, indF), "('ALPHA','   2','   9')")
+            ! 2nd rank tensor, with 6 non-zero components
+            write(richunit(indI, indF), "('ALPHA','   2','   6')")
             write(richunit(indI, indF), "('M-tensor')")
             !
             ! Nine lab-frame polarisability tensor components
-            do iLF = 1,9
+            do iLF = 1,6
               !
               let_LF = "xx"
-              if (iLF == 2) let_LF = "yy" 
-              if (iLF == 3) let_LF = "zz"
-              if (iLF == 4) let_LF = "xy"
-              if (iLF == 5) let_LF = "yx"
-              if (iLF == 6) let_LF = "xz"
-              if (iLF == 7) let_LF = "zx"
-              if (iLF == 8) let_LF = "yz"
+              if (iLF == 2) let_LF = "xy" 
+              if (iLF == 3) let_LF = "xz"
+              if (iLF == 4) let_LF = "yy"
+              if (iLF == 5) let_LF = "yz"
+              if (iLF == 6) let_LF = "zz"
+              if (iLF == 7) let_LF = "yx"
+              if (iLF == 8) let_LF = "zx"
               if (iLF == 9) let_LF = "zy"
               !
-              ! flag is 1 when sum over alpha^k_m components has prefactor of i
+              ! flag is -1 when sum over alpha^k_m has prefactor of i
               iflag_rich = 0
-              if (iLF == 4.or.iLF == 5.or.iLF == 8.or.iLF == 9) iflag_rich = 1
+              !if (iLF == 2 .or. iLF == 5) iflag_rich = -1
+              if (iLF == 2 .or. iLF == 5 .or. iLF == 7 .or. iLF == 9) iflag_rich = -1
               !
               write(char_LF, '(i12)') iLF
               !
@@ -621,8 +626,61 @@ module polarizability
             ! this format works for energy levels larger than -10,000 cm-1 and
             !   less than 1e11 cm-1 - Lorenzo Lodi
             !
-            ndecimals = 6 &
-              - max(0, int(log10(abs(energyI - intensity%ZPE) + 1.d-6) - 4))
+            ndecimals = 6  - max(0, int(log10(abs(energyI - intensity%ZPE) + 1.d-6) - 4))
+            !
+            if ( intensity%matelem ) then
+              !
+              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+              !
+              if (nint(2*Ji)/=nint(2*J_)) then
+                !
+                J_ = Ji
+                ID_J = 0
+                !
+              endif
+              !
+              ID_J = ID_J + 1
+              quantaI%iJ_ID = ID_J
+              !
+              if (integer_spin) then 
+                !
+                write(my_fmt,'(a)') "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
+                write(enunit,my_fmt) & 
+                          nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
+                          ivI,(ilambdaI),nint((sigmaI)),pm,statename
+                !
+              else
+                !
+                !stop 'not tested'
+                !
+                write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
+                write(enunit,my_fmt) & 
+                          int(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,omegaI,&
+                          ivI,(ilambdaI),sigmaI,pm,statename
+                          !
+              endif
+              !
+            else
+              !
+              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+              if (integer_spin) then 
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                          pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                !
+              else
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                          pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                          !
+              endif
+              !
+            endif
+            !
           endif
           !
           call energy_filter_upper(jI, energyI, passed)
@@ -698,6 +756,7 @@ module polarizability
     !   with corresponding variable "half_linestr".
     !
     allocate(half_linestr(dimenmax), stat = info)
+    allocate(half_linestr_zero(dimenmax), stat = info)
     !
     call ArrayStart('half_linestr', info, size(half_linestr), &
                     kind(half_linestr))
@@ -765,9 +824,9 @@ module polarizability
           !
           jF = jval(indF)
           !
-          ! selection rules for irreducible second rank 
+          ! selection rules for irreducible second & zeroth rank 
           !   spherical polarisability tensor components
-          if (abs(nint(jI - jF)) > 2 .or. abs(nint(jI + jF)) < 2) cycle
+          if (abs(nint(jI - jF)) > 2 ) cycle
           !
           ! loop over final state symmetries
           do igammaF = 1, Nrepresen
@@ -848,12 +907,12 @@ module polarizability
                   if (isymF /= igamma_pair(isymI)) cycle
                   !
                   if ((intensity%J(1) + intensity%J(2) > 0) &
-                      .and. abs(nint(jI - jF) <= 2 &
-                      .and. nint(jI + jF) >= 2)) then
+                      .and. abs(nint(jI - jF)) <= 2 ) then
                     !
                     call do_1st_half_linestrength(jI, jF, indI, indF, dimenI, &
                                                   dimenF, vecI(1:dimenI), &
-                                                  half_linestr)
+                                                  half_linestr, &
+                                                  half_linestr_zero)
                     !
                   endif
                   !
@@ -931,15 +990,22 @@ module polarizability
                     !
                   case('ABSORPTION', 'EMISSION')
                     !
-                    linestr = ddot(dimenF, half_linestr, 1, vecF, 1)
+                    linestr =      ddot(dimenF, half_linestr, 1, vecF, 1)
+                    linestr_zero = ddot(dimenF, half_linestr_zero, 1, vecF, 1)
                     !
                     linestr2 = linestr**2
+                    linestr2_zero = linestr_zero**2
+                    !
                     !
                     ! calculate intensity
                     A_einst = A_coef_s_1 * (2.0_rk * jI + 1.0_rk) &
                               * linestr2 * abs(nu_if)**3
                     !
                     linestr2 = linestr2 * intensity%gns(isymI) &
+                              * (2.0_rk * jI + 1.0_rk) &
+                              * (2.0_rk * jF + 1.0_rk)
+                    !
+                    linestr2_zero = linestr2_zero * intensity%gns(isymI) &
                               * (2.0_rk * jI + 1.0_rk) &
                               * (2.0_rk * jF + 1.0_rk)
                     !
@@ -969,7 +1035,8 @@ module polarizability
                     endif
                     !
                     if (absorption_int >= intensity%threshold%intensity .and.&
-                        linestr2 >= intensity%threshold%linestrength) then
+                        linestr2 + linestr2_zero >= &
+                        intensity%threshold%linestrength ) then
                       !
                       write(out, &
                             "( (f5.1, 1x, a4, 3x),a2, &
@@ -993,12 +1060,13 @@ module polarizability
                         if (intensity%matelem) then
                           !
                           write(richunit(indI, indF), &
-                                "(i8,i8,2i3,4x,e24.14)") & 
-                            quantaI%iJ_ID, quantaF%iJ_ID, 1, 1, linestr
+                                "(i8,1x,i8,1x,i4,1x,i4,3x,e23.16,3x,e23.16)") & 
+                                quantaI%iJ_ID, quantaF%iJ_ID, 1, 1,linestr_zero,linestr
                           !
                         else
                           !
-                          write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") quantaF%iroot,quantaI%iroot, A_einst, nu_if
+                          write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") &
+                            quantaF%iroot, quantaI%iroot, A_einst, nu_if
                         endif
                       endif
                     endif
@@ -1035,10 +1103,10 @@ module polarizability
       ! close some J-files for Richmol:
       if (intensity%matelem) then
         !
-        do indF = max(1, indI - 1), min(nJ, indI + 1)
+        do indF = max(1, indI - 2), min(nJ, indI + 2)
           !
           jF = Jval(indF)
-          if (nint(abs(jI - jF)) > 2 .or. nint(jI + jF) < 2) cycle
+          if (nint(abs(jI - jF)) > 2) cycle
           !
           if (jI > jF) cycle
           !
@@ -1593,13 +1661,15 @@ module polarizability
   !
   !
   subroutine do_1st_half_linestrength(jI, jF, indI, indF, &
-                                      dimenI, dimenF, vector, half_ls)
+                                      dimenI, dimenF, vector, &
+                                      half_ls, half_ls_zero)
     !
+    implicit none
     ! I/O variables
     real(rk), intent(in)    :: jI, jF
     integer(ik), intent(in) :: indI, indF, dimenI, dimenF
     real(rk), intent(in)    :: vector(:)
-    real(rk), intent(out)   :: half_ls(:)
+    real(rk), intent(out)   :: half_ls(:), half_ls_zero(:)
     !
     ! states
     integer(ik)             :: ivibF, ivibI, istateF, istateI, &
@@ -1614,12 +1684,13 @@ module polarizability
     integer(ik)             :: icontrF, icontrI, ipermute, isigmav, itau, idip
     !
     ! other
-    real(rk)                :: f3j, ls, f_t
+    real(rk)                :: f3j, ls, f_t, rank
     type(fieldT), pointer   :: field
     !
     call TimerStart('do_1st_half_linestr')		
     !
     half_ls = 0
+    half_ls_zero = 0
     !
     ! loop over final states
     loop_F : do icontrF = 1, dimenF
@@ -1655,7 +1726,7 @@ module polarizability
         ilambdaI = basis(indI)%icontr(icontrF)%ilambda
         !
         ! selection rules
-        if (abs(nint(omegaF - omegaI))  > 2 &
+        if (abs(nint(omegaF - omegaI)) /= 0 &
             .or. nint(spinI - spinF)   /= 0 &
             .or. nint(sigmaI - sigmaF) /= 0)&
           cycle loop_I
@@ -1668,17 +1739,23 @@ module polarizability
         if (mod(nint(2.0_rk * omegaI + 1.0_rk), 2) == 0) &
           omegaI_ = nint(omegaI - 0.5_rk)
         !
-        ! calculate 3-j symbol and check selection rule
-        f3j = three_j(jI, jF, 2.0_rk, -omegaI, omegaF, omegaI - omegaF)
-        if (abs(f3j) < intensity%threshold%coeff) cycle loop_I
-        !
         ls = 0
         !
-        loop_idipole : do idip = 1, Ndipoles
+        ! idip = Ndipoles + 1 is the zeroth rank component
+        loop_idipole : do idip = 1, Ndipoles + Nss
           !
-          field => dipoletm(idip)
+          if (idip <= Ndipoles) then
+            field => dipoletm(idip)
+            rank = 2.0_rk
+          else
+            ! use spinspin as field pointer for zeroth rank
+            field => spinspin(idip-Ndipoles)
+            rank = 0.0_rk
+          endif
           !
-          !field =>spinspin(1)
+          ! calculate 3-j symbol and check selection rule
+          f3j = three_j(jI, jF, rank, -omegaI, omegaF, omegaI - omegaF)
+          if (abs(f3j) < intensity%threshold%coeff) cycle loop_idipole
           !
           do ipermute = 0, 1
             !
@@ -1730,8 +1807,8 @@ module polarizability
               ! corresponding <i| and |j> quantum numbers
               if (ilambdaI_ /= ilambdaI .or. ilambdaF_ /= ilambdaF) cycle
               !
-              ! delta Lambda = +/- 1 selection rule
-              if (abs(ilambdaI - ilambdaF) > 1) cycle
+              ! delta Lambda = +/- 2 selection rule
+              if ( abs(ilambdaI - ilambdaF) > 2 .or.abs(ilambdaI - ilambdaF) == 1 ) cycle
               !
               f_t = field%matelem(ivibI, ivibF)
               !
@@ -1751,10 +1828,19 @@ module polarizability
               endif
               !
               ! product of 3-j symbol parity, mat. elem and vector coefficient
-              ls = (-1.0_rk)**(iomegaI_) * f_t * f3j * vector(icontrI)
+              ls = (-1.0_rk)**(omegaI_) * f_t * f3j * vector(icontrI)
               !
-              ! add to line strength
-              half_ls(icontrF) = half_ls(icontrF) + ls
+              if (idip <= Ndipoles) then
+                ! add to line strength for second rank
+                half_ls(icontrF) = half_ls(icontrF) + ls
+              else
+                ! add to line strength for zeroth rank
+                half_ls_zero(icontrF) = half_ls_zero(icontrF) + ls
+                !
+                ! forced selection rule
+                !if (jI /= jF .and. nint(omegaI - omegaF) /= 0) half_ls_zero(icontrF) = 0
+                !
+              endif
               !
             enddo
           enddo
@@ -1794,7 +1880,7 @@ module polarizability
         !
         !compute TM
         !
-        do idip = 1,Ndipoles
+        do idip = 1, Ndipoles
           !
           if (dipoletm(idip)%istate /= istateI .or. &
               dipoletm(idip)%jstate/=istateF) cycle
@@ -1823,7 +1909,7 @@ module polarizability
     integer(ik)                         :: Mfx2, Mix2, Mi_, Mf_
     real(rk)                            :: Mf, Mi
     !
-    real(rk)                            :: f3j, M_
+    real(rk)                            :: f3j, M_2, M_0
     real(rk)                            :: T(9,0:2,-2:2)
     ! 
     call TimerStart('do_LF_matrix_elements')
@@ -1842,96 +1928,107 @@ module polarizability
     ! ONLY THE SECOND RANK SPHERICAL TENSOR IS CURRENTLY PROGRAMMED
     !
     ! Transformation matrix elements:
-      ! spherical components of alpha_xx
-        T(1,0,0) = -1.0_rk/sqrt(3.0_rk)
-        T(1,2,2) = 0.5_rk
-        T(1,2,0) = -1.0_rk/sqrt(6.0_rk)
-        T(1,2,-2) = 0.5_rk
-      !
-      ! spherical components of alpha_yy
-        T(2,0,0) = -1.0_rk/sqrt(3.0_rk)
-        T(2,2,2) = -0.5_rk
-        T(2,2,0) = -1.0_rk/sqrt(6.0_rk)
-        T(2,2,-2) = -0.5_rk
-      !
-      ! spherical components of alpha_zz
-        T(3,0,0) = -1.0_rk/sqrt(3.0_rk)
-        T(3,2,0) = 2.0_rk/sqrt(6.0_rk)
-      !
-      ! spherical components of alpha_xy (imaginary)
-        T(4,1,0) = -1.0_rk/sqrt(2.0_rk)
-        T(4,2,2) = -0.5_rk
-        T(4,2,-2) = 0.5_rk
-      !
-      ! spherical components of alpha_yx (imaginary)
-        T(5,1,0) = 1.0_rk/sqrt(2.0_rk)
-        T(5,2,2) = -0.5_rk
-        T(5,2,-2) = 0.5_rk
-      !
-      ! spherical components of alpha_xz
-        T(6,1,1) = -0.5_rk
-        T(6,1,-1) = -0.5_rk
-        T(6,2,1) = -0.5_rk
-        T(6,2,-1) = 0.5_rk
-      !
-      ! spherical components of alpha_zx
-        T(7,1,1) = 0.5_rk
-        T(7,1,-1) = 0.5_rk
-        T(7,2,1) = -0.5_rk
-        T(7,2,-1) = 0.5_rk
-      !
-      ! spherical components of alpha_yz (imaginary)
-        T(8,1,1) = 0.5_rk
-        T(8,1,-1) = -0.5_rk
-        T(8,2,1) = 0.5_rk
-        T(8,2,-1) = 0.5_rk
-      !
-      ! spherical components of alpha_zy (imaginary)
-        T(9,1,1) = -0.5_rk
-        T(9,1,-1) = 0.5_rk
-        T(9,2,1) = 0.5_rk
-        T(9,2,-1) = 0.5_rk
-      !
+    ! spherical components of alpha_xx
+      T(1,0,0) = -1.0_rk/sqrt(3.0_rk)
+      T(1,2,2) = 0.5_rk
+      T(1,2,0) = -1.0_rk/sqrt(6.0_rk)
+      T(1,2,-2) = 0.5_rk
     !
-    M_ = 0
+    ! spherical components of alpha_xy (imaginary)
+      T(2,1,0) = -1.0_rk/sqrt(2.0_rk)
+      T(2,2,2) = -0.5_rk
+      T(2,2,-2) = 0.5_rk
+    !
+    ! spherical components of alpha_xz
+      T(3,1,1) = -0.5_rk
+      T(3,1,-1) = -0.5_rk
+      T(3,2,1) = -0.5_rk
+      T(3,2,-1) = 0.5_rk
+    !
+    ! spherical components of alpha_yy
+      T(4,0,0) = -1.0_rk/sqrt(3.0_rk)
+      T(4,2,2) = -0.5_rk
+      T(4,2,0) = -1.0_rk/sqrt(6.0_rk)
+      T(4,2,-2) = -0.5_rk
+    !
+    ! spherical components of alpha_yz (imaginary)
+      T(5,1,1) = 0.5_rk
+      T(5,1,-1) = -0.5_rk
+      T(5,2,1) = 0.5_rk
+      T(5,2,-1) = 0.5_rk
+    !
+    ! spherical components of alpha_zz
+      T(6,0,0) = -1.0_rk/sqrt(3.0_rk)
+      T(6,2,0) = 2.0_rk/sqrt(6.0_rk)
+    !
+    ! spherical components of alpha_yx (imaginary)
+      T(7,1,0) = 1.0_rk/sqrt(2.0_rk)
+      T(7,2,2) = -0.5_rk
+      T(7,2,-2) = 0.5_rk
+    !
+    ! spherical components of alpha_zx
+      T(8,1,1) = 0.5_rk
+      T(8,1,-1) = 0.5_rk
+      T(8,2,1) = -0.5_rk
+      T(8,2,-1) = 0.5_rk
+    !
+    ! spherical components of alpha_zy (imaginary)
+      T(9,1,1) = -0.5_rk
+      T(9,1,-1) = 0.5_rk
+      T(9,2,1) = 0.5_rk
+      T(9,2,-1) = 0.5_rk
+    !
+    !
+    M_2 = 0
+    M_0 = 0
     !
     icount_ = 0
     !
     ! loop final ang. mom. projection on lab axis
     loop_F : do Mfx2 = -nint(2.0_rk * Jf), nint(2.0_rk * Jf), 2
       !
-      Mf = 0.5_rk * Mfx2
+      Mf = 0.5_rk * real(Mfx2,rk)
       Mf_ = nint(Mf)
-      if (mod(nint(2.0_rk * Ji + 1.0_rk), 2) == 0) Mf_ = int(Mf)
+      if (mod(nint(2.0_rk * Jf + 1.0_rk), 2) == 0) Mf_ = int(Mf)
       !
       ! loop initial ang. mom. projection on lab axis
       loop_I : do Mix2 = -nint(2.0_rk * Ji), nint(2.0_rk * Ji), 2
         !
-        Mi = 0.5_rk * Mix2
+        Mi = 0.5_rk * real(Mix2,rk)
         Mi_ = nint(Mi)
         if (mod(nint(2.0_rk * Ji + 1.0_rk), 2) == 0) Mi_ = int(Mi)
         !
         ! sum only over valid rank 2 spherical tensor components
         ! selection rule doubled to account exactly for 1/2-integer cases
         !
-        sphComp = 0.5_ark*(Mfx2 - Mix2)
+        sphComp = Mfx2 - Mix2
         !
-        if (      abs(sphComp) /= 0 &
-            .and. abs(sphComp) /= 2 &
-            .and. abs(sphComp) /= 4) cycle
+        if(     abs(sphComp) /= 0 &
+          .and. abs(sphComp) /= 2 &
+          .and. abs(sphComp) /= 4) cycle
         !
         sphComp = nint(0.5_rk * sphComp)
         !
+        ! calculation of line strength contribution from second rank component
         f3j = three_j(Ji, Jf, 2.0_rk, -Mi, Mf, Mi - Mf)
         !
-        M_ = (-1.0_rk)**Mi_ * T(iLF, 2, sphComp) * f3j &
+        M_2 = (-1.0_rk)**Mi_ * T(iLF, 2, sphComp) * f3j &
             * sqrt((2.0_rk * Ji + 1.0_rk) * (2.0_rk * Jf + 1.0_rk))
         !
-        if (abs(M_) > small_) then
-          icount_ = icount_ + 1
-          if (.not. present(icount)) write(iunit, "(2(i6),3x,e24.14)") &
-            Mi_, Mf_, M_
+        ! if Jf = Ji and Mf = Mi then also count contribution from zeroth rank
+        if (Jf == Ji .and. sphComp == 0) then
           !
+          f3j = three_j(Ji, Jf, 0.0_rk, -Mi, Mf, Mi - Mf)
+          !
+          M_0 = (-1.0_rk)**Mi_ * T(iLF, 0, sphComp) * f3j &
+              * sqrt((2.0_rk * Ji + 1.0_rk) * (2.0_rk * Jf + 1.0_rk))
+        endif
+        !
+        !
+        if (abs(M_2) > small_ .or. abs(M_0) > small_) then
+          icount_ = icount_ + 1
+          if (.not. present(icount)) write(iunit, "(i4,1x,i4,3x,e24.14,2x,e24.14)") &
+            Mi_, Mf_, M_0, M_2
         endif
       enddo loop_I
     enddo loop_F
