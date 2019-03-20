@@ -4818,7 +4818,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   else
                     !
-                    ! iregular
+                    ! irregular
                     coupling(2,1) = field%gridvalue(i)*field%complex_f
                     coupling(1,1) =-coupling(2,1)*conjg(a(2,2)/a(1,2))
                     !
