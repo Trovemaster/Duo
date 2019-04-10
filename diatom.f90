@@ -2842,7 +2842,7 @@ module diatom_module
                        !
                      elseif(trim(field%class(1:4))=="ABIN") then 
                        !
-                       call readf(field%weight(iparam))
+                       read(w,*) field%weight(iparam)
                        !
                      endif
                      !

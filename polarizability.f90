@@ -1930,7 +1930,7 @@ module polarizability
     ! Transformation matrix elements:
     ! spherical components of alpha_xx
       T(1,0,0) = -1.0_rk/sqrt(3.0_rk)
-      T(1,2,2) = 0.5_rk
+      T(1,2,2) =  0.5_rk
       T(1,2,0) = -1.0_rk/sqrt(6.0_rk)
       T(1,2,-2) = 0.5_rk
     !
@@ -1940,9 +1940,9 @@ module polarizability
       T(2,2,-2) = 0.5_rk
     !
     ! spherical components of alpha_xz
-      T(3,1,1) = -0.5_rk
-      T(3,1,-1) = -0.5_rk
-      T(3,2,1) = -0.5_rk
+      T(3,1,1)  = -0.5_rk
+      T(3,1,-1) =  0.5_rk
+      T(3,2,1)  = -0.5_rk
       T(3,2,-1) = 0.5_rk
     !
     ! spherical components of alpha_yy
@@ -1952,14 +1952,14 @@ module polarizability
       T(4,2,-2) = -0.5_rk
     !
     ! spherical components of alpha_yz (imaginary)
-      T(5,1,1) = 0.5_rk
-      T(5,1,-1) = -0.5_rk
-      T(5,2,1) = 0.5_rk
-      T(5,2,-1) = 0.5_rk
+      T(5,1,1)  =  0.5_rk
+      T(5,1,-1) =  0.5_rk
+      T(5,2,1)  = -0.5_rk
+      T(5,2,-1) = -0.5_rk
     !
     ! spherical components of alpha_zz
       T(6,0,0) = -1.0_rk/sqrt(3.0_rk)
-      T(6,2,0) = 2.0_rk/sqrt(6.0_rk)
+      T(6,2,0) =  2.0_rk/sqrt(6.0_rk)
     !
     ! spherical components of alpha_yx (imaginary)
       T(7,1,0) = 1.0_rk/sqrt(2.0_rk)
