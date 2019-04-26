@@ -799,10 +799,11 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(a)') "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
+                 write(my_fmt,'(a)') &
+                       "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
                  write(enunit,my_fmt) & 
-                           nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
-                           ivI,(ilambdaI),nint((sigmaI)),pm,statename
+                       nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
+                       ivI,(ilambdaI),nint((sigmaI)),pm,statename
                  !
                else
                  !

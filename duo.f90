@@ -4,7 +4,7 @@
     use accuracy
     use refinement
     use dipole
-    use polarizability
+    !use polarizability
 !    use compilation_details, only: write_compilation_details
     use header_info, only: write_logo
     use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action !, check_and_set_atomic_data
@@ -64,7 +64,7 @@
        call map_fields_onto_grid(verbose)
        !
        if (action%raman) then 
-         call pol_tranint
+         !call pol_tranint
          !
          write(out, '(a)') '--End--'
          stop
