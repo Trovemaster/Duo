@@ -348,7 +348,7 @@ contains
     real(rk),    allocatable :: vecI(:), vecF(:)
     real(rk),allocatable     :: half_linestr(:)
     !
-    integer(ik)  :: jind,nlevels,j1,j2
+    integer(ik)  :: jind,nlevels
     !
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
@@ -374,7 +374,7 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,nMs
+    integer(ik) :: Jmax_,ID_J
     real(rk) :: J_
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
@@ -445,7 +445,7 @@ contains
             !  New RICHMOL format - one file for x,y,z
             !
             filename =  &
-            "matelem_MU_"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
+            "matelem_MU"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
             !
             call IOstart(trim(filename),richunit(indI,indF))
             open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
@@ -799,10 +799,11 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(a)') "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
+                 write(my_fmt,'(a)') &
+                       "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
                  write(enunit,my_fmt) & 
-                           nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
-                           ivI,(ilambdaI),nint((sigmaI)),pm,statename
+                       nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
+                       ivI,(ilambdaI),nint((sigmaI)),pm,statename
                  !
                else
                  !
@@ -1369,7 +1370,7 @@ contains
           !
         enddo
         !
-        if ( intensity%gns(igammaI)/=intensity%gns(igamma_pair(igammaI)) ) then 
+        if ( nint(intensity%gns(igammaI)-intensity%gns(igamma_pair(igammaI)))/=0 ) then 
           !
           write(out,"('dm_intensity: selection rules do not agree with Gns')")
           stop 'dm_intensity: selection rules do not agree with Gns!'
@@ -1510,7 +1511,7 @@ contains
              !
              passed = passed.and.                                              &
              !
-             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+             (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.  &
              !
              !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
              ( intensity%J(1)+intensity%J(2)>0 ).and. &
@@ -1583,7 +1584,7 @@ contains
              !
              passed = passed.and.                                              &
              !
-             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+             (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.                    &
              !
              !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
              ( intensity%J(1)+intensity%J(2)>0 ).and. &
@@ -2006,7 +2007,7 @@ contains
 
 
 
-      subroutine do_LF_matrix_elements(iLF,iunit,jI,jF,icount)
+      subroutine  do_LF_matrix_elements(iLF,iunit,jI,jF,icount)
         implicit none 
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: iLF,iunit
@@ -2027,8 +2028,8 @@ contains
           !
           ! Only the y-component is imaginary, which we make real here but indicate in richmol file
           !
-          t(1,-1) = -1.0_rk/sqrt(2.0_rk)
-          t(1,1)  =  1.0_rk/sqrt(2.0_rk)
+          t(1,-1) =  1.0_rk/sqrt(2.0_rk)
+          t(1,1)  = -1.0_rk/sqrt(2.0_rk)
           t(2,-1) = 1.0_rk/sqrt(2.0_rk)
           t(2,1)  = 1.0_rk/sqrt(2.0_rk)
           t(3,0)  = 1.0_rk
@@ -2128,7 +2129,8 @@ contains
       if(c.lt.abs(a-b)) return
       if(a.lt.0.or.b.lt.0.or.c.lt.0) return
       if(a.lt.abs(al).or.b.lt.abs(be).or.c.lt.abs(ga)) return
-      if(-ga.ne.al+be) return
+      !if(-ga.ne.al+be) return
+      if(nint(ga+al+be).ne.0) return
 !
 !
 !     compute delta(abc)

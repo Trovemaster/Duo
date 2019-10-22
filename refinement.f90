@@ -1446,7 +1446,7 @@ module refinement
                !
                if (fitting%robust>small_) then
                  !
-                 call robust_fit(numpar,a_wats,sigma(1:npts),eps(1:npts),wtall(1:npts))
+                 call robust_fit(a_wats,sigma(1:npts),eps(1:npts),wtall(1:npts))
                  !
                  ssq=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))
                  !
@@ -2023,9 +2023,8 @@ module refinement
  end subroutine MLinvmat
 
 
-    subroutine Robust_fit(numpar,a_wats,sigma,eps,wt)
+    subroutine Robust_fit(a_wats,sigma,eps,wt)
 
-      integer(ik),intent(in) :: numpar
       real(rk),intent(inout) :: a_wats
       real(rk),intent(in)    :: sigma(:),eps(:)
       real(rk),intent(inout) :: wt(:)
@@ -2044,26 +2043,6 @@ module refinement
       !
       !Watson alpha-parameter
       ! 
-      ! Comment by Lorenzo Lodi: the following loop is never executed!
-      !do i = 1,-1
-      !  !
-      !  da1 = 0
-      !  da2 = 0
-      !  !
-      !  do nrow=1,npts
-      !    if (wt(nrow)>small_) then 
-      !      da1 = da1+eps(nrow)**2/( sigma(nrow)**2+a_wats*eps(nrow)**2 )
-      !      da2 = da2+eps(nrow)**4/( sigma(nrow)**2+a_wats*eps(nrow)**2 )**2
-      !    endif 
-      !  enddo 
-      !  !
-      !  da =( da1 -  real(nused-numpar,rk) )/da2
-      !  a_wats = a_wats + da
-      !  !
-      !  if (a_wats<sqrt(small_)) a_wats = 1e-3+real(i,rk)*1e-2
-      !  !
-      !enddo
-      !
       a_wats = 0.001_rk
       !
       if (verbose>=4) write(out,"('Watson parameter =',f18.8)") a_wats

@@ -123,8 +123,7 @@ subroutine derLobattoMat(result,Ntot,rpt,w)
         integer(ik), intent(in)     ::      Ntot
         real(rk), intent(out)     ::      result(0:Ntot+1,0:Ntot+1)
         real(rk), intent(in)      ::      rpt(0:Ntot+1),w(0:Ntot+1)
-        real(rk)                ::      elementres
-        integer(ik)                 ::      n,eta,k
+        integer(ik)                 ::      n,eta
 
         do n=0,Ntot+1
           do eta=n,Ntot+1
@@ -148,8 +147,8 @@ subroutine derLobatto(result,n,eta,Ntot,rpt,w)
     real(rk), intent(out)::   result
         integer(ik), intent(in)::   n, Ntot,eta
     real(rk), intent(in)::    w(0:Ntot+1), rpt(0:Ntot+1)
-    real(rk)::                pf, intresult,intpf, factor(0:Ntot+1),signrecorder
-        integer(ik)::               j,m,Nhalf
+    real(rk)::                factor(0:Ntot+1),signrecorder
+        integer(ik)::               j,Nhalf
 
     Nhalf=(Ntot+2)/2
     if (n==eta) then

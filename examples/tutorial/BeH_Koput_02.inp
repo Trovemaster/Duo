@@ -1,0 +1,49 @@
+atoms Be H
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0.5 - 2.5 
+
+
+(Defining the integration grid)
+grid
+ npoints 501
+ range   0.4 8.0
+ type 0   (nsub = 4 used by Stolyarov re 1.8)
+end
+
+(Vibrational basis set)
+CONTRACTION
+  vib
+  vmax  30
+END
+
+
+
+poten 1
+name 'X2Sigma+'
+lambda 0
+symmetry +
+mult   2
+type    EMO
+Values
+V0             0.00
+RE             1.342394
+DE            17590.00
+RREF         -1.00000000
+PL            3.00000000
+PR            3.00000000
+NL            0.00000000
+NR            0.00000000
+b0            1.8400002 
+end    
+       
+       
+       
+       
+       
+       
+       
+       

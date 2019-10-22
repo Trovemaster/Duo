@@ -3,8 +3,9 @@ module diatom_module
   use accuracy
   use timer
   use functions, only : analytical_fieldT
-  use symmetry,  only   : sym,SymmetryInitialize
+  use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
+  !use me_numer,  only : ME_numerov
   !
   implicit none
   !                     by Lorenzo Lodi
@@ -194,6 +195,7 @@ module diatom_module
     integer(ik)           :: ix_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for i-state, 1000 is for undefined 
     integer(ik)           :: jx_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for j-state, 1000 is for undefined 
     type(weightT)         :: weighting             ! When morphing is the field is used to morph the ab initio couterpart
+    character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
   end type fieldT
   !
@@ -232,6 +234,7 @@ module diatom_module
       logical             :: print_rovibronic_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
       logical             :: assign_v_by_count = .false.
+      logical             :: legacy_version = .false.
       !
   end type jobT
   !
@@ -283,6 +286,7 @@ module diatom_module
      logical :: intensity     = .false.
      logical :: frequency     = .false.
      logical :: matelem       = .false.
+     logical :: raman         = .false.
      !
   end type actionT
   !
@@ -530,7 +534,17 @@ module diatom_module
           !
           job%assign_v_by_count = .true.
           !
+        case("LEGACY","OLD-VERSION","VERSION")
+          !
+          job%legacy_version = .true.
+          !
+          if (item>1) then 
+            call readi(item_)
+            if (item_>2018) job%legacy_version = .false.
+          endif 
+          !
         case ("SOLUTIONMETHOD")
+          !
           call readu(w)
           solution_method = trim(w)
           ! 
@@ -2567,6 +2581,10 @@ module diatom_module
               !
               field%molpro = .true.
               !
+            case("INTEGRATION")
+              !
+              call readu(field%integration_method)
+              !
             case("FACTOR")
               !
               field%complex_f = cmplx(1.0_rk,0.0_rk, kind=rk)
@@ -2841,7 +2859,7 @@ module diatom_module
                        !
                      elseif(trim(field%class(1:4))=="ABIN") then 
                        !
-                       call readf(field%weight(iparam))
+                       read(w,*) field%weight(iparam)
                        !
                      endif
                      !
@@ -3058,7 +3076,7 @@ module diatom_module
            !
            select case(w)
            !
-           case('NONE','ABSORPTION','EMISSION','TM','DIPOLE-TM','RAMAN','POLARIZABILITY-TM','PARTFUNC')
+           case('NONE','ABSORPTION','EMISSION','TM','DIPOLE-TM','PARTFUNC')
              !
              intensity%action = trim(w)
              !
@@ -3083,6 +3101,10 @@ module diatom_module
            case('MATELEM','RICHMOL')
              !
              intensity%matelem = .true.
+             !
+           case('RAMAN','POLARIZABILITY')
+             !
+             action%raman = .true.
              !
            case('OVERLAP')
              !
@@ -4438,17 +4460,25 @@ subroutine map_fields_onto_grid(iverbose)
                 write(out,'(/,a)') 'Transforming '//trim(field%class)//' '//trim(field%name)//&
                 ' from MOLPRO (Cartesian) to Duo (Spherical)'            
                 write(out,'(a)') '  Cartesian (complex):'
-                write(out,'(a,t20,i4,x,t30,i4)') '  |Lambda|:',field%lambda,field%lambdaj
+                write(out,'(a,t20,i4,1x,t30,i4)') '  |Lambda|:',field%lambda,field%lambdaj
                 if (iobject==2) write(out,'(a,t18,f8.1,t28,f8.1)') '  Sigma:',field%sigmai,field%sigmaj 
-                write(out,'(a,t20,i4,a,t30i4,a)') '  <a|Lz|b>:',field%ix_lz_y,'i',field%jx_lz_y,'i'
-                write(out,'(a,t18f8.1,a,f8.1,a)') '  factor',real(field%complex_f),'+',aimag(field%complex_f),'i'
+                write(out,'(a,t20,i4,a,t30,i4,a)') '  <a|Lz|b>:',field%ix_lz_y,'i',field%jx_lz_y,'i'
+                write(out,'(a,t18,f8.1,a,f8.1,a)') '  factor',real(field%complex_f),'+',aimag(field%complex_f),'i'
             endif
             !
-            call molpro_duo(field)
+            if (job%legacy_version) then  
+              !
+              call molpro_duo_old_2018(field)
+              !
+            else 
+              !
+              call molpro_duo(field)
+              !
+            endif
             !
             if (iverbose>=4) then 
                 write(out,'(a)') '  Spherical (real):'
-                write(out,'(a,t20i4,x,t30i4)') '  Lambda:',field%lambda,field%lambdaj
+                write(out,'(a,t20,i4,1x,t30,i4)') '  Lambda:',field%lambda,field%lambdaj
                 if (iobject==2) write(out,'(a,t18,f8.1,t28,f8.1)') '  Sigma:',field%sigmai,field%sigmaj 
             endif
           endif
@@ -4465,29 +4495,13 @@ subroutine map_fields_onto_grid(iverbose)
      !
      if (iverbose>=4) call TimerStop('Grid representaions')
      !
-
-
-!      !
-!      ! find the minimum of the lowest PEC
-!      !
-!      ipotmin = minloc(poten(1)%gridvalue,dim=1) ; job%potmin = poten(1)%gridvalue(ipotmin)
-!      !
-!      if (ipotmin==1) then 
-!        write(out,'("map_fields_onto_grid: The potential 1 does not seem to have a well defined minimum, rmin = r1"/)')
-!        stop 'map_fields_onto_grid: The potential-1s minimum is at r1'
-!      endif 
-!      !
-!      if (ipotmin==size(poten(1)%gridvalue)) then 
-!        write(out,'("map_fields_onto_grid: The potential 1 does not seem to have a well defined minimum, rmin=r2"/)')
-!        stop 'map_fields_onto_grid: The potential-1s minimum is at r2'
-!      endif
      !
      ! Lorenzo Lodi, 8 April 2015
      ! Find the minima of all potential functions (real mimima, not on the grid) and compute other
      ! equilibrium quantities
      !
      loop_pecs: do istate=1,Nestates ! loop over potential energy curves
-        ! find minimum and maximum on the grid 
+       ! find minimum and maximum on the grid 
        poten(istate)%imin  = minloc(poten(istate)%gridvalue,dim=1)
        poten(istate)%Vimin = poten(istate)%gridvalue( poten(istate)%imin )
        poten(istate)%imax  = maxloc(poten(istate)%gridvalue,dim=1)
@@ -4500,54 +4514,77 @@ subroutine map_fields_onto_grid(iverbose)
        if( poten(istate)%Vimin == poten(istate)%Vimax        ) poten(istate)%zHasMinimum = .false.
 
        poten(istate)%V0  = poten(istate)%Vimin ! for now set the minimum to the grid-minimum
-
-       ! For not if we have a spline interpolant we don't go on... (to be fixed)
-       if( poten(istate)%type == 'GRID') poten(istate)%zHasMinimum = .false.
-
+       !
        if( poten(istate)%zHasMinimum .eqv. .false. ) cycle loop_pecs ! exit if pec has no minimum
 
-       ! Find miminum of each PEC using Newton-type search
-       ! Note: computing derivatives by finite differences is an intrinsically ill-conditioned problem
-       ! because of cancellation errors. It gets worse with higher order, so
-       ! we use a 6th order formula for the 1st derivative but lower order for higher
-       ! derivatives. The step size `h' and the derivative formulas were chosen on the
-       ! basis of tests using morse-type potentials typical for molecules.
-       ! A value of the step size of about 2e-3 or larger should work best.
+       ! For not if we have a spline interpolant we don't go on... (to be fixed)
+       if( poten(istate)%type == 'GRID') then
+          !
+          if( poten(istate)%imin-4<1 .or. poten(istate)%imin+4>grid%npoints) cycle loop_pecs ! exit if the minimum is too close to the border
+          !
+          x0  = r(poten(istate)%imin)
+          fmmm = poten(istate)%gridvalue(poten(istate)%imin-3)
+          fmm  = poten(istate)%gridvalue(poten(istate)%imin-2)
+          fm   = poten(istate)%gridvalue(poten(istate)%imin-1)
+          f0   = poten(istate)%gridvalue(poten(istate)%imin)
+          fp   = poten(istate)%gridvalue(poten(istate)%imin+1)
+          fpp  = poten(istate)%gridvalue(poten(istate)%imin+2)
+          fppp = poten(istate)%gridvalue(poten(istate)%imin+3)
+      
+          der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(60._rk*h) ! 6-point, error h^6
+          der2 = (2.0_rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(2.0_rk*90._rk*h**2) ! 7-point, error h^6
+      
+          !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
+          !  der2 = (-fmm +16_rk*fm -30._rk*f0 +16._rk*fp - fpp ) / (3._rk * h**2)  ! 5-point, error h^4
+          der3 = (fmmm-8._rk*fmm+13._rk*fm -13._rk*fp+8._rk*fpp-fppp) / (h**3*8.0_rk)        ! 6-point, error h^4
+          der4 = (-fmmm+12._rk*fmm-39._rk*fm+56._rk*f0-39._rk*fp+12._rk*fpp-fppp )/( 6._rk* h**4)   !7-point, error h^4
+          !
+       else 
+          ! Find miminum of each PEC using Newton-type search
+          ! Note: computing derivatives by finite differences is an intrinsically ill-conditioned problem
+          ! because of cancellation errors. It gets worse with higher order, so
+          ! we use a 6th order formula for the 1st derivative but lower order for higher
+          ! derivatives. The step size `h' and the derivative formulas were chosen on the
+          ! basis of tests using morse-type potentials typical for molecules.
+          ! A value of the step size of about 2e-3 or larger should work best.
+          !
+          x0  = r(poten(istate)%imin)
+          find_minimum: do i=1, max_iter_min_search
+      
+               fmmm = poten(istate)%analytical_field( x0-1.5_rk*h, poten(istate)%value )
+               fmm  = poten(istate)%analytical_field( x0-h       , poten(istate)%value )
+               fm   = poten(istate)%analytical_field( x0-h/2._rk , poten(istate)%value )
+               f0   = poten(istate)%analytical_field( x0         , poten(istate)%value )
+               fp   = poten(istate)%analytical_field( x0+h/2._rk , poten(istate)%value )
+               fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
+               fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
+      
+               der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
+               der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
+      
+               !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
+               !  der2 = (-fmm +16_rk*fm -30._rk*f0 +16._rk*fp - fpp ) / (3._rk * h**2)  ! 5-point, error h^4
+               der3 = (fmmm-8._rk*fmm+13._rk*fm -13._rk*fp+8._rk*fpp-fppp) / h**3        ! 6-point, error h^4
+               der4 = (-8._rk*fmmm+96._rk*fmm-312._rk*fm+448._rk*f0-312._rk*fp+ &
+                                                96._rk*fpp-8._rk*fppp )/( 3._rk* h**4)   !7-point, error h^4
+                !  der1 = ( fp - fm ) / h                                    ! 2-point, error h^2
+                !  der2 = 4._rk*( fm - 2_rk*f0 + fp ) / h**2                 ! 3-point, error h^2
+                !  der3 = 4._rk*(-fmm + 2._rk*fm -2._rk*fp + fpp ) / h**3    ! 4-point, error h^2
+                !  der4 = 16._rk*(fmm-4._rk*fm+6._rk*f0-4._rk*fp+fpp) / h**4 ! 5-point, error h^2
+      
+                if(der2 ==0._rk)   der2 = tiny(1._rk) ! because we are going to divide by der2 
+                x1 = x0 - der1/der2
+      
+               ! check convergence
+               if( abs(x1 - x0) / max( abs(x0), tiny(1._rk) ) <= thresh_rel_err_min_x) exit find_minimum
+               x0 = x1
+      
+          enddo find_minimum
+          !
+          if( i >= max_iter_min_search) poten(istate)%zHasMinimum = .false.
+          !
+       endif
        !
-       x0  = r(poten(istate)%imin)
-       find_minimum: do i=1, max_iter_min_search
-
-                      fmmm = poten(istate)%analytical_field( x0-1.5_rk*h, poten(istate)%value )
-                      fmm  = poten(istate)%analytical_field( x0-h       , poten(istate)%value )
-                      fm   = poten(istate)%analytical_field( x0-h/2._rk , poten(istate)%value )
-                      f0   = poten(istate)%analytical_field( x0         , poten(istate)%value )
-                      fp   = poten(istate)%analytical_field( x0+h/2._rk , poten(istate)%value )
-                      fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
-                      fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
-
-                     der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
-                     der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
-
-                     !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
-                     !  der2 = (-fmm +16_rk*fm -30._rk*f0 +16._rk*fp - fpp ) / (3._rk * h**2)  ! 5-point, error h^4
-                     der3 = (fmmm-8._rk*fmm+13._rk*fm -13._rk*fp+8._rk*fpp-fppp) / h**3        ! 6-point, error h^4
-                     der4 = (-8._rk*fmmm+96._rk*fmm-312._rk*fm+448._rk*f0-312._rk*fp+ &
-                                                      96._rk*fpp-8._rk*fppp )/( 3._rk* h**4)   !7-point, error h^4
-                      !  der1 = ( fp - fm ) / h                                    ! 2-point, error h^2
-                      !  der2 = 4._rk*( fm - 2_rk*f0 + fp ) / h**2                 ! 3-point, error h^2
-                      !  der3 = 4._rk*(-fmm + 2._rk*fm -2._rk*fp + fpp ) / h**3    ! 4-point, error h^2
-                      !  der4 = 16._rk*(fmm-4._rk*fm+6._rk*f0-4._rk*fp+fpp) / h**4 ! 5-point, error h^2
-
-                      if(der2 ==0._rk)   der2 = tiny(1._rk) ! because we are going to divide by der2 
-                      x1 = x0 - der1/der2
-
-                     ! check convergence
-                     if( abs(x1 - x0) / max( abs(x0), tiny(1._rk) ) <= thresh_rel_err_min_x) exit find_minimum
-                     x0 = x1
-
-       enddo find_minimum
-       !
-       if( i >= max_iter_min_search) poten(istate)%zHasMinimum = .false.
        if( der2 < 0._rk ) poten(istate)%zHasMinimum = .false.
        poten(istate)%re  = x0
        poten(istate)%V0  = f0
@@ -4618,6 +4655,521 @@ subroutine map_fields_onto_grid(iverbose)
    contains 
      !
      subroutine molpro_duo(field)
+        !
+        use lapack,only : lapack_zheev     
+        !
+        type(fieldT),intent(inout) :: field
+        integer(ik) :: ix_lz_y,jx_lz_y,iroot,jroot,il_temp
+        complex(rk) :: a(2,2),b(2,2),coupling(2,2),f_t(2,2),b0(2,2),c
+        real(rk)    :: lambda_i(2),lambda_j(2)
+            !
+            ix_lz_y = field%ix_lz_y
+            jx_lz_y = field%jx_lz_y
+            !
+            a = 0 ; b = 0
+            !
+            a(1,1) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            b(1,1) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            a(2,2) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            b(2,2) =  cmplx(1.0_rk,0.0_rk, kind=rk)
+            !
+            iroot = 1
+            jroot = 1
+            !
+            if (ix_lz_y/=0) then
+              a = 0 
+              a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
+              a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
+              !
+              call lapack_zheev(a,lambda_i)
+              !
+              ! swap to have the first root positive 
+              !
+              f_t = a
+              a(:,1) = f_t(:,2)
+              a(:,2) = f_t(:,1)
+              !
+              il_temp = lambda_i(2)
+              lambda_i(2) = lambda_i(1)
+              lambda_i(1) = il_temp
+              !
+              field%lambda = nint(lambda_i(1))
+              !
+              a = a*cmplx(0.0_rk,1.0_rk, kind=rk)
+              !
+            elseif (poten(field%istate)%parity%pm==-1) then 
+              !
+              a(1,1) =  cmplx(0.0_rk,1.0_rk, kind=rk)
+              !
+            endif
+            !
+            if (jx_lz_y/=0) then
+              b = 0 
+              b(1,2) = cmplx(0.0_rk,jx_lz_y , kind=rk)
+              b(2,1) = cmplx(0.0_rk,-jx_lz_y, kind=rk)
+              !
+              b0 = b
+              !
+              call lapack_zheev(b,lambda_j)
+              !
+              ! swap to have the first root positive 
+              !
+              f_t = b
+              b(:,1) = f_t(:,2)
+              b(:,2) = f_t(:,1)
+              !
+              il_temp = lambda_j(2)
+              lambda_j(2) = lambda_j(1)
+              lambda_j(1) = il_temp
+              !
+              field%lambdaj = nint(lambda_j(1))
+              !
+              b = b*cmplx(0.0_rk,1.0_rk, kind=rk)
+              !
+              f_t = matmul( conjg(transpose(b)),matmul(b0,(b)) )
+              !
+            elseif (poten(field%jstate)%parity%pm==-1) then 
+              !
+              b(1,1) =  cmplx(0.0_rk,1.0_rk, kind=rk)
+              !
+            endif
+            !
+            ! Check the selection rules
+            select case(trim(field%class))
+              !
+            case('SPINORBIT','ABINITIO-SPINORBIT')
+              !
+              if ((nint(field%sigmaj-field%sigmai))/=(field%lambda-field%lambdaj)) then
+                !
+                ! try to select the root#2 for the i-state first 
+                !
+                if (field%lambda/=0.and.(nint(field%sigmaj-field%sigmai))==( lambda_i(2)-field%lambdaj ) ) then
+                  !
+                  il_temp = lambda_i(2)
+                  lambda_i(2) = lambda_i(1)
+                  lambda_i(1) = il_temp
+                  !
+                  field%lambda = nint(lambda_i(1))
+                  !
+                  f_t = a
+                  a(:,1) = f_t(:,2)
+                  a(:,2) = f_t(:,1)
+                  !
+                elseif( field%lambdaj/=0.and.(nint(field%sigmaj-field%sigmai))==( field%lambda-lambda_j(2) ) ) then
+                  !
+                  il_temp = lambda_j(2)
+                  lambda_j(2) = lambda_j(1)
+                  lambda_j(1) = il_temp
+                  !
+                  jroot = 2
+                  field%lambdaj = nint(lambda_j(1))
+                  !
+                  f_t = b
+                  b(:,1) = f_t(:,2)
+                  b(:,2) = f_t(:,1)
+                  !
+                elseif( field%lambdaj/=0.and.(nint(field%sigmaj-field%sigmai))==( lambda_i(2)-lambda_j(2) ) ) then
+                  !
+                  il_temp = lambda_i(2)
+                  lambda_i(2) = lambda_i(1)
+                  lambda_i(1) = il_temp
+                  !
+                  field%lambda = nint(lambda_i(1))
+                  !
+                  il_temp = lambda_j(2)
+                  lambda_j(2) = lambda_j(1)
+                  lambda_j(1) = il_temp
+                  !
+                  jroot = 2
+                  field%lambdaj = nint(lambda_j(1))
+                  !
+                  f_t = a
+                  a(:,1) = f_t(:,2)
+                  a(:,2) = f_t(:,1)
+                  !
+                  f_t = b
+                  b(:,1) = f_t(:,2)
+                  b(:,2) = f_t(:,1)
+                  !
+                else
+                  !
+                  write(out,"(/'molpro_duo: cannot find selecion rule for',2i8,3x,a)") field%iref,field%jref,trim(field%class)
+                  write(out,"(' sigma = ',2f8.1,' lambda (i) = ',i4,' lamda (j) = ',i4)") field%sigmai, field%sigmaj, &
+                                                                                                  int(lambda_i(1)),int(lambda_j(1))
+                  stop 'molpro_duo: cannot find the selecion rules'
+                endif
+                !
+              endif
+              ! 
+            case ('L+','ABINITIO-LX')
+              !
+              !write(out,"('molpro_duo: this L+-part is not implemented')")
+              !stop 'molpro_duo: this L+-part is not implemented'
+              ! 
+            case ('DIPOLE')
+              !
+              !write(out,"('molpro_duo: this Dipole-part is not implemented')")
+              !stop 'molpro_duo: this Dipole-part is not implemented'
+              !
+            case default
+              !
+              write(out,"(/'molpro_duo: this part is not implemented:',a)") trim(field%class)
+              stop 'molpro_duo: this part is not implemented'
+              !
+            end select
+            !
+            !omp parallel do private(i) schedule(guided)
+            do i=1,ngrid
+              !
+              coupling = 0 
+              if (ix_lz_y==0.and.jx_lz_y==0) then
+                !
+                coupling(1,1) = field%gridvalue(i)*field%complex_f 
+                !
+              elseif(ix_lz_y/=0.and.jx_lz_y==0) then
+                !
+                select case(trim(field%class))
+                  !
+                case('SPINORBIT','ABINITIO-SPINORBIT')
+                  !
+                  if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
+                    !
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
+                         field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
+                    stop 'molpro_duo: illegal selection rules '
+                    !
+                  endif
+                  !
+                  ! for SOX it is either <1.2|SOX (regular) or <1.3|SOY (iregular)
+                  !
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
+                    !
+                  else
+                    !
+                    ! irregular
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) =-coupling(2,1)*conjg(a(2,2)/a(1,2))
+                    !
+                  endif
+                  ! 
+                case ('L+','ABINITIO-LX')
+                  !
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
+                    !
+                  else
+                    !
+                    ! iregular
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) = -coupling(2,1)*conjg(a(2,2)/a(1,2))
+                    !
+                  endif
+                  ! 
+                case ('DIPOLE')
+                  !
+                  if (poten(field%jstate)%parity%pm==-1) then 
+                    !
+                    ! iregular
+                    coupling(2,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,1) =-coupling(2,1)*conjg(a(2,2)/a(1,2))
+                    !
+                  else
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(2,1) =-coupling(1,1)*conjg(a(1,2)/a(2,2))
+                    !
+                  endif
+                  !
+                case default
+                  !
+                  write(out,"(/'molpro_duo (lambdaj=0): for class ',a,' is not implemented ')") field%class
+                  stop 'molpro_duo: not for this object'
+                  !
+                end select
+                !
+              elseif(ix_lz_y==0.and.jx_lz_y/=0) then
+                !
+                select case(trim(field%class)) 
+                  !
+                case('SPINORBIT','ABINITIO-SPINORBIT')
+                  !
+                  if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
+                    !
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") & 
+                          field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
+                    stop 'molpro_duo: illegal selection rules '
+                    !
+                  endif
+                  !
+                  ! The following relations are found using the condition <0,Sigma|SOX+SOY|+/-1,Sigma+/-1> = 0
+                  ! Regualr case is for <0|SOX|Pix> and iregular is for <0|SOX|Piy>
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,2) =-coupling(1,1)*b(1,2)/b(2,2)
+                    !
+                  else
+                    !
+                    ! iregular
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) =-coupling(1,2)*b(2,2)/b(1,2)
+                    !
+                  endif
+                  ! 
+                case('L+','ABINITIO-LX')
+                  !
+                  ! The following relations are found using the condition <0|LX+iLY|+1> = 0
+                  ! Regualr case is for <0|LX|Pix> and iregular is for <0|LX|Piy>
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
+                    !
+                    ! regular
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f
+                    coupling(1,2) =-coupling(1,1)*b(1,2)/b(2,2)
+                    !
+                  else
+                    !
+                    ! iregular
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f
+                    coupling(1,1) =-coupling(1,2)*b(2,2)/b(1,2)
+                    !
+                  endif
+                  ! 
+                case ('DIPOLE')
+                  !
+                  ! The following relations are found using the condition <0|-mux/sqrt(2)+imuy/sqrt(2)|+1> = 0
+                  ! Regualr case is for <0|muX|Pix> and iregular is for <0|mux|Piy>
+                  !
+                  if (poten(field%istate)%parity%pm==-1) then 
+                    !
+                    coupling(1,2) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,1) = -coupling(1,2)*b(2,2)/b(1,2)
+                    !
+                  else
+                    !
+                    coupling(1,1) = field%gridvalue(i)*field%complex_f*(-sqrt(0.5_rk))
+                    coupling(1,2) = -coupling(1,1)*b(1,2)/b(2,2)
+                    !
+                  endif
+                  !
+                case default
+                  !
+                  write(out,"(/'molpro_duo (lambdai=0): for class ',a,' is not implemented ')") field%class
+                  stop 'molpro_duo: not for this object'
+                  !
+                end select
+                !
+              elseif (abs(ix_lz_y)/=abs(jx_lz_y)) then
+                !
+                select case(trim(field%class))
+                  !
+                case('SPINORBIT','ABINITIO-SPINORBIT')
+                  !
+                  if (abs(nint(field%sigmaj-field%sigmai))/=abs(field%lambda-field%lambdaj)) then
+                    !
+                    write(out,"(/'molpro_duo: SO ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") &
+                          field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
+                    stop 'molpro_duo: illegal selection rules '
+                    !
+                  endif
+                  !
+                  c = field%gridvalue(i)*field%complex_f
+                  !
+                  !coupling(1,1) =  0
+                  !coupling(1,2) =  c
+                  !coupling(2,1) =  -c*conjg(a(1,1))*b(2,2)/(conjg(a(2,1))*b(1,2))
+                  !coupling(2,2) =  0
+                  !
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba,Sigma|SO|Lambda',Sigma'> = 0 
+                  ! <Lamba,Sigma|SO|-Lambda',Sigma'> = 0 
+                  ! <-Lamba,Sigma|SO|-Lambda',Sigma'> = 0 
+                  ! where we assume 
+                  ! c = <x|LSX|y> and  < Lamba,Sigma|SO|Lambda',Sigma'> /= 0 
+                  !
+                  coupling(1,1) =  -c*b(2,2)/b(1,2)
+                  coupling(1,2) =   c
+                  coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
+                  !
+                case('DIPOLE')
+                  !
+                  if (abs(field%lambda-field%lambdaj)/=1) then
+                    !
+                    write(out,"('molpro_duo: DIPOLE ',2i4,'; illegal selection rules for lambda = ',2i4,' not +/-1')") & 
+                          field%iref,field%jref,field%lambda,field%lambdaj
+                    stop 'molpro_duo: illegal selection rules for transition dipole'
+                    !
+                  endif
+                  !
+                  c = -field%gridvalue(i)*field%complex_f*sqrt(0.5_rk)
+                  !
+                  ! maple for Lx
+                  !c = -conjugate(A[1,2])*a/conjugate(A[2,2]), b = -a*B[1,2]/B[2,2], 
+                  !d = B[1,2]*conjugate(A[1,2])*a/(B[2,2]*conjugate(A[2,2]))
+                  ! m+ = -1/sqrt(2)l+
+                  !
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba|r+|Lambda'> = 0 
+                  ! <Lamba|r+|-Lambda'> = 0 
+                  ! <-Lamba|r+|-Lambda'> = 0 
+                  ! where we assume 
+                  ! c = <x|r+|x> and < Lamba|L+|Lambda'> /= 0 
+                  !
+                  coupling(1,1) =  c
+                  coupling(1,2) = -c*b(1,2)/b(2,2)
+                  coupling(2,1) = -c*conjg(a(1,2)/a(2,2))
+                  coupling(2,2) =  c*conjg(a(1,2)/a(2,2))*b(1,2)/b(2,2)
+                  !
+                  !coupling(1,1) =  -c*b(2,2)/b(1,2)
+                  !coupling(1,2) =   c
+                  !coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  !coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
+                  !
+                case('L+','ABINITIO-LX')
+                  !
+                  if (abs(field%lambda-field%lambdaj)/=1) then
+                    !
+                    write(out,"('molpro_duo: L+ ',2i4,'; illegal selection rules for lambda = ',2i4,' not +/-1')") & 
+                          field%iref,field%jref,field%lambda,field%lambdaj
+                    stop 'molpro_duo: L+ illegal selection rules for transition dipole'
+                    !
+                  endif
+                  !
+                  ! The <x|Lx+iLy|y> element is <x|Lx|y>
+                  !
+                  c = field%gridvalue(i)*field%complex_f
+                  !
+                  ! maple:
+                  !
+                  !d = -b*conjugate(A[1,2])/conjugate(A[2,2]), c = B[2,2]*b*conjugate(A[1,2])/(B[1,2]*conjugate(A[2,2])), 
+                  !a = -B[2,2]*b/B[1,2]
+                  !
+                  ! these cominations are found using the following three conditions 
+                  ! <-Lamba|L+|Lambda'> = 0 
+                  ! <Lamba|L+|-Lambda'> = 0 
+                  ! <-Lamba|L+|-Lambda'> = 0 
+                  ! where we assume 
+                  ! c = <x|L+|y> and  < Lamba|L+|Lambda'> /= 0 
+                  !
+                  coupling(1,1) = -c*b(2,2)/b(1,2)
+                  coupling(1,2) =  c
+                  coupling(2,1) =  c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
+                  coupling(2,2) = -c*conjg(a(1,2)/a(2,2))
+                  !
+                case default
+                  !
+                  write(out,"('molpro_duo (lambdaj<>lambdai): for class ',a,' is not implemented ')") field%class
+                  stop 'molpro_duo: not for this object'
+                  !
+                end select
+                !
+              else
+                !
+                select case(trim(field%class))
+                  !
+                case('SPINORBIT','ABINITIO-SPINORBIT')
+                  !
+                  if (nint(field%sigmaj-field%sigmai)/=0) then
+                    !
+                    write(out,"('molpro_duo: SOZ ',2i4,'; illegal selection rules, sigma = ',2f8.1,' lambda = ',2i4)") & 
+                          field%iref,field%jref,field%sigmai,field%sigmaj,field%lambda,field%lambdaj
+                    stop 'molpro_duo: SOZ illegal selection rules '
+                    !
+                  endif
+                  !
+                  if ( field%sigmai<0 ) then
+                    !
+                    !write(out,"('molpro_duo: SO ',2i4,'; illegal reference sigmai <0 ',2f8.1)") &
+                    !      field%iref,field%jref,field%sigmai,field%sigmaj
+                    !stop 'molpro_duo: illegal reference sigmai'
+                    !
+                  endif
+                  !
+                  c = field%gridvalue(i)*field%complex_f
+                  !
+                  !coupling(1,1) =  c
+                  !coupling(1,2) =  0
+                  !coupling(2,1) =  0
+                  !coupling(2,2) = -c*b(1,2)/b(2,2)*conjg(a(1,1))/conjg(a(2,1))
+                  !
+                  coupling(1,1) =  0
+                  coupling(1,2) =  c
+                  coupling(2,1) = -conjg(a(1,1))*c*b(2,2)/(conjg(a(2,1))*b(1,2))
+                  coupling(2,2) =  0
+                  !
+                case('DIPOLE')
+                  !
+                  if (abs(field%lambda-field%lambdaj)/=0) then
+                    !
+                    write(out,"('molpro_duo: DMZ ',2i4,'; illegal selection rules for lambda = ',2i4,' not 0')") &
+                          field%iref,field%jref,field%lambda,field%lambdaj
+                    stop 'molpro_duo: illegal selection rules for DMZ'
+                    !
+                  endif
+                  !
+                  c = field%gridvalue(i)*field%complex_f
+                  !
+                  !coupling(1,1) =  0
+                  !coupling(1,2) =  c
+                  !coupling(2,1) = -conjg(a(1,1))*c*b(2,2)/(conjg(a(2,1))*b(1,2))
+                  !coupling(2,2) =  0
+                  !
+                  coupling(1,1) =  c
+                  coupling(1,2) =  0
+                  coupling(2,1) =  0
+                  coupling(2,2) =  c
+                  !
+                case default
+                  !
+                  write(out,"('molpro_duo: for class ',a,' is not implemented ')") field%class
+                  stop 'molpro_duo: not for this object'
+                  !
+                end select
+                !
+              endif
+              !
+              f_t = matmul( conjg(transpose(a)),matmul(coupling,(b)) )
+              !
+              field%gridvalue(i) = real(f_t(1,1))
+              !
+              if (any( abs( aimag( f_t ) )>small_ ) ) then
+                !
+                write(out,"(/'molpro_duo: ',a,' ',2i3,'; duo-complex values ',8f8.1)") trim(field%class),field%iref,&
+                                                                                       field%jref,f_t(:,:)
+                                                                                       
+                write(out,"('Please check the MOLPRO output and use FACTOR I if required')")
+                write(out,"('It is important that MOLPROS LSX (spin-orbit-x), LX and DMX (dipole-x) values are used')")
+                write(out,"('If this is input from older publications (before 2019) please try keyword LEGACY anywhere in input')")
+                write(out,"('This will use the previously standard for the molpro objects')")
+                stop 'molpro_duo error: duo-complex values'
+                !
+              endif
+              !
+              if (abs( real( f_t(1,1) ) )<=sqrt(small_) .and.abs(field%gridvalue(i))>sqrt(small_)) then
+                !
+                write(out,"('molpro_duo: ',a,' ',2i3,'; duo-zero values ',8f8.1)") trim(field%class),field%iref,field%jref,f_t(:,:)
+                stop 'molpro_duo: duo-zero values ?'
+                !
+              endif
+              !
+            enddo
+            !omp end parallel do
+
+     end subroutine molpro_duo
+
+
+     subroutine molpro_duo_old_2018(field)
         !
         use lapack,only : lapack_zheev     
         !
@@ -5094,7 +5646,9 @@ subroutine map_fields_onto_grid(iverbose)
             enddo
             !omp end parallel do
 
-     end subroutine molpro_duo
+     end subroutine molpro_duo_old_2018
+
+
      !
      subroutine check_and_print_coupling(N,iverbose,fl,name)
        !
@@ -5535,9 +6089,10 @@ end subroutine map_fields_onto_grid
      type(matrixT)              :: transform(2)
      type(fieldT),pointer       :: field
      !logical                    :: passed
-     real(ark),allocatable      :: psipsi_ark(:)
-     !real(ark),allocatable      :: contrfunc_ark(:,:),vibmat_ark(:,:),matelem_ark(:,:),grid_ark(:)
-     !real(ark)                  :: f_ark
+     real(rk),allocatable      :: psipsi_rk(:)
+     real(rk),allocatable       :: mu_rr(:)
+     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
+     !real(rk)                  :: f_rk
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_
 
@@ -5612,20 +6167,20 @@ end subroutine map_fields_onto_grid
      allocate(icontrvib(ngrid*Nestates),stat=alloc)
      !call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
      !
-     !allocate(vibmat_ark(ngrid,ngrid),stat=alloc)
-     !call ArrayStart('vibmat_ark',alloc,size(vibmat_ark),kind(vibmat_ark))
+     !allocate(vibmat_rk(ngrid,ngrid),stat=alloc)
+     !call ArrayStart('vibmat_rk',alloc,size(vibmat_rk),kind(vibmat_rk))
      !
-     !allocate(contrfunc_ark(ngrid,ngrid*Nestates),stat=alloc)
-     !call ArrayStart('contrfunc_ark',alloc,size(contrfunc_ark),kind(contrfunc_ark))
+     !allocate(contrfunc_rk(ngrid,ngrid*Nestates),stat=alloc)
+     !call ArrayStart('contrfunc_rk',alloc,size(contrfunc_rk),kind(contrfunc_rk))
      !
-     !allocate(grid_ark(ngrid),stat=alloc)
-     !call ArrayStart('grid_ark',alloc,size(grid_ark),kind(grid_ark))
+     !allocate(grid_rk(ngrid),stat=alloc)
+     !call ArrayStart('grid_rk',alloc,size(grid_rk),kind(grid_rk))
      !
-     allocate(psipsi_ark(ngrid),stat=alloc)
-     call ArrayStart('psipsi_ark',alloc,size(psipsi_ark),kind(psipsi_ark))
+     allocate(psipsi_rk(ngrid),stat=alloc)
+     call ArrayStart('psipsi_rk',alloc,size(psipsi_rk),kind(psipsi_rk))
      !
      !do i = 1,ngrid
-     !  grid_ark(i) = 0.7_ark+(3.0_ark-.7_ark)/real(ngrid-1,ark)*real(i-1,ark)
+     !  grid_rk(i) = 0.7_rk+(3.0_rk-.7_rk)/real(ngrid-1,rk)*real(i-1,rk)
      !enddo
      !
      if (iverbose>=4) call TimerStart('Solve vibrational part')
@@ -5718,7 +6273,7 @@ end subroutine map_fields_onto_grid
                 write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
                 stop
               endif
-              vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* PI**2 / 3._rk
+              vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
               !
               do jgrid =igrid+1, ngrid
                 vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
@@ -5732,6 +6287,8 @@ end subroutine map_fields_onto_grid
                 write(out, '(A)') 'Lobatto grid (grid type 6).'
                 stop
               endif
+              !
+              vibTmat = 0 
               !
               do jgrid = igrid,ngrid
                  do kgrid=1,ngrid
@@ -5756,24 +6313,73 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
        !
-       ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
-       ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
-       ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
-       ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
-       !
-       jobz = 'V'
-       vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
-       irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
-       nroots = Ngrid
-       rng = 'A'
-       !
-       if (job%vibmax(istate)/=1e8) then
-          rng = 'I'
-       elseif (job%vibenermax(istate)<1e8) then
-          rng = 'V'
+       if (trim(poten(istate)%integration_method)=='NUMEROV') then 
+         !
+         ! we need only these many roots
+         !
+         nroots = min(job%vibmax(istate),Ngrid)
+         allocate(mu_rr(1:ngrid),stat=alloc)
+         call ArrayStart('mu_rr',alloc,size(mu_rr),kind(mu_rr))
+         !
+         mu_rr = 2.0_rk*b_rot
+         !
+         !
+         write(out,"('Error: ME_numerov is not implemented yet')")
+         stop 'Error: ME_numerov is not implemented yet'
+         !
+         !call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
+         !                 job%vibenermax(istate),iverbose,vibener,vibmat)
+         !
+         deallocate(mu_rr)
+         call ArrayStop('mu_rr')
+         !
+         vibener = vibener*sc
+         !
+         ! or as many as below job%upper_ener if required by the input
+         if ((job%vibenermax(istate))*sc<safe_max) then
+           nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
+         endif
+         !
+       else
+         !
+         if (job%vibmax(istate)>ngrid/2) then
+            !
+            call lapack_syev(vibmat,vibener)
+            !
+            ! we need only these many roots
+            Nroots = min(ngrid,job%vibmax(istate))
+            !
+            ! or as many as below job%upper_ener if required by the input
+            if ((job%vibenermax(istate))*sc<safe_max) then
+              nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
+            endif
+            !
+          else
+            !
+            ! some diagonalizers needs the following parameters to be defined
+            !
+            ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
+            ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
+            ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
+            ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
+            !
+            jobz = 'V'
+            vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
+            if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
+            irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
+            nroots = Ngrid
+            rng = 'A'
+            !
+            if (job%vibmax(istate)/=1e8) then
+               rng = 'I'
+            elseif (job%vibenermax(istate)<1e8) then
+               rng = 'V'
+            endif
+            !
+            call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+            !
+         endif
        endif
-       !
-       call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
        !
        if (nroots<1) then
          nroots = 1
@@ -5790,11 +6396,11 @@ end subroutine map_fields_onto_grid
        contrfunc(:,totalroots+1:totalroots+nroots) = vibmat(:,1:nroots)
        contrenergy(totalroots+1:totalroots+nroots) = vibener(1:nroots)
        !
-       !vibmat_ark = vibmat
+       !vibmat_rk = vibmat
        !
-       !call schmidt_orthogonalization(ngrid,nroots,vibmat_ark)
+       !call schmidt_orthogonalization(ngrid,nroots,vibmat_rk)
        !
-       !contrfunc_ark(:,totalroots+1:totalroots+nroots) = vibmat_ark(:,1:nroots)
+       !contrfunc_rk(:,totalroots+1:totalroots+nroots) = vibmat_rk(:,1:nroots)
        !
        ! assign the eigenstates with quanta
        do i=1,nroots
@@ -5936,11 +6542,11 @@ end subroutine map_fields_onto_grid
      call ArrayStop('vibmat')
      call ArrayStop('vibener')
      !
-     !deallocate(vibmat_ark)
-     !call ArrayStop('vibmat_ark')
+     !deallocate(vibmat_rk)
+     !call ArrayStop('vibmat_rk')
      !
-     !allocate(matelem_ark(totalroots,totalroots),stat=alloc)
-     !call ArrayStart('matelem_ark',alloc,size(matelem_ark),kind(matelem_ark))
+     !allocate(matelem_rk(totalroots,totalroots),stat=alloc)
+     !call ArrayStart('matelem_rk',alloc,size(matelem_rk),kind(matelem_rk))
      !
      deallocate(vec)
      call ArrayStop('vec')
@@ -6037,11 +6643,11 @@ end subroutine map_fields_onto_grid
               ! in the grid representation of the vibrational basis set
               ! the matrix elements are evaluated simply by a summation of over the grid points
               !
-              !psipsi_ark = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
+              !psipsi_rk = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
               !
-              !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+              !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
               !
-              !field%matelem(ilevel,jlevel) = f_ark
+              !field%matelem(ilevel,jlevel) = f_rk
               !
               field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
               !
@@ -6051,20 +6657,20 @@ end subroutine map_fields_onto_grid
               !
               field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
               !
-              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel))
+              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
               !
-              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )* & 
-              !                                                                        contrfunc_ark(:,jlevel))
+              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
+              !                                                                        contrfunc_rk(:,jlevel))
               !
-              !psipsi_ark = contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel)
+              !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
               !
-              !psipsi_ark = contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )*contrfunc_ark(:,jlevel)
+              !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
               !
-              !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+              !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
               !
-              !matelem_ark(ilevel,jlevel) = f_ark
+              !matelem_rk(ilevel,jlevel) = f_rk
               !
-              !matelem_ark(jlevel,ilevel) = matelem_ark(ilevel,jlevel)
+              !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
               !
               !
             enddo
@@ -6100,7 +6706,7 @@ end subroutine map_fields_onto_grid
                                                                                           icontrvib(jlevel)%istate,       &
                                                                                           icontrvib(jlevel)%v,            &
                                                                                           field%matelem(ilevel,jlevel)  ! & 
-                                                                                          !,matelem_ark(ilevel,jlevel)
+                                                                                          !,matelem_rk(ilevel,jlevel)
                        !
                      endif
                     !
@@ -6123,16 +6729,16 @@ end subroutine map_fields_onto_grid
      !
      fields_allocated = .true.
      !
-     !deallocate(contrfunc_ark)
-     !call ArrayStop('contrfunc_ark')
+     !deallocate(contrfunc_rk)
+     !call ArrayStop('contrfunc_rk')
      !
-     !deallocate(matelem_ark)
-     !call ArrayStop('matelem_ark')
+     !deallocate(matelem_rk)
+     !call ArrayStop('matelem_rk')
      !
-     deallocate(psipsi_ark)
-     call ArrayStop('psipsi_ark')
-     !deallocate(grid_ark)
-     !call ArrayStop('grid_ark')
+     deallocate(psipsi_rk)
+     call ArrayStop('psipsi_rk')
+     !deallocate(grid_rk)
+     !call ArrayStop('grid_rk')
      !
      ! checkpoint the matrix elements of dipoles if required 
      !
@@ -6178,7 +6784,7 @@ end subroutine map_fields_onto_grid
         !
         write(iunit,'(a)') '   <- States'
         !
-        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega ivib|')")
+        write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda Spin     Sigma    Omega ivib|')")
         !
         filename =  trim(job%eigenfile%vectors)//'_vib.chk'
         write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -6419,7 +7025,7 @@ end subroutine map_fields_onto_grid
               if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
                   abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
                 field => diabatic(idiab)
-                f_diabatic = field%matelem(ivib,jvib)
+                f_diabatic = field%matelem(ivib,jvib)*sc
                 hmat(i,j) = hmat(i,j) + f_diabatic
                 exit
               endif
@@ -7536,10 +8142,12 @@ end subroutine map_fields_onto_grid
             ! some diagonalizers needs the following parameters to be defined
             !
             zpe = job%ZPE
-            if (.not.job%shift_to_zpe) zpe = minval(hsym)
             !
             jobz = 'V'
             vrange(1) = -0.0_rk ; vrange(2) = (job%upper_ener+zpe)*sc
+            !
+            if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
+            !
             irange(1) = 1 ; irange(2) = min(job%nroots(1),Ntotal)
             nroots = job%nroots(1)
             !
@@ -7717,8 +8325,6 @@ end subroutine map_fields_onto_grid
             ! total number of levels for given J,gamma selected for the intensity calculations
             total_roots = 0
             !
-            vib_count = 0
-            !
             if (iverbose>=4) call TimerStart('Prepare_eigenfuncs_for_intens')
             !
             do i=1,Nroots
@@ -7762,6 +8368,8 @@ end subroutine map_fields_onto_grid
             !call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
             !
             total_roots = 0
+            !
+            if (job%assign_v_by_count) vib_count = 0
             !
             do i=1,Nroots
               !
@@ -7837,7 +8445,7 @@ end subroutine map_fields_onto_grid
                 spini = icontr(mterm)%spin
                 !v = icontr(mterm)%v
                 v  = vib_count(i)
-                vib_count(i) = v
+                !vib_count(i) = v
                 !
                 ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
                 if (job%assign_v_by_count) then
@@ -7926,9 +8534,9 @@ end subroutine map_fields_onto_grid
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
-                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,i4)')  total_roots,     & 
-                          J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,icontr(k)%sigma, &
-                          icontr(k)%spin,icontr(k)%ivib
+                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                          total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                          icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                   enddo
                   !
                 endif
@@ -8019,15 +8627,15 @@ end subroutine map_fields_onto_grid
   subroutine schmidt_orthogonalization(dimen,nroots,mat)
       !
       integer(ik),intent(in) :: dimen,nroots
-      real(ark),intent(inout) :: mat(dimen,dimen)
+      real(rk),intent(inout) :: mat(dimen,dimen)
       integer(ik) :: ielem,jelem
-      real(ark)   :: cross_prod,factor
+      real(rk)   :: cross_prod,factor
       !
       do ielem =  1,nroots
         !
         cross_prod = sum(mat(:,ielem)**2)
         !
-        factor = 1.0_ark/sqrt(cross_prod)
+        factor = 1.0_rk/sqrt(cross_prod)
         !
         mat(:,ielem) = mat(:,ielem)*factor
         !
@@ -8051,19 +8659,19 @@ end subroutine map_fields_onto_grid
 !
 ! integration with Simpson rules 
 !                                      
-  function simpsonintegral_ark(npoints,f) result (si) 
+  function simpsonintegral_rk(npoints,f) result (si) 
     integer(ik),intent(in) :: npoints
     !
-    real(ark),intent(in) :: f(0:npoints)
+    real(rk),intent(in) :: f(0:npoints)
     !
-    real(ark) :: si
+    real(rk) :: si
     !
     integer(ik) :: i
     !
-    real(ark) ::  feven,fodd,f0,fmax,h
+    real(rk) ::  feven,fodd,f0,fmax,h
       !
-      h = 1.0_ark 
-      !xmax/real(Npoints,kind=ark)  !   integration step, it is already inlcuded
+      h = 1.0_rk 
+      !xmax/real(Npoints,kind=rk)  !   integration step, it is already inlcuded
       feven=0         
       fodd =0
       f0   =f(0)
@@ -8079,9 +8687,9 @@ end subroutine map_fields_onto_grid
      !
      fodd   = fodd  + f(npoints-1)
      !
-     si =  h/3.0_ark*( 4.0_ark*fodd + 2.0_ark*feven + f0 + fmax)
+     si =  h/3.0_rk*( 4.0_rk*fodd + 2.0_rk*feven + f0 + fmax)
 
-  end function  simpsonintegral_ark
+  end function  simpsonintegral_rk
 
 
 
