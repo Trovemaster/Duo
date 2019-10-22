@@ -301,15 +301,13 @@ module polarizability
     real(rk), allocatable     :: vecI(:), vecF(:)
     real(rk), allocatable     :: half_linestr(:), half_linestr_zero(:)
     !
-    integer(ik)  :: jind, nlevels, j1, j2
+    integer(ik)  :: jind, nlevels
     !
-    integer(ik)  :: iroot, NlevelsI, NlevelsF, nlower, k, k_, iLF, iflag_rich
+    integer(ik)  :: iroot, NlevelsI, NlevelsF, nlower,iLF, iflag_rich
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen), igamma, istateI, istateF,&
                     ivibI, ivibF, ivI, ivF, ilambdaI, ilambdaF, iparityI, itau
-    integer(ik)  :: ivF_, ilambdaF_
-    real(rk)     :: spinI, spinF, omegaI, omegaF, sigmaI, sigmaF,& 
-                    sigmaF_, omegaF_, spinF_
+    real(rk)     :: spinI, spinF, omegaI, omegaF, sigmaI, sigmaF
     integer(hik) :: matsize
     !
     character(len=1)  :: branch, ef, pm
@@ -319,7 +317,7 @@ module polarizability
     type(quantaT),pointer  :: quantaI, quantaF
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef,&
-                    A_coef_s_1, A_einst, absorption_int, lande
+                    A_coef_s_1, A_einst, absorption_int
     !
     character(len=130) :: my_fmt !format for I/O specification
     !
@@ -331,7 +329,7 @@ module polarizability
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_, ID_J, nMs
+    integer(ik) :: Jmax_, ID_J
     real(rk)    :: J_
     !
     character(len=12)        :: char_Jf,char_Ji,char_LF

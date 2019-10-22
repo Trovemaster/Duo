@@ -147,8 +147,8 @@ subroutine derLobatto(result,n,eta,Ntot,rpt,w)
     real(rk), intent(out)::   result
         integer(ik), intent(in)::   n, Ntot,eta
     real(rk), intent(in)::    w(0:Ntot+1), rpt(0:Ntot+1)
-    real(rk)::                intpf, factor(0:Ntot+1),signrecorder
-        integer(ik)::               j,m,Nhalf
+    real(rk)::                factor(0:Ntot+1),signrecorder
+        integer(ik)::               j,Nhalf
 
     Nhalf=(Ntot+2)/2
     if (n==eta) then

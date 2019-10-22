@@ -348,7 +348,7 @@ contains
     real(rk),    allocatable :: vecI(:), vecF(:)
     real(rk),allocatable     :: half_linestr(:)
     !
-    integer(ik)  :: jind,nlevels,j1,j2
+    integer(ik)  :: jind,nlevels
     !
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
@@ -374,7 +374,7 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,nMs
+    integer(ik) :: Jmax_,ID_J
     real(rk) :: J_
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
@@ -1370,7 +1370,7 @@ contains
           !
         enddo
         !
-        if ( intensity%gns(igammaI)/=intensity%gns(igamma_pair(igammaI)) ) then 
+        if ( nint(intensity%gns(igammaI)-intensity%gns(igamma_pair(igammaI)))/=0 ) then 
           !
           write(out,"('dm_intensity: selection rules do not agree with Gns')")
           stop 'dm_intensity: selection rules do not agree with Gns!'
@@ -1511,7 +1511,7 @@ contains
              !
              passed = passed.and.                                              &
              !
-             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+             (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.  &
              !
              !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
              ( intensity%J(1)+intensity%J(2)>0 ).and. &
@@ -1584,7 +1584,7 @@ contains
              !
              passed = passed.and.                                              &
              !
-             (jF/=intensity%J(1).or.jI/=intensity%J(1).or.nint(jI+jF)==1).and.                    &
+             (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.                    &
              !
              !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
              ( intensity%J(1)+intensity%J(2)>0 ).and. &
@@ -2007,7 +2007,7 @@ contains
 
 
 
-      subroutine    (iLF,iunit,jI,jF,icount)
+      subroutine  do_LF_matrix_elements(iLF,iunit,jI,jF,icount)
         implicit none 
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: iLF,iunit
@@ -2129,7 +2129,8 @@ contains
       if(c.lt.abs(a-b)) return
       if(a.lt.0.or.b.lt.0.or.c.lt.0) return
       if(a.lt.abs(al).or.b.lt.abs(be).or.c.lt.abs(ga)) return
-      if(-ga.ne.al+be) return
+      !if(-ga.ne.al+be) return
+      if(nint(ga+al+be).ne.0) return
 !
 !
 !     compute delta(abc)

@@ -5,7 +5,7 @@ module diatom_module
   use functions, only : analytical_fieldT
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
-  use me_numer,  only : ME_numerov
+  !use me_numer,  only : ME_numerov
   !
   implicit none
   !                     by Lorenzo Lodi
@@ -6323,8 +6323,12 @@ end subroutine map_fields_onto_grid
          !
          mu_rr = 2.0_rk*b_rot
          !
-         call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
-                          job%vibenermax(istate),iverbose,vibener,vibmat)
+         !
+         write(out,"('Error: ME_numerov is not implemented yet')")
+         stop 'Error: ME_numerov is not implemented yet'
+         !
+         !call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
+         !                 job%vibenermax(istate),iverbose,vibener,vibmat)
          !
          deallocate(mu_rr)
          call ArrayStop('mu_rr')
