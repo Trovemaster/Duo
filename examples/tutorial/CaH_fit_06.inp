@@ -7,41 +7,41 @@ nstates 3
 jrot 0.5 - 2.5
 
 
-    (Defining the integration grid)
-    grid
-      npoints  301  (odd)
-      range  1.25, 4.00
-      type 0   (nsub)
-    end 
-    
-    DIAGONALIZER 
-     SYEVR
-    end
-    
-    CONTRACTION
-     vib
-     vmax 40
-    end
-    
-    poten 1
-    name "X2Sigma+"
-    symmetry +
-    type EMO
-    lambda 0
-    mult 2
-    values
-    TE           0.00000000000000E+00     
-    RE           1.99311966400000E+00     
-    AE           1.39799129740488E+04  
-    RREF        -1.00000000000000E+00  
-    PL           2.00000000000000E+00  
-    PR           2.00000000000000E+00  
-    NL           2.00000000000000E+00  
-    NR           3.00000000000000E+00  
-    A0           1.31899636602222E+00  
-    A1           4.66342382517623E-01  
-    A2           8.04818675405854E-01  
-    A3           0.00000000000000E+00     
+(Defining the integration grid)
+grid
+  npoints  301  (odd)
+  range  1.25, 4.00
+  type 0   (nsub)
+end 
+
+DIAGONALIZER 
+ SYEVR
+end
+
+CONTRACTION
+ vib
+ vmax 40
+end
+
+poten 1
+name "X2Sigma+"
+symmetry +
+type EMO
+lambda 0
+mult 2
+values
+TE           0.00000000000000E+00     
+RE           1.99311966400000E+00     
+AE           1.39799129740488E+04  
+RREF        -1.00000000000000E+00  
+PL           2.00000000000000E+00  
+PR           2.00000000000000E+00  
+NL           2.00000000000000E+00  
+NR           3.00000000000000E+00  
+A0           1.31899636602222E+00  
+A1           4.66342382517623E-01  
+A2           8.04818675405854E-01  
+A3           0.00000000000000E+00     
 end
 
 poten 2
@@ -128,7 +128,7 @@ end
 
 FITTING
 JLIST 0.5 
-itmax 20
+itmax 0
 fit_factor 1e6
 output  CaH_05
 lock 300.0
