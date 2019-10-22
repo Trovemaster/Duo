@@ -2007,7 +2007,7 @@ contains
 
 
 
-      subroutine do_LF_matrix_elements(iLF,iunit,jI,jF,icount)
+      subroutine    (iLF,iunit,jI,jF,icount)
         implicit none 
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: iLF,iunit
@@ -2028,8 +2028,8 @@ contains
           !
           ! Only the y-component is imaginary, which we make real here but indicate in richmol file
           !
-          t(1,-1) = -1.0_rk/sqrt(2.0_rk)
-          t(1,1)  =  1.0_rk/sqrt(2.0_rk)
+          t(1,-1) =  1.0_rk/sqrt(2.0_rk)
+          t(1,1)  = -1.0_rk/sqrt(2.0_rk)
           t(2,-1) = 1.0_rk/sqrt(2.0_rk)
           t(2,1)  = 1.0_rk/sqrt(2.0_rk)
           t(3,0)  = 1.0_rk

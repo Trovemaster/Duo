@@ -3,8 +3,9 @@ module diatom_module
   use accuracy
   use timer
   use functions, only : analytical_fieldT
-  use symmetry,  only   : sym,SymmetryInitialize
+  use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
+  use me_numer,  only : ME_numerov
   !
   implicit none
   !                     by Lorenzo Lodi
@@ -194,6 +195,7 @@ module diatom_module
     integer(ik)           :: ix_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for i-state, 1000 is for undefined 
     integer(ik)           :: jx_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for j-state, 1000 is for undefined 
     type(weightT)         :: weighting             ! When morphing is the field is used to morph the ab initio couterpart
+    character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
   end type fieldT
   !
@@ -2578,6 +2580,10 @@ module diatom_module
             case("MOLPRO")
               !
               field%molpro = .true.
+              !
+            case("INTEGRATION")
+              !
+              call readu(field%integration_method)
               !
             case("FACTOR")
               !
@@ -6083,9 +6089,10 @@ end subroutine map_fields_onto_grid
      type(matrixT)              :: transform(2)
      type(fieldT),pointer       :: field
      !logical                    :: passed
-     real(ark),allocatable      :: psipsi_ark(:)
-     !real(ark),allocatable      :: contrfunc_ark(:,:),vibmat_ark(:,:),matelem_ark(:,:),grid_ark(:)
-     !real(ark)                  :: f_ark
+     real(rk),allocatable      :: psipsi_rk(:)
+     real(rk),allocatable       :: mu_rr(:)
+     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
+     !real(rk)                  :: f_rk
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_
 
@@ -6160,20 +6167,20 @@ end subroutine map_fields_onto_grid
      allocate(icontrvib(ngrid*Nestates),stat=alloc)
      !call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
      !
-     !allocate(vibmat_ark(ngrid,ngrid),stat=alloc)
-     !call ArrayStart('vibmat_ark',alloc,size(vibmat_ark),kind(vibmat_ark))
+     !allocate(vibmat_rk(ngrid,ngrid),stat=alloc)
+     !call ArrayStart('vibmat_rk',alloc,size(vibmat_rk),kind(vibmat_rk))
      !
-     !allocate(contrfunc_ark(ngrid,ngrid*Nestates),stat=alloc)
-     !call ArrayStart('contrfunc_ark',alloc,size(contrfunc_ark),kind(contrfunc_ark))
+     !allocate(contrfunc_rk(ngrid,ngrid*Nestates),stat=alloc)
+     !call ArrayStart('contrfunc_rk',alloc,size(contrfunc_rk),kind(contrfunc_rk))
      !
-     !allocate(grid_ark(ngrid),stat=alloc)
-     !call ArrayStart('grid_ark',alloc,size(grid_ark),kind(grid_ark))
+     !allocate(grid_rk(ngrid),stat=alloc)
+     !call ArrayStart('grid_rk',alloc,size(grid_rk),kind(grid_rk))
      !
-     allocate(psipsi_ark(ngrid),stat=alloc)
-     call ArrayStart('psipsi_ark',alloc,size(psipsi_ark),kind(psipsi_ark))
+     allocate(psipsi_rk(ngrid),stat=alloc)
+     call ArrayStart('psipsi_rk',alloc,size(psipsi_rk),kind(psipsi_rk))
      !
      !do i = 1,ngrid
-     !  grid_ark(i) = 0.7_ark+(3.0_ark-.7_ark)/real(ngrid-1,ark)*real(i-1,ark)
+     !  grid_rk(i) = 0.7_rk+(3.0_rk-.7_rk)/real(ngrid-1,rk)*real(i-1,rk)
      !enddo
      !
      if (iverbose>=4) call TimerStart('Solve vibrational part')
@@ -6266,7 +6273,7 @@ end subroutine map_fields_onto_grid
                 write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
                 stop
               endif
-              vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* PI**2 / 3._rk
+              vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
               !
               do jgrid =igrid+1, ngrid
                 vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
@@ -6306,42 +6313,68 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
        !
-       if (job%vibmax(istate)>ngrid/2) then
-          !
-          call lapack_syev(vibmat,vibener)
-          !
-          ! we need only these many roots
-          Nroots = min(ngrid,job%vibmax(istate))
-          !
-          ! or as many as below job%upper_ener if required by the input
-          if ((job%vibenermax(istate))*sc<safe_max) then
-            nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
-          endif
-          !
-        else
-          !
-          ! some diagonalizers needs the following parameters to be defined
-          !
-          ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
-          ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
-          ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
-          ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
-          !
-          jobz = 'V'
-          vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
-          if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
-          irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
-          nroots = Ngrid
-          rng = 'A'
-          !
-          if (job%vibmax(istate)/=1e8) then
-             rng = 'I'
-          elseif (job%vibenermax(istate)<1e8) then
-             rng = 'V'
-          endif
-          !
-          call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
-          !
+       if (trim(poten(istate)%integration_method)=='NUMEROV') then 
+         !
+         ! we need only these many roots
+         !
+         nroots = min(job%vibmax(istate),Ngrid)
+         allocate(mu_rr(1:ngrid),stat=alloc)
+         call ArrayStart('mu_rr',alloc,size(mu_rr),kind(mu_rr))
+         !
+         mu_rr = 2.0_rk*b_rot
+         !
+         call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
+                          job%vibenermax(istate),iverbose,vibener,vibmat)
+         !
+         deallocate(mu_rr)
+         call ArrayStop('mu_rr')
+         !
+         vibener = vibener*sc
+         !
+         ! or as many as below job%upper_ener if required by the input
+         if ((job%vibenermax(istate))*sc<safe_max) then
+           nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
+         endif
+         !
+       else
+         !
+         if (job%vibmax(istate)>ngrid/2) then
+            !
+            call lapack_syev(vibmat,vibener)
+            !
+            ! we need only these many roots
+            Nroots = min(ngrid,job%vibmax(istate))
+            !
+            ! or as many as below job%upper_ener if required by the input
+            if ((job%vibenermax(istate))*sc<safe_max) then
+              nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
+            endif
+            !
+          else
+            !
+            ! some diagonalizers needs the following parameters to be defined
+            !
+            ! diagonalize the vibrational hamiltonian using the DSYEVR routine from LAPACK
+            ! DSYEVR computes selected eigenvalues and, optionally, eigenvectors of a real n by n symmetric matrix A.
+            ! The matrix is first reduced to tridiagonal form, using orthogonal similarity transformations.
+            ! Then whenever possible, DSYEVR computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
+            !
+            jobz = 'V'
+            vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
+            if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
+            irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ngrid)
+            nroots = Ngrid
+            rng = 'A'
+            !
+            if (job%vibmax(istate)/=1e8) then
+               rng = 'I'
+            elseif (job%vibenermax(istate)<1e8) then
+               rng = 'V'
+            endif
+            !
+            call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+            !
+         endif
        endif
        !
        if (nroots<1) then
@@ -6359,11 +6392,11 @@ end subroutine map_fields_onto_grid
        contrfunc(:,totalroots+1:totalroots+nroots) = vibmat(:,1:nroots)
        contrenergy(totalroots+1:totalroots+nroots) = vibener(1:nroots)
        !
-       !vibmat_ark = vibmat
+       !vibmat_rk = vibmat
        !
-       !call schmidt_orthogonalization(ngrid,nroots,vibmat_ark)
+       !call schmidt_orthogonalization(ngrid,nroots,vibmat_rk)
        !
-       !contrfunc_ark(:,totalroots+1:totalroots+nroots) = vibmat_ark(:,1:nroots)
+       !contrfunc_rk(:,totalroots+1:totalroots+nroots) = vibmat_rk(:,1:nroots)
        !
        ! assign the eigenstates with quanta
        do i=1,nroots
@@ -6505,11 +6538,11 @@ end subroutine map_fields_onto_grid
      call ArrayStop('vibmat')
      call ArrayStop('vibener')
      !
-     !deallocate(vibmat_ark)
-     !call ArrayStop('vibmat_ark')
+     !deallocate(vibmat_rk)
+     !call ArrayStop('vibmat_rk')
      !
-     !allocate(matelem_ark(totalroots,totalroots),stat=alloc)
-     !call ArrayStart('matelem_ark',alloc,size(matelem_ark),kind(matelem_ark))
+     !allocate(matelem_rk(totalroots,totalroots),stat=alloc)
+     !call ArrayStart('matelem_rk',alloc,size(matelem_rk),kind(matelem_rk))
      !
      deallocate(vec)
      call ArrayStop('vec')
@@ -6606,11 +6639,11 @@ end subroutine map_fields_onto_grid
               ! in the grid representation of the vibrational basis set
               ! the matrix elements are evaluated simply by a summation of over the grid points
               !
-              !psipsi_ark = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
+              !psipsi_rk = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
               !
-              !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+              !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
               !
-              !field%matelem(ilevel,jlevel) = f_ark
+              !field%matelem(ilevel,jlevel) = f_rk
               !
               field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
               !
@@ -6620,20 +6653,20 @@ end subroutine map_fields_onto_grid
               !
               field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
               !
-              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel))
+              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
               !
-              !matelem_ark(ilevel,jlevel)  = sum(contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )* & 
-              !                                                                        contrfunc_ark(:,jlevel))
+              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
+              !                                                                        contrfunc_rk(:,jlevel))
               !
-              !psipsi_ark = contrfunc_ark(:,ilevel)*real(field%gridvalue(:),ark)*contrfunc_ark(:,jlevel)
+              !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
               !
-              !psipsi_ark = contrfunc_ark(:,ilevel)*( (grid_ark(:)-2.24_ark )*0.6_ark )*contrfunc_ark(:,jlevel)
+              !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
               !
-              !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+              !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
               !
-              !matelem_ark(ilevel,jlevel) = f_ark
+              !matelem_rk(ilevel,jlevel) = f_rk
               !
-              !matelem_ark(jlevel,ilevel) = matelem_ark(ilevel,jlevel)
+              !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
               !
               !
             enddo
@@ -6669,7 +6702,7 @@ end subroutine map_fields_onto_grid
                                                                                           icontrvib(jlevel)%istate,       &
                                                                                           icontrvib(jlevel)%v,            &
                                                                                           field%matelem(ilevel,jlevel)  ! & 
-                                                                                          !,matelem_ark(ilevel,jlevel)
+                                                                                          !,matelem_rk(ilevel,jlevel)
                        !
                      endif
                     !
@@ -6692,16 +6725,16 @@ end subroutine map_fields_onto_grid
      !
      fields_allocated = .true.
      !
-     !deallocate(contrfunc_ark)
-     !call ArrayStop('contrfunc_ark')
+     !deallocate(contrfunc_rk)
+     !call ArrayStop('contrfunc_rk')
      !
-     !deallocate(matelem_ark)
-     !call ArrayStop('matelem_ark')
+     !deallocate(matelem_rk)
+     !call ArrayStop('matelem_rk')
      !
-     deallocate(psipsi_ark)
-     call ArrayStop('psipsi_ark')
-     !deallocate(grid_ark)
-     !call ArrayStop('grid_ark')
+     deallocate(psipsi_rk)
+     call ArrayStop('psipsi_rk')
+     !deallocate(grid_rk)
+     !call ArrayStop('grid_rk')
      !
      ! checkpoint the matrix elements of dipoles if required 
      !
@@ -6988,7 +7021,7 @@ end subroutine map_fields_onto_grid
               if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
                   abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
                 field => diabatic(idiab)
-                f_diabatic = field%matelem(ivib,jvib)
+                f_diabatic = field%matelem(ivib,jvib)*sc
                 hmat(i,j) = hmat(i,j) + f_diabatic
                 exit
               endif
@@ -8590,15 +8623,15 @@ end subroutine map_fields_onto_grid
   subroutine schmidt_orthogonalization(dimen,nroots,mat)
       !
       integer(ik),intent(in) :: dimen,nroots
-      real(ark),intent(inout) :: mat(dimen,dimen)
+      real(rk),intent(inout) :: mat(dimen,dimen)
       integer(ik) :: ielem,jelem
-      real(ark)   :: cross_prod,factor
+      real(rk)   :: cross_prod,factor
       !
       do ielem =  1,nroots
         !
         cross_prod = sum(mat(:,ielem)**2)
         !
-        factor = 1.0_ark/sqrt(cross_prod)
+        factor = 1.0_rk/sqrt(cross_prod)
         !
         mat(:,ielem) = mat(:,ielem)*factor
         !
@@ -8622,19 +8655,19 @@ end subroutine map_fields_onto_grid
 !
 ! integration with Simpson rules 
 !                                      
-  function simpsonintegral_ark(npoints,f) result (si) 
+  function simpsonintegral_rk(npoints,f) result (si) 
     integer(ik),intent(in) :: npoints
     !
-    real(ark),intent(in) :: f(0:npoints)
+    real(rk),intent(in) :: f(0:npoints)
     !
-    real(ark) :: si
+    real(rk) :: si
     !
     integer(ik) :: i
     !
-    real(ark) ::  feven,fodd,f0,fmax,h
+    real(rk) ::  feven,fodd,f0,fmax,h
       !
-      h = 1.0_ark 
-      !xmax/real(Npoints,kind=ark)  !   integration step, it is already inlcuded
+      h = 1.0_rk 
+      !xmax/real(Npoints,kind=rk)  !   integration step, it is already inlcuded
       feven=0         
       fodd =0
       f0   =f(0)
@@ -8650,9 +8683,9 @@ end subroutine map_fields_onto_grid
      !
      fodd   = fodd  + f(npoints-1)
      !
-     si =  h/3.0_ark*( 4.0_ark*fodd + 2.0_ark*feven + f0 + fmax)
+     si =  h/3.0_rk*( 4.0_rk*fodd + 2.0_rk*feven + f0 + fmax)
 
-  end function  simpsonintegral_ark
+  end function  simpsonintegral_rk
 
 
 

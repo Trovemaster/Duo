@@ -169,6 +169,10 @@ module functions
       !
       fanalytical_field => poten_repulsive
       !
+    case("LORENTZ","LORENTZIAN")
+      !
+      fanalytical_field => poten_lorentzian_polynom
+      !
     case("NONE")
       !
       write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
@@ -565,7 +569,7 @@ module functions
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
     real(rk)               :: y,v0,r0,de,f,rref,z,beta,betainf,betaN,yq,yp,uLR,uLR0,rho,b,c,s,damp,u,uinf,ma,mb
-    integer(ik)            :: k,N,p,M,Nstruc,Ntot,Npot,q,NUa,NUb
+    integer(ik)            :: k,N,p,M,Nstruc,Npot,q,NUa,NUb
     !
     v0 = parameters(1)
     r0 = parameters(2)
@@ -1395,7 +1399,7 @@ module functions
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: f1,f2,f,f_switch,t_0,r_s,a_s
+    real(rk)               :: f1,f2,f,f_switch,r_s,a_s
     integer(ik)            :: nparams1,nparams2,nparams3,icomponent,n
     !
     nparams1 = parameters(4)+6
@@ -1481,6 +1485,34 @@ module functions
     f = e(icomponent)
     !
   end function poten_two_coupled_EMO_repulsive
+
+  !
+  ! A lorentzian function for the couplings between diabatic curves 
+  !
+  function poten_lorentzian_polynom(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y0,r0,w,a,z,f0,f
+    integer(ik)            :: k,N
+    !
+    N = size(parameters)
+    !
+    y0 = parameters(1)
+    r0 = parameters(2)
+    w = parameters(3)
+    a = parameters(4)
+    !
+    z = (r-r0)
+    !
+    f0 = a
+    do k=5,N
+     f0 = f0 + parameters(k)*z**(k-4)
+    enddo
+    !
+    f = y0+2.0_rk*f0/pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) )
+    !
+  end function poten_lorentzian_polynom
 
   !
 end module functions

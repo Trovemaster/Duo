@@ -1,6 +1,6 @@
 module polarizability
   !
-  use accuracy,      only : hik, ik, rk, ark, cl, out, vellgt, planck, &
+  use accuracy,      only : hik, ik, rk, rk, cl, out, vellgt, planck, &
                             avogno, boltz, pi, small_
   use diatom_module, only : job, Intensity, quantaT, eigen, basis, Ndipoles, Nss, &
                             dipoletm, duo_j0, fieldT, poten, three_j, &
@@ -380,7 +380,7 @@ module polarizability
         !
         Jmax_ = nint(maxval(Jval(:)))
         !
-        allocate(richunit(nJ, nJ)) ! used to mark I/O unit
+        allocate(richunit(nJ, nJ)) ! used to mrk I/O unit
         !
         ! we now begin writing the matrix elements to the file
         do indI = 1, nJ
