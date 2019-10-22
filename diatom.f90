@@ -5,7 +5,7 @@ module diatom_module
   use functions, only : analytical_fieldT
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
-  !use me_numer,  only : ME_numerov
+  use me_numer,  only : ME_numerov
   !
   implicit none
   !                     by Lorenzo Lodi
