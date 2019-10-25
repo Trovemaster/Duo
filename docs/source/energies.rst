@@ -7,6 +7,7 @@ Calculation setup
 ^^^^^^^^^^^^^^^^^
 
 * Atoms:  defines the chemical symbols of the two atoms.
+
 Example:
 ::
 
@@ -48,9 +49,4 @@ Another example
      atoms Sc-44m3 H
 
 specifies the scandium radioactive isotope 44m3Sc (and hydrogen).
-
-
-
-
-
 
