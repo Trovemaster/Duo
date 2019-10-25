@@ -7,6 +7,7 @@ Welcome to Duo's documentation!
 
    intro
    compile
+   energies
    keywords
    license
 
