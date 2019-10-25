@@ -5,7 +5,6 @@ Welcome to Duo's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   intro
    compile
    input
    energies
