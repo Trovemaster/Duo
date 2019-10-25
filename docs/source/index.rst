@@ -8,6 +8,7 @@ Welcome to Duo's documentation!
    compile
    input
    energies
+   vibbasis
    keywords
    license
 

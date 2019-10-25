@@ -217,7 +217,7 @@ Transformed variable currently implemented are (Phys. Rev. A, 78:052510, 2008):\
 
 :math:`\quad z= \arctan( \alpha (r-r_e) )`
 
-:math:`\quad z= (y-1)/(y+1) $ with $y=(r/r_e)^\alpha`
+:math:`\quad z= (y-1)/(y+1)` with :math:`y=(r/r_e)^\alpha`
 
 All the transformed grids have the property of decreasing the density of points for large `r`, so that one does not `waste` too many points in
 regions where the potential is almost constant and the corresponding vibrational wave function slowly varying.
