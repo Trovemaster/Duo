@@ -25,6 +25,11 @@ appear regularly. If you have found a bug or you would like to make a comment pl
 The Duo examples can be obtained from github here 
 git clone https://github.com/Trovemaster/Duo/tree/MOLPRO/examples
 
+A small Duo tutorial_ can be found at the Duo github  
+
+.. _tutorial: https://github.com/Trovemaster/Duo/wiki
+
+
 On Windows 
 ^^^^^^^^^^
 
@@ -60,6 +65,15 @@ Navigate to the folder with the input_file and execute from the command line:
      
      ./duo_linux_64.exe < input_file  > output_file
 
+
+Duo-scripts
+----------
+
+The cshell script ``do-duo-input.csh`` can be used to replace the varied parameters (marked with ``Fit``) 
+in the duo input file by the corresponding refined values from the duo-output file:
+::
+
+     ./do-duo-input.csh duo_1.out > duo_2.inp
 
 
 Compilation

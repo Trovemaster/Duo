@@ -56,10 +56,11 @@ Example:
 
    J  0,10
 
-.. warning::
+.. note::
    Using the ``J`` keyword the intensity production can be split into independent  
    ``J`` :math:`J_{\rm min},J_{\rm max}` ranges. In order to prevent overlaps, the range :math:`J_{\rm min},J_{\rm max}` 
-   does not include transitions :math:`J_{\rm min} \leftrightarrow  J_{\rm min}`, except for :math:`J_{\rm min} = 0.5`, where the transitions :math:`0.5 \leftrightarrow 0.5` are included\footnote{Transitions :math:`0 \leftrightarrow 0` are forbidden.
+   does not include transitions :math:`J_{\rm min} \leftrightarrow  J_{\rm min}`, except for :math:`J_{\rm min} = 0.5`, 
+   where the transitions :math:`0.5 \leftrightarrow 0.5` are included. Transitions :math:`0 \leftrightarrow 0` are forbidden.
 
 
 * ``Lande`` Compute Lande :math:`g` factors and write to the .states file.

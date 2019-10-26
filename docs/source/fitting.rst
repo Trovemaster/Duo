@@ -185,11 +185,11 @@ Example:
 
 The meaning of the quantities in each line are the following (see the keyword ``energies`` 
 above for an explanation of the symbols. The prime/double prime symbol correspond to upper/lower level):  
-:math:`J\p`, :math:`\tau\p`, :math:`N\p`, :math:`J\pp`, :math:`\tau\pp`, :math:`N\pp`; frequency (cm\ :sup:`-1`); 
-state`\p`, :math:`v\p`, :math:`\Lambda^\prime`, :math:`\Sigma^\prime`, :math:`\Omega^\prime`; state`\pp`, :math:`v^{\prime\prime}`, 
-:math:`\Lambda^{\prime\prime}`, :math:`\Sigma^{\prime\prime}`, :math:`\Omega^{\prime\prime}`; weight.
+:math:`J'`, :math:`\tau'`, :math:`N'`, :math:`J''`, :math:`\tau''`, :math:`N''`; frequency (cm\ :sup:`-1`); 
+state\ :math:`'`, :math:`v'`, :math:`\Lambda'`, :math:`\Sigma'`, :math:`\Omega'`; state\ :math:`''`, :math:`v''`, 
+:math:`\Lambda''`, :math:`\Sigma''`, :math:`\Omega''`; weight.
 
-* ``off``,``none``  are  used to switch off ``Fitting``, ``Intensity`` or ``Overlap``, when put next to these keywords.
+* ``off``, ``none``  are  used to switch off ``Fitting``, ``Intensity`` or ``Overlap``, when put next to these keywords.
 
 
 
