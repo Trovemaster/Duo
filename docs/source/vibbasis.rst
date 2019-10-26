@@ -1,5 +1,5 @@
 Vibrational basis set
-=======================
+=====================
 
 The keyword `vibrationalbasis` (aliases: `vibrations`, `contraction`) 
 specifies the size of the vibrational basis set.

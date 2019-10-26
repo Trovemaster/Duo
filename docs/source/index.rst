@@ -9,6 +9,7 @@ Welcome to Duo's documentation!
    input
    energies
    vibbasis
+   fields
    keywords
    license
 
