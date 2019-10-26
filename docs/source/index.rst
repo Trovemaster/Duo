@@ -3,18 +3,18 @@ Welcome to Duo's documentation!
 
 .. toctree::
    :glob:
-   :maxdepth: 3
+   :maxdepth: 4
    :caption: Contents:
 
    compile
    input
    energies
+   spectra
    vibbasis
    fields
-   fieldskeywords
-   molpro
    functions
    fitting
+   eigenfunc
    keywords
    license
 

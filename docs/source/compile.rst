@@ -8,8 +8,8 @@ Downalod Duo from github_
 
 
 Duo is provided both as source code and as compiled executables for Linux and Microsoft Windows.
-Using the executables is the easiest way to run Duo. Duo works from the command line (also known as the `terminal`
-or `command prompt`).
+Using the executables is the easiest way to run Duo. Duo works from the command line (also known as the ``terminal``
+or ``command prompt``).
 A Duo input is a plain text input file which is fed into the program with a command of the kind
 ::
 

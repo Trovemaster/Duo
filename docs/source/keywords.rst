@@ -3,7 +3,7 @@ Duo keywords
 
 .. note:: The position of the keywords is not important. The input is not key-sensitive.
 
-* GNS: Nuclear statistical weight `gns 2.0`
+* GNS: Nuclear statistical weight ``gns 2.0``
 
 
 * Temperature:  Temperature (K):
@@ -18,7 +18,7 @@ Duo keywords
 + Temperature can be split into rotational temperature and vibrational temperature, which in input is given as 
        
 
-* `grid` is to define a multi-grid with different resolutions in different sub-grids as follows 
+* ``grid`` is to define a multi-grid with different resolutions in different sub-grids as follows 
 
 Example 
 ::     
