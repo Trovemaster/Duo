@@ -22,12 +22,12 @@ Please note that Duo is still in active development and new versions with bug fi
 appear regularly. If you have found a bug or you would like to make a comment please do not hesitate to contact the authors
 (contact details are reported in the first page of this manual).
 
-The Duo examples can be obtained from github here 
-git clone https://github.com/Trovemaster/Duo/tree/MOLPRO/examples
+The Duo examples can be obtained from github https://github.com/Trovemaster/Duo/tree/MOLPRO/examples 
+::
 
-A small Duo tutorial_ can be found at the Duo github  
+   git clone https://github.com/Trovemaster/Duo/tree/MOLPRO/examples
 
-.. _tutorial: https://github.com/Trovemaster/Duo/wiki
+A small Duo tutorial_ can be found at the Duo https://github.com/Trovemaster/Duo/wiki
 
 
 On Windows 
