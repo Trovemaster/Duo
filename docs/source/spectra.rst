@@ -200,3 +200,97 @@ and ``ScH.trans``, containing the line transition data (line positions and Einst
  
 
 
+
+Example: Intensities of BeH
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here we use the potential energy function of BeH from the example :ref:`energy_BeH`. 
+
+For intensity calculations one needs an electric dipole moment curve, which we take from the spectroscopic model used in 
+the ExoMol-I_ paper by Yadin et. al (2011)
+
+.. _ExoMol-I: http://exomol.com/db/BeH/9Be-1H/Yadin/9Be-1H__Yadin__LEVEL8.0.inp
+
+::
+    
+    dipole  1 1
+    name "<2Sigma+|DMZ|2Sigma+>"
+    spin   0.5 0.5
+    lambda  0  0
+    type   grid
+    values 
+       0.400     -0.4166624920
+       0.500     -0.0241871531
+       0.600      0.2217732500
+       0.700      0.3386323420
+       0.800      0.3661076190
+       0.900      0.3311512400
+       1.000      0.2513061130
+       1.100      0.1379591390
+       1.200     -0.0012406430
+       1.300     -0.1588361650
+       1.320     -0.1920270000
+       1.340     -0.2256736540
+       1.350     -0.2426539090
+       1.360     -0.2597311920
+       1.400     -0.3288944440
+       1.500     -0.5056369720
+       1.600     -0.6824442480
+       1.700     -0.8513506410
+       1.800     -1.0025214800
+       1.900     -1.1238133700
+       1.950     -1.1687609400
+       2.000     -1.2005094800
+       2.020     -1.2089972000
+       2.050     -1.2166847200
+       2.070     -1.2181089800
+       2.100     -1.2136337000
+       2.300     -1.0182994100
+       2.400     -0.8538885220
+       2.500     -0.6736179730
+       2.600     -0.5046631750
+       2.700     -0.3634556350
+       2.800     -0.2548814520
+       2.900     -0.1758884440
+       3.000     -0.1201861300
+       3.100     -0.0815224742
+       3.200     -0.0549121655
+       3.300     -0.0367099205
+       3.400     -0.0243335573
+       3.500     -0.0159701097
+       3.600     -0.0103484461
+       3.700     -0.0065800412
+       3.800     -0.0040495078
+       3.900     -0.0023383813
+       4.000     -0.0011684378
+       4.200      0.0002034367
+       4.400      0.0008546009
+       4.600      0.0011177434
+       4.800      0.0011645509
+       5.000      0.0011023829
+       6.000      0.0005429083
+       8.000     -0.0000033249
+      10.000     -0.0000085504
+    end
+        
+    INTENSITY
+     absorption
+     thresh_intes  1e-30
+     thresh_line   1e-30
+     temperature   300.0
+     nspin         1.5  0.5 (see Wikipedia isotope Be)
+     selection (rules) 1 1
+     linelist   BeH
+     J,  0.5, 10.5
+     freq-window   0.0,  7000.0
+     energy low   -0.001, 5000.00, upper   -0.00, 12000.0
+    END
+    
+
+This will produce a line list for BeH in ExoMol format in two files .states and .trans, 
+which can be processed using ExoCross_, see also ExoCross-tutorial_. 
+
+
+.. _ExoCross: https://github.com/Trovemaster/exocross
+
+.. _ExoCross-tutorial: https://github.com/Trovemaster/exocross/wiki/Configuring-the-ExoCross-session

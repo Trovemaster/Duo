@@ -430,3 +430,129 @@ To avoid echoing the input just add the keyword ``do_not_echo_input`` anywhere i
 *  Duo will then solve the full problem (with :math:`J >0` and/or all coupling terms activated). 
    In the example above we specified two values of :math:`J`, namely :math:`J=0` and :math:`J=10`. The :math:`J=0` 
    energies will be exactly the same as the ``vibrational (contracted)`` ones, as in our example there are no couplings at all.
+
+
+
+
+The Duo input files for this example can be found in [Duo Tutorial](https://github.com/Trovemaster/Duo/tree/MOLPRO/examples/tutorial)
+
+See [The ab initio ground-state potential energy function of beryllium monohydride, BeH by Jacek Koput, JCP  135, 244308 (2011)](http://dx.doi.org/10.1063/1.3671610)
+
+The ground electronic state of BeH is a doublet (2Sigma+), see [https://www.ucl.ac.uk/~ucapsy0/diatomics.html](https://www.ucl.ac.uk/~ucapsy0/diatomics.html).
+
+.. _energy_BeH:
+
+Example: BeH in its ground electronic state 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In order to solve the nuclear motion Schroediner equation to compute ro-vibronic spectra of BeH with Duo we need to prepare an input file using the following structure (BeH_Koput_01.inp): 
+::
+     
+     atoms Be H
+     (Total number of states taken into account)
+     nstates 16
+     
+     (Total angular momentum quantum  - a value or an interval)
+     jrot 0.5 - 2.5 
+     
+     (Defining the integration grid)
+     grid
+       npoints 501
+       range   0.4 8.0
+       type 0 
+     end
+     
+     CONTRACTION
+      vib
+      vmax  30
+     END
+
+    
+     poten 1
+     units cm-1 angstroms
+     name 'X2Sigma+'
+     lambda 0
+     symmetry +
+     mult   2
+     type grid
+     values   
+     0.60     105169.63
+     0.65      77543.34
+     0.70      55670.88
+     0.75      38357.64
+     0.80      24675.42
+     0.85      13896.77
+     0.90       5447.96
+     0.95      -1125.87
+     1.00      -6186.94
+     1.05     -10024.96
+     1.10     -12872.63
+     1.15     -14917.62
+     1.20     -16311.92
+     1.25     -17179.13
+     1.30     -17620.16
+     1.32     -17696.29
+     1.33     -17715.26
+     1.34     -17722.22
+     1.35     -17717.69
+     1.36     -17702.19
+     1.37     -17676.19
+     1.38     -17640.16
+     1.40     -17539.76
+     1.45     -17142.53
+     1.50     -16572.59
+     1.55     -15868.72
+     1.60     -15063.34
+     1.65     -14183.71
+     1.70     -13252.86
+     1.80       -11313.
+     1.90      -9369.74
+     2.00      -7518.32
+     2.10      -5832.29
+     2.20      -4366.71
+     2.30      -3155.94
+     2.40      -2208.98
+     2.50      -1507.72
+     2.60      -1013.23
+     2.80       -456.87
+     3.00       -221.85
+     3.50        -72.13
+     4.00        -41.65
+     4.50         -24.9
+     5.00        -14.32
+     6.00         -4.74
+     8.00         -0.75
+     10.00        -0.19
+     20.00         0.0
+    end
+    
+where we use the potential energy curve (PEC) defined in Table III of Koput_ J. Chem. Phys. 135, 244308 (2011) in a grid form. 
+
+.. _Koput: http://dx.doi.org/10.1063/1.3671610
+
+An alternative definition is an analytical PEC, see e.g. Barton_ et. al MNRAS 434, 1469 (2013) 
+
+.. _Barton: http://dx.doi.org/10.1093/mnras/stt1105
+
+::
+
+     poten 1
+     units cm-1 angstroms
+     name 'X2Sigma+'
+     lambda 0
+     symmetry +
+     mult   2
+     type grid
+     values   
+     V0             0.00
+     RE             1.342394
+     DE            17590.00
+     RREF         -1.00000000
+     PL            3.00000000
+     PR            3.00000000
+     NL            0.00000000
+     NR            0.00000000
+     b0            1.8400002 
+    end  
+
+

@@ -254,3 +254,115 @@ The file `{name`.pot (``potential``) contains the
 residuals between the fitted and the reference
 curve (if specified by an ``abinitio`` object).
 The file is overwritten at each iteration. 
+
+
+
+
+Example: Refinement of the BeH PEC curve
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This PEC can be refined by fitting to experimental energies using the following input structure: 
+::
+
+    poten 1
+    name 'X2Sigma+'
+    lambda 0
+    symmetry +
+    mult   2
+    type    EMO
+    Values
+    V0             0.00
+    RE             1.342394
+    DE            17590.00   fit
+    RREF         -1.00000000
+    PL            3.00000000
+    PR            3.00000000
+    NL            0.00000000
+    NR            0.00000000
+    b0            1.8450002    fit
+    end    
+    
+    
+    FITTING
+    JLIST    0.5 - 0.5
+    itmax 12
+    fit_factor  1e5
+    output   BeH_01
+    lock     1000 
+    robust  0.0001
+    energies                  ( state   v     ilambda isigma omega    weight  comment <-  state v ilambda isigma  weigh
+     0.5  +       1           0       1       0       0     0.5     0.5    1.00
+     0.5  +       2    1986.416       1       1       0     0.5     0.5    1.00
+     0.5  +       3    3896.871       1       2       0     0.5     0.5    1.00
+     0.5  +       4     5729.26       1       3       0     0.5     0.5    1.00
+     0.5  +       5    7480.338       1       4       0     0.5     0.5    1.00
+     0.5  +       6    9145.132       1       5       0     0.5     0.5    0.00
+     0.5  +       7   10716.163       1       6       0     0.5     0.5    0.00
+     0.5  +       8   12182.207       1       7       0     0.5     0.5    0.00
+     0.5  +       9   13525.788       1       8       0     0.5     0.5    0.00
+     0.5  +      10   14718.082       1       9       0     0.5     0.5    0.00
+     0.5  +      11   15709.384       1      10       0     0.5     0.5    0.00
+    end
+     
+
+The ab initio potential energy curve can be kept to control the shape of the refined curve: 
+::
+    
+     abinitio poten 1
+     units cm-1 angstroms
+     name 'X2Sigma+'
+     lambda 0
+     symmetry +
+     mult   2
+     type grid
+     values   
+     0.60     105169.63
+     0.65      77543.34
+     0.70      55670.88
+     0.75      38357.64
+     0.80      24675.42
+     0.85      13896.77
+     0.90       5447.96
+     0.95      -1125.87
+     1.00      -6186.94
+     1.05     -10024.96
+     1.10     -12872.63
+     1.15     -14917.62
+     1.20     -16311.92
+     1.25     -17179.13
+     1.30     -17620.16
+     1.32     -17696.29
+     1.33     -17715.26
+     1.34     -17722.22
+     1.35     -17717.69
+     1.36     -17702.19
+     1.37     -17676.19
+     1.38     -17640.16
+     1.40     -17539.76
+     1.45     -17142.53
+     1.50     -16572.59
+     1.55     -15868.72
+     1.60     -15063.34
+     1.65     -14183.71
+     1.70     -13252.86
+     1.80       -11313.
+     1.90      -9369.74
+     2.00      -7518.32
+     2.10      -5832.29
+     2.20      -4366.71
+     2.30      -3155.94
+     2.40      -2208.98
+     2.50      -1507.72
+     2.60      -1013.23
+     2.80       -456.87
+     3.00       -221.85
+     3.50        -72.13
+     4.00        -41.65
+     4.50         -24.9
+     5.00        -14.32
+     6.00         -4.74
+     8.00         -0.75
+     10.00        -0.19
+     20.00          0.0
+    end
+    

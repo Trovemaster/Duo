@@ -27,7 +27,7 @@ The Duo examples can be obtained from github https://github.com/Trovemaster/Duo/
 
    git clone https://github.com/Trovemaster/Duo/tree/MOLPRO/examples
 
-A small Duo tutorial_ can be found at the Duo https://github.com/Trovemaster/Duo/wiki
+A small Duo tutorial can be found at the Duo https://github.com/Trovemaster/Duo/wiki
 
 
 On Windows 
@@ -67,7 +67,7 @@ Navigate to the folder with the input_file and execute from the command line:
 
 
 Duo-scripts
-----------
+^^^^^^^^^^^
 
 The cshell script ``do-duo-input.csh`` can be used to replace the varied parameters (marked with ``Fit``) 
 in the duo input file by the corresponding refined values from the duo-output file:
