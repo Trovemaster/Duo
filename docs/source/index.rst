@@ -2,7 +2,8 @@ Welcome to Duo's documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 2
+   :glob:
+   :maxdepth: 3
    :caption: Contents:
 
    compile
@@ -10,6 +11,10 @@ Welcome to Duo's documentation!
    energies
    vibbasis
    fields
+   fieldskeywords
+   molpro
+   functions
+   fitting
    keywords
    license
 

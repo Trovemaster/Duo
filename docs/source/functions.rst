@@ -1,0 +1,5 @@
+.. _functions:
+
+Duo Functions
+=============
+

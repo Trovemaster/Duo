@@ -309,5 +309,13 @@ using orthogonal similarity transformations but then, whenever possible,
 computes the eigenspectrum using Multiple Relatively Robust Representations (MR).
 SYEVR might give better performance, although exact timings are system- and case-dependent.
 
+* `ASSIGN_V_BY_COUNT` 
+
+The vibrational quantum number :math:`v` is assigned by counting the rovibronic states of the same `State`, :math:`\Lambda`, 
+:math:`\Sigma` arranged by increasing energy. The corresponding `State`, :math:`\Lambda`, 
+:math:`\Sigma` labels are defined using the largest-contribution approach 
+(the quantum labels corresponding to the basis set contribution with the largest expansion coefficient).   
+The keyword should appear anywhere in the body of the input file. The default is to use the largest-contribution  
+approach also to assign the vibrational quantum number (no `ASSIGN_V_BY_COUNT`).
 
 

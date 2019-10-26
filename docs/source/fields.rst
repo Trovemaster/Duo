@@ -127,8 +127,7 @@ For the `spin-orbit-x` case (:math:`\Lambda`-representation), the value of the m
  %Matrix element of the spin-orbit Hamiltonian.
 
 
-* `spin-spin-p` and `spin-spin-o` Parametrised phenomenological spin-spin 
-operator (diagonal and off-diagonal. 
+* `spin-spin-p` and `spin-spin-o` Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
 
 * `spin-rot` Matrix elements of the spin-rotational operator .
 
