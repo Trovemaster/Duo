@@ -1,5 +1,7 @@
-Duo Input file
-==============
+Duo Input file: general structure
+=================================
+
+
 
 The input file is organized in self-contained input lines (e.g., 
 ::
@@ -10,8 +12,8 @@ specifies the masses of the two atoms in Daltons or in input sections beginning 
 a specific keyword (e.g., `grid` and ending with the keyword `end`.
 
 .. note:: The position of the keywords is not important. The input is not key-sensitive, 
-so `masses`, `MASSES`, `Masses` or any other combinations of uppercase and lowercase letters work 
-in exactly the same way.
+          so `masses`, `MASSES`, `Masses` or any other combinations of uppercase and lowercase letters work 
+          in exactly the same way.
 
 
 A comma, a space or a hyphen (minus sign) can all be used as delimiters, so, e.g., one can also
@@ -108,4 +110,69 @@ a grid-type potential energy curve by of Jacek Koput, JCP  135, 244308 (2011), T
      10.00        -0.19
      20.00          0.0
     end
+    
+
+Control keys
+------------
+
+The following keys can appear anywere in the input file but outsides any sections. 
+
+
+* ``Print_PECs_and_Couplings_to_File``
+
+This keyword will tell Duo to print out all curves to a separate, auxiliary file. 
+
+* ``Print_Vibrational_Energies_to_File``
+
+This keyword is to print out all vibrational energies into a separate, auxiliary file. 
+
+* ``Print_Rovibronic_Energies_To_File``
+
+This keyword is to print out all rovibronic energies into a separate, auxiliary file.  
+
+* DO_NOT_ECHO_INPUT is switch off the printing the inout file at the beginning of the output. 
+
+* ``Do_not_Shift_PECs``
+
+By default the PECs are shifted such that the minimum of the lowest PEC is at zero. This leads to Zero-Point-Energy (ZPE) to be 
+defined relative to this zero.
+All rovibronic energies are by default defined relative to the ZPE. This keyword will suppress shifting PECs so that ZPE is on the absolute scale. 
+
+* ``DO_NOT_INCLUDE_JS_COUPLING``
+
+This option is to switch the JS coupling in the Hamiltonian, can be used for debugging purposes. 
+
+* ``ASSIGN_V_BY_COUNT``
+
+This keyword will switch off the default assigning method  (based on the largest basis set contribution) of the vibrational to simple 
+counting of the states, starting from :math:`v=0` within the same rotational-electronic configuration :math:`|{\rm State}, \Lambda, \Sigma, \Omega \rangle`. 
+The default method  to assign the states with vibrational quantum numbers is known to fail at high excitations. 
+
+* ``Legacy`` 
+
+Aliases: ``Old-Version``, ``Version xxxx`` (xxxx is the year). This keyword to switch to the original, older version of the molpro function, 
+which was modified in 2019 (bugs fixed and restructured). This keyword should help to reproduce the results published 
+with the old version of the code. 
+    
+
+* ``L2Convention``
+
+There are two conventions to include the electronic angular momentum :math:`\hat{L}_z^2` components: 
+it can be defined either as part of the kinetic energy operator (``SPECIFY_L^2``, ``SPECIFY_L**2``,``Default``)
+as :math:`\Lambda^2` or as part of the :math:`\hat{L}^2`  operator (``SPECIFY_LX^2_PLUS_LY^2``,``SPECIFY_LX**2_PLUS_LY**2``).
+
+Example:
+::
+
+    L2Convention SPECIFY_LX^2_PLUS_LY^2
+
+
+* ``Mem,``, ``Memory``: defines the maximal memory (RAM) available for the calculations.  
+
+The program will stop with an error if the memory will be acceded before attempting to allocate a new array. The memory can be specified in 
+``B``, ``Kb``, ``Mb``, ``Gb`` or ``Tb``. Example: 
+::
+
+    64 Gb 
+    
     

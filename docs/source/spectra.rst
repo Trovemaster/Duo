@@ -1,5 +1,5 @@
-Computing spectra
-*****************
+Computing spectra (inetnsities and line lists)
+**********************************************
 
 Absorption or emission spectra as well as line lists, partition functions and other
 related quantities can be computed by adding in the input file an
@@ -79,6 +79,32 @@ In the following we select transitions for which the lower state is between 0 an
 Note that in this context level energies are measured by setting the energy of the lowest energy level to zero,
 i.e. they do not include the zero-point energy, in contrast with
 the threshold ``enermax`` specified in the general setup.
+
+
+* ``Richmol`` (`matelem`) is to generate the **RichMol** checkpoints. 
+
+The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dymanics, see 
+See :cite:`18OwYa` for an introduction to stylish blah, blah...
+
+* ``Raman`` or ``Polarizability`` is to generate the matrix elements for the **Raman** intensity calculations with Richmol. 
+
+The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dymanics, see 
+See :cite:`18OwYa` for an introduction to stylish blah, blah...
+
+* ``Overlap`` is to trigger on/off the vibrational overlap integrals. 
+
+The default is on, for switching of: 
+::
+
+   overlap off 
+
+* ``VIB-DIPOLE`` is to generate transition dipole moments 
+
+Example
+::
+
+   VIB-DIPOLE 
+   VIB-DIPOLE off 
 
 
 * ``freq-window`` specifies a frequency window for line positions (in cm\ :sup:`-1`). 
@@ -198,6 +224,59 @@ Example:
 In the example above two files will be written, ``ScH.states``, containing a list of energy levels,
 and ``ScH.trans``, containing the line transition data (line positions and Einstein :math:`A` coefficients).
  
+ 
+* ``Nspin``  Nuclear spins of both atoms 
+
+The nuclear spin values are used to define the nuclear degeneracy factors as follows. Example
+::
+
+    nspin 0.0 0.5
+    
+or 
+      
+    nspin 0.0 0.0  
+
+The nuclear degeneracy factors :math:`g_ns` are defined as follows. For the heteronuclear molecules:
+
+:math:`g_{ns} = (2 I_1+1)(2I_2+1)`
+
+For a homonuclear diatomic, it is given by 
+
+:math:`g_{ns}^{A} = \frac{1}{2} ((2 I+1)^2+(2 I +1))`
+
+and 
+
+:math:`g_{ns}^{B} = \frac{1}{2} ((2 I+1)^2-(2 I +1))`
+
+where :math:`I_1, I_2`  and `I` are the nuclear spins and `A` and `B` are the two irreps of the D2h symmetry group. 
+
+ 
+* ``Gns`` is an alternative to ``nspin`` defining the nuclear spin degeneracy explicitly. 
+ 
+Example: 
+::
+
+       GNS 3.0 3.0
+       
+or       
+::
+
+       GNS 1.0 1.0 0.0 0.0 
+ 
+ 
+Thresholds 
+^^^^^^^^^^
+
+
+** ``THRESH_LINE`` line strength  threshold (Debye:sup:`2`)
+
+** ``THRESH_EINSTEIN`` Einstein A coefficient threshold (1/s).
+ 
+** ``thresh_intes`` intensity (TM) threshold (cm/molecule)
+
+** ``THRESH_DIPOL`` transition dipole threshold (debye)
+
+
 
 
 
@@ -291,6 +370,14 @@ This will produce a line list for BeH in ExoMol format in two files .states and 
 which can be processed using ExoCross_, see also ExoCross-tutorial_. 
 
 
+
+
 .. _ExoCross: https://github.com/Trovemaster/exocross
 
 .. _ExoCross-tutorial: https://github.com/Trovemaster/exocross/wiki/Configuring-the-ExoCross-session
+
+
+.. bibliography:: references.bib
+
+
+

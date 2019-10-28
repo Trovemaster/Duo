@@ -25,7 +25,8 @@ the keyword identifying their type require two integer numbers
 specifying the two indexes of the two electronic states involved (bra and ket).
 The indexes are the numbers specified after the \texttt{poten} keyword.
 
-Currently Duo supports the following types of objects:
+Currently Duo supports the following types of objects: ``potential``, ``spinorbit``, ``L2``, ``Lx``, ``spinspin``, ``spinspino``, ``bobrot``, 
+``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``.
 
 
 * ``poten`` (alias: potential) 
@@ -124,8 +125,6 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
  should be specified using the :math:`\langle \Pi_x|LSZ |\Pi_y \rangle` component 
  (e.g. :math:`\langle 1.2 |{\rm LSZ} |1.3 \rangle`).
 
- %Matrix element of the spin-orbit Hamiltonian.
-
 
 * ``spin-spin-p`` and ``spin-spin-o`` Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
 
@@ -203,6 +202,8 @@ For any Duo object one can specify a corresponding reference curve as in the fol
 Keywords used in the specification of objects 
 =============================================
 
+Name and quantum numbers
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is a list of keywords used to specify various parameters of Duo objects. 
 
@@ -292,6 +293,11 @@ Examples:
 
 The keywords ``g``/``u`` or ``+``/``-`` can appear in any order.
 
+
+Other control keys
+^^^^^^^^^^^^^^^^^^
+
+
 * ``type``: Type of the functional representaion. 
 
 ``Type`` defines if the object is given on a grid ``type grid`` or
@@ -340,7 +346,10 @@ Examples:
 
    factor 1.5
    factor -sqrt(2)
+   factor sqrt(2)
+   factor 5 i
    factor -2 sqrt(2) i
+
 
 In the last example the factor is read in as :math:`-2 \sqrt{2} i`.
 Note that imaginary factors make sense only in some cases for some coupling terms (in particular, spin-orbit) 
@@ -364,31 +373,6 @@ Example:
     units ae0 bohr
 
 
-
-* ``values``  
-
-This keyword starts the subsection containing the numerical
-values defining the object. 
-For one of the ``type``s corresponding to an analytical function (see :ref:`functions`),
-the input between ``values`` and ``end`` contains the values of the parameters of the function.
-The input consists in two columns separated by spaces containing (i) a string label
-identifying the parameter and (ii) the value of the parameter (a real number).
-
-In case of ``fitting`` (see :ref:`fitting`) a third column should
-also be provided; the parameters which are permitted to vary during fitting
-must have in the third column the string ``fit`` or, alternatively, the letter ``f``
-or the number 1. Any other string or number (for example, the string ``nofit`` or the number 0)
-implies the parameter should be kept at its initial value.
-In the case of fitting, the keyword ``link``
-can be also appear at the end of each the line; this keyword permits to
-cross-reference values from different objects and is explained
-below in this section.
-
-In the case of objects of type ``grid``, the third column can be also used to specify if the grid point needs to vary. 
-The first columns contains the bond length :math:`r_i` and a second with the value of the object.
-In the case of object of the ``abinitio`` (``reference``) type and specified as ``grid``
-a third column can be used to specify the fitting weights (see :ref:`fitting`).
-
 * ``<x|Lz|y>``, ``<z|Lz|xy>`` (aliases ``<a|Lz|b>`` and ``<1|Lz|2>``)  
 
 This keyword is sometimes needed when specifying coupling curves between electronic states
@@ -410,31 +394,13 @@ As shown in the examples above, each factor should be written in the form :math:
 space or ``*`` sign.
 
 
-* ``link``  
 
-This special keyword is used in fitting
-to force a set of parameters 
-(which may be relative to a different object) to have the same value.
-For example, in a typical situation one may want to fit a set of PECs and to constrain their
-dissociation (asymptotic) energy to the same value (because they are expected from theory to share the same
-dissociation channel).
+* ``Molpro`` is a single, stand-alone keywrd to trigger the molpro even for `non-x` fields.
+
+Example:
 
 
-After the keyword ``link`` one should provide three numbers :math:`i_1`, :math:`i_2`, :math:`i_3` defining the parameter ID, where
-:math:`i_1` identifies the object type (e.g. ``poten``, ``spin-orbit``, ``spin-rot`` etc.), 
-:math:`i_2` is the object number within the type :math:`i_1` and :math:`i_3` is the parameter number as it appears after ``values``. The ID numbers :math:`i_1, i_2, i_3` 
-are specified in the fitting outputs in the form `[i,j,k]`. 
-
-Example of the input:
-::
-
-    DE     0.50960000000000E+05   fit     link   1   1   3
-
-Example of the corresponding output
-::
-
-    DE     0.50960000000000E+05   [ 1   1   3 ]
-
+    molpro
 
 
 * ``morphing`` This keyword is used for fitting and switches on the morphing method. 
@@ -485,6 +451,63 @@ Example:
       10.00	2561.48269	1.00
       12.00	2575.09861	1.00
     end
+
+
+
+
+Definition of the function or a grid 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+* ``values``  
+
+This keyword starts the subsection containing the numerical
+values defining the object. 
+For one of the ``type``s corresponding to an analytical function (see :ref:`functions`),
+the input between ``values`` and ``end`` contains the values of the parameters of the function.
+The input consists in two columns separated by spaces containing (i) a string label
+identifying the parameter and (ii) the value of the parameter (a real number).
+
+In case of ``fitting`` (see :ref:`fitting`) a third column should
+also be provided; the parameters which are permitted to vary during fitting
+must have in the third column the string ``fit`` or, alternatively, the letter ``f``
+or the number 1. Any other string or number (for example, the string ``nofit`` or the number 0)
+implies the parameter should be kept at its initial value.
+In the case of fitting, the keyword ``link``
+can be also appear at the end of each the line; this keyword permits to
+cross-reference values from different objects and is explained
+below in this section.
+
+In the case of objects of type ``grid``, the third column can be also used to specify if the grid point needs to vary. 
+The first columns contains the bond length :math:`r_i` and a second with the value of the object.
+In the case of object of the ``abinitio`` (``reference``) type and specified as ``grid``
+a third column can be used to specify the fitting weights (see :ref:`fitting`).
+
+
+* ``link``  
+
+This special keyword is used in fitting
+to force a set of parameters 
+(which may be relative to a different object) to have the same value.
+For example, in a typical situation one may want to fit a set of PECs and to constrain their
+dissociation (asymptotic) energy to the same value (because they are expected from theory to share the same
+dissociation channel).
+
+
+After the keyword ``link`` one should provide three numbers :math:`i_1`, :math:`i_2`, :math:`i_3` defining the parameter ID, where
+:math:`i_1` identifies the object type (e.g. ``poten``, ``spin-orbit``, ``spin-rot`` etc.), 
+:math:`i_2` is the object number within the type :math:`i_1` and :math:`i_3` is the parameter number as it appears after ``values``. The ID numbers :math:`i_1, i_2, i_3` 
+are specified in the fitting outputs in the form `[i,j,k]`. 
+
+Example of the input:
+::
+
+    DE     0.50960000000000E+05   fit     link   1   1   3
+
+Example of the corresponding output
+::
+
+    DE     0.50960000000000E+05   [ 1   1   3 ]
 
 
 

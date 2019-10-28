@@ -132,8 +132,6 @@ The default is to do the shift of the PECs to the minimum of  ``poten 1``. In or
 
 see also the description of the keyword ``ZPE``.
 
-
-
 * SOLUTIONMETHOD * defines the DVR basis set and thus the DVR solution method for the vibrational problem. 
 
 Possible methods include ``5POINTDIFFERENCES``.

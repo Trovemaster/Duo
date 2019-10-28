@@ -176,4 +176,7 @@ epub_exclude_files = ['search.html']
 # favicon
 html_favicon = 'favicon.ico'
 
+# bibliography
+extensions = ['sphinxcontrib.bibtex']
+
 # -- Extension configuration -------------------------------------------------
