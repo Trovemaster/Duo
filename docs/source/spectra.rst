@@ -194,7 +194,6 @@ Example:
    ZPE 931.418890
 
 
-
 * ``Thresh-intes`` specifies a minimum intensity threshold (in cm/molecule) for printing the transition into the
     output file as well as into the line list. 
     
@@ -233,7 +232,7 @@ The nuclear spin values are used to define the nuclear degeneracy factors as fol
     nspin 0.0 0.5
     
 or 
-      
+::      
     nspin 0.0 0.0  
 
 The nuclear degeneracy factors :math:`g_ns` are defined as follows. For the heteronuclear molecules:
@@ -258,7 +257,7 @@ Example:
 
        GNS 3.0 3.0
        
-or       
+or   
 ::
 
        GNS 1.0 1.0 0.0 0.0 
