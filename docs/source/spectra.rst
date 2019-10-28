@@ -230,8 +230,7 @@ The nuclear spin values are used to define the nuclear degeneracy factors as fol
 ::
 
     nspin 0.0 0.5
-    
-or 
+
 ::      
     nspin 0.0 0.0  
 
@@ -256,8 +255,7 @@ Example:
 ::
 
        GNS 3.0 3.0
-       
-or   
+
 ::
 
        GNS 1.0 1.0 0.0 0.0 
