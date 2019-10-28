@@ -1,4 +1,4 @@
-Computing spectra (inetnsities and line lists)
+Computing spectra (intensities and line lists)
 **********************************************
 
 Absorption or emission spectra as well as line lists, partition functions and other
@@ -83,12 +83,12 @@ the threshold ``enermax`` specified in the general setup.
 
 * ``Richmol`` (`matelem`) is to generate the **RichMol** checkpoints. 
 
-The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dymanics, see 
+The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see 
 See :cite:`18OwYa` for an introduction to stylish blah, blah...
 
 * ``Raman`` or ``Polarizability`` is to generate the matrix elements for the **Raman** intensity calculations with Richmol. 
 
-The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dymanics, see 
+The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see 
 See :cite:`18OwYa` for an introduction to stylish blah, blah...
 
 * ``Overlap`` is to trigger on/off the vibrational overlap integrals. 
