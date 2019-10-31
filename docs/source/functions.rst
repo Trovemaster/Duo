@@ -517,7 +517,7 @@ When used for morphing, the parameter :math:`B_{\infty}` is usually fixed to 1.
 
 
 Implementation guide  
---------------------
+^^^^^^^^^^^^^^^^^^^^
 
 All these analytical functions are programmed as Fortran double precision functions 
 in the module ``functions.f90``. 
