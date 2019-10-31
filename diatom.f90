@@ -2743,6 +2743,8 @@ module diatom_module
               !
             case("NPARAM","N","NPOINTS")
               !
+              ! Obsolete
+              !
               call readi(Nparam)
               !
               if (Nparam<0) then

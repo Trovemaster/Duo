@@ -516,3 +516,65 @@ When used for morphing, the parameter :math:`B_{\infty}` is usually fixed to 1.
 
 
 
+Implementation guide  
+--------------------
+
+All these analytical functions are programmed as Fortran double precision functions 
+in the module ``functions.f90``. 
+
+Below is an example of a function for the `EMO` potential energy function. 
+::
+
+    function poten_EMO(r,parameters) result(f)
+      !
+      real(rk),intent(in)    :: r             ! geometry (Ang)
+      real(rk),intent(in)    :: parameters(:) ! potential parameters
+      real(rk)               :: y,v0,r0,de,f,rref,z,phi
+      integer(ik)            :: k,N,p
+      !
+      v0 = parameters(1)
+      r0 = parameters(2)
+      ! Note that the De is relative the absolute minimum of the ground state
+      De = parameters(3)-v0
+      !
+      rref = parameters(4)
+      !
+      if (rref<=0.0_rk) rref = r0
+      !
+      if (r<=rref) then 
+        p = nint(parameters(5))
+        N = parameters(7)
+      else
+        p = nint(parameters(6))
+        N = parameters(8)
+      endif 
+      !
+      if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+        write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+        print*,parameters(:)
+        stop 'poten_EMO: Illegal number of parameters, check NS and NL'
+      endif 
+      !
+      z = (r**p-rref**p)/(r**p+rref**p)
+      !
+      phi = 0
+      do k=0,N
+       phi = phi + parameters(k+9)*z**k
+      enddo
+      !
+      y  = 1.0_rk-exp(-phi*(r-r0))
+      !
+      f = de*y**2+v0
+      !
+    end function poten_EMO
+
+
+To define a new functional form, apart from the actual function, a new reference ``case`` identifying this calculation 
+options needs to be added as part of the ``case select`` section in the ``subroutine define_analytical_field``, for example:
+::
+
+    case("EMO") ! "Expanded MorseOscillator"
+      !
+      fanalytical_field => poten_EMO
+
+

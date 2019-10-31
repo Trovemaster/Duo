@@ -83,13 +83,11 @@ the threshold ``enermax`` specified in the general setup.
 
 * ``Richmol`` (`matelem`) is to generate the **RichMol** checkpoints. 
 
-The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see 
-See :cite:`18OwYa` for an introduction to stylish blah, blah...
+The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see [18OwYaxx].
+
+%:cite:`18OwYa`.
 
 * ``Raman`` or ``Polarizability`` is to generate the matrix elements for the **Raman** intensity calculations with Richmol. 
-
-The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see 
-See :cite:`18OwYa` for an introduction to stylish blah, blah...
 
 * ``Overlap`` is to trigger on/off the vibrational overlap integrals. 
 
@@ -374,7 +372,7 @@ which can be processed using ExoCross_, see also ExoCross-tutorial_.
 .. _ExoCross-tutorial: https://github.com/Trovemaster/exocross/wiki/Configuring-the-ExoCross-session
 
 
-.. bibliography:: references.bib
+%.. bibliography:: references.bib
 
 
 
