@@ -173,6 +173,14 @@ module functions
       !
       fanalytical_field => poten_lorentzian_polynom
       !
+    case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
+      !
+      fanalytical_field => polynomial_dimensionless
+      !
+    case("CO_X_UBO")
+      !
+      fanalytical_field => potential_stolyarov_CO_X_UBO
+      !
     case("NONE")
       !
       write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
@@ -1514,5 +1522,101 @@ module functions
     !
   end function poten_lorentzian_polynom
 
+                                                                
+  function polynomial_dimensionless(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,f
+    integer(ik)            :: k,N
+    !
+    N = size(parameters)
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    !
+    y = (r-r0)/r0
+    !
+    f = parameters(N)
+    do k=N-1,3,-1
+      !f = f + parameters(k)*y**(k-2)
+      f = f*y + parameters(k)
+    enddo
+    !
+    f = f + v0
+    !
+  end function polynomial_dimensionless
+
+  function potential_stolyarov_CO_X_UBO(r,parameters) result(f)
+  
+   !     CO X BO potential. R in angstrom, CO_X_U in cm^-1
+   !     JQSRT 217 (2018) 262–273
+   !
+   implicit none
+   real(rk),intent(in)    :: r             ! geometry (Ang)
+   real(rk),intent(in)    :: parameters(:) ! potential parameters
+   integer(ik),parameter ::          na = 14
+   real(rk) :: T, K, E0, d, d1, d2, c1, c2, C5, C6, C8, f , a(na)
+   real(rk) :: z, y0, yinf, t1, t2, t3
+   integer(ik)  :: i 
+     !
+     data a/  -1.72162379120d+00,&
+              -1.57663684255d+00,&
+               1.62435769080d+00,&
+               6.48364603740d-01,&
+               2.95603114170d-01,&
+               6.11299378400d-02,&
+              -1.19431556940d-01,&
+              -9.00931765500d-02,&
+              -6.48242550300d-02,&
+              -3.62863354500d-02,&
+              -1.30105004800d-02,&
+              -6.07793671000d-03,&
+              -1.07070127000d-03,&
+              -4.00250370000d-04/
+     !
+     T    =  parameters(1)
+     K    =  0.55747667156e+07_rk
+     E0   = -0.38846898e+08_rk
+     !    
+     d    =  6.441_rk
+     d1   = 16.829_rk
+     d2   =  0.5363_rk
+     c1   =  0.5704_rk
+     c2   =  1.2668_rk
+     !
+     C5   =  0.102093e+06_rk
+     C6   =  0.655440e+05_rk
+     C8   =  0.496639e+06_rk
+     y0   = (K/r + K*d + E0 + d*(0.5_rk*K*d + e0)*r)*exp(-d*r)
+     !    
+     yinf = (DD(r,5,d1,d2)*C5 + DD(r,6,d1,d2)*C6/r + DD(r,8,d1,d2)*C8/r**3)/r**5
+     !       
+     z    = dtanh(c1*r - c2/r)
+     !       
+     t1 = 0._rk 
+     t2 = 0._rk
+     do i = na, 2, -1
+         t3 = t1
+         t1 = 2.0_rk*z*t1 - t2 + a(i)
+         t2 = t3
+     enddo
+     !
+     t3 = z*t1 - t2 + a(1)
+     !     
+     f  = (y0 + yinf)*t3 + T
+     !
+     contains  
+      !
+      function DD(r, n, d1, d2) result(f)
+      real(rk) :: r, d1, d2, f
+      integer(ik) ::   n
+      !
+      f = (1.0_rk - dexp(-d1*r/n - d2*r*r/dsqrt(dble(n))))**(n + 2)
+      !
+      end function DD
+      !
+  end function potential_stolyarov_CO_X_UBO
+  !
   !
 end module functions

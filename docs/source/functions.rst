@@ -515,6 +515,13 @@ Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by d
 When used for morphing, the parameter :math:`B_{\infty}` is usually fixed to 1.
 
 
+``CO_X_UBOS`` 
+^^^^^^^^^^^^^
+
+This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>` to compute energies 
+of CO in its ground electronic state.  All parameters are predefined internally.  
+
+
 
 Implementation guide  
 ^^^^^^^^^^^^^^^^^^^^
