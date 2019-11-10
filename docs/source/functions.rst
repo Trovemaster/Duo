@@ -515,11 +515,43 @@ Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by d
 When used for morphing, the parameter :math:`B_{\infty}` is usually fixed to 1.
 
 
+``POLYNOM_DIMENSIONLESS`` 
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This function is a polynomial 
+:math:`F(r)=\sum^{N}_{k=0} a_{k}\, y^{k} ,`
+in terms of the dimensionless variable 
+:math:`y = \frac{r-r_{\rm e}}{r_{\rm e}}.`
+
+The order of the parameters in the input is as follows :math:`a_0,r_{\rm e}, a_1,a_2, \ldots`
+
+Example
+::
+
+  dipole 1 1 
+  name "L_2015"
+  type POLYNOM_DIMENSIONLESS 
+  spin   0.0 0.0
+  lambda  0  0
+  values
+   re   1.12832252847d0     
+   a0   -0.1229099d0
+   a1    3.604742d0
+   a2   -0.23716d0
+   a3   -3.67326d0
+   a4    1.4892d0 
+   a5    1.8293d0 
+   a6   -4.342d0  
+  end
+
+
+
 ``CO_X_UBOS`` 
 ^^^^^^^^^^^^^
 
 This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>` to compute energies 
 of CO in its ground electronic state.  All parameters are predefined internally.  
+
 
 
 
