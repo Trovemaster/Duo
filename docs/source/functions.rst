@@ -549,7 +549,7 @@ Example
 ``CO_X_UBOS`` 
 ^^^^^^^^^^^^^
 
-This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>` to compute energies 
+This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
 of CO in its ground electronic state.  All parameters are predefined internally.  
 
 
