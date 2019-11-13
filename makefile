@@ -11,8 +11,8 @@ checkin:
 
 EXE = j-duo-v218.v1.x
 
-FOR  = ifort   # Fortran compiler 
-##FOR = gfortran  
+##FOR  = ifort   # Fortran compiler 
+FOR = gfortran  
 
 # Lorenzo Lodi  ---- meaning of some flags used by the Intel fortran compiler
 #  see (e.g.) file:///opt/intel/composer_xe_2011_sp1.8.273/Documentation/en_US/compiler_f/main_for/index.htm
@@ -51,18 +51,20 @@ FOR  = ifort   # Fortran compiler
 #NOTE: -fpe0 will stop on floating-point exceptions. Do not use this flag because LAPACK makes use of divide by zero etc.
 #
 ##FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
-
-FFLAGS = -O3 -ip -openmp -mkl=parallel # -xHost -fast
-
+##FFLAGS = -O3 -ip -openmp -mkl=parallel # -xHost -fast
 ##FFLAGS = -C -check bounds -g  -gen-interfaces -warn interfaces  -check arg_temp_created -prof-value-profiling=all -warn all
 ##FFLAGS = -O3 -ip -openmp # no optimization -- fast compilation
 ##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
 
+###### gfortran compiler flages ######
+##FFLAGS = -O3
+FFLAGS = -Og -g #debugging
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
 
-LAPACK = -mkl=parallel -static
+
 #LAPACK = -mkl=parallel -static
+LAPACK = -llapack -L/usr/lib/lapack -lblas -L/usr/lib/libblas
 
 LIB     =   $(LAPACK)
 
