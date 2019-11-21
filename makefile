@@ -70,11 +70,12 @@ LIB     =   $(LAPACK)
 
 ###############################################################################
 
-OBJ = grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o
+OBJ = grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o
 
 diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o
 dipole.o: timer.o accuracy.o diatom.o symmetry.o
-duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o
+quadrupole.o: timer.o accuracy.o diatom.o symmetry.o
+duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o quadrupole.o
 functions.o: accuracy.o timer.o
 grids.o: accuracy.o Lobatto.o
 header_info.o: accuracy.o

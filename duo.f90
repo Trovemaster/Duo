@@ -4,6 +4,7 @@
     use accuracy
     use refinement
     use dipole
+    use quadrupole
     !use polarizability
 !    use compilation_details, only: write_compilation_details
     use header_info, only: write_logo
@@ -69,10 +70,18 @@
          write(out, '(a)') '--End--'
          stop
          !
-       endif 
+       endif
+       !
+       !if (action%quadrupole) then
+       !  call qm_tranint
+       !  !
+       !  write(out, '(a)') '--End--'
+       !  stop
+       !endif
        !
        !call define_jlist
-       call dm_tranint
+       !call dm_tranint
+       call qm_tranint
        !
        write(out, '(a)') '--End--'
        stop

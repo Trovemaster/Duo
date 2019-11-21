@@ -288,6 +288,7 @@ module diatom_module
      logical :: frequency     = .false.
      logical :: matelem       = .false.
      logical :: raman         = .false.
+     logical :: quadrupole    = .false.
      !
   end type actionT
   !
@@ -436,7 +437,7 @@ module diatom_module
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
@@ -3174,6 +3175,10 @@ module diatom_module
              !
              action%raman = .true.
              !
+          ! case('QUADRUPOLE')
+          !   !
+          !   action%quadrupole = .true.
+          !   !
            case('OVERLAP')
              !
              intensity%overlap = .true.
