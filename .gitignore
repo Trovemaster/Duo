@@ -49,3 +49,6 @@ Temporary Items
 *.o
 *.mod
 *.x
+
+# Old files
+oldf90s/

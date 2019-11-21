@@ -24,7 +24,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 15  ! number of different terms of the Hamiltonian 
+  integer(ik),parameter   :: Nobjects = 16  ! number of different terms of the Hamiltonian 
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -54,6 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
+  !        case(Nobjects-3) quadrupole(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
   !        case(Nobjects) dipoletm(iterm)
@@ -62,7 +63,7 @@ module diatom_module
   ! Lorenzo Lodi: it is necessary to repeat the character length specification in the array contructor for Fortran2003 conformance
   character(len=wl),parameter :: CLASSNAMES(1:Nobjects)  = (/ character(len=wl):: "POTEN","SPINORBIT","L2", "L+","SPIN-SPIN",&
                                                              "SPIN-SPIN-O","BOBROT","SPIN-ROT","DIABATIC","LAMBDAOPQ", &
-                                                             "LAMBDAP2Q","LAMBDAQ", "ABINITIO","BROT","DIPOLE" /)
+                                                             "LAMBDAP2Q","LAMBDAQ", "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -397,7 +398,7 @@ module diatom_module
   integer,parameter  :: jlist_max = 500
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
                           spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:)
-  type(fieldT),pointer :: brot(:)
+  type(fieldT),pointer :: brot(:),quadrupole(:)
   type(jobT)   :: job
   type(gridT)  :: grid
   type(quantaT),allocatable :: quanta(:)
@@ -409,7 +410,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,Nquadrupole
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -425,7 +426,7 @@ module diatom_module
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
-         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j
+         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupole
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
   !
   contains
@@ -435,7 +436,7 @@ module diatom_module
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
@@ -717,7 +718,7 @@ module diatom_module
           !
           allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                    bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),stat=alloc)
+                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupole(ncouples),stat=alloc)
           !
           ! initializing the fields
           !
@@ -1411,7 +1412,8 @@ module diatom_module
        case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","DIABATIC","DIABAT",&
-            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ") 
+            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ",&
+            "QUADRUPOLE") 
           !
           ibraket = 0
           !
@@ -2042,6 +2044,52 @@ module diatom_module
              field%class = trim(CLASSNAMES(12))
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+             
+             !
+          case("QUADRUPOLE")
+             !
+             if (iquad==0) then 
+                allocate(quadrupole(ncouples),stat=alloc)
+             endif
+             !
+             iquad = iquad + 1
+             !
+             call readi(iref)
+             call readi(jref)
+             !
+             include_state = .false.
+             loop_quad : do istate=1,Nestates
+               do jstate=1,Nestates
+                 !
+                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                   include_state = .true.
+                   istate_ = istate
+                   jstate_ = jstate
+                   exit loop_quad
+                 endif
+                 !
+               enddo
+             enddo loop_quad
+             !
+             if (.not.include_state) then
+                 iquad = iquad - 1
+                 do while (trim(w)/="".and.trim(w)/="END")
+                   call read_line(eof,iut) ; if (eof) exit
+                   call readu(w)
+                 enddo
+                 cycle
+             endif
+             !
+             if (iquad>ncouples) then
+                 write(out,"(2a,i4,a,i6)") trim(w),": Number of quadrupoles = ",iquad," exceeds the maximal allowed value",ncouples
+                 call report ("Too many couplings given in the input for"//trim(w),.true.)
+             endif
+             !
+             field => quadrupole(iquad)
+             !
+             call set_field_refs(field,iref,jref,istate_,jstate_)
+             !
+             field%class = "QUADRUPOLE"
              !
            case("ABINITIO")
              !
@@ -2267,7 +2315,6 @@ module diatom_module
                      exit loop_istate_ab11
                    endif
                enddo loop_istate_ab11
-
                !
              case("LAMBDA-Q","LAMBDAQ")
                !
@@ -2308,6 +2355,25 @@ module diatom_module
                if (trim(w)=='DIPOLE-X') then
                  abinitio(iabi_)%molpro = .true.
                endif
+               !
+             case("QUADRUPOLE")
+               !
+               call readi(iref)
+               call readi(jref)
+               !
+               include_state = .false.
+               loop_istate_abquad : do i=1,iquad
+                   !
+                   if (iref==quadrupole(i)%iref.and.jref==quadrupole(i)%jref) then
+                     include_state = .true.
+                     !
+                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     !
+                     exit loop_istate_abquad
+                   endif
+                   !
+               enddo loop_istate_abquad
+               !
              end select
              !
              if (.not.include_state) then
@@ -3351,10 +3417,11 @@ module diatom_module
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
+    Nquadrupole = iquad
     !
     ! create a map with field distribution
     !
-    do i = 1,Nobjects-2
+    do i = 1,Nobjects-4
       fieldmap(i)%Nfields = iobject(i)
     enddo
     !
@@ -3369,13 +3436,14 @@ module diatom_module
     !fieldmap(9)%Nfields = Ndiabatic
     !fieldmap(10)%Nfields = iobject(10)
     !
+    fieldmap(Nobjects-3)%Nfields = Nquadrupole
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
     Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
     !
-    Ntotalfields = sum(iobject(1:Nobjects-3))
+    Ntotalfields = sum(iobject(1:Nobjects-4))
     !
     ! check if all abinitio fields are initialized. If not we need to make dummy abinitio fields;
     ! we also check whether not all fields are given on a grid and thus can be varied.
@@ -3420,6 +3488,8 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (Nobjects-3)
+            field => quadrupole(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case default
@@ -4037,6 +4107,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (Nobjects-3)
+            field => quadrupole(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -4391,10 +4463,10 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (Nobjects-3)
+            field => quadrupole(iterm)
           case (Nobjects-2)
-            !
             field => abinitio(iterm)
-            !
           case (Nobjects-1)
             !
             ! no morphing for Brot 
@@ -4653,6 +4725,7 @@ subroutine map_fields_onto_grid(iverbose)
      call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
      call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
      if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
+     if(associated(quadrupole)) call check_and_print_coupling(Nquadrupole,iverbose,quadrupole, "Quadrupole moment functions:")
      !
    contains 
      !
@@ -6616,6 +6689,8 @@ end subroutine map_fields_onto_grid
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (Nobjects-3)
+            field => quadrupole(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
