@@ -115,8 +115,8 @@ Example:
 
 
 
-Surkus-polynomial expansion ``Surkus``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (alias ``BobLeroy``)
 
@@ -130,13 +130,12 @@ where :math:`y_p^{\textrm{eq}}` is the \v{S}urkus variable (\ref{eq:ypEQ}) and
 Example:
 ::
 
-    spin-orbit  2 2
+    Bob-Rot  1 1 
     name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
     spin   0.5 0.5
     lambda 1 1
     sigma  0.5 0.5
     type  BOBLEROY
-    units  cm-1
     factor    1.0   (0, 1 or i)
     values
      re         0.17700000000000E+01
@@ -166,13 +165,12 @@ where the damping function is defined by
 Example:
 ::
 
-    spin-orbit  2 2
+    Bob-Rot  2 2
     name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
     spin   0.5 0.5
     lambda 1 1
     sigma  0.5 0.5
     type  BOBLEROY
-    units  cm-1
     factor    1.0   (0, 1 or i)
     values
     re         0.17700000000000E+01
