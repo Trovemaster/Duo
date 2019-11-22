@@ -129,10 +129,9 @@ Example:
 ::
 
     Bob-Rot  1 1 
-    name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
+    name "<a2Pi|BR|a2Pi>"
     spin   0.5 0.5
     lambda 1 1
-    sigma  0.5 0.5
     type  BOBLEROY
     factor    1.0   (0, 1 or i)
     values
@@ -164,11 +163,10 @@ Example:
 ::
 
     Bob-Rot  2 2
-    name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
+    name "<a2Pi|BR|+1a2Pi>"
     spin   0.5 0.5
     lambda 1 1
-    sigma  0.5 0.5
-    type  BOBLEROY
+    type  BOBLEROY_damp
     factor    1.0   (0, 1 or i)
     values
     re         0.17700000000000E+01
