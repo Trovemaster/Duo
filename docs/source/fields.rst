@@ -1,5 +1,5 @@
-Specification of curves and couplings
-*************************************
+Specification of curves and couplings (Duo objects)
+***************************************************
 
 Once the main global parameters have been specified as described in the
 previous sections, it is necessary to introduce the PECs and the various coupling
@@ -29,7 +29,8 @@ Currently Duo supports the following types of objects: ``potential``, ``spinorbi
 ``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``.
 
 
-* ``poten`` (alias: potential) 
+``poten`` (alias: potential) 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Objects of type ``poten`` represent potential energy curves (PECs) and are
 the most fundamental objects underlying each calculation.
