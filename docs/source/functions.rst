@@ -124,6 +124,7 @@ Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
 where :math:`y_p^{\textrm{eq}}` is the \v{S}urkus variable (\ref{eq:ypEQ}) and
 `a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
 
+See also Eq.(36) in `R. Le Roy, JQSRT 186, 167 (2017) <https://doi.org/10.1016/j.jqsrt.2016.05.028>`_
 
 Example:
 ::
