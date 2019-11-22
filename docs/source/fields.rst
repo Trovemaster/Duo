@@ -67,13 +67,15 @@ Here is an example for a PEC showing the general structure:
 
 
 
-* L2:  (alias: ``L**2``)
+L2:  (alias: ``L**2``)
+^^^^^^^^^^^^^^^^^^^^^^
 
 These objects represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-* L+:   (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
+L+:   (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 It represent matrix elements between electronic states of the molecule-fixed
@@ -82,7 +84,8 @@ It represent matrix elements between electronic states of the molecule-fixed
 
 
 
-* ``spin-orbit`` and ``spin-orbit-x`` 
+``spin-orbit`` and ``spin-orbit-x`` 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These objects are matrix elements of the Breit-Pauli spin-orbit Hamiltonian
 in the :math:`\Lambda`- and Cartesian-representations, respectively.
@@ -127,21 +130,31 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
  (e.g. :math:`\langle 1.2 |{\rm LSZ} |1.3 \rangle`).
 
 
-* ``spin-spin-p`` and ``spin-spin-o`` Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
 
-* ``spin-rot`` Matrix elements of the spin-rotational operator .
+``spin-spin-p`` and ``spin-spin-o`` 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``bob-rot``  (alias: ``bobrot``) 
-  
-  Specifies the rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
-  which can be interpreted as a position-dependent modification to the rotational mass.
+Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
 
-* ``diabatic`` (alias: ``diabat``) 
+``spin-rot`` 
+^^^^^^^^^^^^^^
 
-Non-diagonal coupling of potential energy functions in the diabatic 
+Matrix elements of the spin-rotational operator .
+
+``bob-rot``   
+^^^^^^^^^^^
+
+Alias: ``bobrot``. Specifies the rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
+which can be interpreted as a position-dependent modification to the rotational mass.
+
+``diabatic``
+^^^^^^^^^^^^
+
+Alias: ``diabat``. Non-diagonal coupling of potential energy functions in the diabatic 
 representation. 
 
-* ``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  
+``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   
 These objects are three Lambda-doubling objects which correspond to 
   :math:`o^{\rm LD }+p^{\rm LD }+q^{\rm LD }`, :math:`p^{\rm LD }+2q^{\rm LD }`, and :math:`q^{\rm LD }` couplings.
@@ -167,7 +180,8 @@ Example:
      end
 
 
-* ``abinitio`` 
+``abinitio`` 
+^^^^^^^^^^^^
   
 Objects of type ``abinitio`` (aliases: ``reference``, ``anchor``) are reference, ``abinitio`` curves which may be specified
 during fitting. When they are used they constrain the fit so that the fitted function differs as little as possible from the
@@ -190,13 +204,16 @@ For any Duo object one can specify a corresponding reference curve as in the fol
      end
 
 
-* ``dipole`` (aliases: ``dipole-moment``, ``TM``) and ``dipole-x``  
-  
-  Diagonal or transition dipole moment curves (DMCs),  necessary for computing 
-  (dipole-allowed) transition line intensities and related quantities (Einstein :math:`A` coefficients etc.). 
-  ``dipole-x`` is related to the Cartesian-representation.
+``dipole``  and ``dipole-x``  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  At the moment Duo cannot compute electric-quadrupole or magnetic dipole transition line intensities.
+  
+``Dipole`` (aliases: ``dipole-moment``, ``TM``):  Diagonal or transition dipole moment curves (DMCs),  necessary for computing 
+(dipole-allowed) transition line intensities and related quantities (Einstein :math:`A` coefficients etc.). 
+
+``dipole-x`` is related to the Cartesian-representation.
+
+At the moment Duo cannot compute electric-quadrupole or magnetic dipole transition line intensities.
 
 
 
