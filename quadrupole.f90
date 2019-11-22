@@ -3,7 +3,7 @@ module quadrupole
 use accuracy,      only : hik, ik, rk, ark, cl, out,&
                           vellgt, planck, avogno, boltz, pi, small_
 use diatom_module, only : job, Intensity, quantaT, eigen, basis,&
-                          Ndipoles, dipoletm, duo_j0, fieldT, poten,&
+                          nQuadrupoles, quadrupoletm, duo_j0, fieldT, poten,&
                           three_j, jmin_global
 use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
@@ -1401,19 +1401,24 @@ contains
             ) cycle loop_I
         
         ! electron orbit selection rules
-        if (     lambdaF + lambdaI < 2 &
-            .or. abs(dLambda) > 2 &
+        !if (     lambdaF + lambdaI < 2 &
+        !    .or. abs(dLambda) > 2 &
+        !    .or. abs(dOmega) /= abs(dLambda) &
+        !    ) cycle loop_I
+        
+        ! alternative selection rules if lambdaF + lambdaI < 2 allowed
+        if (     abs(dLambda) > 2 &
             .or. abs(dOmega) /= abs(dLambda) &
             ) cycle loop_I
-        
+          
         f3j = three_j(jI, 2.0_rk, jF, omegaI, real(dOmega, rk), -omegaF)
         if ( abs(f3j) < Intensity%threshold%coeff ) cycle loop_I
         
         ls = 0
         
-        loop_quadpole :  do  indQuad = 1, nDipoles
+        loop_quadpole :  do  indQuad = 1, nQuadrupoles
           
-          field  => dipoletm(indQuad)
+          field  => quadrupoletm(indQuad)
           
           ! we can calculate opposite matrix elements at same time 
           do indPermute =  0, 1

@@ -54,7 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
-  !        case(Nobjects-3) quadrupole(iterm)
+  !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
   !        case(Nobjects) dipoletm(iterm)
@@ -399,7 +399,7 @@ module diatom_module
   integer,parameter  :: jlist_max = 500
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
                           spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:)
-  type(fieldT),pointer :: brot(:),quadrupole(:)
+  type(fieldT),pointer :: brot(:),quadrupoletm(:)
   type(jobT)   :: job
   type(gridT)  :: grid
   type(quantaT),allocatable :: quanta(:)
@@ -411,7 +411,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,Nquadrupole
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -427,7 +427,7 @@ module diatom_module
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
-         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupole
+         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
   !
   contains
@@ -719,7 +719,7 @@ module diatom_module
           !
           allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                    bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupole(ncouples),stat=alloc)
+                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupoletm(ncouples),stat=alloc)
           !
           ! initializing the fields
           !
@@ -2050,7 +2050,7 @@ module diatom_module
           case("QUADRUPOLE")
              !
              if (iquad==0) then 
-                allocate(quadrupole(ncouples),stat=alloc)
+                allocate(quadrupoletm(ncouples),stat=alloc)
              endif
              !
              iquad = iquad + 1
@@ -2086,7 +2086,7 @@ module diatom_module
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
              !
-             field => quadrupole(iquad)
+             field => quadrupoletm(iquad)
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
              !
@@ -2365,7 +2365,7 @@ module diatom_module
                include_state = .false.
                loop_istate_abquad : do i=1,iquad
                    !
-                   if (iref==quadrupole(i)%iref.and.jref==quadrupole(i)%jref) then
+                   if (iref==quadrupoletm(i)%iref.and.jref==quadrupoletm(i)%jref) then
                      include_state = .true.
                      !
                      iabi_ = sum(iobject(1:Nobjects-4)) + i
@@ -3422,7 +3422,7 @@ module diatom_module
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
-    Nquadrupole = iquad
+    nQuadrupoles = iquad
     !
     ! create a map with field distribution
     !
@@ -3441,7 +3441,7 @@ module diatom_module
     !fieldmap(9)%Nfields = Ndiabatic
     !fieldmap(10)%Nfields = iobject(10)
     !
-    fieldmap(Nobjects-3)%Nfields = Nquadrupole
+    fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
@@ -3494,7 +3494,7 @@ module diatom_module
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case default
@@ -4113,7 +4113,7 @@ subroutine map_fields_onto_grid(iverbose)
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -4469,7 +4469,7 @@ subroutine map_fields_onto_grid(iverbose)
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -4730,7 +4730,7 @@ subroutine map_fields_onto_grid(iverbose)
      call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
      call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
      if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
-     if(associated(quadrupole)) call check_and_print_coupling(Nquadrupole,iverbose,quadrupole, "Quadrupole moment functions:")
+     if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
      !
    contains 
      !
@@ -6175,7 +6175,7 @@ end subroutine map_fields_onto_grid
      !real(rk)                  :: f_rk
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_
-
+     
      ! open file for later (if option is set)
      if (job%print_rovibronic_energies_to_file ) &
          open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
@@ -6695,7 +6695,7 @@ end subroutine map_fields_onto_grid
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)

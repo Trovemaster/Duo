@@ -58,7 +58,7 @@ FOR = gfortran
 
 ###### gfortran compiler flages ######
 ##FFLAGS = -O3
-FFLAGS = -Og -g -Wall -Wextra -pedantic -fimplicit-none -fcheck=all -fbacktrace #debugging
+FFLAGS = -O0 -g -Wall -Wextra -pedantic -fimplicit-none -fcheck=all -fbacktrace #debugging
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
 
