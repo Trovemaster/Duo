@@ -83,7 +83,6 @@ Example:
    symmetry g
    lambda 1
    mult   3
-   units bohr cm-1
    type  MLR
    values
      Te        0.20151357236994E+05
@@ -206,7 +205,6 @@ Example
     type   MORSE
     lambda 0
     mult   1
-    units bohr cm-1
     values
     TE             0.00000000000000E+00
     RE             0.12423216077595E+01
@@ -232,7 +230,6 @@ Example:
     symmetry g
     lambda 1
     mult   3
-    units bohr cm-1
     type  Morse_damp
     values
      Te      20121.09769
@@ -483,7 +480,6 @@ Example
     spin   0.0 0.0
     lambda  0  0
     type  COSH-poly
-    units  cm-1
     factor    i   (0, 1 or i)
     values
     v0            0.0000
