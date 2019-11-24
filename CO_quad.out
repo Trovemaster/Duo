@@ -2412,18 +2412,18 @@ done
  (       27 arrays contributing less than 1% are not shown)
 
 
-              Timing data at 2019/11/22 16:04:32
+              Timing data at 2019/11/22 16:23:11
 
  Timer                               Calls  Total time (seconds)  Self time (seconds)
  -----                               -----  --------------------  -------------------
                                                  Real       CPU        Real       CPU
 
- Duo                            *       1.      282.7       0.2         0.0       0.0
+ Duo                            *       1.        0.2       0.2         0.0       0.0
  Solve vibrational part                 1.        0.1       0.1         0.1       0.1
  Build vibrational Hamiltonian          1.        0.0       0.0         0.0       0.0
  Construct the hamiltonian             11.        0.0       0.0         0.0       0.0
- Sort eigenvalues               *       1.      282.6       0.2         0.0       0.0
- Intensity calculations                 1.      282.6       0.2       282.5       0.0
+ Sort eigenvalues               *       1.        0.1       0.1         0.0       0.0
+ Intensity calculations                 1.        0.1       0.1         0.0       0.0
  do_1st_half_linestr                  215.        0.1       0.1         0.1       0.1
 
  (  8 timers contributing less than 1% are not shown)
