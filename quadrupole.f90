@@ -297,6 +297,19 @@ contains
     inten_cm_mol = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef       = planck*vellgt/(4.0_rk*pi)
     coefA_s1     = 64.0d-36 * pi**4  / (3.0_rk * planck)
+
+    !
+    ! vacuum permittivity (NIST 2018) - needs to be
+    ! properly programmed later
+    vacPerm = 8.8541878128d-12
+    
+    ! conversion factor for Q[a.u] -> Q[S.I],
+    ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m] 
+    unitConv = 2.012914458d-62
+    
+    ! calculate the common factor for the Einstein coefficient
+    coefA_s1 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
+    !
     
     if ( sym%maxdegen > 2) then
       write(out, "('qm_intensity: this procedure has not been tested&
@@ -878,7 +891,7 @@ contains
           
           ! J selection rules for quadrupole operator
           if (     abs(nint(jI - jF)) > 2 &
-              .or. abs(nint(jI + jF)) == 0) cycle
+              .or. abs(nint(jI + jF)) < 2) cycle
             
           ! loop over symmetries
           do indGammaF = 1, nRepresen
@@ -967,7 +980,7 @@ contains
                   
                   if (      Intensity%J(1) + Intensity%J(2) > 0 &
                       .and. abs(nint(jI - jF)) <= 2 &
-                      .and. nint(jI + jF) > 0 & 
+                      .and. nint(jI + jF) >= 2 & 
                       ) then
                     
                     call do_1st_half_linestrength(jI, jF, indI, indF, &
@@ -1050,17 +1063,12 @@ contains
                     lineStr = ddot(dimenF, halfLineStr, 1, vecF, 1)
                     lineStrSq = lineStr**2
                     
-                    ! vacuum permittivity (NIST 2018) - needs to be
-                    ! properly programmed later
-                    vacPerm = 8.8541878128d-12
-                    
-                    ! conversion factor for Q[a.u] -> Q[S.I],
-                    ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m] 
-                    unitConv = 2.012914458d-62
-                    
                     ! calculate the Einstein A coefficient
-                    einA = unitConv * (2.0_rk*jI + 1.0_rk) * lineStrSq &
-                      * (8 * pi**5 * abs(nu)**5) / (5 * vacPerm * planck)
+                    !einA = unitConv * (2.0_rk*jI + 1.0_rk) * lineStrSq &
+                    !  * (8.0_rk * pi**5 * abs(nu)**5) / (5.0_rk * vacPerm * planck)
+
+                    ! calculate the Einstein A coefficient
+                    einA =coefA_s1 * (2.0_rk*jI + 1.0_rk) * lineStrSq*abs(nu)**5
                     
                     ! linestrength times transition degeneracy
                     lineStrSq = lineStrSq * Intensity%gns(indSymI) &
@@ -1555,27 +1563,6 @@ contains
       ngamma = 0
       igamma_pair(igammaI) = igammaI
       
-      do igammaF = 1,sym%Nrepresen
-        
-        if (      igammaI /= igammaF &
-            .and. intensity%isym_pairs(igammaI) &
-               == intensity%isym_pairs(igammaF) &
-            ) then 
-          
-          igamma_pair(igammaI) = igammaF
-          
-          ngamma = ngamma + 1 
-          
-          if (ngamma>1) then 
-            write(out, &
-              "('qm_intensity: Assumption that selection rules come&
-              & in pairs is wrong!')")
-            stop 'qm_intensity: Assumption that all selection rules&
-              & work in pairs is wrong!'
-          endif
-        endif        
-      enddo
-      
       if ( nint(intensity%gns(igammaI) &
           - intensity%gns(igamma_pair(igammaI))) /= 0 &
          ) then 
@@ -1675,7 +1662,7 @@ contains
             .or. &
           nint(jI - intensity%J(1)) /= 0 &
             .or. &
-          nint(jI + jF) == 1 &
+          nint(jI + jF) == 1 &  ! check ????
         ) &
         .and. &
         (intensity%J(1) + intensity%J(2) > 0) &
@@ -1688,9 +1675,9 @@ contains
         .and. &
         
         ! selection rules from the 3j-symbols
-        abs(nint(jI - jF)) <= 1 &
+        abs(nint(jI - jF)) <= 2 &
         .and. &
-        nint(jI + jF) >= 1
+        nint(jI + jF) >= 2 
       ! end set passed
     endif
   end subroutine intens_filter
@@ -1754,9 +1741,9 @@ contains
         igamma_pair(isymI) == isymF &
           .and. &
         ! selection rules from the 3j-symbols
-        abs(nint(jI - jF)) <= 1 &
+        abs(nint(jI - jF)) <= 2 &
           .and. &
-        nint(jI+jF) >= 1
+        nint(jI+jF) >= 2
     endif
   end subroutine matelem_filter
 
