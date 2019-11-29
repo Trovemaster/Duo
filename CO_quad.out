@@ -41,7 +41,7 @@ atoms C O
 
 nstates 1
 
-jrot 0 - 5
+jrot 0 - 10
 
 grid
   npoints 501
@@ -166,11 +166,11 @@ end
 
 INTENSITY
   absorption
-  thresh_intes  1e-30
-  thresh_line   1e-30
+  thresh_intes  -1e0
+  thresh_line   -1e0
   temperature   300.0
   nspin         0.0  0.0
-  selection     2 2
+  selection     1 1
   linelist   CO
   J,  0,  10
   freq-window  0.001, 100000
@@ -2368,64 +2368,3 @@ Eigenvalues for J =      0.0
        0.0   30      47575.721537   1    29   0     0.0     0.0     0.0   +    ||X 1Sigma+
 
 Zero point energy (ZPE) =    6337.879948373457
-
-Zero point energy (ZPE) =        6337.879948 (global zero, used for intensities)
-
-Partition function =             0.0000 T =       300.00
-
-Read and sort eigenvalues in increasing order...
-
-Partition function =            81.1561 T =       300.00
-Number of states for each sym =      180     150
-
-Quadrupole moment integration (i)...
-
-...done!
-Number of states for each sym =      180     150
-Total number of lower states =       55
-Total number of transitions  =     2500
-
-Statistical weight g_ns =         1.0         1.0
-
-Linestrength S(f<-i) [Debye**2],Transition moments [Debye],Einstein coefficient A(if) [1/s],and Intensities [cm/mol]
-
-    J Gamma <-   J  Gamma Typ       Ei     <-      Ef          nu_if        S(f<-i)          A(if)            I(f<-i)       State v lambda sigma  omega <- State v lambda sigma  omega 
-
-done
-
-
- Memory Report:
- Active Arrays                                          size (MB)
- SPF                        0.005                                                
- GRID                       0.007                                                
- grid%r                     0.004                                                
- r-field                    0.016                                                
- DUMMY                      0.004                                                
- brot                       0.007                                                
- X 1Sigma+                  0.007                                                
- <1Sigma+|QM20|1Sigma+      0.007                                                
- BROT                       0.011                                                
- eigens                     0.082                                                
- Total memory   =                                           0.150 MB
- Maximal memory =                                           4.428 MB (             4.0)
-
- (       27 arrays contributing less than 1% are not shown)
-
-
-              Timing data at 2019/11/22 16:23:11
-
- Timer                               Calls  Total time (seconds)  Self time (seconds)
- -----                               -----  --------------------  -------------------
-                                                 Real       CPU        Real       CPU
-
- Duo                            *       1.        0.2       0.2         0.0       0.0
- Solve vibrational part                 1.        0.1       0.1         0.1       0.1
- Build vibrational Hamiltonian          1.        0.0       0.0         0.0       0.0
- Construct the hamiltonian             11.        0.0       0.0         0.0       0.0
- Sort eigenvalues               *       1.        0.1       0.1         0.0       0.0
- Intensity calculations                 1.        0.1       0.1         0.0       0.0
- do_1st_half_linestr                  215.        0.1       0.1         0.1       0.1
-
- (  8 timers contributing less than 1% are not shown)
-
---End--

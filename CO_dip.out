@@ -1,0 +1,111 @@
+ ____                                        ____  _   _  ___
+|  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   |  _ \| | | |/ _ \
+| |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \  | | | | | | | | | |
+|  __/| | | (_) | (_| | | | (_| | | | | | | | |_| | |_| | |_| |
+|_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_| |____/ \___/ \___/
+                 |___/
+
+
+Please refer to:
+ Sergei N. Yurchenko, Lorenzo Lodi, Jonathan Tennyson and Andrey V. Stolyarov, 
+ `DUO: A general program for calculating spectra of diatomic molecules',
+  Computer Physics Communication, Volume 202, May 2016, pages 262-275
+  Contacts: s.yurchenko@ucl.ac.uk; l.lodi@ucl.ac.uk; j.tennyson@ucl.ac.uk; 
+            avstol@phys.chem.msu.ru
+  http://arxiv.org/abs/1601.06531
+  Check https://github.com/Trovemaster for the latest version!
+
+Values of physical constants used by DUO:
+                    Planck constant h =   6.626069570000E-27    erg*second
+                     Speed of light c =     29979245800.0000     cm/second
+                       Bohr radius a0 =      0.5291772109200     angstroms
+                    Hartree energy Eh =    219474.6313708000         cm^-1
+           Unified atomic mass unit u =   1.660538921000E-24         grams
+           Unified atomic mass unit u =   1822.8884861185961            me
+                    Electron charge e =   1.602176565000E-19      Coulombs
+                Boltzmann constant kB =   1.380648800000E-16    erg/Kelvin
+                Boltzmann constant kB =   0.6950347606422950  cm^-1/Kelvin
+                    Avogadro constant =   6.022141290000E+23        mol^-1
+      Fine structure constant 1/alpha =   137.03599907466793
+                     Electron mass me =   9.109382903261E-28         grams
+                  a.u. of dipole e*a0 =       2.541746363812        debyes
+                          1 erg      =>   1.000000000000E-07         Joule
+                          1 erg      =>   5.034117008194E+15         cm^-1
+                          1 eV       =>      8065.5442959967         cm^-1
+                          1 kCal/mol =>       349.7550878997         cm^-1
+                          1 kJ/mol   =>        83.5934722514         cm^-1
+                          1 THz      =>        33.3564095198         cm^-1
+
+(Transcript of the input --->)
+(CO molecule; Hunds case a)
+
+masses  12.0d0  15.99491463d0
+molecule CO
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0
+
+(Defining the integration grid)
+grid
+  npoints  501  (odd)
+  range  0.8,2.5
+  type 4   (nsub)
+  re 1.13
+end
+
+
+DIAGONALIZER
+ SYEVR
+ enermax 35000.0  (nroots 100)
+end
+
+
+CONTRACTION
+  vib
+  vmax       32
+  enermax   190000.
+END
+
+
+
+(All potential functions must appear first followed by the couplings)
+
+
+
+poten 1
+name "X 1Sigma+"
+symmetry +
+type   SPF
+lambda 0
+mult   1
+N  14
+values
+v0           0  0.00
+re           0  1.128322846
+B0           1     609452.257
+b1           0      -0.6972002
+b2           0      -0.5850083
+b3           0      -0.12661
+b4           0       0.26656
+b5           0       0.5755
+b6           0       0.880
+b7           0       0.924
+b8           0      -5.660
+b9           0     -11.57
+b10          0      14.97
+b11          0       9.29
+end
+
+
+FITTING
+JLIST    0
+itmax    0
+fit_factor  1e-4
+THRESH_COEFF   1e-18
+Unrecognized keyword name (error 01): THRESH_COEFF
+Input line    83
+    THRESH_COEFF   1e-18    
+    *
