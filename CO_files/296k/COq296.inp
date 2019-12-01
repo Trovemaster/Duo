@@ -129,12 +129,12 @@ end
 
 INTENSITY
   absorption
-  thresh_intes  1e-50
-  thresh_line   1e-50
-  temperature   500.0
+  thresh_intes  1e-70
+  thresh_line   1e-70
+  temperature   296.00
   nspin         0.0  0.0
-  linelist      CO_quad_03
+  linelist      COq296
   J,  0,  152
-  freq-window  0.001, 5000
-  energy low 0.0, 1500.0, upper 0.0, 7000.0
+  freq-window  -0.001, 20000
+  energy low 0.0, 20000.0, upper 0.0, 20000.0
 END

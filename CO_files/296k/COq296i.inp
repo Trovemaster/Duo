@@ -2,7 +2,7 @@ atoms C O
 
 nstates 1
 
-jrot 0 - 151
+jrot 0 - 152
 
 grid
   npoints 501
@@ -131,10 +131,10 @@ INTENSITY
   absorption
   thresh_intes  1e-50
   thresh_line   1e-50
-  temperature   300.0
+  temperature   296.00
   nspin         0.0  0.0
-  linelist      CO_quad_02
-  J,  0,  151
+  linelist      COq296
+  J,  0,  152
   freq-window  0.001, 5000
   energy low 0.0, 1500.0, upper 0.0, 7000.0
 END
