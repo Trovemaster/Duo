@@ -345,16 +345,17 @@ module diatom_module
                                              ! in intensity calculations; (imode,1:2), 
                                              ! where 1 stands for the beginning and 2 for the end. 
      !
-     integer(ik)         :: swap_size    = 0 ! the number of vectors to keep in memory
-     character(cl)       :: swap = "NONE"    ! whether save the compacted vectors or read
-     character(cl)       :: swap_file  ="compress"   ! where swap the compacted eigenvectors to
+     integer(ik)         :: swap_size    = 0       ! the number of vectors to keep in memory
+     character(cl)       :: swap = "NONE"          ! whether save the compacted vectors or read
+     character(cl)       :: swap_file  ="compress" ! where swap the compacted eigenvectors to
      character(cl)       :: linelist_file="NONE"   ! filename for the line list (filename.states and filename.trans)
-     integer(ik)         :: int_increm = 1e9 ! used to print out the lower energies needed to select int_increm intensities
-     real(rk)            :: factor = 1.0d0   ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
-     logical             :: matelem =.false.  ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
+     integer(ik)         :: int_increm = 1e9       ! used to print out the lower energies needed to select int_increm intensities
+     real(rk)            :: factor = 1.0d0         ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
+     logical             :: matelem =.false.       ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
      logical             :: lande_calc = .false.   ! checks whether calculation for Lande should be conducted
      logical             :: overlap = .false.      ! print out overlap integrals (Franck-Condon)
      logical             :: tdm      = .true.      ! print out dipole transition moments 
+     logical             :: tqm      = .true.      ! print out quadrupole transition moments
      !
  end type IntensityT
   !
@@ -510,13 +511,13 @@ module diatom_module
         !
         case("STOP","FINISH","END")
           exit
-
+        !
        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
          job%print_pecs_and_couplings_to_file = .true.
-
+        !
        case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
          job%print_vibrational_energies_to_file = .true.
-
+        !
        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
          !
          job%print_rovibronic_energies_to_file = .true.
@@ -3175,10 +3176,11 @@ module diatom_module
              !
              action%raman = .true.
              !
-          ! case('QUADRUPOLE')
-          !   !
-          !   action%quadrupole = .true.
-          !   !
+           case('QUADRUPOLE')
+             !
+             action%quadrupole = .true.
+             !action%dipole     = .false.
+             !
            case('OVERLAP')
              !
              intensity%overlap = .true.
@@ -3191,6 +3193,13 @@ module diatom_module
              !
              if (nitems>1) call readu(w) 
              if (trim(w)=="OFF") intensity%tdm = .false.
+             !
+           case('VIB-QUADRUPOLE')
+             !
+             intensity%tqm = .true.
+             !
+             if (nitems>1) call readu(w)
+             if (trim(w)=="OFF") intensity%tqm = .false.
              !
            case('THRESH_INTES','THRESH_TM','THRESH-INTES')
              !
@@ -6652,7 +6661,15 @@ end subroutine map_fields_onto_grid
         !
         if (iobject==Nobjects-2) cycle
         !
-        if (iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
+        if ( iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
+           !
+           write(out,'(/"Vibrational transition moments: ")')
+!            write(out,'("    State    TM   State"/)')
+           write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
+           !
+        endif
+        ! 
+        if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
            !
            write(out,'(/"Vibrational transition moments: ")')
 !            write(out,'("    State    TM   State"/)')
@@ -6761,7 +6778,9 @@ end subroutine map_fields_onto_grid
           !
           ! printing out transition moments 
           !
-          if (iobject==Nobjects.and.action%intensity.and.intensity%tdm) then
+          if (      iobject==Nobjects &
+              .and. action%intensity &
+              .and. intensity%tdm) then
               !
               !write(out,'(/"Vibrational transition moments: ")')
               !write(out,'("    State    TM   State"/)')
@@ -6775,22 +6794,22 @@ end subroutine map_fields_onto_grid
                   ! dipole selection rules
                   !
                   if (nint(field%spini-field%spinj)==0.and.abs(field%lambda-field%lambdaj)<=1) then 
-                     !
-                     !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
-                     !
-!                      if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>sqrt(small_).and.istate==field%istate.and.&
-                     if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
-                          jstate==field%jstate ) then 
-                       !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
-                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
+                    !
+                    !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
+                    !
+                    !  if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>sqrt(small_).and.istate==field%istate.and.&
+                    if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
+                         jstate==field%jstate ) then 
+                      !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
+                      write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
                                                                                           icontrvib(ilevel)%v,            &
                                                                                           trim(field%name),               &
                                                                                           icontrvib(jlevel)%istate,       &
                                                                                           icontrvib(jlevel)%v,            &
                                                                                           field%matelem(ilevel,jlevel)  ! & 
                                                                                           !,matelem_rk(ilevel,jlevel)
-                       !
-                     endif
+                      !
+                    endif
                     !
                   else
                     !
@@ -6803,6 +6822,36 @@ end subroutine map_fields_onto_grid
                   !
                 enddo
               enddo
+          elseif (      iobject==Nobjects-3 &
+                  .and. action%intensity &
+                  .and. intensity%tqm) then
+            !
+            do ilevel = 1, totalroots
+              do jlevel =1, totalroots
+                !
+                istate = icontrvib(ilevel)%istate
+                jstate = icontrvib(jlevel)%istate
+                !
+                ! quadrupole selection rules
+                if (      nint(field%spini - field%spinj) == 0 &
+                    .and. abs(field%lambda - field%lambdaj) <= 2) then
+                  !
+                  if (      iverbose >= 4 &
+                      .and. istate == field%istate &
+                      .and. jstate == field%jstate ) then
+                    !
+                    write(out, &
+                      '("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ", 2es18.8)') &
+                      icontrvib(ilevel)%istate, icontrvib(ilevel)%v, &
+                      trim(field%name), &
+                      icontrvib(jlevel)%istate, icontrvib(jlevel)%v, &
+                      field%matelem(ilevel, jlevel)
+                    !
+                  endif
+                endif
+              enddo
+            enddo
+            !
           endif 
           !
         enddo

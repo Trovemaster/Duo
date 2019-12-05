@@ -71,17 +71,17 @@
          stop
          !
        endif
-       !
-       !if (action%quadrupole) then
-       !  call qm_tranint
-       !  !
-       !  write(out, '(a)') '--End--'
-       !  stop
-       !endif
-       !
+       ! 
        !call define_jlist
-       !call dm_tranint
-       call qm_tranint
+       if (action%quadrupole) then
+         call qm_tranint
+         write(out, '(a)') '--End--'
+         stop
+       else
+         call dm_tranint
+         write(out, '(a)') '--End--'
+         stop
+       endif
        !
        write(out, '(a)') '--End--'
        stop

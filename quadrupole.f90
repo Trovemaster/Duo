@@ -290,6 +290,8 @@ contains
     logical                   :: intSpin = .true.
     logical                   :: passed, passed_
     
+    integer(ik) :: testVar
+    
     call TimerStart('Intensity calculations')
     
     ! define values of some constants
@@ -985,7 +987,7 @@ contains
                     
                     call do_1st_half_linestrength(jI, jF, indI, indF, &
                       dimenI, dimenF, vecI(1:dimenI), halfLineStr)
-                    
+                    testVar = 1
                   endif
                   
                 case('TM')
@@ -1361,6 +1363,8 @@ contains
     ! quadrupole field
     type(fieldT), pointer   :: field
     
+    integer(ik) :: testVar
+    
     call TimerStart('do_1st_half_linestr')
     
     half_ls = 0
@@ -1512,6 +1516,7 @@ contains
             enddo
           enddo
         enddo loop_quadpole
+        testVar = 1
       enddo  loop_I
     enddo loop_F
     
