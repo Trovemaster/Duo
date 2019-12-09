@@ -57,8 +57,8 @@ FOR = gfortran
 ##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
 
 ###### gfortran compiler flages ######
-##FFLAGS = -O3
-FFLAGS = -O0 -g -Wall -Wextra -pedantic -fimplicit-none -fcheck=all -fbacktrace #debugging
+FFLAGS = -O3
+##FFLAGS = -O0 -g -Wall -Wextra -pedantic -fimplicit-none -fcheck=all -fbacktrace #debugging
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
 
