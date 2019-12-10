@@ -30,6 +30,7 @@ QUADRUPOLE 1 1
 name   "<1Sigma+|QM20|1Sigma+>"
 spin   0 0
 lambda 0 0
+units bohr
 type   grid
 values
 1.51178122   -5.7296706255

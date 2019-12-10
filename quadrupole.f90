@@ -1069,8 +1069,8 @@ contains
                     ! calculate the Einstein A coefficient
                     einA =  coefA_s1 * (2.0_rk*jI + 1.0_rk) * lineStrSq*abs(nu)**5
 
-                    ! linestrength times transition degeneracy
                     lineStrSq = lineStrSq * Intensity%gns(indSymI) &
+                    ! linestrength times transition degeneracy
                       * (2.0_rk*jI + 1.0_rk) * (2.0_rk*jF + 1.0_rk)
 
                     if ( trim(Intensity%action) == 'ABSORPTION') then
