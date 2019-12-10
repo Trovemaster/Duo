@@ -1,37 +1,3 @@
-atoms C O
-
-nstates 1
-
-jrot 0 - 152
-
-grid
-  npoints 501
-  range   0.7 3.0
-  type    0
-end
-
-CONTRACTION
-  vib
-  vmax 42
-END
-
-poten 1
-name "X1Sigma+"
-symmetry +
-type  EMO
-lambda 0
-mult   1
-TYPE  CO_X_UBO
-values
-v0       0.0
-end
-
-QUADRUPOLE 1 1 
-name   "<1Sigma+|QM20|1Sigma+>"
-spin   0 0
-lambda 0 0
-type   grid
-values
 0.80000023  -2.3391282378
 0.81210023  -2.3213213468
 0.82420023  -2.3038641051
@@ -132,18 +98,3 @@ values
 1.97580056  -1.5682605134
 1.98790056  -1.6919664734
 2.00000056  -1.8208401269
-end
-
-INTENSITY
-  VIB-QUADRUPOLE
-  QUADRUPOLE
-  absorption
-  thresh_intes  1e-70
-  thresh_line   1e-70
-  temperature   296.00
-  nspin         0.0  0.0
-  linelist      COq296
-  J,  0,  152
-  freq-window  -0.001, 20000
-  energy low 0.0, 20000.0, upper 0.0, 20000.0
-END
