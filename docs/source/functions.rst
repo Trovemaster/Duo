@@ -83,7 +83,6 @@ Example:
    symmetry g
    lambda 1
    mult   3
-   units bohr cm-1
    type  MLR
    values
      Te        0.20151357236994E+05
@@ -102,7 +101,6 @@ Example:
      b6        0.00000000000000E+00
      b7        0.00000000000000E+00
      b8        0.00000000000000E+00
-     Binf      1.000000000000000000
      a1        0.00000000000000E+00
      a2        0.00000000000000E+00
      a3        0.00000000000000E+00
@@ -115,8 +113,8 @@ Example:
 
 
 
-Surkus-polynomial expansion ``Surkus``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (alias ``BobLeroy``)
 
@@ -126,17 +124,16 @@ Surkus-polynomial expansion ``Surkus``
 where :math:`y_p^{\textrm{eq}}` is the \v{S}urkus variable (\ref{eq:ypEQ}) and
 `a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
 
+See also Eq.(36) in `R. Le Roy, JQSRT 186, 167 (2017) <https://doi.org/10.1016/j.jqsrt.2016.05.028>`_
 
 Example:
 ::
 
-    spin-orbit  2 2
-    name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
+    Bob-Rot  1 1 
+    name "<a2Pi|BR|a2Pi>"
     spin   0.5 0.5
     lambda 1 1
-    sigma  0.5 0.5
     type  BOBLEROY
-    units  cm-1
     factor    1.0   (0, 1 or i)
     values
      re         0.17700000000000E+01
@@ -166,13 +163,11 @@ where the damping function is defined by
 Example:
 ::
 
-    spin-orbit  2 2
-    name "<Lambda=+1,S=1 (a2Pi)|LSZ|+1 (a2Pi),S=1>"
+    Bob-Rot  2 2
+    name "<a2Pi|BR|+1a2Pi>"
     spin   0.5 0.5
     lambda 1 1
-    sigma  0.5 0.5
-    type  BOBLEROY
-    units  cm-1
+    type  BOBLEROY_damp
     factor    1.0   (0, 1 or i)
     values
     re         0.17700000000000E+01
@@ -208,7 +203,6 @@ Example
     type   MORSE
     lambda 0
     mult   1
-    units bohr cm-1
     values
     TE             0.00000000000000E+00
     RE             0.12423216077595E+01
@@ -234,7 +228,6 @@ Example:
     symmetry g
     lambda 1
     mult   3
-    units bohr cm-1
     type  Morse_damp
     values
      Te      20121.09769
@@ -485,7 +478,6 @@ Example
     spin   0.0 0.0
     lambda  0  0
     type  COSH-poly
-    units  cm-1
     factor    i   (0, 1 or i)
     values
     v0            0.0000
