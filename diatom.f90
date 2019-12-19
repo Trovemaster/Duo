@@ -54,7 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
-  !        case(Nobjects-3) quadrupole(iterm)
+  !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
   !        case(Nobjects) dipoletm(iterm)
@@ -288,6 +288,7 @@ module diatom_module
      logical :: frequency     = .false.
      logical :: matelem       = .false.
      logical :: raman         = .false.
+     logical :: quadrupole    = .false.
      !
   end type actionT
   !
@@ -344,16 +345,17 @@ module diatom_module
                                              ! in intensity calculations; (imode,1:2), 
                                              ! where 1 stands for the beginning and 2 for the end. 
      !
-     integer(ik)         :: swap_size    = 0 ! the number of vectors to keep in memory
-     character(cl)       :: swap = "NONE"    ! whether save the compacted vectors or read
-     character(cl)       :: swap_file  ="compress"   ! where swap the compacted eigenvectors to
+     integer(ik)         :: swap_size    = 0       ! the number of vectors to keep in memory
+     character(cl)       :: swap = "NONE"          ! whether save the compacted vectors or read
+     character(cl)       :: swap_file  ="compress" ! where swap the compacted eigenvectors to
      character(cl)       :: linelist_file="NONE"   ! filename for the line list (filename.states and filename.trans)
-     integer(ik)         :: int_increm = 1e9 ! used to print out the lower energies needed to select int_increm intensities
-     real(rk)            :: factor = 1.0d0   ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
-     logical             :: matelem =.false.  ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
+     integer(ik)         :: int_increm = 1e9       ! used to print out the lower energies needed to select int_increm intensities
+     real(rk)            :: factor = 1.0d0         ! factor <1 to be applied the maxsize of the vector adn thus to be shrunk 
+     logical             :: matelem =.false.       ! switch for the line-strenth-type matelems  (matrix elements of the dipole moment)
      logical             :: lande_calc = .false.   ! checks whether calculation for Lande should be conducted
      logical             :: overlap = .false.      ! print out overlap integrals (Franck-Condon)
      logical             :: tdm      = .true.      ! print out dipole transition moments 
+     logical             :: tqm      = .true.      ! print out quadrupole transition moments
      !
  end type IntensityT
   !
@@ -398,7 +400,7 @@ module diatom_module
   integer,parameter  :: jlist_max = 500
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
                           spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:)
-  type(fieldT),pointer :: brot(:),quadrupole(:)
+  type(fieldT),pointer :: brot(:),quadrupoletm(:)
   type(jobT)   :: job
   type(gridT)  :: grid
   type(quantaT),allocatable :: quanta(:)
@@ -410,7 +412,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,Nquadrupole
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -426,7 +428,7 @@ module diatom_module
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
-         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupole
+         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
   !
   contains
@@ -436,7 +438,7 @@ module diatom_module
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
@@ -509,13 +511,13 @@ module diatom_module
         !
         case("STOP","FINISH","END")
           exit
-
+        !
        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
          job%print_pecs_and_couplings_to_file = .true.
-
+        !
        case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
          job%print_vibrational_energies_to_file = .true.
-
+        !
        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
          !
          job%print_rovibronic_energies_to_file = .true.
@@ -718,7 +720,7 @@ module diatom_module
           !
           allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                    bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupole(ncouples),stat=alloc)
+                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupoletm(ncouples),stat=alloc)
           !
           ! initializing the fields
           !
@@ -1412,7 +1414,8 @@ module diatom_module
        case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","DIABATIC","DIABAT",&
-            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ") 
+            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ",&
+            "QUADRUPOLE") 
           !
           ibraket = 0
           !
@@ -2048,7 +2051,7 @@ module diatom_module
           case("QUADRUPOLE")
              !
              if (iquad==0) then 
-                allocate(quadrupole(ncouples),stat=alloc)
+                allocate(quadrupoletm(ncouples),stat=alloc)
              endif
              !
              iquad = iquad + 1
@@ -2084,7 +2087,7 @@ module diatom_module
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
              !
-             field => quadrupole(iquad)
+             field => quadrupoletm(iquad)
              !
              call set_field_refs(field,iref,jref,istate_,jstate_)
              !
@@ -2363,7 +2366,7 @@ module diatom_module
                include_state = .false.
                loop_istate_abquad : do i=1,iquad
                    !
-                   if (iref==quadrupole(i)%iref.and.jref==quadrupole(i)%jref) then
+                   if (iref==quadrupoletm(i)%iref.and.jref==quadrupoletm(i)%jref) then
                      include_state = .true.
                      !
                      iabi_ = sum(iobject(1:Nobjects-4)) + i
@@ -3173,6 +3176,11 @@ module diatom_module
              !
              action%raman = .true.
              !
+           case('QUADRUPOLE')
+             !
+             action%quadrupole = .true.
+             !action%dipole     = .false.
+             !
            case('OVERLAP')
              !
              intensity%overlap = .true.
@@ -3185,6 +3193,13 @@ module diatom_module
              !
              if (nitems>1) call readu(w) 
              if (trim(w)=="OFF") intensity%tdm = .false.
+             !
+           case('VIB-QUADRUPOLE')
+             !
+             intensity%tqm = .true.
+             !
+             if (nitems>1) call readu(w)
+             if (trim(w)=="OFF") intensity%tqm = .false.
              !
            case('THRESH_INTES','THRESH_TM','THRESH-INTES')
              !
@@ -3416,7 +3431,7 @@ module diatom_module
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
-    Nquadrupole = iquad
+    nQuadrupoles = iquad
     !
     ! create a map with field distribution
     !
@@ -3435,7 +3450,7 @@ module diatom_module
     !fieldmap(9)%Nfields = Ndiabatic
     !fieldmap(10)%Nfields = iobject(10)
     !
-    fieldmap(Nobjects-3)%Nfields = Nquadrupole
+    fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
@@ -3487,6 +3502,8 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (Nobjects-3)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case default
@@ -4105,7 +4122,7 @@ subroutine map_fields_onto_grid(iverbose)
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -4461,7 +4478,7 @@ subroutine map_fields_onto_grid(iverbose)
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -4722,7 +4739,7 @@ subroutine map_fields_onto_grid(iverbose)
      call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
      call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
      if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
-     if(associated(quadrupole)) call check_and_print_coupling(Nquadrupole,iverbose,quadrupole, "Quadrupole moment functions:")
+     if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
      !
    contains 
      !
@@ -6167,7 +6184,7 @@ end subroutine map_fields_onto_grid
      !real(rk)                  :: f_rk
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_
-
+     
      ! open file for later (if option is set)
      if (job%print_rovibronic_energies_to_file ) &
          open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
@@ -6644,7 +6661,15 @@ end subroutine map_fields_onto_grid
         !
         if (iobject==Nobjects-2) cycle
         !
-        if (iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
+        if ( iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
+           !
+           write(out,'(/"Vibrational transition moments: ")')
+!            write(out,'("    State    TM   State"/)')
+           write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
+           !
+        endif
+        ! 
+        if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
            !
            write(out,'(/"Vibrational transition moments: ")')
 !            write(out,'("    State    TM   State"/)')
@@ -6687,7 +6712,7 @@ end subroutine map_fields_onto_grid
           case (12)
             field => lambdaq(iterm)
           case (Nobjects-3)
-            field => quadrupole(iterm)
+            field => quadrupoletm(iterm)
           case (Nobjects-2)
             field => abinitio(iterm)
           case (Nobjects-1)
@@ -6753,7 +6778,9 @@ end subroutine map_fields_onto_grid
           !
           ! printing out transition moments 
           !
-          if (iobject==Nobjects.and.action%intensity.and.intensity%tdm) then
+          if (      iobject==Nobjects &
+              .and. action%intensity &
+              .and. intensity%tdm) then
               !
               !write(out,'(/"Vibrational transition moments: ")')
               !write(out,'("    State    TM   State"/)')
@@ -6767,22 +6794,22 @@ end subroutine map_fields_onto_grid
                   ! dipole selection rules
                   !
                   if (nint(field%spini-field%spinj)==0.and.abs(field%lambda-field%lambdaj)<=1) then 
-                     !
-                     !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
-                     !
-!                      if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>sqrt(small_).and.istate==field%istate.and.&
-                     if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
-                          jstate==field%jstate ) then 
-                       !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
-                       write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
+                    !
+                    !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
+                    !
+                    !  if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>sqrt(small_).and.istate==field%istate.and.&
+                    if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
+                         jstate==field%jstate ) then 
+                      !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
+                      write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
                                                                                           icontrvib(ilevel)%v,            &
                                                                                           trim(field%name),               &
                                                                                           icontrvib(jlevel)%istate,       &
                                                                                           icontrvib(jlevel)%v,            &
                                                                                           field%matelem(ilevel,jlevel)  ! & 
                                                                                           !,matelem_rk(ilevel,jlevel)
-                       !
-                     endif
+                      !
+                    endif
                     !
                   else
                     !
@@ -6795,6 +6822,36 @@ end subroutine map_fields_onto_grid
                   !
                 enddo
               enddo
+          elseif (      iobject==Nobjects-3 &
+                  .and. action%intensity &
+                  .and. intensity%tqm) then
+            !
+            do ilevel = 1, totalroots
+              do jlevel =1, totalroots
+                !
+                istate = icontrvib(ilevel)%istate
+                jstate = icontrvib(jlevel)%istate
+                !
+                ! quadrupole selection rules
+                if (      nint(field%spini - field%spinj) == 0 &
+                    .and. abs(field%lambda - field%lambdaj) <= 2) then
+                  !
+                  if (      iverbose >= 4 &
+                      .and. istate == field%istate &
+                      .and. jstate == field%jstate ) then
+                    !
+                    write(out, &
+                      '("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ", 2es18.8)') &
+                      icontrvib(ilevel)%istate, icontrvib(ilevel)%v, &
+                      trim(field%name), &
+                      icontrvib(jlevel)%istate, icontrvib(jlevel)%v, &
+                      field%matelem(ilevel, jlevel)
+                    !
+                  endif
+                endif
+              enddo
+            enddo
+            !
           endif 
           !
         enddo
