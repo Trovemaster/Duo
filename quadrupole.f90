@@ -89,15 +89,6 @@ contains
       jInd = jInd + 1
     enddo
 
-    ! Jval_ = Jvalmin
-    ! jind = 1
-    ! Jval(jind) = Jval_
-    ! do while (Jval_<Jmax)
-    !    jind = jind + 1
-    !    Jval_ = Jval_ + 1.0_rk
-    !    Jval(jind) = Jval_
-    ! end do
-
     call duo_j0(iverbose, jVal)
 
     if  ( job%shift_to_zpe ) then
