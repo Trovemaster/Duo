@@ -83,12 +83,20 @@ contains
     ! add J values to array
     jVal_ = jValMin
     jInd  = 1
-    do while ( jVal_ < jMax)
+    do while ( jVal_ .LE. jMax)
       jVal(jInd) = jVal_
-
       jVal_ = jVal_ + 1.0_rk
       jInd = jInd + 1
     enddo
+
+    ! Jval_ = Jvalmin
+    ! jind = 1
+    ! Jval(jind) = Jval_
+    ! do while (Jval_<Jmax)
+    !    jind = jind + 1
+    !    Jval_ = Jval_ + 1.0_rk
+    !    Jval(jind) = Jval_
+    ! end do
 
     call duo_j0(iverbose, jVal)
 
@@ -289,6 +297,10 @@ contains
     ! logicals
     logical                   :: intSpin = .true.
     logical                   :: passed, passed_
+
+    !
+    real(rk)                  :: f3j, Mf, Mi
+    integer(ik)               :: indJf, indJi, indMf, indMi, Mf_, Mi_, m
 
     call TimerStart('Intensity calculations')
 
@@ -1058,7 +1070,7 @@ contains
                       & at this time'
 
                   case('ABSORPTION', 'EMISSION')
-
+                    
                     lineStr = ddot(dimenF, halfLineStr, 1, vecF, 1)
                     lineStrSq = lineStr**2
 
