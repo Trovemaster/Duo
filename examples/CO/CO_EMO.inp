@@ -1,0 +1,79 @@
+(AlH Henry's EMO)
+
+atoms C O
+
+molecule CO
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0 1 2 - 30
+
+(Defining the integration grid)
+grid
+  npoints 501  (odd)
+  range  0.5, 5.0
+  type 0   (nsub)
+  re 1.7
+end
+
+
+symmetry Cs(M)
+
+
+DIAGONALIZER
+ SYEV
+ enermax 28000
+end
+
+
+CONTRACTION
+  vib
+  vmax   1 
+END
+
+
+poten 1
+name "X1Sigma+"
+symmetry +
+lambda 0
+mult   1
+TYPE  spf
+values
+v0       0.0
+re       1.128322846
+B0       609452.257
+b1        -0.6972002
+b2        -0.5850083
+b3        -0.12661
+b4         0.26656
+b5         0.5755
+b6         0.880
+b7         0.924
+b8        -5.660
+b9       -11.57
+b10       14.97
+b11        9.29
+end
+
+
+
+(alpha-0s isotropic)
+spin-spin  1 1 
+name "alpha-0s"
+spin   0.0 0.0
+lambda  0  0
+type  BOBLEROY
+factor    i   (0, 1 or i)
+values
+re         1.13
+rref       -1
+P          3
+Nt         1
+b0         1.95
+b1         0.0000000
+end
+
+
+
