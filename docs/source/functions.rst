@@ -111,6 +111,101 @@ Example:
      a8        0.00000000000000E+00
    end
 
+Morse Long-Range with Douketis damping and third variable (MLR3) function ``MLR_3``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The MLR3 potential function Coxon and Hajigeorgiou (2010), and is an adapted form of the usual MLR potential except with an additional parameter :math:`a` in the radial variable :math:`y`. The form of the potential is given by:
+
+:math:`V(r) = D_{e} + \left(1 - \frac{u_{\textrm{LR}}(r)} {u_{\textrm{LR}}(r_e)} \exp\left\{ -\phi_{\rm MLR3}(r) y_{p,a}(r, r_e)\right\}\right)^2,`
+
+where the radial variable is given by:
+
+:math:`y_{p, a}(r, r_e) = \frac{r^p - r_e^p}{r^p - ar_e^p}` 
+
+and the the long-range potential function by:
+
+:math:`u_{\rm LR}(r) = \sum_{n} D_n(r) \frac{C_n}{r^n}` 
+
+Here Duo uses the generalised Douketis damping functions, defined as:
+
+:math:`D_n(r) = (1 - \exp\left[ - \frac{b(s) (\rho r)}{n} - \frac{c(s) (\rho r)^2}{n^{1/2}} \right] \right)^{m+s}`
+
+with :math:`\rho = \frac{2\rho_A\rho_B}{\rho_A + \rho_B}` where `\rho_A = \left(\frac{I_p^A}{I_p^H}\right)^{2/3}` and :math:`I_p^H` is the ionisation potential of the hydrogen atom. The :math:`\phi_\text{MLR3}(r)` function is given by:
+
+:math:`\phi_\text{MLR3} (r) = y_m(r, r_\text{ref}) \phi_\text{MLR3} (\infty) + \left[ 1 - y_m(r, r_\text{ref}) \right] \sum_{i=0}^{N_\phi} \phi_i y_q(r, r_\text{ref})^i`
+
+where
+
+:math:`y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q} \left) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right`
+
+where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\ref{text} >> r_e`.
+
+An example input is given below for HF molecule. The parameters are taken from Coxon & Hajigeorgiou (2015). Apart from the parameters appearing in the functional form above, the parameter V0 can be set > 0 if the dissociation energy :math:`D_e` is not defined relative to the potential minimum (i.e :math:`D_e \rightarrow D_e - V_0`). Further parameters that do not have obvious definitions are ``NPWRS`` and ``NPHIS``. The former specifies the number of inverse power terms to include in the long-range function, and is followed by the order of each power term (in the example below, the first power term is :math:`\frac{1}{r^6}`, the second is  :math:`\frac{1}{r^8}`, etc.), the coefficients :math:`C_n` are then specified (``COEF1``, ``COEF2``, etc.). The parameter ``NPHIS`` specifies the number of :math:`\phi_i` terms to include in the exponent function, and is followed by a list of their values.
+
+::
+
+  poten 1
+  name "X1Sigma+"
+  symmetry +
+  lambda 0
+  mult 1
+  type MLR3
+  units cm-1 angstroms
+  values
+  V0      0.
+  RE      0.91683897
+  DE      49361.6
+  RREF    1.45
+  P       6
+  M       11
+  Q       4
+  A       150.0
+  S      -0.5
+  RHO     1.082
+  B       3.69
+  C       0.4
+  NPWRS   3
+  PWR1    6
+  PWR2    8
+  PWR3    10
+  COEF1   3.1755E+4
+  COEF2   1.667E+5
+  COEF3   1.125E+6
+  NPHIS   32
+  PHI0    3.54289281000000E+00
+  PHI1   -5.41984130000000E+00
+  PHI2   -8.86976500000000E+00
+  PHI3   -2.93722400000000E+01
+  PHI4   -4.32900400000000E+01
+  PHI5   -7.13177000000000E+01
+  PHI6   -7.77911700000000E+01
+  PHI7    6.71510000000000E+01
+  PHI8   -3.51437300000000E+02
+  PHI9   -4.62131060000000E+03
+  PHI10   6.72490000000000E+02
+  PHI11   5.81178370000000E+04
+  PHI12   1.90159300000000E+04
+  PHI13  -4.78435670000000E+05
+  PHI14  -3.29985590000000E+05
+  PHI15   2.60051860000000E+06
+  PHI16   2.52642570000000E+06
+  PHI17  -9.62119030000000E+06
+  PHI18  -1.17913360000000E+07
+  PHI19   2.41995750000000E+07
+  PHI20   3.62543670000000E+07
+  PHI21  -4.01790300000000E+07
+  PHI22  -7.51160300000000E+07
+  PHI23   4.00889000000000E+07
+  PHI24   1.03908000000000E+08
+  PHI25  -1.61464000000000E+07
+  PHI26  -9.20420000000000E+07
+  PHI27  -9.93600000000000E+06
+  PHI28   4.71800000000000E+07
+  PHI29   1.41000000000000E+07
+  PHI30  -1.06400000000000E+07
+  PHI31  -4.70000000000000E+06
+  end
+
 
 
 Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)

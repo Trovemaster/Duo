@@ -5,7 +5,7 @@ module functions
   !
   implicit none
   !
-  ! Different 1D functions (potential, spin-orbit etc) 
+  ! Different 1D functions (potential, spin-orbit etc)
   !
   integer(ik),parameter :: verbose=5
   !
@@ -23,7 +23,7 @@ module functions
       !
     end function analytical_fieldT
     !
-  end interface 
+  end interface
   !
   !
   contains
@@ -64,7 +64,9 @@ module functions
     case("MLR_DS_DARBY") ! "Morse/Long-Range with Douketis-damping"
       !
       fanalytical_field => poten_MLR_Douketis_Darby
+    case("MLR3") ! "MLR3 with Douketis damping (see Coxon & Hajigeorgiou 2010)
       !
+      fanalytical_field => poten_MLR3
     case("MARQUARDT") ! "Marquardt"
       !
       fanalytical_field => poten_Marquardt
@@ -218,7 +220,7 @@ module functions
     !
     f = f + de*y**2
     !
-    do k=5,N 
+    do k=5,N
       f = f + parameters(k)*y**(k-2)
     enddo
     !
@@ -344,19 +346,19 @@ module functions
     !
     if (rref<=0.0_rk) rref = r0
     !
-    if (r<=rref) then 
+    if (r<=rref) then
       p = nint(parameters(5))
       N = parameters(7)
     else
       p = nint(parameters(6))
       N = parameters(8)
-    endif 
+    endif
     !
-    if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then
       write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
       print*,parameters(:)
       stop 'poten_EMO: Illegal number of parameters, check NS and NL'
-    endif 
+    endif
     !
     z = (r**p-rref**p)/(r**p+rref**p)
     !
@@ -391,17 +393,17 @@ module functions
     !
     p = nint(parameters(5))
     !
-    if (r<=rref) then 
+    if (r<=rref) then
       N = parameters(6)
     else
       N = parameters(7)
     endif
     !
-    ! Number of structural parameters 
+    ! Number of structural parameters
     !
     Nstruc = 7
     !
-    ! total number of parameters 
+    ! total number of parameters
     !
     Ntot = size(parameters(:),dim=1)
     !
@@ -409,14 +411,14 @@ module functions
     !
     Npot = max(parameters(6),parameters(7))+1
     !
-    ! number of long range parameters 
+    ! number of long range parameters
     !
     M = Ntot-Npot-Nstruc
     !
-    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then
     !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
     !  stop 'poten_EMO: Illegal number of parameters, check NS and NL'
-    !endif 
+    !endif
     !
     z = (r**p-rref**p)/(r**p+rref**p)
     !
@@ -452,14 +454,14 @@ module functions
     phi = (1.0_rk-z)*phi+z*phiinf
     !
     phi = uLR/uLR0*exp(-phi*z)
-    ! 
+    !
     y  = 1.0_rk-phi
     !
     f = de*y**2+v0
     !
   end function poten_MLR
- 
- 
+
+
    ! Morse/Long-Range with Douketis damping, see Le Roy manuals
   !
   function poten_MLR_Douketis(r,parameters) result(f)
@@ -483,11 +485,11 @@ module functions
     N = parameters(7)
     rho = parameters(8)
     !
-    ! Number of structural parameters 
+    ! Number of structural parameters
     !
     Nstruc = 8
     !
-    ! total number of parameters 
+    ! total number of parameters
     !
     Ntot = size(parameters(:),dim=1)
     !
@@ -495,14 +497,14 @@ module functions
     !
     Npot = N+1
     !
-    ! number of long range parameters 
+    ! number of long range parameters
     !
     M = Ntot-Npot-Nstruc
     !
-    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then
     !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
     !  stop 'poten_EMO: Illegal number of parameters, check NS and NL'
-    !endif 
+    !endif
     !
     z = (r**p-r0**p)/(r**p+r0**p)
     yp = (r**p-rref**p)/(r**p+rref**p)
@@ -516,8 +518,8 @@ module functions
       write(out,"('poten_MLR: At least one uLR should be non-zero')")
       stop 'poten_MLR: At least one uLR should be non-zer'
     endif
-    ! 
-    ! For the Damping part   
+    !
+    ! For the Damping part
     ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
     !
     s = -1.0_rk
@@ -535,7 +537,7 @@ module functions
     uLR = 0
     do k=1,M
      !
-     ! Douketis damping function    
+     ! Douketis damping function
      Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
      !
      uLR = uLR + Damp*parameters(k+Npot+Nstruc)/r**k
@@ -563,15 +565,15 @@ module functions
     betainf = log(2.0_rk*de/uLR0)
     !
     beta = (1.0_rk-yp)*betaN+yp*betainf
-    ! 
+    !
     y  = 1.0_rk-uLR/uLR0*exp(-beta*z)
     !
     f = de*y**2+v0
     !
   end function poten_MLR_Douketis
- 
- 
- 
+
+
+
    function poten_MLR_Douketis_Darby(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -593,24 +595,24 @@ module functions
     N = parameters(7)
     rho = parameters(8)
     !
-    ! Number of structural parameters 
+    ! Number of structural parameters
     !
     Nstruc = 8
     !
-    ! total number of parameters 
+    ! total number of parameters
     !
     ! Number of pot-parameters
     !
     Npot = N+1
     !
-    ! number of long range parameters 
+    ! number of long range parameters
     !
     M = parameters(Nstruc+Npot+1)
     !
-    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then 
+    !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then
     !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
     !  stop 'poten_EMO: Illegal number of parameters, check NS and NL'
-    !endif 
+    !endif
     !
     z = (r**p-r0**p)/(r**p+r0**p)
     yp = (r**p-rref**p)/(r**p+rref**p)
@@ -624,8 +626,8 @@ module functions
       write(out,"('poten_MLR: At least one uLR should be non-zero')")
       stop 'poten_MLR: At least one uLR should be non-zer'
     endif
-    ! 
-    ! For the Damping part   
+    !
+    ! For the Damping part
     ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
     !
     s = -1.0_rk
@@ -669,7 +671,7 @@ module functions
     betainf = log(2.0_rk*de/uLR0)
     !
     beta = (1.0_rk-yp)*betaN+yp*betainf
-    ! 
+    !
     y  = 1.0_rk-uLR/uLR0*exp(-beta*z)
     !
 
@@ -679,7 +681,7 @@ module functions
     ma = 1.0_rk - parameters(2+M+Npot+Nstruc)/parameters(3+M+Npot+Nstruc)
     mb = 1.0_rk - parameters(4+M+Npot+Nstruc)/parameters(5+M+Npot+Nstruc)
     !
-    
+
 !    write(out,*) parameters(2+M+Npot+Nstruc), parameters(3+M+Npot+Nstruc)
 !    write(out,*) parameters(4+M+Npot+Nstruc), parameters(5+M+Npot+Nstruc)
 
@@ -710,7 +712,88 @@ module functions
     !
   end function poten_MLR_Douketis_Darby
 
- 
+  function poten_MLR3(r, parameters) result(f)
+    !
+    real(rk), intent(in)  :: r ! geometry (Angstroms)
+    real(rk), intent(in)  :: parameters(:) ! vector of potential parameters
+    real(rk)              :: v0, r0, De, rRef, a, s, rho, b, c
+    real(rk), allocatable :: coefs(:), phis(:), pwrs(:)
+    integer(ik)           :: nPwrs, nCoefs, nPhis, n, i, j, p, m, q
+    real(rk)              :: f, uLR, uLRe, Dn, Dne, phiInf, ym, yq, ypa, sumPhis
+
+    v0 = parameters(1) ! potential minimum
+    r0 = parameters(2) ! equilibrium bond
+    De = parameters(3) - v0 ! well depth relative to minimum
+    ! MLR3 parameters
+    rRef = parameters(4) ! reference r for y_m y_q variables in phi function
+    p    = nint(parameters(5)) ! power of r for y_pa variable in MLR exponent
+    m    = nint(parameters(6)) ! power of r for y_m variable in phi function
+    q    = nint(parameters(7)) ! power of r for y_q variable in phi function
+    a    = parameters(8) ! denominator r_e factor in y_pa variable
+    ! Douketis damping parameters
+    s      = parameters(9) ! specifies member of Douketis functions
+    rho    = parameters(10) ! related to ionisation potential of atoms
+    b      = parameters(11) ! b,c constants for Douketis damping
+    c      = parameters(12)
+    ! number & order of inverse powers can vary (in theory) so assign dynamically
+    nPwrs = nint(parameters(13)) ! number of inverse power terms
+    allocate ( coefs(nPwrs) )
+    allocate ( pwrs(nPwrs) )
+    pwrs  = nint(parameters(14:13+nPwrs)) ! the order of each power term
+    coefs = parameters(14+nPwrs:13+2*nPwrs) ! the coefficients for each power term
+    ! so can the number of phi terms
+    nPhis = nint(parameters(14+2*nPwrs)) ! number of phi coefficients
+    allocate ( phis(nPhis) )
+    phis  = parameters(15+2*nPwrs:) ! the phi coefficients for MLR3 (arb. number)
+
+    ! check the no. of power term and phi coefficients given matches the number specified
+    if ((size(phis) .NE. nPhis) .OR. (size(pwrs) .NE. nPwrs)) then
+      write(out, "('poten_MLR3: Number of power terms or phi coefficients&
+        & specified does not match nPwrs or nPhis')")
+      stop 'poten_MLR3: Number of power terms or phi coefficients&
+        & specified does not match nPwrs or nPhis'
+    endif
+    ! check that some phis and power terms have been given
+    if ((size(phis) .EQ. 0) .OR. (size(pwrs) .EQ. 0)) then
+      write(out, "('poten_MLR3: Requires more than zero phi coefficients&
+        & and more than zero power terms')")
+      stop 'poten_MLR3: Requires more than zero phi coefficients&
+        & and more than zero power terms'
+    endif
+
+    ! if rRef not given, equals equilibrium bond length
+    if (rRef .LE. 0.0_rk) then
+      write(out, "('poten_MLR3: rRef equal to zero or less, using rRef = r0')")
+      rRef = r0
+    endif
+
+    ! calculate U_LR (Long-range potential) by summing over power terms
+    uLR = 0.0_rk
+    uLRe = 0.0_rk
+    do j = 1, nPwrs
+      n = pwrs(j)
+      Dn  = (1.0_rk - exp( -b*rho*r/n - c*(rho*r)**2/n**.5_rk ))**(n+s)
+      uLR = uLR + (Dn * coefs(j)/r**n)
+      ! also uLR at r_e (this is the same for every r, but I can't be bothered
+      ! to think of an implementation that means it only needs computing once
+      Dne = (1.0_rk - exp( -b*rho*r0/n - c*(rho*r0)**2/n**.5_rk ))**(n+s)
+      uLRe= uLRe + (Dne * coefs(j)/r0**n)
+    enddo
+
+    ! calculate phi_MLR3(r) - sum of
+    phiInf = log(2*De/uLRe)
+    ym     = (r**m - rRef**m)/(r**m + rRef**m)
+    yq     = (r**q - rRef**q)/(r**q + rRef**q)
+    sumPhis = 0.0_rk
+    do i = 1, nPhis
+      sumPhis = sumPhis + phis(i) * yq**(i-1)
+    enddo
+    sumPhis = sumPhis*(1 - ym) + phiInf*ym
+
+    ! put parts together to give total potential
+    ypa = (r**p - r0**p)/(r**p + a*r0**p)
+    f = De*( 1 - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+  end function poten_MLR3
   !
   function poten_Marquardt(r,parameters) result(f)
     !
@@ -728,7 +811,7 @@ module functions
     !
     if (rref<=0.0_rk) rref = r0
     !
-    if (r<=rref) then 
+    if (r<=rref) then
       p = nint(parameters(5))
       N = parameters(7)
     else
@@ -749,7 +832,7 @@ module functions
     !
     y  = 1.0_rk-exp(-phi*(r-r0))
     !
-    damp = ( 1.0_rk+eps6*(-(rs/r)**6) )*( 1.0_rk+eps8*(-(rs/r)**8) ) 
+    damp = ( 1.0_rk+eps6*(-(rs/r)**6) )*( 1.0_rk+eps8*(-(rs/r)**8) )
     y = y*damp
     !
     f = de*y**2+v0
@@ -770,10 +853,10 @@ module functions
     p = nint(parameters(3))
     N = size(parameters)-4-2
     !
-    !if (size(parameters)/=4+N+2) then 
+    !if (size(parameters)/=4+N+2) then
     !  write(out,"('poten_BOBLeRoy: Illegal number of parameters, check N')")
     !  stop 'poten_BOBLeRoy: Illegal number of parameters, check N'
-    !endif 
+    !endif
     !
     z = (r**p-r0**p)/(r**p+r0**p)
     !
@@ -802,10 +885,10 @@ module functions
     p = nint(parameters(3))
     N = size(parameters)-4-2-3
     !
-    !if (size(parameters)/=4+N+2) then 
+    !if (size(parameters)/=4+N+2) then
     !  write(out,"('poten_BOBLeRoy: Illegal number of parameters, check N')")
     !  stop 'poten_BOBLeRoy: Illegal number of parameters, check N'
-    !endif 
+    !endif
     !
     z = (r**p-r0**p)/(r**p+r0**p)
     !
@@ -881,7 +964,7 @@ module functions
     y = (r-r0)/r0
     !
     f = 1.0_rk
-    do k=4,N 
+    do k=4,N
       f = f + parameters(k)*y**(k-3)
     enddo
     !
@@ -905,7 +988,7 @@ module functions
     y = (r-r0)/r
     !
     f = 1.0_rk
-    do k=4,N 
+    do k=4,N
       f = f + parameters(k)*y**(k-3)
     enddo
     !
@@ -928,7 +1011,7 @@ module functions
     y = (r-r0)/r
     !
     f = 0.0_rk
-    do k=3,N 
+    do k=3,N
       f = f + parameters(k)*y**(k-2)
     enddo
     !
@@ -952,7 +1035,7 @@ module functions
     y = (r-r0)/r
     !
     f = 1.0_rk
-    do k=4,N-4 
+    do k=4,N-4
       f = f + parameters(k)*y**(k-3)
     enddo
     !
@@ -969,7 +1052,7 @@ module functions
   end function poten_spf_h2
   !
   !
-  ! SO functional form  
+  ! SO functional form
   !
   function poten_Hulbert_Hirschfelder(r,parameters) result(f)
     !
@@ -1047,12 +1130,12 @@ module functions
     !
     f = v0
     !
-    if (N==1) return 
+    if (N==1) return
     !
     r0 = parameters(2)
     !
     y = (r-r0)
-    do k=3,N 
+    do k=3,N
       f = f + parameters(k)*y**(k-2)
     enddo
     !
@@ -1089,7 +1172,7 @@ module functions
   end function poten_cheb
   !
  function poten_exponential(r, parameters) result(fun)
-  ! expansion in powers of y = e^(-a(r-re)), 
+  ! expansion in powers of y = e^(-a(r-re)),
   !   F = sum_{n=0}^m c_n y^n = c(1) + c(3)*exp( -a*r ) + ...
   !   where a=c(2) and re=c(3)
   ! One should provide either one parameter or at least 3.
@@ -1105,7 +1188,7 @@ module functions
       ! do some checks
       if( m < 1) stop 'Too few parameters in poten_exponential: m < 1 '
       fun = parameters(1)
-      if( m ==1) return ! simple case of a constant 
+      if( m ==1) return ! simple case of a constant
       if( m ==2) stop 'Too few parameters in poten_exponential: m ==2 '
       a  = parameters(2)
 
@@ -1164,7 +1247,7 @@ module functions
     !
   end function poten_fermi_deriv
   !
-  ! Dipole moment Pade-2 by J. Goodisman, Dipole-moment function for diatomic molecules, 
+  ! Dipole moment Pade-2 by J. Goodisman, Dipole-moment function for diatomic molecules,
   ! J. Chem. Phys. 38 (1963) 2597-2599. doi: 10.1063/1.1733557.
   ! based on Chebyshev polynomials
   !
@@ -1289,7 +1372,7 @@ module functions
       f = f + parameters(k)*z**(k-7)
     enddo
     !
-    ! Douketis damping function    
+    ! Douketis damping function
     Damp = ( 1.0_rk-exp( -b*r-c*r**2 ) )**s
     !
     y = (r**p-r0**p)/(r**p+r0**p)
@@ -1366,7 +1449,7 @@ module functions
     lambda=m0*(r-d0)*(r-k0)
     inter=(sqrt(4*j0**2+lambda**2)+lambda)**2
     muionic=t0*r+l1/r+l2/(r**3)
-    !    
+    !   
     fun = inter*muionic/(inter+4.0_rk*j0**2)
     !
   end function dipole_avoidedcrossing_diag_mu
@@ -1381,7 +1464,7 @@ module functions
     !
     nparams1 = parameters(8)+9
     nparams2 = parameters(nparams1+8)+9
-    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component 
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
     icomponent = parameters(nparams1+nparams2+nparams3+1)
     !
     f1 = poten_EMO(r,parameters(1:nparams1))
@@ -1395,8 +1478,8 @@ module functions
       stop 'poten_two_coupled_EMOs: discriminant is negative'
     endif
     !
-    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr) 
-    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr) 
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
     !
     f = e(icomponent)
     !
@@ -1425,9 +1508,9 @@ module functions
     !
     f_switch = ( 1.0_rk+tanh(a_s*(r-r_s)) )*0.5_rk
     !
-    f = 0 
+    f = 0
     !
-    if (icomponent==1) then 
+    if (icomponent==1) then
       f = f_switch*f2+f1*(1.0_rk-f_switch)
     else
       f = f_switch*f1+f2*(1.0_rk-f_switch)
@@ -1450,7 +1533,7 @@ module functions
     if (N/=size(parameters)-1) then
       write(out,"('Repulsive: Npar inconsistent with total number of parameters:',2i9)") N,size(parameters)+1
       stop 'Repulsive: illegal number of parameters'
-    endif 
+    endif
     !
     ! long-range part
     !
@@ -1473,7 +1556,7 @@ module functions
     !
     nparams1 = parameters(8)+9
     nparams2 = parameters(nparams1+1)+1
-    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component 
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
     icomponent = parameters(nparams1+nparams2+nparams3+1)
     !
     f1 = poten_EMO(r,parameters(1:nparams1))
@@ -1487,15 +1570,15 @@ module functions
       stop 'poten_two_coupled_EMOs: discriminant is negative'
     endif
     !
-    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr) 
-    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr) 
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
     !
     f = e(icomponent)
     !
   end function poten_two_coupled_EMO_repulsive
 
   !
-  ! A lorentzian function for the couplings between diabatic curves 
+  ! A lorentzian function for the couplings between diabatic curves
   !
   function poten_lorentzian_polynom(r,parameters) result(f)
     !
@@ -1522,7 +1605,7 @@ module functions
     !
   end function poten_lorentzian_polynom
 
-                                                                
+
   function polynomial_dimensionless(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -1548,7 +1631,7 @@ module functions
   end function polynomial_dimensionless
 
   function potential_stolyarov_CO_X_UBO(r,parameters) result(f)
-  
+
    !     CO X BO potential. R in angstrom, CO_X_U in cm^-1
    !     JQSRT 217 (2018) 262–273
    !
@@ -1558,7 +1641,7 @@ module functions
    integer(ik),parameter ::          na = 14
    real(rk) :: T, K, E0, d, d1, d2, c1, c2, C5, C6, C8, f , a(na)
    real(rk) :: z, y0, yinf, t1, t2, t3
-   integer(ik)  :: i 
+   integer(ik)  :: i
      !
      data a/  -1.72162379120d+00,&
               -1.57663684255d+00,&
@@ -1578,7 +1661,7 @@ module functions
      T    =  parameters(1)
      K    =  0.55747667156e+07_rk
      E0   = -0.38846898e+08_rk
-     !    
+     !
      d    =  6.441_rk
      d1   = 16.829_rk
      d2   =  0.5363_rk
@@ -1589,12 +1672,12 @@ module functions
      C6   =  0.655440e+05_rk
      C8   =  0.496639e+06_rk
      y0   = (K/r + K*d + E0 + d*(0.5_rk*K*d + e0)*r)*exp(-d*r)
-     !    
+     !
      yinf = (DD(r,5,d1,d2)*C5 + DD(r,6,d1,d2)*C6/r + DD(r,8,d1,d2)*C8/r**3)/r**5
-     !       
+     !
      z    = dtanh(c1*r - c2/r)
-     !       
-     t1 = 0._rk 
+     !
+     t1 = 0._rk
      t2 = 0._rk
      do i = na, 2, -1
          t3 = t1
@@ -1603,10 +1686,10 @@ module functions
      enddo
      !
      t3 = z*t1 - t2 + a(1)
-     !     
+     !
      f  = (y0 + yinf)*t3 + T
      !
-     contains  
+     contains
       !
       function DD(r, n, d1, d2) result(f)
       real(rk) :: r, d1, d2, f
