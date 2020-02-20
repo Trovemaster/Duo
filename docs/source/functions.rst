@@ -140,41 +140,71 @@ where
 
 where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\ref{text} >> r_e`.
 
-Example:
+An example input is given below for HF molecule. The parameters are taken from Coxon & Hajigeorgiou (2015). Apart from the parameters appearing in the functional form above, the parameter V0 can be set > 0 if the dissociation energy :math:`D_e` is not defined relative to the potential minimum (i.e :math:`D_e \rightarrow D_e - V_0`). Further parameters that do not have obvious definitions are ``NPWRS`` and ``NPHIS``. The former specifies the number of inverse power terms to include in the long-range function, and is followed by the order of each power term (in the example below, the first power term is :math:`\frac{1}{r^6}`, the second is  :math:`\frac{1}{r^8}`, etc.), the coefficients :math:`C_n` are then specified (``COEF1``, ``COEF2``, etc.). The parameter ``NPHIS`` specifies the number of :math:`\phi_i` terms to include in the exponent function, and is followed by a list of their values.
+
 ::
 
-   poten 6
-   name "d 3Pig"
-   symmetry g
-   lambda 1
-   mult   3
-   type  MLR
-   values
-     Te        0.20151357236994E+05
-     RE        0.12398935933004E+01
-     AE        0.50960000000000E+05        link   1   1   3
-     RREF     -0.10000000000000E+01
-     P         0.40000000000000E+01
-     NL        0.20000000000000E+01
-     NR        0.80000000000000E+01
-     b0        0.30652655627150E+01
-     b1       -0.93393246763924E+00
-     b2        0.45686541184906E+01
-     b3       -0.37637923145046E+01
-     b4       -0.41028177891391E+01
-     b5        0.00000000000000E+00
-     b6        0.00000000000000E+00
-     b7        0.00000000000000E+00
-     b8        0.00000000000000E+00
-     a1        0.00000000000000E+00
-     a2        0.00000000000000E+00
-     a3        0.00000000000000E+00
-     a4        0.00000000000000E+00
-     a5        0.00000000000000E+00
-     a6        192774.
-     a7        0.00000000000000E+00
-     a8        0.00000000000000E+00
-   end
+  poten 1
+  name "X1Sigma+"
+  symmetry +
+  lambda 0
+  mult 1
+  type MLR3
+  units cm-1 angstroms
+  values
+  V0      0.
+  RE      0.91683897
+  DE      49361.6
+  RREF    1.45
+  P       6
+  M       11
+  Q       4
+  A       150.0
+  S      -0.5
+  RHO     1.082
+  B       3.69
+  C       0.4
+  NPWRS   3
+  PWR1    6
+  PWR2    8
+  PWR3    10
+  COEF1   3.1755E+4
+  COEF2   1.667E+5
+  COEF3   1.125E+6
+  NPHIS   32
+  PHI0    3.54289281000000E+00
+  PHI1   -5.41984130000000E+00
+  PHI2   -8.86976500000000E+00
+  PHI3   -2.93722400000000E+01
+  PHI4   -4.32900400000000E+01
+  PHI5   -7.13177000000000E+01
+  PHI6   -7.77911700000000E+01
+  PHI7    6.71510000000000E+01
+  PHI8   -3.51437300000000E+02
+  PHI9   -4.62131060000000E+03
+  PHI10   6.72490000000000E+02
+  PHI11   5.81178370000000E+04
+  PHI12   1.90159300000000E+04
+  PHI13  -4.78435670000000E+05
+  PHI14  -3.29985590000000E+05
+  PHI15   2.60051860000000E+06
+  PHI16   2.52642570000000E+06
+  PHI17  -9.62119030000000E+06
+  PHI18  -1.17913360000000E+07
+  PHI19   2.41995750000000E+07
+  PHI20   3.62543670000000E+07
+  PHI21  -4.01790300000000E+07
+  PHI22  -7.51160300000000E+07
+  PHI23   4.00889000000000E+07
+  PHI24   1.03908000000000E+08
+  PHI25  -1.61464000000000E+07
+  PHI26  -9.20420000000000E+07
+  PHI27  -9.93600000000000E+06
+  PHI28   4.71800000000000E+07
+  PHI29   1.41000000000000E+07
+  PHI30  -1.06400000000000E+07
+  PHI31  -4.70000000000000E+06
+  end
 
 
 
