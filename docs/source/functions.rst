@@ -111,6 +111,71 @@ Example:
      a8        0.00000000000000E+00
    end
 
+Morse Long-Range with Douketis damping and third variable (MLR3) function ``MLR_3``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The MLR3 potential function Coxon and Hajigeorgiou (2010), and is an adapted form of the usual MLR potential except with an additional parameter :math:`a` in the radial variable :math:`y`. The form of the potential is given by:
+
+:math:`V(r) = D_{e} + \left(1 - \frac{u_{\textrm{LR}}(r)} {u_{\textrm{LR}}(r_e)} \exp\left\{ -\phi_{\rm MLR3}(r) y_{p,a}(r, r_e)\right\}\right)^2,`
+
+where the radial variable is given by:
+
+:math:`y_{p, a}(r, r_e) = \frac{r^p - r_e^p}{r^p - ar_e^p}` 
+
+and the the long-range potential function by:
+
+:math:`u_{\rm LR}(r) = \sum_{n} D_n(r) \frac{C_n}{r^n}` 
+
+Here Duo uses the generalised Douketis damping functions, defined as:
+
+:math:`D_n(r) = (1 - \exp\left[ - \frac{b(s) (\rho r)}{n} - \frac{c(s) (\rho r)^2}{n^{1/2}} \right] \right)^{m+s}`
+
+with :math:`\rho = \frac{2\rho_A\rho_B}{\rho_A + \rho_B}` where `\rho_A = \left(\frac{I_p^A}{I_p^H}\right)^{2/3}` and :math:`I_p^H` is the ionisation potential of the hydrogen atom. The :math:`\phi_\text{MLR3}(r)` function is given by:
+
+:math:`\phi_\text{MLR3} (r) = y_m(r, r_\text{ref}) \phi_\text{MLR3} (\infty) + \left[ 1 - y_m(r, r_\text{ref}) \right] \sum_{i=0}^{N_\phi} \phi_i y_q(r, r_\text{ref})^i`
+
+where
+
+:math:`y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q} \left) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right`
+
+where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\ref{text} >> r_e`.
+
+Example:
+::
+
+   poten 6
+   name "d 3Pig"
+   symmetry g
+   lambda 1
+   mult   3
+   type  MLR
+   values
+     Te        0.20151357236994E+05
+     RE        0.12398935933004E+01
+     AE        0.50960000000000E+05        link   1   1   3
+     RREF     -0.10000000000000E+01
+     P         0.40000000000000E+01
+     NL        0.20000000000000E+01
+     NR        0.80000000000000E+01
+     b0        0.30652655627150E+01
+     b1       -0.93393246763924E+00
+     b2        0.45686541184906E+01
+     b3       -0.37637923145046E+01
+     b4       -0.41028177891391E+01
+     b5        0.00000000000000E+00
+     b6        0.00000000000000E+00
+     b7        0.00000000000000E+00
+     b8        0.00000000000000E+00
+     a1        0.00000000000000E+00
+     a2        0.00000000000000E+00
+     a3        0.00000000000000E+00
+     a4        0.00000000000000E+00
+     a5        0.00000000000000E+00
+     a6        192774.
+     a7        0.00000000000000E+00
+     a8        0.00000000000000E+00
+   end
+
 
 
 Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
