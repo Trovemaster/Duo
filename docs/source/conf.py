@@ -40,6 +40,7 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.doctest',
+    'sphinx.ext.imgmath'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
