@@ -128,19 +128,24 @@ and the the long-range potential function by:
 
 Here Duo uses the generalised Douketis damping functions, defined as:
 
-:math:`D_n(r) = (1 - \exp\left[ - \frac{b(s) (\rho r)}{n} - \frac{c(s) (\rho r)^2}{n^{1/2}} \right] \right)^{m+s}`
+:math:`D_n(r) = \left(1 - \exp \left[ - \frac{b(s) (\rho r)}{n} - \frac{c(s) (\rho r)^2}{\sqrt{n}} \right] \right)^{m+s}`
 
-with :math:`\rho = \frac{2\rho_A\rho_B}{\rho_A + \rho_B}` where `\rho_A = \left(\frac{I_p^A}{I_p^H}\right)^{2/3}` and :math:`I_p^H` is the ionisation potential of the hydrogen atom. The :math:`\phi_\text{MLR3}(r)` function is given by:
+with :math:`\rho = \frac{2\rho_A\rho_B}{\rho_A + \rho_B}` where :math:`\rho_A = \left(\frac{I_p^A}{I_p^H}\right)^{2/3}` and :math:`I_p^H` is the ionisation potential of the hydrogen atom. The :math:`\phi_\text{MLR3}(r)` function is given by:
 
 :math:`\phi_\text{MLR3} (r) = y_m(r, r_\text{ref}) \phi_\text{MLR3} (\infty) + \left[ 1 - y_m(r, r_\text{ref}) \right] \sum_{i=0}^{N_\phi} \phi_i y_q(r, r_\text{ref})^i`
 
 where
 
-:math:`y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q} \left) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right`
+:math:`y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q} \left) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right)`
 
-where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\ref{text} >> r_e`.
+where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\text{ref} >> r_e`.
 
-An example input is given below for HF molecule. The parameters are taken from Coxon & Hajigeorgiou (2015). Apart from the parameters appearing in the functional form above, the parameter V0 can be set > 0 if the dissociation energy :math:`D_e` is not defined relative to the potential minimum (i.e :math:`D_e \rightarrow D_e - V_0`). Further parameters that do not have obvious definitions are ``NPWRS`` and ``NPHIS``. The former specifies the number of inverse power terms to include in the long-range function, and is followed by the order of each power term (in the example below, the first power term is :math:`\frac{1}{r^6}`, the second is  :math:`\frac{1}{r^8}`, etc.), the coefficients :math:`C_n` are then specified (``COEF1``, ``COEF2``, etc.). The parameter ``NPHIS`` specifies the number of :math:`\phi_i` terms to include in the exponent function, and is followed by a list of their values.
+
+Most parameters in the input file have a one-to-one correspondence with those in the above equations. The parameter ``V0`` can be set greater than zero if the dissociation energy, :math:`D_e` is not defined relative to the potential minimum (i.e :math:`D_e \rightarrow D_e - V_0`). 
+
+Further parameters that do not have obvious definitions are ``NPWRS`` and ``NPHIS``. The former specifies the number of inverse power terms to include in the long-range function, and is followed by the order of each power term (in the example below, the first power term is :math:`\frac{1}{r^6}`, the second is  :math:`\frac{1}{r^8}`, etc.), the coefficients :math:`C_n` are then specified (``COEF1``, ``COEF2``, etc.). The parameter ``NPHIS`` specifies the number of :math:`\phi_i` terms to include in the exponent function, and is followed by a list of their values.
+
+An example input is given below for HF molecule. The parameters are taken from Coxon & Hajigeorgiou (2015). 
 
 ::
 

@@ -1,7 +1,11 @@
-# Duo files
-*.f90
+# Duo compile files
 *.o
 *.mod
+
+# Dev files
+*dev/*
+duoDBG.x
+DBGmakefile
 
 # Windows image file caches
 Thumbs.db
@@ -12,6 +16,13 @@ Desktop.ini
 
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
+
+# VSCode files
+*.code-workspace
+*.vscode/
+
+# Swap files
+*.swp
 
 # Windows Installer files
 *.cab
