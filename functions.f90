@@ -718,7 +718,7 @@ module functions
     real(rk), intent(in)  :: parameters(:) ! vector of potential parameters
     real(rk)              :: v0, r0, De, rRef, a, s, rho, b, c
     real(rk), allocatable :: coefs(:), phis(:), pwrs(:)
-    integer(ik)           :: nPwrs, nCoefs, nPhis, n, i, j, p, m, q
+    integer(ik)           :: nPwrs, nPhis, n, i, j, p, m, q
     real(rk)              :: f, uLR, uLRe, Dn, Dne, phiInf, ym, yq, ypa, sumPhis
 
     v0 = parameters(1) ! potential minimum
@@ -772,27 +772,27 @@ module functions
     uLRe = 0.0_rk
     do j = 1, nPwrs
       n = pwrs(j)
-      Dn  = (1.0_rk - exp( -b*rho*r/n - c*(rho*r)**2/n**.5_rk ))**(n+s)
+      Dn  = (1.0_rk - exp( -b*rho*r/real(n,rk) - c*(rho*r)**2/real(n,rk)**.5_rk ))**(n+s)
       uLR = uLR + (Dn * coefs(j)/r**n)
       ! also uLR at r_e (this is the same for every r, but I can't be bothered
       ! to think of an implementation that means it only needs computing once
-      Dne = (1.0_rk - exp( -b*rho*r0/n - c*(rho*r0)**2/n**.5_rk ))**(n+s)
+      Dne = (1.0_rk - exp( -b*rho*r0/real(n,rk) - c*(rho*r0)**2/real(n,rk)**.5_rk ))**(n+s)
       uLRe= uLRe + (Dne * coefs(j)/r0**n)
     enddo
 
     ! calculate phi_MLR3(r) - sum of
-    phiInf = log(2*De/uLRe)
+    phiInf = log(2.0_rk*De/uLRe)
     ym     = (r**m - rRef**m)/(r**m + rRef**m)
     yq     = (r**q - rRef**q)/(r**q + rRef**q)
     sumPhis = 0.0_rk
     do i = 1, nPhis
       sumPhis = sumPhis + phis(i) * yq**(i-1)
     enddo
-    sumPhis = sumPhis*(1 - ym) + phiInf*ym
+    sumPhis = sumPhis*(1.0_rk - ym) + phiInf*ym
 
     ! put parts together to give total potential
     ypa = (r**p - r0**p)/(r**p + a*r0**p)
-    f = De*( 1 - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+    f = De*( 1.0_rk - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
   end function poten_MLR3
   !
   function poten_Marquardt(r,parameters) result(f)
