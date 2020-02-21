@@ -139,7 +139,7 @@ where
 
 .. math::
 
-        y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q} \right) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right)
+        y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q}} \right) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right)
 
 where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\text{ref} >> r_e`.
 
