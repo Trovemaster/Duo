@@ -151,7 +151,7 @@ contains
                 guParity = poten(indState)%parity%gu
                 indSym   = correlate_to_Cs(indGamma, guParity)
 
-                ! calculate the Boltzmann exponent of the energy
+                ! calculate the Boltzmann exponent
                 expEn = exp( -(energy - Intensity%ZPE) * beta)
 
                 ! add to partition function
