@@ -1052,7 +1052,7 @@ contains
 
                 ! vector of basis state coefficients for final state
                 vecF(1:dimenF) = eigen(indF, indGammaF)&
-                                  %vect(1:dimenI, indLevelF)
+                                  %vect(1:dimenF, indLevelF)
 
                 select case ( trim(intensity%action) )
 
