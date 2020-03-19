@@ -151,7 +151,7 @@ contains
                 guParity = poten(indState)%parity%gu
                 indSym   = correlate_to_Cs(indGamma, guParity)
 
-                ! calculate the Boltzmann exponent of the energy
+                ! calculate the Boltzmann exponent
                 expEn = exp( -(energy - Intensity%ZPE) * beta)
 
                 ! add to partition function
@@ -1052,7 +1052,7 @@ contains
 
                 ! vector of basis state coefficients for final state
                 vecF(1:dimenF) = eigen(indF, indGammaF)&
-                                  %vect(1:dimenI, indLevelF)
+                                  %vect(1:dimenF, indLevelF)
 
                 select case ( trim(intensity%action) )
 

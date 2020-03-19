@@ -1,3 +1,5 @@
+.. _computing-spectra:
+
 Computing spectra (intensities and line lists)
 **********************************************
 
@@ -45,6 +47,9 @@ Example:
    partfunc
 
 
+* ``quadrupole``
+
+This keyword is used to trigger the calculation of electric quadrupole transitions (see also :ref:`quadrupole curves` <quadrupole-curves>`).
 
 * ``J`` (aliases  ``Jrot``, ``Jlist``) 
 
@@ -85,7 +90,7 @@ the threshold ``enermax`` specified in the general setup.
 
 The **Richmol** checkpoint files ``.rchk`` are to be used for laser-driven molecular dynamics, see [18OwYaxx].
 
-%:cite:`18OwYa`.
+:cite:`18OwYa`.
 
 * ``Raman`` or ``Polarizability`` is to generate the matrix elements for the **Raman** intensity calculations with Richmol. 
 
@@ -96,7 +101,7 @@ The default is on, for switching of:
 
    overlap off 
 
-* ``VIB-DIPOLE`` is to generate transition dipole moments 
+* ``VIB-DIPOLE`` is to generate transition dipole moments, and similarly ``VIB-QUADRUPOLE`` to generate transition quadrupole moments. 
 
 Example
 ::
@@ -372,7 +377,7 @@ which can be processed using ExoCross_, see also ExoCross-tutorial_.
 .. _ExoCross-tutorial: https://github.com/Trovemaster/exocross/wiki/Configuring-the-ExoCross-session
 
 
-%.. bibliography:: references.bib
+.. bibliography:: references.bib
 
 
 
