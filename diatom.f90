@@ -6415,12 +6415,6 @@ end subroutine map_fields_onto_grid
      !
      zpe = 0
      !
-     ! Lobbato grids, abcissas and weighs 
-     if (grid%nsub == 6) then
-       call LobattoAbsWeights(LobAbs,LobWeights,ngrid,grid%rmin,grid%rmax)
-       call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)  ! SY a bug
-     endif
-     !
      select case (job%contraction)  
        !
      case default
@@ -6442,6 +6436,12 @@ end subroutine map_fields_onto_grid
          call ArrayStart('LobWeights',alloc,size(LobWeights),kind(LobWeights))
          call ArrayStart('LobDerivs',alloc,size(LobDerivs),kind(LobDerivs))
          call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
+       endif
+       !
+       ! Lobbato grids, abcissas and weighs 
+       if (grid%nsub == 6) then
+         call LobattoAbsWeights(LobAbs,LobWeights,ngrid,grid%rmin,grid%rmax)
+         call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)  ! SY a bug
        endif
        !
        vibmat = 0
@@ -6879,6 +6879,12 @@ end subroutine map_fields_onto_grid
          call ArrayStart('LobWeights',alloc,size(LobWeights),kind(LobWeights))
          call ArrayStart('LobDerivs',alloc,size(LobDerivs),kind(LobDerivs))
          call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
+       endif
+       !
+       ! Lobbato grids, abcissas and weighs 
+       if (grid%nsub == 6) then
+         call LobattoAbsWeights(LobAbs,LobWeights,ngrid,grid%rmin,grid%rmax)
+         call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
        endif
        !
        do istate = 1,Nestates
