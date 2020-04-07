@@ -804,7 +804,7 @@ module diatom_module
              !
            case ("VMAX","VIBMAX")
              !
-             vmax = 0
+             vmax = 1
              !
              if (Nitems<2) job%vibmax = grid%npoints-1
              !
