@@ -83,11 +83,13 @@ contains
     ! add J values to array
     jVal_ = jValMin
     jInd  = 1
-    do while ( jVal_ .LE. jMax)
-      jVal(jInd) = jVal_
-      jVal_ = jVal_ + 1.0_rk
-      jInd = jInd + 1
-    enddo
+    Jval(jind) = Jval_
+
+    do while (Jval_<Jmax)
+       jind = jind + 1
+       Jval_ = Jval_ + 1.0_rk
+       Jval(jind) = Jval_
+    end do
 
     call duo_j0(iverbose, jVal)
 
@@ -151,7 +153,7 @@ contains
                 guParity = poten(indState)%parity%gu
                 indSym   = correlate_to_Cs(indGamma, guParity)
 
-                ! calculate the Boltzmann exponent
+                ! calculate the Boltzmann exponent of the energy
                 expEn = exp( -(energy - Intensity%ZPE) * beta)
 
                 ! add to partition function
@@ -265,8 +267,7 @@ contains
     real(rk), allocatable     :: vecI(:), vecF(:)
     type(quantaT), pointer    :: quantaI, quantaF
     real(rk)                  :: j_, jI, jF
-    integer(ik)               :: vibI, vibF, vI, vF, lambdaI, lambdaF, &
-                                 parityI, parityF
+    integer(ik)               :: vibI, vibF, vI, vF, lambdaI, lambdaF,parityI
     integer(ik)               :: vF_, lambdaF_
     real(rk)                  :: spinI, spinF, sigmaI, sigmaF, &
                                  omegaI, omegaF
@@ -288,10 +289,6 @@ contains
     ! logicals
     logical                   :: intSpin = .true.
     logical                   :: passed, passed_
-
-    !
-    real(rk)                  :: f3j, Mf, Mi
-    integer(ik)               :: indJf, indJi, indMf, indMi, Mf_, Mi_, m
 
     call TimerStart('Intensity calculations')
 
@@ -929,9 +926,9 @@ contains
               ! vector of basis state coefficients for inital state
               vecI(1:dimenI) = eigen(indI, indGammaI)&
                                 %vect(1:dimenI, indLevelI)
-
+              !
               halfLineStr = 0
-
+              !
               ! -----
               ! Before the actual calculations we check if there are any
               ! allowed transitions from current level of jI to any
@@ -941,7 +938,7 @@ contains
               do indLevelF = 1, nLevelsF
 
                 energyF =  eigen(indF, indGammaF)%val(indLevelF)
-                quantaF => eigen(indF, indGammaF)%quanta(indLevelI)
+                quantaF => eigen(indF, indGammaF)%quanta(indLevelF)
 
                 stateF  = quantaF%istate  ! electronic state
                 vibF    = quantaF%ivib    ! vibrational (contracted)
@@ -1061,7 +1058,6 @@ contains
                       & at this time'
 
                   case('ABSORPTION', 'EMISSION')
-                    
                     lineStr = ddot(dimenF, halfLineStr, 1, vecF, 1)
                     lineStrSq = lineStr**2
 
@@ -1552,7 +1548,7 @@ contains
   subroutine find_igamma_pair(igamma_pair)
 
     integer(ik),intent(out) :: igamma_pair(:)
-    integer(ik)     :: igammaI,igammaF,ngamma
+    integer(ik)     :: igammaI,ngamma
 
     if ( trim(intensity%action) == 'TM' ) then
       igamma_pair = 1
