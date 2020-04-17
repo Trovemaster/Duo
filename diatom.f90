@@ -7384,9 +7384,8 @@ end subroutine map_fields_onto_grid
           !
           ! printing out transition moments 
           !
-          if (      iobject==Nobjects &
-              .and. action%intensity &
-              .and. intensity%tdm) then
+          if (  ( iobject==Nobjects  .and.action%intensity.and.intensity%tdm ).or.&
+                ( iobject==Nobjects-3.and.action%intensity.and.intensity%tqm ) ) then
               !
               !write(out,'(/"Vibrational transition moments: ")')
               !write(out,'("    State    TM   State"/)')
@@ -7399,7 +7398,7 @@ end subroutine map_fields_onto_grid
                   !
                   ! dipole selection rules
                   !
-                  if (nint(field%spini-field%spinj)==0.and.abs(field%lambda-field%lambdaj)<=1) then 
+                  !if (nint(field%spini-field%spinj)==0.and.abs(field%lambda-field%lambdaj)<=1) then 
                     !
                     !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
                     !
@@ -7417,48 +7416,11 @@ end subroutine map_fields_onto_grid
                       !
                     endif
                     !
-                  else
-                    !
-                    field%matelem(ilevel,jlevel) = 0
-                    !
-                  endif 
-                  !
-                  ! in the grid representation of the vibrational basis set
-                  ! the matrix elements are evaluated simply by a sumation of over the grid points
+                  !endif
                   !
                 enddo
               enddo
               !
-          elseif (      iobject==Nobjects-3 &
-                  .and. action%intensity &
-                  .and. intensity%tqm) then
-            !
-            do ilevel = 1, totalroots
-              do jlevel =1, totalroots
-                !
-                istate = icontrvib(ilevel)%istate
-                jstate = icontrvib(jlevel)%istate
-                !
-                ! quadrupole selection rules
-                if (      nint(field%spini - field%spinj) == 0 &
-                    .and. abs(field%lambda - field%lambdaj) <= 2) then
-                  !
-                  if (      iverbose >= 4 &
-                      .and. istate == field%istate &
-                      .and. jstate == field%jstate ) then
-                    !
-                    write(out, &
-                      '("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ", 2es18.8)') &
-                      icontrvib(ilevel)%istate, icontrvib(ilevel)%v, &
-                      trim(field%name), &
-                      icontrvib(jlevel)%istate, icontrvib(jlevel)%v, &
-                      field%matelem(ilevel, jlevel)
-                    !
-                  endif
-                endif
-              enddo
-            enddo
-            !
           endif 
           !
         enddo
