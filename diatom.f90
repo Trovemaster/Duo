@@ -7355,8 +7355,10 @@ end subroutine map_fields_onto_grid
               field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
               !
               ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-              !
-              if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+              ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
+              if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+              endif
               !
               field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
               !
