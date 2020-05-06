@@ -1,12 +1,10 @@
-Compiled on UBUNTU LINUX 14.04
+Compiled on UBUNTU LINUX 18.04
+
 Requirements:
 gfortran, lapack, libblas:
+
 run:
-sudo apt-get gfortran liblapack-dev libblas-dev 
+sudo apt install gfortran liblapack-dev libblas-dev 
 
-modify makefile using 
-
-FFLAGS = -O3 
-LAPACK = -llapack -L/usr/lib/lapack -lblas -L/usr/lib/libblas
-
-then run make
+then from Duo directory:
+make -f ./MAKEFILES/makefile_LINUXgfortran
