@@ -90,7 +90,7 @@
      !
      select case (job%contraction)  
        !
-     case ("VIB","VIB-ALL") 
+     case ("VIB","OMEGA") 
        !
        call duo_j0
        !
