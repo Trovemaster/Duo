@@ -10186,17 +10186,25 @@ end subroutine map_fields_onto_grid
                 omegaj = Omega_grid(jomega)%omega
                 N_j = Omega_grid(jomega)%Nstates
                 !
+                L_LambdaSigma = 0
+                !
                 do i = 1,N_i
                   !
                   istate  = Omega_grid(iomega)%basis(i)%istate
                   ilambda = Omega_grid(iomega)%basis(i)%ilambda
                   spini   = Omega_grid(iomega)%basis(i)%spin
+                  sigmai   = Omega_grid(iomega)%basis(i)%sigma
                   !
                   do j = 1,N_j
                     !
                     jstate  = Omega_grid(jomega)%basis(j)%istate
                     jlambda = Omega_grid(jomega)%basis(j)%ilambda
                     spinj   = Omega_grid(jomega)%basis(j)%spin
+                    sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                    !
+                    ! Lx is always diagonal and sigma and we also restrict to L+ (omegai = omegaj+1)
+                    !
+                    if( nint(sigmaj-sigmai)/=0.or.(omegai<omegaj) ) cycle
                     !
                     ! Lplus/Lminus
                     !
@@ -10288,7 +10296,7 @@ end subroutine map_fields_onto_grid
                             !
                           endif
                           !
-                          L_LambdaSigma(i,j) = L_LambdaSigma(i,j) + f_t
+                          L_LambdaSigma(i,j) = f_t
                           !
                         enddo
                         !
@@ -10304,9 +10312,7 @@ end subroutine map_fields_onto_grid
                 mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                 !
                 do i = 1,N_i
-                   istate = iomega_state(iomega,i)
                    do j = 1,N_j
-                      jstate = iomega_state(jomega,j)
                       !
                       iLplus_omega_ = iLplus_omega(iomega,jomega,i,j)
                       !
@@ -10318,6 +10324,8 @@ end subroutine map_fields_onto_grid
                 enddo
                 !
                 ! Compute the S+ matrix elements in the primitive Lambda-Sigma representation
+                !
+                L_LambdaSigma = 0 
                 !
                 do i = 1,N_i
                   !
@@ -11043,11 +11051,6 @@ end subroutine map_fields_onto_grid
 
 
 
-
-
-
-
-
   subroutine L_omega_create(Nomegas,omega_grid,iLplus_omega,NLplus_omega,l_omega_obj)
     !
     implicit none
@@ -11058,105 +11061,124 @@ end subroutine map_fields_onto_grid
     integer(ik),intent(out)  :: iLplus_omega(:,:,:,:)
     type(fieldT),optional    :: l_omega_obj(:)
     integer(ik)  :: ipermute,ilxly
-    integer(ik)  :: i,j,istate,jstate,istate_,jstate_
-    real(rk)     :: spini_,spinj_,omegai,omegaj
+    integer(ik)  :: i,j,istate,jstate,istate_,jstate_,iLxy,imulti,jmulti,multi,multj
+    real(rk)     :: spini_,spinj_,omegai,omegaj,omegai_,omegaj_
     real(rk)     :: sigmai,sigmaj,spini,spinj
     integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,ilambda,jlambda
     type(fieldT),pointer       :: field
     !
     NLplus_omega = 0 
+
     !
-    do ilxly =1,Nlxly
+    do iomega=1,Nomegas
       !
-      field => lxly(ilxly)
+      omegai = Omega_grid(iomega)%omega
       !
-      ! Also check that L+ is consistent with the selection rules
+      N_i = Omega_grid(iomega)%Nstates
       !
-      if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
-         !
-         write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
-                         " with L+selection rules: ')") field%istate,field%jstate
-         write(out,"('Delta Lamda = +/-1')")
-         stop "Lx/L+ input is inconsistent with selection rules"
-         !
-      endif
-      !
-      !
-      do ipermute  = 0,1
+      do i = 1,N_i
         !
-        if (ipermute==0) then
-          !
-          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-          jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-          !
-        else  ! permute
-          !
-          jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
-          istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
-          !
-        endif
-        !
-        if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
-        !
-        do iomega=1,Nomegas
-          !
-          omegai = Omega_grid(iomega)%omega
-          !
-          N_i = Omega_grid(iomega)%Nstates
-          !
-          do i = 1,N_i
+        do jomega=1,Nomegas
             !
-            istate  = Omega_grid(iomega)%basis(i)%istate
-            ilambda = Omega_grid(iomega)%basis(i)%ilambda
-            sigmai =  Omega_grid(iomega)%basis(i)%sigma
-            spini = Omega_grid(iomega)%basis(i)%spin
+            omegaj = Omega_grid(jomega)%omega
             !
-            if (istate/=istate_.or.ilambda_/=ilambda.or.spini_/=spini) cycle
+            N_j = Omega_grid(jomega)%Nstates
             !
-            do jomega=1,Nomegas
+            do j = 1,N_j
+              !
+              ! assuming we will need L+ only 
+              !
+              if (nint(omegai-omegaj)/=1) cycle
+              !
+              ! check if any Lxy objects satisfy this criteria 
+              !
+              iLxy = 0 
+              !
+              loop_Lxy : do ilxly =1,Nlxly
                 !
-                omegaj = Omega_grid(jomega)%omega
+                field => lxly(ilxly)
                 !
-                N_j = Omega_grid(jomega)%Nstates
+                ! Also check that L+ is consistent with the selection rules
                 !
-                do j = 1,N_j
+                if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+                   !
+                   write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
+                                   " with L+selection rules: ')") field%istate,field%jstate
+                   write(out,"('Delta Lamda = +/-1')")
+                   stop "Lx/L+ input is inconsistent with selection rules"
+                   !
+                endif
+                !
+                !
+                do ipermute  = 0,1
                   !
-                  jstate  = Omega_grid(jomega)%basis(j)%istate
-                  jlambda = Omega_grid(jomega)%basis(j)%ilambda
-                  sigmaj  = Omega_grid(jomega)%basis(j)%sigma
-                  spinj   = Omega_grid(jomega)%basis(j)%spin
-                  !
-                  if ( jstate/=jstate_.or.jlambda_/=jlambda.or.nint(spinj_-spinj)/=0 ) cycle
-                  !
-                  ! apply selection rules
-                  !
-                  if (nint(sigmai-sigmaj)/=0.or.nint(spini-spinj)/=0) cycle
-                  !
-                  NLplus_omega = NLplus_omega + 1
-                  !
-                  iLplus_omega(iomega,jomega,i,j) = NLplus_omega
-                  !
-                  if (present(L_omega_obj)) then
-                     !
-                     L_omega_obj(NLplus_omega)%ilevel = i
-                     L_omega_obj(NLplus_omega)%istate = istate
-                     L_omega_obj(NLplus_omega)%lambda = ilambda
-                     L_omega_obj(NLplus_omega)%sigmai = sigmai
-                     L_omega_obj(NLplus_omega)%spini   = spini
-                     L_omega_obj(NLplus_omega)%omegai  = omegai
-                     !
-                     L_omega_obj(NLplus_omega)%jlevel = j
-                     L_omega_obj(NLplus_omega)%jstate = jstate
-                     L_omega_obj(NLplus_omega)%lambdaj = jlambda
-                     L_omega_obj(NLplus_omega)%sigmaj = sigmaj
-                     L_omega_obj(NLplus_omega)%spinj = spinj
-                     L_omega_obj(NLplus_omega)%omegaj  = omegaj
-                     !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+                    jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+                    istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+                    !
                   endif
+                  !
+                  ! ipermute only makes sense for different states
+                  !
+                  if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
+                  !
+                  multi = nint(2.0_rk*spini_+1.0_rk)
+                  !
+                  sigmai = -spini_-1.0_rk
+                  do imulti = 1,multi
+                    !
+                    sigmai = sigmai + 1.0_rk
+                    omegai_ = real(ilambda_,rk)+sigmai
+                    !
+                    multj = nint(2.0_rk*spinj_+1.0_rk)
+                    sigmaj = -spinj_-1.0_rk
+                    do jmulti = 1,multj
+                      !
+                      sigmaj = sigmaj + 1.0_rk
+                      omegaj_ = real(jlambda_,rk)+sigmaj
+                      !
+                      if (nint(omegai_-omegai)==1.and.nint(omegaj_-omegaj)==1) then
+                        iLxy = iLxy + 1
+                        exit loop_Lxy 
+                      endif
+                      !
+                    enddo
+                    !
+                  enddo
                   !
                 enddo
                 !
-              enddo
+              enddo  loop_Lxy
+              !
+              if (iLxy==0) cycle
+              !
+              NLplus_omega = NLplus_omega + 1
+              !
+              iLplus_omega(iomega,jomega,i,j) = NLplus_omega
+              !
+              if (present(L_omega_obj)) then
+                 !
+                 L_omega_obj(NLplus_omega)%ilevel = i
+                 L_omega_obj(NLplus_omega)%istate = istate
+                 L_omega_obj(NLplus_omega)%lambda = ilambda
+                 L_omega_obj(NLplus_omega)%sigmai = sigmai
+                 L_omega_obj(NLplus_omega)%spini   = spini
+                 L_omega_obj(NLplus_omega)%omegai  = omegai
+                 !
+                 L_omega_obj(NLplus_omega)%jlevel = j
+                 L_omega_obj(NLplus_omega)%jstate = jstate
+                 L_omega_obj(NLplus_omega)%lambdaj = jlambda
+                 L_omega_obj(NLplus_omega)%sigmaj = sigmaj
+                 L_omega_obj(NLplus_omega)%spinj = spinj
+                 L_omega_obj(NLplus_omega)%omegaj  = omegaj
+                 !
+              endif
               !
            enddo
            !
