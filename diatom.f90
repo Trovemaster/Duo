@@ -150,6 +150,8 @@ module diatom_module
     real(rk)             :: spinj        ! electronic spin of the ket vector for couplings
     real(rk)             :: omegai       ! projection of J
     real(rk)             :: omegaj       ! projection of J
+    integer(ik)          :: ilevel       ! additional QN
+    integer(ik)          :: jlevel       ! additional QN
     complex(rk)          :: complex_f=(1._rk,0._rk)  ! defines if the term is imaginary or real
     real(rk)             :: factor=1.0_rk      ! defines if the term is imaginary or real
     real(rk)             :: fit_factor=1.0     ! defines if the term is imaginary or real
@@ -6509,6 +6511,8 @@ end subroutine map_fields_onto_grid
        Nomega_states = 0
        omega = omega_min-1.0_rk 
        !
+       if (iverbose>=5) write(out,'(/"     i   state   spin    sigma lambda   omega")')
+       !
        do iomega=1,Nomegas
           !
           omega = omega + 1.0_rk
@@ -7583,20 +7587,21 @@ end subroutine map_fields_onto_grid
                  !
                  Nirr(Nlevels,:) = 1
                  !
-                 ilevel2i(Nlevels,1) = i
-                 ilevel2i(Nlevels,2) = j
+                 !ilevel2i(Nlevels,1) = i
+                 !ilevel2i(Nlevels,2) = j
                  !
-                 !if (ilambda>jlambda.or.sigmaj<sigmai) then
-                 !  !
-                 !  ilevel2i(Nlevels,1) = i
-                 !  ilevel2i(Nlevels,2) = j
-                 !  !
-                 !else
-                 !  !
-                 !  ilevel2i(Nlevels,1) = j
-                 !  ilevel2i(Nlevels,2) = i
-                 !  !
-                 !endif
+                 if (omegai>omegaj) then
+                 !if (mod(nint(omegai-omegaj),2)==0) then
+                   !
+                   ilevel2i(Nlevels,1) = i
+                   ilevel2i(Nlevels,2) = j
+                   !
+                 else
+                   !
+                   ilevel2i(Nlevels,1) = j
+                   ilevel2i(Nlevels,2) = i
+                   !
+                 endif
                  !
                  ilevel2isym(Nlevels,1:2) = nsym(1:2)
                  !
@@ -7804,6 +7809,7 @@ end subroutine map_fields_onto_grid
          do ilevel = 1,Nlambdasigmas
            do ivib =1, totalroots
              !
+             if (quanta(ilevel)%istate/=icontrvib(ivib)%istate) cycle
              i = i + 1
            enddo
          enddo
@@ -7843,7 +7849,7 @@ end subroutine map_fields_onto_grid
              !
              ! link the states in vibrarional and spin-rot basis components for the VIB contraction
              !
-             if (trim(job%contraction)=="VIB".and.quanta(ilevel)%istate/=icontrvib(ivib)%istate) cycle
+             if (quanta(ilevel)%istate/=icontrvib(ivib)%istate) cycle
              !
              i = i + 1
              !
@@ -7976,8 +7982,6 @@ end subroutine map_fields_onto_grid
               ! Diabatic non-diagonal contribution  term
               !
               do idiab = 1,Ndiabatic
-                ! we can skip SO for OMEGA contraction
-                if (trim(job%contraction)=="OMEGA") cycle
                 !
                 if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
                     abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
@@ -8217,9 +8221,6 @@ end subroutine map_fields_onto_grid
               !
               ! spin-orbit part:
               loop_iso : do iso =1,Nspinorbits
-                !
-                ! we can skip SO for OMEGA contraction
-                if (trim(job%contraction)=="OMEGA") cycle
                 !
                 field => spinorbit(iso)
                 !
@@ -8809,8 +8810,6 @@ end subroutine map_fields_onto_grid
                !
                if (ilambda==-jlambda.and.nint(2.0*sigmai)==-nint(2.0*sigmaj).and. &
                    istate==jstate.and.ivib==jvib.and.nint(2.0*spini)==nint(2.0*spinj)) then
-                 !
-                 !( (istate==jstate.and.nint(2.0*spini)==nint(2.0*spinj) ).or.trim(job%contraction)=="OMEGA") ) then
                  !
                  Nsym(:) = Nsym(:) + 1
                  Nlevels = Nlevels + 1
@@ -9748,7 +9747,6 @@ end subroutine map_fields_onto_grid
        allocate(iomega_state(Nomegas,Nlambdasigmas_max),stat=alloc)
        call ArrayStart('iomega_state',alloc,size(iomega_state),kind(iomega_state))
        !
-       !
        iomega_state = 0
        iomega_count = 0
        !
@@ -9769,12 +9767,6 @@ end subroutine map_fields_onto_grid
        call ArrayStart('mat_1',alloc,size(mat_1),kind(mat_1))
        allocate(mat_2(Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
        call ArrayStart('mat_2',alloc,size(mat_2),kind(mat_2))
-       !
-       if (iverbose>=5) write(out,'("     i   state   spin    sigma lambda   omega")')
-       !
-       ! Allocate grids for each poten_omega in the Omega representation 
-       !
-
        !
        ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
        do igrid =1, ngrid
@@ -10170,6 +10162,7 @@ end subroutine map_fields_onto_grid
                enddo  ! j
              enddo  ! i
              !
+             !Solve the Sigma-Lambda-State Hamiltonian at each grid point 
              !
              call lapack_syev(omegamat,omegaenergy)
              !
@@ -10180,6 +10173,8 @@ end subroutine map_fields_onto_grid
              deallocate(omegamat,omegaenergy)
              !
           enddo
+          !
+          ! Compute the L+ matrix elements in the primitive Lambda-Sigma representation
           !
           do iomega=1,Nomegas
             !
@@ -10195,11 +10190,13 @@ end subroutine map_fields_onto_grid
                   !
                   istate  = Omega_grid(iomega)%basis(i)%istate
                   ilambda = Omega_grid(iomega)%basis(i)%ilambda
+                  spini   = Omega_grid(iomega)%basis(i)%spin
                   !
                   do j = 1,N_j
                     !
                     jstate  = Omega_grid(jomega)%basis(j)%istate
                     jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                    spinj   = Omega_grid(jomega)%basis(j)%spin
                     !
                     ! Lplus/Lminus
                     !
@@ -10223,64 +10220,77 @@ end subroutine map_fields_onto_grid
                       ! LxLy  4 6 ;  lambda  0 1 ; spin   1.0 1.0
                       ! we should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
                       !
-                      istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-                      jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-                      !
-                      ! check if we at the right electronic states
-                      if( istate/=istate_.or.jstate/=jstate_ ) cycle
-                      !
-                      ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
-                      ! In order to recover other combinations we apply the symmetry transformation
-                      ! laboratory fixed inversion which is equivalent to the sigmav operation 
-                      !                    (sigmav= 0 correspond to the unitary transformation)
-                      do isigmav = 0,1
+                      do ipermute  = 0,1
                         !
-                        ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                        ! avoid the double counting.
-                        if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
-           
-                        ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                        ilambda_ = ilambda_*(-1)**isigmav
-                        jlambda_ = jlambda_*(-1)**isigmav
-                        !
-                        ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-                        if (istate/=istate_.or.jstate_/=jstate.or.ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
-                        !
-                        ! check the selection rule Delta Lambda = +/1
-                        if (abs(ilambda-jlambda)/=1) cycle
-                        !
-                        f_grid  = field%gridvalue(igrid)
-                        !
-                        ! <Lx> and <Ly> don't depend on Sigma
-                        !
-                        f_s = real(ilambda-jlambda,rk)
-                        !
-                        f_t = f_grid
-                        !
-                        ! the result of the symmetry transformation:
-                        if (isigmav==1) then
+                        if (ipermute==0) then
                           !
-                          ! we assume that
-                          ! sigmav <Lamba|L+|Lambda'> => <-Lamba|L-|-Lambda'> == <Lamba|L+|Lambda'>(-1)^(Lamba+Lambda')
-                          ! and <Lamba|L+|Lambda'> is an unique quantity given in the input
-                          ! however we don't apply the sigmav transformation to sigma or omega
-                          ! since we only need to know how <Lamba|L+/-|Lambda'> transforms in order to relate it to the
-                          ! value given in input.
+                          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+                          jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
                           !
-                          !itau = ilambda-jlambda+nint(spini-sigmai)+nint(spinj-sigmaj)!-nint(omegai+omegaj)
+                        else  ! permute
                           !
-                          ! we try to remove also lambda from the sigmav transformation!!
-                          !
-                          itau = 0 
-                          !
-                          if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
-                          if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
-                          !
-                          f_t = f_t*(-1.0_rk)**(itau)
+                          jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+                          istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
                           !
                         endif
                         !
-                        L_LambdaSigma(i,j) = L_LambdaSigma(i,j) + f_t
+                        ! check if we at the right electronic states
+                        if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                        !
+                        ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                        ! In order to recover other combinations we apply the symmetry transformation
+                        ! laboratory fixed inversion which is equivalent to the sigmav operation 
+                        !                    (sigmav= 0 correspond to the unitary transformation)
+                        do isigmav = 0,1
+                          !
+                          ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                          ! avoid the double counting.
+                          if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+                     
+                          ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                          ilambda_ = ilambda_*(-1)**isigmav
+                          jlambda_ = jlambda_*(-1)**isigmav
+                          !
+                          ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                          if (istate/=istate_.or.jstate_/=jstate.or.ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
+                          !
+                          ! check the selection rule Delta Lambda = +/1
+                          if (abs(ilambda-jlambda)/=1) cycle
+                          !
+                          f_grid  = field%gridvalue(igrid)
+                          !
+                          ! <Lx> and <Ly> don't depend on Sigma
+                          !
+                          f_s = real(ilambda-jlambda,rk)
+                          !
+                          f_t = f_grid
+                          !
+                          ! the result of the symmetry transformation:
+                          if (isigmav==1) then
+                            !
+                            ! we assume that
+                            ! sigmav <Lamba|L+|Lambda'> => <-Lamba|L-|-Lambda'> == <Lamba|L+|Lambda'>(-1)^(Lamba+Lambda')
+                            ! and <Lamba|L+|Lambda'> is an unique quantity given in the input
+                            ! however we don't apply the sigmav transformation to sigma or omega
+                            ! since we only need to know how <Lamba|L+/-|Lambda'> transforms in order to relate it to the
+                            ! value given in input.
+                            !
+                            !itau = ilambda-jlambda+nint(spini-sigmai)+nint(spinj-sigmaj)!-nint(omegai+omegaj)
+                            !
+                            ! we try to remove also lambda from the sigmav transformation!!
+                            !
+                            itau = 0 
+                            !
+                            if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                            if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                            !
+                            f_t = f_t*(-1.0_rk)**(itau)
+                            !
+                          endif
+                          !
+                          L_LambdaSigma(i,j) = L_LambdaSigma(i,j) + f_t
+                          !
+                        enddo
                         !
                       enddo
                       !
@@ -10307,55 +10317,53 @@ end subroutine map_fields_onto_grid
                    enddo
                 enddo
                 !
-                ! Spin part
+                ! Compute the S+ matrix elements in the primitive Lambda-Sigma representation
                 !
-                do ispin = 1,Nspins
+                do i = 1,N_i
                   !
-                  spini = real(ispin-1,rk)+spin_min
+                  istate  = Omega_grid(iomega)%basis(i)%istate
+                  ilambda = Omega_grid(iomega)%basis(i)%ilambda
+                  sigmai  = Omega_grid(iomega)%basis(i)%sigma
+                  spini   = Omega_grid(iomega)%basis(i)%spin
                   !
-                  multi = nint(2.0_rk*spini)+1
-                  !
-                  do jspin = max(ispin-1,0),min(ispin+1,Nspins)
+                  do j = 1,N_j
                     !
-                    spinj = real(jspin,rk)+spin_min
+                    jstate  = Omega_grid(jomega)%basis(j)%istate
+                    jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                    sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                    spinj   = Omega_grid(jomega)%basis(j)%spin
                     !
-                    do i = 1,N_i
-                      !
-                      sigmai = Omega_grid(iomega)%basis(i)%sigma 
-                      !
-                      do j = 1,N_j
-                        !
-                        sigmaj = Omega_grid(jomega)%basis(j)%sigma 
-                        !
-                        if (abs(sigmaj)>spinj) cycle
-                        !
-                        if (nint(sigmaj-sigmai)/=-1) cycle
-                        !
-                        L_LambdaSigma(i,j) = sqrt( (spini-sigmaj)*(spini+sigmaj+1.0_rk) )
-                        !
-                      enddo
-                      !
-                    enddo
+                    if (spini/=spini.or.(ilambda/=jlambda).or.nint(sigmaj-sigmai)/=-1) cycle
                     !
-                    mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                    mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
-                    !
-                    do i = 1,N_i
-                       istate = iomega_state(iomega,i)
-                       do j = 1,N_j
-                          !
-                          jstate = iomega_state(jomega,j)
-                          !
-                          iSplus_omega_ = iSplus_omega(iomega,jomega,i,j)
-                          !
-                          if (iSplus_omega_==0) cycle
-                          !
-                          S_omega_obj(iSplus_omega_)%gridvalue(igrid) = mat_2(i,j)
-                          !                            
-                       enddo
+                    do ispin = 1,Nspins
+                       !
+                       spini_ = real(ispin-1,rk)+spin_min
+                       !
+                       spinj = spini
+                       !
+                       L_LambdaSigma(i,j) = sqrt( (spini-sigmaj)*(spini+sigmaj+1.0_rk) )
+                       !
                     enddo
                     !
                   enddo
+                enddo
+                !
+                mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                !
+                do i = 1,N_i
+                   istate = iomega_state(iomega,i)
+                   do j = 1,N_j
+                      !
+                      jstate = iomega_state(jomega,j)
+                      !
+                      iSplus_omega_ = iSplus_omega(iomega,jomega,i,j)
+                      !
+                      if (iSplus_omega_==0) cycle
+                      !
+                      S_omega_obj(iSplus_omega_)%gridvalue(igrid) = mat_2(i,j)
+                      !                            
+                   enddo
                 enddo
              enddo
              !
@@ -10379,7 +10387,7 @@ end subroutine map_fields_onto_grid
           !
           do i = 1,omega_grid(iomega)%Nstates
             !
-            ieq =maxloc(omega_grid(iomega)%energy(i,:),dim=1)
+            ieq =minloc(omega_grid(iomega)%energy(i,:),dim=1)
             !
             imaxcontr = maxloc(omega_grid(iomega)%vector(:,i,ieq)**2,&
                         dim=1,mask=omega_grid(iomega)%vector(:,i,ieq)**2.ge.small_)
@@ -10409,7 +10417,9 @@ end subroutine map_fields_onto_grid
       !
       integer(ik) :: iomega,i,j,igrid,iterm
        
-
+       !
+       ! Print PECs 
+       !
        if (iverbose>=3) then 
           !
           write(out,'(/7x,a)') "PECS in the Omega representation"
@@ -10431,10 +10441,10 @@ end subroutine map_fields_onto_grid
              write(out,my_fmt) r(igrid),((omega_grid(iomega)%energy(j,igrid),j=1,Omega_grid(iomega)%Nstates),iomega=1,Nomegas)
           enddo
           !
-          
+          ! Print EAMC L+ in Omega
           !
-          write(out,'(/7x,a)') "L+ in the Omega representation"
-          write(out,'(7x,a)') "# State Lambda Sigma   Omega State Lambda Sigma  Omega"
+          write(out,'(/9x,a)') "L+ in the Omega representation"
+          write(out,'(9x,a)') "# State Lambda Sigma   Omega State Lambda Sigma  Omega"
           !
           do iterm=1,NLplus_omega
              write(out,'(7x,i4,1x,i2,1x,i4,1x,f8.1,1x,f8.1,2x,i2,1x,i4,1x,f8.1,1x,f8.1)') iterm,&
@@ -10450,8 +10460,10 @@ end subroutine map_fields_onto_grid
              write(out,my_fmt) r(igrid),(L_omega_obj(iterm)%gridvalue(igrid),iterm=1,NLplus_omega)
           enddo
           !
-          write(out,'(/7x,a)') "S+ in the Omega representation"
-          write(out,'(7x,a)') "# State Lambda Sigma   Omega State Lambda Sigma  Omega"
+          ! Print Spin S+ in Omega
+          !
+          write(out,'(/10x,a)') "S+ in the Omega representation"
+          write(out,'(10x,a)') "# State Lambda Sigma   Omega State Lambda Sigma  Omega"
 
           do iterm=1,NSplus_omega
              write(out,'(7x,i4,1x,i2,1x,i4,1x,f8.1,1x,f8.1,2x,i2,1x,i4,1x,f8.1,1x,f8.1)') iterm,&
@@ -10814,7 +10826,7 @@ end subroutine map_fields_onto_grid
      real(rk),intent(out)     :: hmat(Ntotal,Ntotal)
      !
      integer(ik) :: i,j,ivib,ilevel,jlevel,istate,jstate,ilambda,jlambda,imulti,jmulti,iomega,jomega,jvib,alloc
-     integer(ik) :: iSplus_omega_,ipermute,iLplus_omega_,isigmav,ilxly
+     integer(ik) :: iSplus_omega_,ipermute,iLplus_omega_,isigmav,ilxly,ilevel_,jlevel_
      real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_l
      character(len=250),allocatable :: printout(:)
      character(cl)         :: printout_
@@ -10910,15 +10922,22 @@ end subroutine map_fields_onto_grid
                  !
                  omegai_ = field%omegai
                  omegaj_ = field%omegaj
+                 ilevel_ = field%ilevel
+                 jlevel_ = field%jlevel
                  !
                else  ! permute
                  !
                  omegai_ = field%omegaj
                  omegaj_ = field%omegai
+                 ilevel_ = field%jlevel
+                 jlevel_ = field%ilevel
                  !
                endif
                !
+               ! Match the QN with the matrix elements QNs
+               !
                if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+               if( (ilevel_/=ilevel).or.(jlevel_/=jlevel) ) cycle
                !
                f_w = nint(omegaj-omegai)
                !
@@ -10957,15 +10976,20 @@ end subroutine map_fields_onto_grid
                  !
                  omegai_ = field%omegai
                  omegaj_ = field%omegaj
+                 ilevel_ = field%ilevel
+                 jlevel_ = field%jlevel
                  !
                else  ! permute
                  !
                  omegai_ = field%omegaj
                  omegaj_ = field%omegai
+                 ilevel_ = field%jlevel
+                 jlevel_ = field%ilevel
                  !
                endif
                !
                if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+               !if( (ilevel_/=ilevel).or.(jlevel_/=jlevel) ) cycle
                !
                f_t = field%matelem(ivib,jvib)
                !
@@ -11058,7 +11082,7 @@ end subroutine map_fields_onto_grid
       endif
       !
       !
-      do ipermute  = 0,0
+      do ipermute  = 0,1
         !
         if (ipermute==0) then
           !
@@ -11114,12 +11138,14 @@ end subroutine map_fields_onto_grid
                   !
                   if (present(L_omega_obj)) then
                      !
+                     L_omega_obj(NLplus_omega)%ilevel = i
                      L_omega_obj(NLplus_omega)%istate = istate
                      L_omega_obj(NLplus_omega)%lambda = ilambda
                      L_omega_obj(NLplus_omega)%sigmai = sigmai
                      L_omega_obj(NLplus_omega)%spini   = spini
                      L_omega_obj(NLplus_omega)%omegai  = omegai
                      !
+                     L_omega_obj(NLplus_omega)%jlevel = j
                      L_omega_obj(NLplus_omega)%jstate = jstate
                      L_omega_obj(NLplus_omega)%lambdaj = jlambda
                      L_omega_obj(NLplus_omega)%sigmaj = sigmaj
@@ -11190,7 +11216,7 @@ end subroutine map_fields_onto_grid
               !
               ! apply selection rules
               !
-              if (nint(sigmai-sigmaj)/=1.or.nint(spini-spinj)/=0) cycle
+              if (nint(sigmai-sigmaj)/=1.or.nint(spini-spinj)/=0.or.(ilambda/=jlambda)) cycle
               !
               NSplus_omega = NSplus_omega + 1
               !
@@ -11198,12 +11224,14 @@ end subroutine map_fields_onto_grid
               !
               if (present(S_omega_obj)) then
                  !
+                 S_omega_obj(NSplus_omega)%ilevel = i
                  S_omega_obj(NSplus_omega)%istate = istate
                  S_omega_obj(NSplus_omega)%lambda = ilambda
                  S_omega_obj(NSplus_omega)%sigmai = sigmai
                  S_omega_obj(NSplus_omega)%spini = spini
                  S_omega_obj(NSplus_omega)%omegai  = omegai
                  !
+                 S_omega_obj(NSplus_omega)%jlevel = j
                  S_omega_obj(NSplus_omega)%jstate = jstate
                  S_omega_obj(NSplus_omega)%lambdaj = jlambda
                  S_omega_obj(NSplus_omega)%sigmaj = sigmaj
