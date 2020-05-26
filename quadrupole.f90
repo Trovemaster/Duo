@@ -629,7 +629,7 @@ contains
                     lambdaF_ = basis(indI)%icontr(k)%ilambda
                     omegaF_  = basis(indI)%icontr(k)%omega
                     vF_    = basis(indI)%icontr(k)%ivib
-
+                    !!!!!
                     if (     lambdaF /= lambdaF_ &
                         .or. nint(spinF - spinF_) /= 0 &
                         .or. vF /= vF_ ) cycle
@@ -1037,8 +1037,8 @@ contains
 
                 if ( .not. passed ) cycle loopLevelsF
 
-                ! check which PQR branch this transition belongs to
-                branch = PQR_branch(jI, jF)
+                ! check which OQS branch this transition belongs to
+                branch = OQS_branch(jI, jF)
 
                 ! transitions should have energy change > 0
                 nu = energyF - energyI
@@ -1519,7 +1519,7 @@ contains
 
 
 
-  function PQR_branch(jI,jF) result (X)
+  function OQS_branch(jI,jF) result (X)
 
     real(rk),intent(in)  :: jI,jF
     character(len=1)        :: X
@@ -1533,16 +1533,16 @@ contains
       case ('ABSORPTION','EMISSION')
 
         if ( jI>jF ) then
-          X = 'P'
+          X = 'O'
         elseif( nint(jI-jF)/=0 ) then
-          X = 'R'
+          X = 'S'
         else
           X = 'Q'
         endif
 
     end select
 
-  end function PQR_branch
+  end function OQS_branch
 
 
   subroutine find_igamma_pair(igamma_pair)
