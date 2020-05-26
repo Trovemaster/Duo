@@ -1,11 +1,13 @@
 # Duo compile files
 *.o
 *.mod
+/*j-duo*.x
 
-# Dev files
-*dev/*
-duoDBG.x
-DBGmakefile
+# Stray I/O files
+/*.inp
+/*.out
+/*.states
+/*.trans
 
 # Windows image file caches
 Thumbs.db
