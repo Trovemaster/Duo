@@ -6437,6 +6437,12 @@ end subroutine map_fields_onto_grid
        !
      case ("OMEGA") 
        !
+       if (iverbose>=5) then 
+          write(out,'(/a)') "The Omega (adiabatic) representaion is under development."
+          write(out,'(a)') "It is currently working only with PES, SO and Lx, other fields are being added."
+          write(out,'(a)') "Please reported any bugs to Sergey Yurchenko"
+       endif
+       !
        multi_max = 1
        lambda_max = 0
        lambda_min = 10000
