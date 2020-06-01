@@ -8454,7 +8454,7 @@ end subroutine map_fields_onto_grid
               !
               ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
               if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate.and.istate==jstate.and.&
-                  abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegaj-omegai).and.abs(nint(sigmaj-sigmai))==0.and.&
+                  abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegai-omegaj).and.abs(nint(sigmaj-sigmai))==0.and.&
                      (ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==2) then
                  !
                  f_o2 = omegaj-omegai
