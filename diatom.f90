@@ -6605,7 +6605,7 @@ end subroutine map_fields_onto_grid
          !
          do i = 1,NLplus_omega
            L_omega_obj(i)%type = "grid"
-           L_omega_obj(i)%type = "L+ Omega"
+           L_omega_obj(i)%name = "L+ Omega obj"
            allocate(L_omega_obj(i)%gridvalue(ngrid),stat=alloc)
            call ArrayStart("L+ Omega obj",alloc,ngrid,kind(L_omega_obj(i)%gridvalue))
          enddo
@@ -6625,7 +6625,7 @@ end subroutine map_fields_onto_grid
          !
          do i = 1,NSplus_omega
            S_omega_obj(i)%type = "grid"
-           S_omega_obj(i)%type = "S+ Omega"
+           S_omega_obj(i)%name = "S+ Omega obj"
            allocate(S_omega_obj(i)%gridvalue(ngrid),stat=alloc)
            call ArrayStart("S+ Omega obj",alloc,ngrid,kind(S_omega_obj(i)%gridvalue))
          enddo
@@ -6645,7 +6645,7 @@ end subroutine map_fields_onto_grid
          !
          do i = 1,NSR_omega
            SR_omega_obj(i)%type = "grid"
-           SR_omega_obj(i)%type = "SR Omega"
+           SR_omega_obj(i)%name = "SR Omega obj"
            allocate(SR_omega_obj(i)%gridvalue(ngrid),stat=alloc)
            call ArrayStart("SR Omega obj",alloc,ngrid,kind(SR_omega_obj(i)%gridvalue))
          enddo
@@ -6665,7 +6665,7 @@ end subroutine map_fields_onto_grid
          !
          do i = 1,NBob_omega
            Bob_omega_obj(i)%type = "grid"
-           Bob_omega_obj(i)%type = "BOB Omega"
+           Bob_omega_obj(i)%name = "BOB Omega obj"
            allocate(bob_omega_obj(i)%gridvalue(ngrid),stat=alloc)
            call ArrayStart("BOB Omega obj",alloc,ngrid,kind(bob_omega_obj(i)%gridvalue))
          enddo
@@ -7392,7 +7392,6 @@ end subroutine map_fields_onto_grid
        !endif
        !
      end select 
-
      !
      ! First we start a loop over J - the total angular momentum quantum number
      !
@@ -7867,7 +7866,6 @@ end subroutine map_fields_onto_grid
            enddo
            !
          enddo
-         !
          !
        case('VIB')
          !
@@ -8687,7 +8685,7 @@ end subroutine map_fields_onto_grid
               enddo loop_ilxly
               !
               !
-              ! Non-diagonal lambda-o doubling
+              ! Non-diagonal lambda-opq doubling
               !
               do ild = 1,Nlambdaopq
                 !
@@ -8722,7 +8720,7 @@ end subroutine map_fields_onto_grid
                 ! 
               enddo
               !
-              ! Non-diagonal lambda-p doubling
+              ! Non-diagonal lambda-p2q doubling
               !
               do ild = 1,Nlambdap2q
                 !
@@ -8731,8 +8729,7 @@ end subroutine map_fields_onto_grid
                 ! 1. <Sigma,Omega,Lambda|Lambda-p|Sigma+/-1,Omega-/+1,Lambda>
                 if (lambdap2q(ild)%istate==istate.and.lambdap2q(ild)%jstate==jstate.and.istate==jstate.and.&
                    abs(ilambda)==1.and.abs(nint(sigmaj-sigmai))==1.and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.&
-                   abs(nint(omegai-omegaj))==1.and.nint(sigmaj-sigmai)==nint(omegai-omegaj).and.&
-                   nint(sigmaj-sigmai+omegai-omegaj)==(ilambda-jlambda)) then
+                   abs(nint(omegai-omegaj))==1.and.nint(sigmaj-sigmai)==nint(omegai-omegaj)) then
                    !
                    f_s = sigmai-sigmaj
                    !
@@ -8765,7 +8762,7 @@ end subroutine map_fields_onto_grid
                 !
                 ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
                 if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate.and.istate==jstate.and.&
-                    abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegaj-omegai).and.abs(nint(sigmaj-sigmai))==0.and.&
+                    abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegai-omegaj).and.abs(nint(sigmaj-sigmai))==0.and.&
                        (ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==2) then
                    !
                    f_o2 = omegaj-omegai
@@ -9139,7 +9136,6 @@ end subroutine map_fields_onto_grid
          stop 'error - illegal CONTRACTION'
          !
        end select
-
        !
        ! Now we diagonalize the two matrices contructed one by one 
        !
@@ -9217,7 +9213,6 @@ end subroutine map_fields_onto_grid
             stop  'Unrecognized diagonalizer'
             !
           end select
-          !
           !
           if (iverbose>=6) write(out,'("...done!")')
           !
@@ -11094,7 +11089,7 @@ end subroutine map_fields_onto_grid
             !
             if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
             !
-            !$omp parallel do private(igrid,f_rot,epot,f_l2,iL2,erot) shared(vibmat) schedule(guided)
+            !$omp parallel do private(igrid,f_rot,epot) shared(vibmat) schedule(guided)
             do igrid =1, ngrid
               !
               if (iverbose>=6) write(out,'("igrid = ",i0)') igrid
@@ -11109,7 +11104,7 @@ end subroutine map_fields_onto_grid
               epot = omega_grid(iomega)%energy(ilevel,igrid)*sc
               !
               ! the diagonal matrix element will include PEC +L**2 as well as the vibrational kinetic contributions.
-              vibmat(igrid,igrid) = epot + erot
+              vibmat(igrid,igrid) = epot
               !
               ! Kinetic energy values 
               call kinetic_energy_grid_points(ngrid,igrid,vibmat)
