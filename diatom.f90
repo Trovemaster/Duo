@@ -9800,11 +9800,11 @@ end subroutine map_fields_onto_grid
      integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
      integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
      integer(ik) :: multi_max,multi,iSplus_omega_,iSR_omega_,ibob_omega_,ibob_rot
-     integer(ik) :: imaxcontr,isr,iss,isso
+     integer(ik) :: imaxcontr,isr,iss,isso,ild
      !
      real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we
      real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
-     real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,vect_,f_ss,f_bobrot
+     real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,vect_,f_ss,f_bobrot,f_s1,f_s2,f_lo
      !
      type(fieldT),pointer      :: field
      !
@@ -10150,7 +10150,6 @@ end subroutine map_fields_onto_grid
                      enddo
                    enddo  loop_iso_omega
                    !
-                   !
                    ! L*S
                    !
                    loop_ilxly_omega : do ilxly =1,Nlxly
@@ -10421,6 +10420,34 @@ end subroutine map_fields_onto_grid
                      ! 
                    enddo ! S-S
                    !
+                   !
+                   ! Non-diagonal lambda-opq doubling, J-independent part 
+                   !
+                   do ild = 1,Nlambdaopq
+                     !
+                     field => lambdaopq(ild)
+                     !
+                     ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
+                     if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
+                         abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
+                                        .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
+                        !
+                        f_s2 = sigmai-sigmaj
+                        f_s1 = sign(1.0_rk,f_s2)
+                        !
+                        f_t = sqrt( spini*(spini+1.0_rk)-(sigmaj     )*(sigmaj+f_s1) )*&
+                              sqrt( spini*(spini+1.0_rk)-(sigmaj+f_s1)*(sigmaj+f_s2) )
+                        !
+                        f_lo = field%gridvalue(igrid)*f_t*sc
+                        !
+                        omegamat(i,j) = omegamat(i,j) + f_lo*0.5_rk
+                        omegamat(j,i) = omegamat(i,j)
+                        !
+                     endif
+                     ! 
+                   enddo
+                   !
+
                    !
                enddo  ! j
              enddo  ! i
