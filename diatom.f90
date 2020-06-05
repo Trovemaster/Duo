@@ -6765,7 +6765,7 @@ end subroutine map_fields_onto_grid
          allocate(brot(1),stat=alloc)
        endif
        !
-       do iobject = 1,5
+       do iobject = 1,7
           !
           select case (iobject)
             !
@@ -10945,9 +10945,9 @@ end subroutine map_fields_onto_grid
                   !
                   do i = 1,N_i
                     !
-                    istate  = Omega_grid(iomega)%basis(i)%istate
-                    ilambda = Omega_grid(iomega)%basis(i)%ilambda
-                    spini   = Omega_grid(iomega)%basis(i)%spin
+                    istate   = Omega_grid(iomega)%basis(i)%istate
+                    ilambda  = Omega_grid(iomega)%basis(i)%ilambda
+                    spini    = Omega_grid(iomega)%basis(i)%spin
                     sigmai   = Omega_grid(iomega)%basis(i)%sigma
                     !
                     do j = 1,N_j
@@ -10957,16 +10957,16 @@ end subroutine map_fields_onto_grid
                       spinj   = Omega_grid(jomega)%basis(j)%spin
                       sigmaj  = Omega_grid(jomega)%basis(j)%sigma
                       !
-                      if( abs(ilambda-jlambda)/=1.or.abs(nint(omegai-omegaj))/=1.or.nint(sigmai-sigmaj) ) cycle
+                      if( abs(nint(omegai-omegaj))/=1.or.abs(nint(sigmai-sigmaj))/=1 ) cycle
+                      if( abs(ilambda)/=1.or.abs(jlambda)/=1.or.abs(ilambda-jlambda)/=2 ) cycle
+                      if (istate/=jstate.or.nint(spini-spinj)/=0.or.nint(sigmaj-sigmai)/=nint(omegai-omegaj) ) cycle
                       !
                       do ip2q =1,Nlambdap2q
                         !
                         field => lambdap2q(ip2q)
                         !
                         ! <Sigma+/-1,Omega-/+1,Lambda=-/+1|Hp2q|Sigma,Omega,-Lambda>
-                        if (field%istate==istate.and.field%jstate==jstate.and.istate==jstate.and.&
-                           abs(ilambda)==1.and.abs(nint(sigmaj-sigmai))==1.and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.&
-                           abs(nint(omegai-omegaj))==1.and.nint(sigmaj-sigmai)==nint(omegai-omegaj)) then
+                        if (field%istate==istate.and.field%jstate==jstate.and.abs(field%lambda)==1) then
                            !
                            f_s = sigmai-sigmaj
                            !
@@ -11037,16 +11037,16 @@ end subroutine map_fields_onto_grid
                       spinj   = Omega_grid(jomega)%basis(j)%spin
                       sigmaj  = Omega_grid(jomega)%basis(j)%sigma
                       !
-                      if( abs(ilambda-jlambda)/=1.or.abs(nint(omegai-omegaj))/=1.or.nint(sigmai-sigmaj) ) cycle
+                      if( abs(nint(omegai-omegaj))/=2.or.nint(sigmai-sigmaj)/=0 ) cycle
+                      if( abs(ilambda)/=1.or.abs(jlambda)/=1.or.abs(ilambda-jlambda)/=2 ) cycle
+                      if (istate/=jstate.or.(ilambda-jlambda)/=nint(omegai-omegaj).or.nint(spini-spinj)/=0) cycle
                       !
                       do iq =1,Nlambdaq
                         !
                         field => lambdaq(iq)
                         !
                         ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-                        if (field%istate==istate.and.field%jstate==jstate.and.istate==jstate.and.&
-                            abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegai-omegaj).and.abs(nint(sigmaj-sigmai))==0.and.&
-                               (ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==2) then
+                        if (field%istate==istate.and.field%jstate==jstate.and.abs(field%lambda)==1) then
                            !
                            f_grid = field%gridvalue(igrid)
                            !
@@ -11950,15 +11950,15 @@ end subroutine map_fields_onto_grid
                !
                if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
                !
-               do isigmav = 0,1
-                 !
-                 ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                 ! avoid the double counting.
-                 if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
-                 !           
-                 ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                 omegai_ = omegai_*(-1)**isigmav
-                 omegaj_ = omegaj_*(-1)**isigmav
+               !do isigmav = 0,1
+               !  !
+               !  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+               !  ! avoid the double counting.
+               !  if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
+               !  !           
+               !  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+               !  omegai_ = omegai_*(-1)**isigmav
+               !  omegaj_ = omegaj_*(-1)**isigmav
                  !
                  ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
                  !
@@ -11969,11 +11969,11 @@ end subroutine map_fields_onto_grid
                  !  omega should change by 1 (via J+/-) exactly as l_omega
                  f_w = nint(omegai-omegaj)
                  !
-                 f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai+f_w) )*field%matelem(ivib,jvib)
+                 f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(ivib,jvib)
                  !
                  hmat(i,j) = hmat(i,j) - f_t*0.5_rk
                  !
-               enddo
+               !enddo
                !
                ! print out the internal matrix at the first grid point
                if (iverbose>=4.and.abs(f_t)>small_) then
@@ -12027,7 +12027,7 @@ end subroutine map_fields_onto_grid
                   f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
                         sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
                   !
-                  f_lo = field%matelem(ivib,jvib)*f_t*sc
+                  f_lo = field%matelem(ivib,jvib)*f_t
                   !
                   hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                   !
@@ -12501,13 +12501,11 @@ end subroutine map_fields_onto_grid
             !
             do j = 1,N_j
               !
-              if (abs(nint(omegai-omegaj))/=1) cycle
-              !
               iP2Q_ = 0 
               !
               loop_P2Q : do ip2q = 1,Nlambdap2q
                 !
-                field => spinrot(ip2q)
+                field => lambdap2q(ip2q)
                 !
                 ! Using the J-free part of the J*S term of p2q
                 ! <Sigma+/-1,Omega-/+1,Lambda=-/+1|HP2Q|SigmaOmega,Lambda=+/-1>
@@ -12597,17 +12595,15 @@ end subroutine map_fields_onto_grid
             !
             N_j = Omega_grid(jomega)%Nstates
             !
-            if ( abs(nint(omegai-omegaj))/=1 ) cycle
+            if ( abs(nint(omegai-omegaj))/=2 ) cycle
             !
             do j = 1,N_j
-              !
-              if (abs(nint(omegai-omegaj))/=2) cycle
               !
               iQ_ = 0 
               !
               loop_Q : do iq = 1,Nlambdaq
                 !
-                field => spinrot(iq)
+                field => lambdaq(iq)
                 ! Q-lambd-doubling
                 ! <Sigma,Omega-/+2,Lambda=-/+1|Lambda-O|Sigma,Omega,-Lambda>
                 !
@@ -12632,7 +12628,7 @@ end subroutine map_fields_onto_grid
                   sigmaj = omegaj - real(jlambda_,rk)
                   !
                   if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle 
-                  if ((ilambda-jlambda)/=nint(omegai-omegaj)) cycle
+                  if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
                   !
                   NQ_omega = NQ_omega + 1
                   !
