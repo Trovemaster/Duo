@@ -9874,9 +9874,9 @@ end subroutine map_fields_onto_grid
      integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
      integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
      integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_
-     integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq
+     integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot
      !
-     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we
+     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
      real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
      real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo
      !
@@ -9949,7 +9949,7 @@ end subroutine map_fields_onto_grid
           !
           ! the centrifugal factor will be needed for the L**2 term
           !
-          f_rot=b_rot/r(igrid)**2*sc
+          f_centrif=b_rot/r(igrid)**2*sc
           !
           L_LambdaSigma = 0 
           !
@@ -9993,6 +9993,18 @@ end subroutine map_fields_onto_grid
                enddo
                !
                erot = f_l2
+               !
+               f_rot=f_centrif
+               !
+               ! BOB centrifugal (rotational) term, i.e. a correction to f_rot
+               !
+               do ibobrot = 1,Nbobrot
+                 if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==jstate.and.istate==jstate) then
+                   field => bobrot(ibobrot)
+                   f_rot = f_rot + field%gridvalue(igrid)*sc
+                   exit
+                 endif
+               enddo
                !
                ! rotational diagonal element 
                !                                             ! L Lodi -job%diag_L2_fact is either zero or one
@@ -11897,15 +11909,15 @@ end subroutine map_fields_onto_grid
                 ! Only one option is possible in the Omega representaion
                 ! 1. <Omega|HSR|Omega+/-1>
                 !
-                do isigmav = 0,1
-                  !
-                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                  ! avoid the double counting.
-                  if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
-                  !           
-                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                  omegai_ = omegai_*(-1)**isigmav
-                  omegaj_ = omegaj_*(-1)**isigmav
+                !do isigmav = 0,1
+                !  !
+                !  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                !  ! avoid the double counting.
+                !  if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
+                !!  !           
+                !  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                !  omegai_ = omegai_*(-1)**isigmav
+                !  omegaj_ = omegaj_*(-1)**isigmav
                   !
                   ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
                   !
@@ -11917,7 +11929,7 @@ end subroutine map_fields_onto_grid
                   !
                   hmat(i,j) = hmat(i,j) + f_t*0.5_rk
                   !
-                enddo
+                !enddo
                 !
                 ! print out the internal matrix at the first grid point
                 if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
@@ -11950,30 +11962,18 @@ end subroutine map_fields_onto_grid
                !
                if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
                !
-               !do isigmav = 0,1
-               !  !
-               !  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-               !  ! avoid the double counting.
-               !  if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
-               !  !           
-               !  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-               !  omegai_ = omegai_*(-1)**isigmav
-               !  omegaj_ = omegaj_*(-1)**isigmav
-                 !
-                 ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-                 !
-                 if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
-                 !
-                 ! L*J part of p2q
-                 !
-                 !  omega should change by 1 (via J+/-) exactly as l_omega
-                 f_w = nint(omegai-omegaj)
-                 !
-                 f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(ivib,jvib)
-                 !
-                 hmat(i,j) = hmat(i,j) - f_t*0.5_rk
-                 !
-               !enddo
+               ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+               !
+               if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+               !
+               ! L*J part of p2q
+               !
+               !  omega should change by 1 (via J+/-) exactly as l_omega
+               f_w = nint(omegai-omegaj)
+               !
+               f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(ivib,jvib)
+               !
+               hmat(i,j) = hmat(i,j) - f_t*0.5_rk
                !
                ! print out the internal matrix at the first grid point
                if (iverbose>=4.and.abs(f_t)>small_) then
@@ -12007,31 +12007,19 @@ end subroutine map_fields_onto_grid
                 ! Only one option is possible in the Omega representaion
                 ! 1. <Omega|Hq|Omega+/-2>
                 !
-                do isigmav = 0,1
-                  !
-                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                  ! avoid the double counting.
-                  if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
-                  !           
-                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                  omegai_ = omegai_*(-1)**isigmav
-                  omegaj_ = omegaj_*(-1)**isigmav
-                  !
-                  ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-                  !
-                  if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
-                  !
-                  f_o2 = omegaj-omegai
-                  f_o1 = sign(1.0_rk,f_o2)
-                  !
-                  f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
-                        sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
-                  !
-                  f_lo = field%matelem(ivib,jvib)*f_t
-                  !
-                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
-                  !
-                enddo
+                ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                !
+                if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+                !
+                f_o2 = omegaj-omegai
+                f_o1 = sign(1.0_rk,f_o2)
+                !
+                f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
+                      sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
+                !
+                f_lo = field%matelem(ivib,jvib)*f_t
+                !
+                hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                 !
                 ! print out the internal matrix at the first grid point
                 if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
