@@ -6419,17 +6419,6 @@ end subroutine map_fields_onto_grid
      if (iverbose>=3) write(out,'(/"Construct the J=0 matrix")')
      if (iverbose>=3) write(out,"(a)") 'Solving one-dimentional Schrodinger equations using : ' // trim(solution_method) 
      !
-     !call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
-     !
-     !allocate(vibmat_rk(ngrid,ngrid),stat=alloc)
-     !call ArrayStart('vibmat_rk',alloc,size(vibmat_rk),kind(vibmat_rk))
-     !
-     !allocate(contrfunc_rk(ngrid,ngrid*Nestates),stat=alloc)
-     !call ArrayStart('contrfunc_rk',alloc,size(contrfunc_rk),kind(contrfunc_rk))
-     !
-     !allocate(grid_rk(ngrid),stat=alloc)
-     !call ArrayStart('grid_rk',alloc,size(grid_rk),kind(grid_rk))
-     !
      allocate(psipsi_rk(ngrid),stat=alloc)
      call ArrayStart('psipsi_rk',alloc,size(psipsi_rk),kind(psipsi_rk))
      !
@@ -6610,7 +6599,7 @@ end subroutine map_fields_onto_grid
        ! count coupling 
        call L_omega_create(NLplus_omega,onlycount=.true.)
        !
-       if (NLplus_omega/=0) then 
+       if (NLplus_omega/=0.and..not.fields_allocated) then
          !
          allocate(L_omega_obj(NLplus_omega),stat=alloc)
          if (alloc/=0) stop 'L_omega_obj cannot be allocated'
@@ -6630,7 +6619,7 @@ end subroutine map_fields_onto_grid
        !
        call S_omega_create(NSplus_omega,onlycount=.true.)
        !
-       if (NSplus_omega/=0) then 
+       if (NSplus_omega/=0.and..not.fields_allocated) then 
          !
          allocate(S_omega_obj(NSplus_omega),stat=alloc)
          if (alloc/=0) stop 'S_omega_obj cannot be allocated'
@@ -6650,7 +6639,7 @@ end subroutine map_fields_onto_grid
        !
        call SR_omega_create(NSR_omega,onlycount=.true.)
        !
-       if (NSR_omega/=0) then 
+       if (NSR_omega/=0.and..not.fields_allocated) then 
          !
          allocate(SR_omega_obj(NSR_omega),stat=alloc)
          if (alloc/=0) stop 'S_omega_obj cannot be allocated'
@@ -6670,7 +6659,7 @@ end subroutine map_fields_onto_grid
        !
        call BOB_omega_create(NBob_omega,onlycount=.true.)
        !
-       if (NBob_omega/=0) then 
+       if (NBob_omega/=0.and..not.fields_allocated) then 
          !
          allocate(BOB_omega_obj(NBOB_omega),stat=alloc)
          if (alloc/=0) stop 'bob_omega_obj cannot be allocated'
@@ -6690,7 +6679,7 @@ end subroutine map_fields_onto_grid
        !
        call P2Q_omega_create(Np2q_omega,onlycount=.true.)
        !
-       if (Np2q_omega/=0) then 
+       if (Np2q_omega/=0.and..not.fields_allocated) then 
          !
          allocate(p2q_omega_obj(Np2q_omega),stat=alloc)
          if (alloc/=0) stop 'p2q_omega_obj cannot be allocated'
@@ -6710,7 +6699,7 @@ end subroutine map_fields_onto_grid
        !
        call Q_omega_create(Nq_omega,onlycount=.true.)
        !
-       if (Nq_omega/=0) then 
+       if (Nq_omega/=0.and..not.fields_allocated) then 
          !
          allocate(q_omega_obj(Nq_omega),stat=alloc)
          if (alloc/=0) stop 'q_omega_obj cannot be allocated'
@@ -6834,7 +6823,7 @@ end subroutine map_fields_onto_grid
                call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
              endif
              !
-             !omp parallel do private(ilevel,jlevel) schedule(guided)
+             !$omp parallel do private(ilevel,jlevel) schedule(guided)
              do ilevel = 1,totalroots
                do jlevel = 1,ilevel
                  !
@@ -6854,7 +6843,7 @@ end subroutine map_fields_onto_grid
                  !
                enddo
              enddo
-             !omp end parallel do
+             !$omp end parallel do
              !
           enddo
           !
@@ -9723,8 +9712,16 @@ end subroutine map_fields_onto_grid
      !
      deallocate(J_list)
      !
-     !
      if (allocated(Omega_grid)) then
+       !
+       do iomega=1,Nomegas
+          !
+          deallocate(Omega_grid(iomega)%energy,Omega_grid(iomega)%vector,Omega_grid(iomega)%qn,stat=alloc)
+          if (alloc/=0) stop 'Omega_grid(iomega)%fields cannot be deallocated'
+          deallocate(Omega_grid(iomega)%basis,stat=alloc)
+          if (alloc/=0) stop 'Omega_grid(iomega)%basis cannot be deallocated'
+          !
+       enddo
        !
        call ArrayStop('omegamat_grid')
        !
@@ -9733,41 +9730,75 @@ end subroutine map_fields_onto_grid
        !
      endif
      !
-     if (associated(L_omega_obj)) then 
-       deallocate(L_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'L_omega_obj cannot be deallocated'
-       call ArrayStop("L+ Omega obj")
-     endif
+     !if (associated(L_omega_obj)) then 
+     !  !
+     !  do i = 1,NLplus_omega
+     !    deallocate(L_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'L_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(L_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'L_omega_obj cannot be deallocated'
+     !  call ArrayStop("L+ Omega obj")
+     !  !
+     !endif
      !
-     if (associated(S_omega_obj)) then 
-       deallocate(S_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'S_omega_obj cannot be deallocated'
-       call ArrayStop("S+ Omega obj")
-     endif
+     !if (associated(S_omega_obj)) then 
+     !  !
+     !  do i = 1,NSplus_omega
+     !    deallocate(S_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'S_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(S_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'S_omega_obj cannot be deallocated'
+     !  call ArrayStop("S+ Omega obj")
+     !endif
      !
-     if (associated(SR_omega_obj)) then 
-       deallocate(SR_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'SR_omega_obj cannot be deallocated'
-       call ArrayStop("SR Omega obj")
-     endif
+     !if (associated(SR_omega_obj)) then 
+     !  !
+     !  do i = 1,NSR_omega
+     !    deallocate(SR_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'SR_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(SR_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'SR_omega_obj cannot be deallocated'
+     !  call ArrayStop("SR Omega obj")
+     !endif
+     !!
+     !if (associated(bob_omega_obj)) then 
+     !  do i = 1,NBob_omega
+     !    deallocate(bob_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'bob_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(bob_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'bob_omega_obj cannot be deallocated'
+     !  call ArrayStop("BOB Omega obj")
+     !endif
+     !!
+     !if (associated(p2q_omega_obj)) then 
+     !  do i = 1,Np2q_omega
+     !    deallocate(p2q_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'p2q_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(p2q_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'p2q_omega_obj cannot be deallocated'
+     !  call ArrayStop("P2Q Omega obj")
+     !endif
      !
-     if (associated(bob_omega_obj)) then 
-       deallocate(bob_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'bob_omega_obj cannot be deallocated'
-       call ArrayStop("BOB Omega obj")
-     endif
-     !
-     if (associated(p2q_omega_obj)) then 
-       deallocate(p2q_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'p2q_omega_obj cannot be deallocated'
-       call ArrayStop("P2Q Omega obj")
-     endif
-     !
-     if (associated(q_omega_obj)) then 
-       deallocate(q_omega_obj,stat=alloc)
-       if (alloc/=0) stop 'q_omega_obj cannot be deallocated'
-       call ArrayStop("Q Omega obj")
-     endif
+     !if (associated(q_omega_obj)) then 
+     !  do i = 1,Nq_omega
+     !    deallocate(q_omega_obj(i)%gridvalue,stat=alloc)
+     !    if (alloc/=0) stop 'q_omega_obj-grid cannot be deallocated'
+     !  enddo
+     !  deallocate(q_omega_obj,stat=alloc)
+     !  if (alloc/=0) stop 'q_omega_obj cannot be deallocated'
+     !  call ArrayStop("Q Omega obj")
+     !endif
+     !!
+     !if (associated(brot)) then 
+     !  deallocate(brot(1)%gridvalue,stat=alloc)
+     !  if (alloc/=0) stop 'brot-grid cannot be deallocated'
+     !  call ArrayStop('BROT')
+     !endif
      !
      if (job%print_rovibronic_energies_to_file ) close(u2)
      !
