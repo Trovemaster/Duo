@@ -67,14 +67,14 @@ Here is an example for a PEC showing the general structure:
 
 
 
-L2:  (alias: ``L**2``)
+``L2`` (alias: ``L**2``)
 ^^^^^^^^^^^^^^^^^^^^^^
 
 These objects represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-L+:   (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
+``L+``  (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -213,7 +213,7 @@ For any Duo object one can specify a corresponding reference curve as in the fol
 
 ``dipole-x`` is related to the Cartesian-representation.
 
-At the moment Duo cannot compute electric-quadrupole or magnetic dipole transition line intensities.
+At the moment Duo cannot compute magnetic dipole transition line intensities.
 
 .. _quadrupole-curves:
 
@@ -222,11 +222,12 @@ At the moment Duo cannot compute electric-quadrupole or magnetic dipole transiti
 
 The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole transition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in the ``intensity`` section also (:ref:`see here <computing-spectra>`).
 
+
 Keywords used in the specification of objects 
-=============================================
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Name and quantum numbers
-^^^^^^^^^^^^^^^^^^^^^^^^
+========================
 
 This is a list of keywords used to specify various parameters of Duo objects. 
 
@@ -318,7 +319,7 @@ The keywords ``g``/``u`` or ``+``/``-`` can appear in any order.
 
 
 Other control keys
-^^^^^^^^^^^^^^^^^^
+==================
 
 
 * ``type``: Type of the functional representaion. 
@@ -479,7 +480,7 @@ Example:
 
 
 Definition of the function or a grid 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+====================================
 
 
 * ``values``  
