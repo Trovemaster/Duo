@@ -6564,7 +6564,8 @@ end subroutine map_fields_onto_grid
           !
           call define_quanta_bookkeeping_Omega(iverbose,omega,Nestates,Nlambdasigmas)
           !
-          allocate(Omega_grid(iomega)%energy(Nlambdasigmas,ngrid),Omega_grid(iomega)%vector(Nlambdasigmas,Nlambdasigmas,ngrid),stat=alloc)
+          allocate(Omega_grid(iomega)%energy(Nlambdasigmas,ngrid),&
+            Omega_grid(iomega)%vector(Nlambdasigmas,Nlambdasigmas,ngrid),stat=alloc)
           call ArrayStart('omegamat_grid',alloc,size(Omega_grid(iomega)%energy),kind(Omega_grid(iomega)%energy))
           call ArrayStart('omegamat_grid',alloc,size(Omega_grid(iomega)%vector),kind(Omega_grid(iomega)%vector))
           allocate(Omega_grid(iomega)%qn(Nlambdasigmas),stat=alloc)
@@ -6746,7 +6747,8 @@ end subroutine map_fields_onto_grid
        !
        allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
        !
-       call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contrfunc)
+       call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+         contrenergy,contrfunc)
        !
        ! Now we need to compute all vibrational matrix elements of all field of the Hamiltonian, except for the potentials V,
        ! which together with the vibrational kinetic energy operator are diagonal on the contracted basis developed
@@ -6823,7 +6825,7 @@ end subroutine map_fields_onto_grid
                call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
              endif
              !
-             if (not(associated(field%matelem))) then
+             if (associated(field%matelem) .eqv. .false.) then
                allocate(field%matelem(totalroots,totalroots),stat=alloc)
                call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
              endif
@@ -7407,11 +7409,11 @@ end subroutine map_fields_onto_grid
                       if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
                            jstate==field%jstate ) then 
                         !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
-                        write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate,    &
-                                                                                            icontrvib(ilevel)%v,            &
-                                                                                            trim(field%name),               &
-                                                                                            icontrvib(jlevel)%istate,       &
-                                                                                            icontrvib(jlevel)%v,            &
+                        write(out,'("<",i2,",",i4,"|",a40,5x,"|",i2,",",i4,"> = ",2es18.8)') icontrvib(ilevel)%istate, &
+                                                                                            icontrvib(ilevel)%v,       &
+                                                                                            trim(field%name),          &
+                                                                                            icontrvib(jlevel)%istate,  &
+                                                                                            icontrvib(jlevel)%v,       &
                                                                                             field%matelem(ilevel,jlevel)  ! & 
                                                                                             !,matelem_rk(ilevel,jlevel)
                         !
@@ -7904,7 +7906,8 @@ end subroutine map_fields_onto_grid
                              write(out,'(/"i,j = ",2i8," irrep,jrrep = ",2i8," isym,jsym = ",2i8," ilevel,jlevel = ", &
                                         & 2i3," , matelem =  ",g16.9," with zero = ",g16.9)') &
                                         i,j,irrep,jrrep,isym,jsym,ilevel,jlevel,smat(itau,jtau),sqrt(small_)
-                             write(out,'(/"<State   v  lambda spin   sigma  omega |H(sym)| State   v  lambda spin   sigma  omega>")')
+                             write(out,'(/"<State   v  lambda spin   sigma  omega |H(sym)| State   v  lambda spin   '//&
+                               'sigma  omega>")')
                              write(out,'("<",i3,2x,2i4,3f8.1," |H(sym)| ",i3,2x,2i4,3f8.1,"> /= 0")') &
                                          istate,ivib,ilambda,spini,sigmai,omegai,jstate,jvib,jlambda,spinj,sigmaj,omegaj
                              write(out,'("<",a10,"|H(sym)|",a10,"> /= 0")') trim(poten(istate)%name),trim(poten(jstate)%name)
@@ -9167,7 +9170,8 @@ end subroutine map_fields_onto_grid
                              write(out,'(/"i,j = ",2i8," irrep,jrrep = ",2i8," isym,jsym = ",2i8," ilevel,jlevel = ", &
                                         & 2i3," , matelem =  ",g16.9," with zero = ",g16.9)') &
                                         i,j,irrep,jrrep,isym,jsym,ilevel,jlevel,smat(itau,jtau),sqrt(small_)
-                             write(out,'(/"<State   v  lambda spin   sigma  omega |H(sym)| State   v  lambda spin   sigma  omega>")')
+                             write(out,'(/"<State   v  lambda spin   sigma  omega |H(sym)| State   v  lambda spin' //&
+                              '   sigma  omega>")')
                              write(out,'("<",i3,2x,2i4,3f8.1," |H(sym)| ",i3,2x,2i4,3f8.1,"> /= 0")') &
                                          istate,ivib,ilambda,spini,sigmai,omegai,jstate,jvib,jlambda,spinj,sigmaj,omegaj
                              write(out,'("<",a10,"|H(sym)|",a10,"> /= 0")') trim(poten(istate)%name),trim(poten(jstate)%name)
@@ -10172,17 +10176,20 @@ end subroutine map_fields_onto_grid
                        ! Also check the that the SO is consistent with the selection rules for SO
                        !
                        if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
-                          ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm==poten(field%jstate)%parity%pm ).or.&
+                          ( ilambda_we==0 .and. jlambda_we==0 .and. &
+                            poten(field%istate)%parity%pm==poten(field%jstate)%parity%pm ).or. &
                           ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
-                             abs(ilambda_we-jlambda_we)>1.or.abs(nint(sigmai_we-sigmaj_we))>1.or.&
-                          ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                             abs(ilambda_we-jlambda_we)>1.or.abs(nint(sigmai_we-sigmaj_we))>1.or. &
+                          ( poten(field%istate)%parity%gu/=0.and.&
+                          poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
                           !
                           write(out,"('The quantum numbers of the spin-orbit field (J=0) ',2i3,' are inconsistent" // &
                                           " with SO selection rules: ')") field%istate,field%jstate
                           write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
-                             "Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1')")
+                             "Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 " // &
+                                "or Delta Lambda = - Delta Sigma = +/- 1')")
                           write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
-                                                                             spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                                                                spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
                           stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
                           !
                        endif
@@ -10211,8 +10218,9 @@ end subroutine map_fields_onto_grid
                            !
                            ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
                            ! avoid the double counting.
-                           if( isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 ) &
-                                                                                                                                  cycle
+                           if( isigmav==1.and.&
+                             nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 &
+                           )cycle
                            !
                            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                            ilambda_ = ilambda_we*(-1)**isigmav
@@ -10224,11 +10232,13 @@ end subroutine map_fields_onto_grid
                            omegaj_ = sigmaj_+real(jlambda_)
                            !
                            ! Check So selection rules
-                           if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or.abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                           if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or. &
+                             abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
                            !
                            ! proceed only if the quantum numbers of the field equal
                            ! to the corresponding <i| and |j> quantum numbers of the basis set. otherwise skip it:
-                           if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0.or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
+                           if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0 &
+                             .or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
                            !
                            f_t = SO*sc
                            !
@@ -10340,7 +10350,8 @@ end subroutine map_fields_onto_grid
                          !
                          ! double check
                          if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
-                          write(out,'("LS: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
+                          write(out,&
+                            '("LS: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
                                      & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
                            stop 'LS: wrongly reconsrtucted spini or spinj'
                          endif
@@ -10552,7 +10563,7 @@ end subroutine map_fields_onto_grid
                      ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
                      if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
                          abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
-                                        .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
+                                    .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
                         !
                         f_s2 = sigmai-sigmaj
                         f_s1 = sign(1.0_rk,f_s2)
@@ -10588,7 +10599,8 @@ end subroutine map_fields_onto_grid
                 vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
              else
                !
-               mat_1(1:N_i,1:N_i) = matmul(transpose(vect(iomega,1:N_i,1:N_i)),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+               mat_1(1:N_i,1:N_i) = &
+                 matmul(transpose(vect(iomega,1:N_i,1:N_i)),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
                !
                ! scalar product of vect with the previous step
                do i = 1,N_i
@@ -10747,8 +10759,8 @@ end subroutine map_fields_onto_grid
                     !
                   enddo
                   !
-                  mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                  mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                  mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                  mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                   !
                   do i = 1,N_i
                      do j = 1,N_j
@@ -10814,8 +10826,8 @@ end subroutine map_fields_onto_grid
                     enddo
                   enddo
                   !
-                  mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                  mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                  mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                  mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                   !
                   do i = 1,N_i
                      do j = 1,N_j
@@ -10895,8 +10907,8 @@ end subroutine map_fields_onto_grid
                     !
                   enddo
                   !
-                  mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                  mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                  mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                  mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                   !
                   do i = 1,N_i
                      do j = 1,N_j
@@ -11033,8 +11045,8 @@ end subroutine map_fields_onto_grid
                     !
                   enddo
                   !
-                  mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                  mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                  mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                  mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                   !
                   do i = 1,N_i
                      do j = 1,N_j
@@ -11109,8 +11121,8 @@ end subroutine map_fields_onto_grid
                     !
                   enddo
                   !
-                  mat_1(1:N_i,1:N_j) = matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
-                  mat_2(1:N_i,1:N_j) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+                  mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+                  mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
                   !
                   do i = 1,N_i
                      do j = 1,N_j
@@ -11206,7 +11218,8 @@ end subroutine map_fields_onto_grid
           !
           write(my_fmt, '(A,I0,A)') '(f18.8,', Nomega_states, '(es22.8))'
           do igrid=1,ngrid
-             write(out,my_fmt) r(igrid),((omega_grid(iomega)%energy(j,igrid),j=1,Omega_grid(iomega)%Nstates),iomega=1,Nomegas)
+             write(out,my_fmt) &
+               r(igrid),((omega_grid(iomega)%energy(j,igrid),j=1,Omega_grid(iomega)%Nstates),iomega=1,Nomegas)
           enddo
           !
           ! Print EAMC L+ in Omega
@@ -11643,7 +11656,8 @@ end subroutine map_fields_onto_grid
              psipsi_t  = sum(contrfunc(:,ilevel)*contrfunc(:,jlevel))
              !
              if (iverbose>=6) then
-                if (icontrvib(ilevel)%ilevel/=icontrvib(jlevel)%ilevel.and.ilevel/=jlevel.and.abs(psipsi_t)>sqrt(small_)) then
+                if (icontrvib(ilevel)%ilevel/=icontrvib(jlevel)%ilevel&
+                  .and.ilevel/=jlevel.and.abs(psipsi_t)>sqrt(small_)) then
                    write(out,"('orthogonality is brocken : <',i4,'|',i4,'> (',f16.6,')')") ilevel,jlevel,psipsi_t
                    stop 'Brocken orthogonality'
                 endif
