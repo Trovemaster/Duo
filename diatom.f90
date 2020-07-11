@@ -393,6 +393,7 @@ module diatom_module
      real(rk)             :: threshold_obs_calc  = -1e-16
      real(rk)             :: zpe=0
      logical              :: shift_to_zpe = .true.   ! 
+     real(rk)             :: fit_scaling=1.0_rk         ! scaling the fitting correction with this factor >0 and <1
      type(obsT),pointer   :: obs(:)           ! experimental data
      !
      !type(paramT),pointer :: param(:)         ! fitting parameters
@@ -1138,6 +1139,10 @@ module diatom_module
            case('FIT_FACTOR')
              !
              call readf(fitting%factor)
+             !
+           case('FIT_SCALE')
+             !
+             call readf(fitting%fit_scaling)
              !
            case('ABINIIO')
              !

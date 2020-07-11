@@ -1431,7 +1431,12 @@ module refinement
                  !
                end select 
                !
-               !----- update the parameter values ------!
+               ! Scale the correction if required 
+               !
+               dx = dx*fitting%fit_scaling
+               !
+               !
+               !----- update the parameter values with a scaled correction------!
                !
                do ncol=1,numpar
                   !
