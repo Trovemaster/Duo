@@ -394,6 +394,7 @@ module diatom_module
      real(rk)             :: zpe=0
      logical              :: shift_to_zpe = .true.   ! 
      real(rk)             :: fit_scaling=1.0_rk         ! scaling the fitting correction with this factor >0 and <1
+     integer(ik)          :: linear_search = 0 ! use linear scaling to achieve better convergence with the Armijo condition
      type(obsT),pointer   :: obs(:)           ! experimental data
      !
      !type(paramT),pointer :: param(:)         ! fitting parameters
@@ -1143,6 +1144,10 @@ module diatom_module
            case('FIT_SCALE')
              !
              call readf(fitting%fit_scaling)
+             !
+           case('LINEAR_SEARCH')
+             !
+             call readi(fitting%linear_search)
              !
            case('ABINIIO')
              !
@@ -12612,7 +12617,7 @@ end subroutine map_fields_onto_grid
     integer(ik)  :: i,j,istate_,jstate_,iQ_
     real(rk)     :: spini_,spinj_,omegai,omegaj
     real(rk)     :: sigmai,sigmaj
-    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,ilambda,jlambda,isigmav
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav
     type(fieldT),pointer       :: field
     !
     NQ_omega = 0 
