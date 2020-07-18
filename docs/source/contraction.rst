@@ -34,10 +34,10 @@ Omega (diabatic) contraction
 This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`. 
 This contraction consists of two steps. 
 
-#. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis 
+  1. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis 
 :math:`|S\Sigma\rangle|\Lambda\rangle` for each values of :math:`\Omega=\Lambda+\Sigma` independently to form diabatic PECs.
 
-#. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set 
+  2. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set 
 :math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`). 
 
 The rovibronic basis set in the Omega representation is given by 
