@@ -744,8 +744,8 @@ Example:
 
 
 
-``LORENTZ``,``LORENTZIAN``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+``LORENTZ`` (alis ``LORENTZIAN``)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 A Lorentzian type function used to represent the ``diabatic`` coupling:
                  
@@ -821,8 +821,8 @@ Example
 
 
 
-``PADE_GOODISMAN2``,``PADE2``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``PADE_GOODISMAN2`` (``PADE2``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :math:`\mu(r) = \left[P(a_i,y) + a_3/2  \right] \frac{z^3}{1+z^7}`, 
 
