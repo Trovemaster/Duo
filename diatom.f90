@@ -1145,7 +1145,7 @@ module diatom_module
              !
              call readf(fitting%fit_scaling)
              !
-           case('LINEAR_SEARCH')
+           case('LINEAR_SEARCH','LINEAR-SEARCH')
              !
              call readi(fitting%linear_search)
              !
