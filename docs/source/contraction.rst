@@ -31,7 +31,7 @@ electronic wavefunctions implicitly taken from the ab initio calculations.
 Omega (diabatic) contraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lamba+\Sigma`. 
+This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`. 
 This contraction consists of two steps. 
 
 #. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis 
@@ -48,22 +48,23 @@ where :math:`| J \Omega \rangle`  are the rigid rotor functions.
 
 
 
-Example: 
+Example 1: 
 :: 
 
 
      contraction
        vib
-       vmax 30
+       nmax 30
        enermax 25000
      end
 
-or
+
+Example 2:
 ::
 
      contraction
        omega
-       vmax  30  10 10 
+       nmax  30  10 10 
      end
 
 
@@ -76,29 +77,29 @@ Keywords
 * `vib` and `omega`: contraction types
 
 
-* vmax
+* nmax
 
-(alias: ``vibmax``) specifies the value of the maximum vibrational quantum number to be computed and kept for
+(alias: ``vmax``, ``vibmax``) specifies the value of the maximum vibrational functions to be computed and kept for
 the solution of the coupled problem. For example
 ::
 
-    vmax 15
+    nmax 15
 
 specifies to compute for each PEC the lowest-energy 15 vibrational levels; it is also possible 
 to specify different values of \texttt{vmax} for each PEC, in which case the values must be given as a list; for example
 ::
 
-    vmax 10 15 8
+    nmax 10 15 8
 
 
-specifies that for the PEC identified as ``poten 1`` Duo should use ``vmax=10``, for
-``poten 2``, ``vmax=15`` and for ``poten 3``, ``vmax=8``.
-If there are more PEC (``poten 4`` etc.) they will use for ``vmax`` the last value specified (``vmax=8`` in this example).
+specifies that for the PEC identified as ``poten 1`` Duo should take 10 lowest vibrational states ``nmax=10``, for
+``poten 2``, ``nmax=15`` and for ``poten 3``, ``nmax=8``.
+If there are more PEC (``poten 4`` etc.) they will use for ``nmax`` the last value specified (``nmax=8`` in this example).
 
 * enermax
 
-Alternatively or complementary to ``vmax`` one can select the vibrational energy levels to compute
-by specifying an upper energy threshold (in cm\ :sup:`-1`). Similarly to ``vmax``, one can specify a different value of ``enermax``
+Alternatively or complementary to ``nmax`` one can select the vibrational energy levels to compute
+by specifying an upper energy threshold (in cm\ :sup:`-1`). Similarly to ``nmax``, one can specify a different value of ``enermax``
 for each PEC by writing a list of values; for example
 ::
 
