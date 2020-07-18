@@ -1585,6 +1585,8 @@ module refinement
                  ! continue linear search if the condition is not fullfilled or too many iterations 
                  if (rms2>=rms1.and.ialpha_Armijo<NArmijo) then 
                     !
+                    fititer = fititer - 1
+                    !
                     do ncol=1,numpar
                        !
                        iobject = fit_index(ncol)%iobject

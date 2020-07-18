@@ -7,6 +7,12 @@ Duo allows the user to modify (`refine`)
 the potential energy curves and other coupling curves
 by least-squares-fit to `experimental` energy term values or wavenumbers.
 
+Duo uses Gauss-Newton least-squares fitting. Optionally, this algorythm can be supplemented 
+by a linear search via the keyword ``linear-search``. The associated system of linear equations 
+is solved either using the LAPACK subroutine ``DGELSS`` or a home-made subroutine ``LINUR`` 
+as controlled by the keyword ``FIT_TYPE``. 
+
+
 Fitting is, by far, the trickiest part of Duo, both on the part of the
 program itself and on the part of the user. While the calculation of energy levels
 and spectra from given PECs, couplings and dipole curves is relatively straighforward
@@ -132,6 +138,47 @@ Example:
 ::
 
    output NaH_fit 
+
+
+* ``linear_search``
+
+When the ``linear_search`` (Damped Gauss-Newton) keyword is given and the associated value integer value is not zero, 
+Duo will attempt a linear search of the scaling factor :math:`\alpha` for the 
+correction parameter vector :math:`{\bf x}`:
+ 
+:math:` {\bf x}_{i+1}  = {\bf x}_{i} + \alpha \Delta {\bf x} `,  
+
+
+where :math:`{\bf x}_{i}` is the paramor vector for the iteration :math:`i`, :math:`0 \le \alpha \le 1`, 
+:math:`\Delta {\bf x}` is the least-squares correction. The step length :math:`\alpha` needs to 
+satisfy the Armijo condition. The keywords ``linear_search`` comes with an integer parameter :math:`N` defining the maximal number of 
+steps in the linear search staring from :math:`\alpha = 1, 1 - 1/N, 1 - 2/N \ldots`. 
+Example: 
+::
+
+   linear_search 5 
+
+* ``fit_type``
+
+There are two linear solvers available to solve the linear systems associated with 
+the noon-linear squares fit using  Gauss-Newton, ``fit_type LINUR`` (home made solver)
+and ``fit_type DGELSS`` (LAPACK). The latter should be more stable for strongly correlated 
+systems while ``LINUR`` is usually with faster convergence, but for most cases these two methods
+should be equivalent. 
+
+
+
+* ``fit_scaling``
+
+This is fixed-value analogy of the linear scaling. It directly defies a scaling factor :math:`\alpha` used 
+to scale the parameter vectors increment :math:\Delta {\bf x}`, see above. It is ignored when ``linear_scaling`` is 
+defined. It can be used to improve the convergence. 
+
+Example: 
+::
+
+   fit_scaling 0.5 
+
 
 
 * ``energies``   
