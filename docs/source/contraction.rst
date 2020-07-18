@@ -1,32 +1,79 @@
-Vibrational basis set
-=====================
-
-The keyword ``vibrationalbasis`` (aliases: ``vibrations``, ``contraction``) 
-specifies the size of the vibrational basis set.
+Contractions and vibrational basis set
+======================================
 
 Duo uses a ``contraction`` scheme to construct the rovibronic basis set used for the solution
 of the coupled problem. As a first step the `J=0` vibration problem is solved for each electronic state, in which the
 corresponding Schroedinger equation is solved in the grid representation
 of ``npoints``. Then a certain number  of the resulted
 vibrational eigenfunctions :math:`|v\rangle` with :math:`0 \le v\le` vmax and :math:`\tilde{E} \le` ``EnerMax``  is selected to
-form the vibrational part of the basis set
+form the vibrational part of the basis set.
+
+There are currently two contraction schemes supported by Duo: vibrational ``vib`` and ``Omega`` (diabatic). 
+
+The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
+by the keywords ``vib`` or ``omega``. 
+
+
+
+Vibrational contraction
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This contraction uses a spin-free, fully uncoupled :math:`J=0` solution of the vibrational Schrödinger equation 
+obtained independently for each electronic state as the vibrational basis. The rovibronic basis set is then form from the Lamda-Sigma wavefunctions: 
+
 
 :math:`| J \Omega S \Sigma \Lambda v \rangle = | J \Omega \rangle | S \Sigma \rangle | \Lambda \rangle | v \rangle`
 
 where :math:`| J \Omega \rangle`  and :math:`| S \Sigma \rangle`  are the rigid rotor functions and :math:`| \Lambda \rangle`  are the
 electronic wavefunctions implicitly taken from the ab initio calculations.
+
+
+Omega (diabatic) contraction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lamba+\Sigma`. 
+This contraction consists of two steps. 
+
+#. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis 
+:math:`|S\Sigma\rangle|\Lambda\rangle` for each values of :math:`\Omega=\Lambda+\Sigma` independently to form diabatic PECs.
+
+#. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set 
+:math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`). 
+
+The rovibronic basis set in the Omega representation is given by 
+
+:math:`| J \Omega n v \rangle = | J \Omega \rangle | v,\Omega,n^{\Omega} \rangle`
+
+where :math:`| J \Omega \rangle`  are the rigid rotor functions.
+
+
+
 Example: 
 :: 
 
 
-     vibrationalbasis
+     contraction
+       vib
        vmax 30
        enermax 25000
      end
 
+or
+::
+
+     contraction
+       omega
+       vmax  30  10 10 
+     end
+
+
+
 
 Keywords
 ^^^^^^^^
+
+
+* `vib` and `omega`: contraction types
 
 
 * vmax
