@@ -6,7 +6,8 @@ module refinement
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,Nlambdap2q,Nlambdaq,&
                            grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,&
-                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax
+                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax,&
+                           l_omega_obj,s_omega_obj
   !
   implicit none
   !
@@ -51,20 +52,21 @@ module refinement
       real(rk),allocatable :: wt_bit(:),wtall(:) ! weight factors - only for the energies and total.
       real(rk),allocatable :: rjacob(:,:),eps(:),energy_(:,:,:),enercalc(:)
       real(rk),allocatable :: local(:,:),pot_values(:),wspace(:),Tsing(:)
-      real(rk),allocatable :: al(:,:),bl(:),dx(:),ai(:,:),sterr(:),sigma(:)
+      real(rk),allocatable :: al(:,:),bl(:),dx(:),ai(:,:),sterr(:),sigma(:),bi(:),solution(:)
       character(len=cl),allocatable :: nampar(:)    ! parameter names 
       real(ark),allocatable :: pot_terms(:)
       !
       integer(ik),allocatable :: ivar(:),ifitparam(:),iZPE(:),nenergies(:,:),nenergies_(:,:)
       !
-      logical      :: still_run,do_deriv,deriv_recalc
+      logical      :: still_run,do_deriv,deriv_recalc,do_Armijo,do_print
       real(rk)     :: stadev_old,stability,stadev,sum_sterr,conf_int
       real(rk)     :: ssq,rms,ssq1,ssq2,rms1,rms2,fit_factor
       real(rk)     :: a_wats = 1.0_rk
       integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max
       integer(ik)  :: iener,jener,irow,icolumn,ndigits,nrot,irot,irot_
       integer(ik)  :: enunit,abinitunit,i0,i1,iter_th,k0,frequnit
-      integer(ik)  :: nlevels
+      integer(ik)  :: nlevels,NArmijo,ialpha_Armijo
+      real(rk)     :: alpha_Armijo
       character(len=cl) :: filename, ioname
       character(len=330) :: char_fmt
       !
@@ -78,13 +80,13 @@ module refinement
       !
       integer(ik)  :: ifield,jfield,ifield_,iobject,Nfields,iterm,ifitpar,istate,ilambda,ivib,istate_,ilambda_,ivib_,ngrid,Nterms
       integer(ik)  :: maxNfields,ipotmin,i_,nchar,k,k_
-      real(rk)     :: JrotC,sigmaC,omegaC,spinC,JrotC_,sigmaC_,omegaC_,spinC_
+      real(rk)     :: JrotC,sigmaC,omegaC,spinC,JrotC_,sigmaC_,omegaC_,spinC_,rms0
       integer(ik)  :: istateC,istateC_,ilambdaC,ilambdaC_,ivibC,ivibC_,itau,itau_,itauC,itauC_
       !
       real(rk)     :: param_t,delta,sigmai,omega,spin,sigmai_,omega_,spin_,f,fR,fL,r_t,req,fshift
       type(fieldT),pointer      :: field
       type(linkT),pointer       :: flink
-      real(rk),allocatable      :: EnergyR(:,:,:),EnergyL(:,:,:)
+      real(rk),allocatable      :: EnergyR(:,:,:),EnergyL(:,:,:),params_t(:)
       type(quantaT),allocatable   :: calc(:,:,:),calc_(:,:,:)
       type(fit_indexT),allocatable   :: fit_index(:)
       type(object_containerT), allocatable :: objects(:,:)
@@ -164,8 +166,8 @@ module refinement
        call ArrayStart('weight-mat',info,size(wt_bit),kind(wt_bit))
        !
        allocate (potparam(parmax),nampar(parmax),ivar(parmax),ifitparam(parmax),&
-                 al(parmax,parmax),ai(parmax,parmax),bl(parmax),dx(parmax),sterr(parmax),&
-                 Tsing(parmax),pot_terms(parmax),fit_index(parmax),stat=info)
+                 al(parmax,parmax),ai(parmax,parmax),bl(parmax),bi(parmax),dx(parmax),sterr(parmax),&
+                 Tsing(parmax),pot_terms(parmax),fit_index(parmax),solution(parmax),stat=info)
        call ArrayStart('potparam-mat',info,size(potparam),kind(potparam))
        call ArrayStart('potparam-mat',info,size(ivar),kind(ivar))
        call ArrayStart('potparam-dx',info,size(dx),kind(dx))
@@ -225,6 +227,9 @@ module refinement
        call ArrayStart('rjacob',info,size(rjacob),kind(rjacob))
        call ArrayStart('eps',info,size(eps),kind(eps))
        call ArrayStart('fit-ener-deriv',info,size(deriv),kind(deriv))
+       !
+       allocate (params_t(parmax),stat=info)
+       call ArrayStart('params_t',info,size(params_t),kind(params_t))
        !
        if (fitting%robust>small_) then
          !
@@ -470,11 +475,31 @@ module refinement
             !
           endif 
           !
-          rjacob = 0 
+          rjacob = 0
+          !
+          ! NArmijo iterations for linear search 
+          if (fitting%linear_search>0) do_Armijo = .true.
+          NArmijo = fitting%linear_search
+          rms0 = 0
+          ialpha_Armijo = 0
+          !
+          do_print = .true.
+          !
+          ! printing out format 
+          !
+          if (action%frequency) then 
+            char_fmt = "(/1X,250('-'),/'|  ## |  N |    J  p |  N |    J  p |      Obs.     |     Calc.   &
+             &|  Obs.-Calc. |   Weight |      Eup      |     Elow    |  State vib Lambda  Sigma Omega State vib Lambda Sigma &
+                       &Omega    State vib Lambda  Sigma Omega  State vib Lambda Sigma Omega',/1X,250('-'))"
+          else
+            char_fmt = "(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
+                      &  Weight | States  vib  Lambda Sigma  Omega  States  vib Lambda Sigma &
+                      & Omega ',/1X,145('-'))"
+          endif 
           !
           ! The loop starts here. 
           !
-          do while( fititer.le.itmax .and. stadev.ge.fitting%target_rms.and. stability.ge.stab_best)
+          loop_fititer : do while( fititer.le.itmax .and. stadev.ge.fitting%target_rms.and. stability.ge.stab_best)
             !
             fititer = fititer + 1
             !
@@ -482,9 +507,9 @@ module refinement
             !
             if (fit_factor<0) rjacob(1:en_npts,:) = 0
             !
-            write(out,"(/'Iteration = ',i8)") fititer
-            write(enunit,"(/'Iteration = ',i8)") fititer
-            if (action%frequency) write(frequnit,"(/'Iteration = ',i8)") fititer
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer
+            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer
             !
             ! Reconstruct the potential expansion from the local to linearized coords.
             !
@@ -495,18 +520,8 @@ module refinement
             ! Print out the calc. and obs.-calc., i.e. result of the fit. 
             ! Only fitted energies are printed. 
             !
-            if (action%frequency) then 
-              char_fmt = "(/1X,250('-'),/'|  ## |  N |    J  p |  N |    J  p |      Obs.     |     Calc.   &
-               &|  Obs.-Calc. |   Weight |      Eup      |     Elow    |  State vib Lambda  Sigma Omega State vib Lambda Sigma &
-                         &Omega    State vib Lambda  Sigma Omega  State vib Lambda Sigma Omega',/1X,250('-'))"
-            else
-              char_fmt = "(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
-                        &  Weight | States  vib  Lambda Sigma  Omega  States  vib Lambda Sigma &
-                        & Omega ',/1X,145('-'))"
-            endif 
-            !
-            write(out ,char_fmt)
-            write(enunit,"(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
+            if (do_print) write(out ,char_fmt)
+            if (do_print) write(enunit,"(/1X,145('-'),/'| ## |  N |     J  p |      Obs.      |     Calc.   |  Obs.-Calc. | &
                         &  Weight | States  vib  Lambda Sigma  Omega  States  vib Lambda Sigma &
                         & Omega ',/1X,145('-'))")
             !
@@ -539,8 +554,14 @@ module refinement
             ! Check we if we need to computed the derivatives 
             !
             do_deriv = .false.
+            if (itmax.ge.1.and.fit_factor>0) do_deriv = .true. 
             !
-            if (itmax.ge.1.and.fit_factor>0) do_deriv = .true.  ! .and.mod(fititer+2,3)==0
+            do_print = .true.
+            ! Switch off derivatives for linear search (Armijo) iteration > 0
+            if (do_Armijo.and.ialpha_Armijo/=0) then 
+               do_deriv = .false. 
+               do_print = .false.
+            endif
             !
             if (do_deriv) then 
               !
@@ -811,191 +832,202 @@ module refinement
                     rjacob(iener,1:numpar) =   deriv(irot,itau,i ,1:numpar) - deriv(irot_,itau_,i_,1:numpar)
                  endif
                  !
-                 JrotC    = calc(irot,itau,i)%Jrot
-                 istateC  = calc(irot,itau,i)%istate
-                 sigmaC   = calc(irot,itau,i)%sigma
-                 ilambdaC = calc(irot,itau,i)%ilambda
-                 omegaC   = sigmaC+real(ilambdaC,rk)
-                 spinC    = calc(irot,itau,i)%spin
-                 ivibC    = calc(irot,itau,i)%v
-                 !
-                 JrotC_   = calc(irot_,itau_,i_)%Jrot
-                 istateC_ = calc(irot_,itau_,i_)%istate
-                 sigmaC_  = calc(irot_,itau_,i_)%sigma
-                 ilambdaC_= calc(irot_,itau_,i_)%ilambda
-                 omegaC_  = sigmaC_+real(ilambdaC_,rk)
-                 spinC_   = calc(irot_,itau_,i_)%spin
-                 ivibC_   = calc(irot_,itau_,i_)%v
-                 
-                 write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
-                            // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
-                            // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
-                        iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
-                        wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
-                        istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                        istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
-                        mark(iener)
+                 if (do_print) then
+                    !
+                    JrotC    = calc(irot,itau,i)%Jrot
+                    istateC  = calc(irot,itau,i)%istate
+                    sigmaC   = calc(irot,itau,i)%sigma
+                    ilambdaC = calc(irot,itau,i)%ilambda
+                    omegaC   = sigmaC+real(ilambdaC,rk)
+                    spinC    = calc(irot,itau,i)%spin
+                    ivibC    = calc(irot,itau,i)%v
+                    !
+                    JrotC_   = calc(irot_,itau_,i_)%Jrot
+                    istateC_ = calc(irot_,itau_,i_)%istate
+                    sigmaC_  = calc(irot_,itau_,i_)%sigma
+                    ilambdaC_= calc(irot_,itau_,i_)%ilambda
+                    omegaC_  = sigmaC_+real(ilambdaC_,rk)
+                    spinC_   = calc(irot_,itau_,i_)%spin
+                    ivibC_   = calc(irot_,itau_,i_)%v
+                    
+                    write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
+                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
+                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
+                           iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
+                           wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
+                           istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                           istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                           mark(iener)
+                endif
                 !
               enddo ! --- i
               !
               ! print more frequencies in order to predict mis-assignements
               !
-              do iener = 1,en_npts
+              if (do_print) then
                  !
-                 Jrot    = fitting%obs(iener)%Jrot
-                 irot    = fitting%obs(iener)%irot
-                 istate  = fitting%obs(iener)%quanta%istate
-                 sigmai  = fitting%obs(iener)%quanta%sigma
-                 ilambda = fitting%obs(iener)%quanta%ilambda
-                 omega   = fitting%obs(iener)%quanta%omega
-                 spin    = fitting%obs(iener)%quanta%spin
-                 ivib    = fitting%obs(iener)%quanta%v
-                 !
-                 Jrot_   = fitting%obs(iener)%Jrot_
-                 irot_   = fitting%obs(iener)%irot_
-                 istate_ = fitting%obs(iener)%quanta_%istate
-                 sigmai_ = fitting%obs(iener)%quanta_%sigma
-                 ilambda_= fitting%obs(iener)%quanta_%ilambda
-                 omega_  = fitting%obs(iener)%quanta_%omega
-                 spin_   = fitting%obs(iener)%quanta_%spin
-                 ivib_   = fitting%obs(iener)%quanta_%v
-                 !
-                 itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
-                 itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
-                 !
-                 i  = fitting%obs(iener)%N ;  if (i >nenergies(irot ,itau )) cycle 
-                 i_ = fitting%obs(iener)%N_;  if (i_>nenergies(irot_,itau_)) cycle 
-                 !
-                 ! compare with theoretical frequencies around the main transition
-                 !
-                 mark_ = ' '
-                 !
-                 do k = max(i-5,1),min(i+5,nenergies(irot,itau))
+                 do iener = 1,en_npts
                     !
-                    do k_ = max(i_-3,1),min(i_+3,nenergies(irot_,itau_))
+                    Jrot    = fitting%obs(iener)%Jrot
+                    irot    = fitting%obs(iener)%irot
+                    istate  = fitting%obs(iener)%quanta%istate
+                    sigmai  = fitting%obs(iener)%quanta%sigma
+                    ilambda = fitting%obs(iener)%quanta%ilambda
+                    omega   = fitting%obs(iener)%quanta%omega
+                    spin    = fitting%obs(iener)%quanta%spin
+                    ivib    = fitting%obs(iener)%quanta%v
+                    !
+                    Jrot_   = fitting%obs(iener)%Jrot_
+                    irot_   = fitting%obs(iener)%irot_
+                    istate_ = fitting%obs(iener)%quanta_%istate
+                    sigmai_ = fitting%obs(iener)%quanta_%sigma
+                    ilambda_= fitting%obs(iener)%quanta_%ilambda
+                    omega_  = fitting%obs(iener)%quanta_%omega
+                    spin_   = fitting%obs(iener)%quanta_%spin
+                    ivib_   = fitting%obs(iener)%quanta_%v
+                    !
+                    itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
+                    itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
+                    !
+                    i  = fitting%obs(iener)%N ;  if (i >nenergies(irot ,itau )) cycle 
+                    i_ = fitting%obs(iener)%N_;  if (i_>nenergies(irot_,itau_)) cycle 
+                    !
+                    ! compare with theoretical frequencies around the main transition
+                    !
+                    mark_ = ' '
+                    !
+                    do k = max(i-5,1),min(i+5,nenergies(irot,itau))
                        !
-                       if (abs(fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)))& 
-                           >real(maxiter_as,rk)*abs(fitting%threshold_lock)) cycle
+                       do k_ = max(i_-3,1),min(i_+3,nenergies(irot_,itau_))
+                          !
+                          if (abs(fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)))& 
+                              >real(maxiter_as,rk)*abs(fitting%threshold_lock)) cycle
+                          !
+                          if (i/=k.or.i_/=k_) mark_ = '*'
+                          !
+                          JrotC    = calc(irot,itau,k)%Jrot
+                          istateC  = calc(irot,itau,k)%istate
+                          sigmaC   = calc(irot,itau,k)%sigma
+                          ilambdaC = calc(irot,itau,k)%ilambda
+                          omegaC   = sigmaC+real(ilambdaC,rk)
+                          spinC    = calc(irot,itau,k)%spin
+                          ivibC    = calc(irot,itau,k)%v
+                          !
+                          JrotC_   = calc(irot_,itau_,k_)%Jrot
+                          istateC_ = calc(irot_,itau_,k_)%istate
+                          sigmaC_  = calc(irot_,itau_,k_)%sigma
+                          ilambdaC_= calc(irot_,itau_,k_)%ilambda
+                          omegaC_  = sigmaC_+real(ilambdaC_,rk)
+                          spinC_   = calc(irot_,itau_,k_)%spin
+                          ivibC_   = calc(irot_,itau_,k_)%v
+                          !
+                          write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
+                                 &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
+                                 // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
+                                 iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
+                                 fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
+                                 fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
+                                 wtall(iener),energy_(irot,itau,k)-ezero(1),energy_(irot_,itau_,k_)-ezero(1),&
+                                 istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                                 istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                                 mark_
+                       enddo
                        !
-                       if (i/=k.or.i_/=k_) mark_ = '*'
-                       !
-                       JrotC    = calc(irot,itau,k)%Jrot
-                       istateC  = calc(irot,itau,k)%istate
-                       sigmaC   = calc(irot,itau,k)%sigma
-                       ilambdaC = calc(irot,itau,k)%ilambda
-                       omegaC   = sigmaC+real(ilambdaC,rk)
-                       spinC    = calc(irot,itau,k)%spin
-                       ivibC    = calc(irot,itau,k)%v
-                       !
-                       JrotC_   = calc(irot_,itau_,k_)%Jrot
-                       istateC_ = calc(irot_,itau_,k_)%istate
-                       sigmaC_  = calc(irot_,itau_,k_)%sigma
-                       ilambdaC_= calc(irot_,itau_,k_)%ilambda
-                       omegaC_  = sigmaC_+real(ilambdaC_,rk)
-                       spinC_   = calc(irot_,itau_,k_)%spin
-                       ivibC_   = calc(irot_,itau_,k_)%v
-                       !
-                       write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
-                              &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
-                              // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
-                              iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
-                              fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
-                              fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
-                              wtall(iener),energy_(irot,itau,k)-ezero(1),energy_(irot_,itau_,k_)-ezero(1),&
-                              istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                              istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
-                              mark_
+                    enddo
+                    !
+                 enddo ! --- i
+                 !
+              endif
+              !
+              ! print all energies
+              !
+              if (do_print) then
+                 !
+                 do irot = 1,nrot
+                    !
+                    do itau=1,2
+                        !
+                        do i = 1,nenergies(irot,itau)
+                           !
+                           if (i==1.or.energy_(irot,itau,i)-ezero(1)>sqrt(small_)) then 
+                              !
+                              printed = .false.
+                              !
+                              do jener=1,en_npts
+                                !
+                                ! lower statet must be the gound state
+                                !
+                                if (fitting%obs(jener)%N ==i .and.fitting%obs(jener)%irot ==irot & 
+                                    .and.fitting%obs(jener)%iparity+1==itau) then 
+                                   !
+                                   printed = .true.
+                                   !
+                                   Jrot   = fitting%obs(jener)%Jrot
+                                   istate = fitting%obs(jener)%quanta%istate
+                                   sigmai = fitting%obs(jener)%quanta%sigma
+                                   ilambda= fitting%obs(jener)%quanta%ilambda
+                                   omega  = fitting%obs(jener)%quanta%omega
+                                   spin   = fitting%obs(jener)%quanta%spin
+                                   ivib   = fitting%obs(jener)%quanta%v
+                                   !
+                                   Jrot_   = fitting%obs(jener)%Jrot_
+                                   istate_ = fitting%obs(jener)%quanta_%istate
+                                   sigmai_ = fitting%obs(jener)%quanta_%sigma
+                                   ilambda_= fitting%obs(jener)%quanta_%ilambda
+                                   omega_  = fitting%obs(jener)%quanta_%omega
+                                   spin_   = fitting%obs(jener)%quanta_%spin
+                                   ivib_   = fitting%obs(jener)%quanta_%v
+                                   !
+                                   istateC = calc(irot,itau,i)%istate
+                                   sigmaC = calc(irot,itau,i)%sigma
+                                   ilambdaC= calc(irot,itau,i)%ilambda
+                                   omegaC  = sigmaC + real(ilambdaC,rk)
+                                   spinC   = calc(irot,itau,i)%spin
+                                   ivibC   = calc(irot,itau,i)%v
+                                   !
+                                   i_ = fitting%obs(jener)%N_
+                                   irot_ = fitting%obs(jener)%irot_
+                                   itau_ = fitting%obs(jener)%iparity_+1
+                                   !
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
+                                         &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
+                                      i,fitting%obs(jener)%N,Jrot,pm(itau),&
+                                      enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
+                                      energy_(irot,itau,i)-ezero(1),&
+                                      energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
+                                      istate, ivib, ilambda ,sigmai ,omega ,&
+                                      istate_,ivib_,ilambda_,sigmai_,omega_,&
+                                      mark(jener),trim( poten(istate)%name )
+                                   !
+                                endif 
+                                !
+                              enddo
+                              !
+                              if (.not.printed) then 
+                                   !
+                                   Jrot     = calc(irot,itau,i)%Jrot
+                                   istate_  = calc(irot,itau,i)%istate
+                                   sigmai_  = calc(irot,itau,i)%sigma
+                                   ilambda_ = calc(irot,itau,i)%ilambda
+                                   omega_   = calc(irot,itau,i)%omega
+                                   spin_    = calc(irot,itau,i)%spin
+                                   ivib_    = calc(irot,itau,i)%v
+                                   !
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
+                                      i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
+                                      istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
+                                   !
+                              endif
+                              !
+                           endif
+                           !
+                        enddo
+                        !
                     enddo
                     !
                  enddo
                  !
-              enddo ! --- i
-              !
-              ! print all energies
-              !
-              do irot = 1,nrot
-                 !
-                 do itau=1,2
-                     !
-                     do i = 1,nenergies(irot,itau)
-                        !
-                        if (i==1.or.energy_(irot,itau,i)-ezero(1)>sqrt(small_)) then 
-                           !
-                           printed = .false.
-                           !
-                           do jener=1,en_npts
-                             !
-                             ! lower statet must be the gound state
-                             !
-                             if (fitting%obs(jener)%N ==i .and.fitting%obs(jener)%irot ==irot & 
-                                 .and.fitting%obs(jener)%iparity+1==itau) then 
-                                !
-                                printed = .true.
-                                !
-                                Jrot   = fitting%obs(jener)%Jrot
-                                istate = fitting%obs(jener)%quanta%istate
-                                sigmai = fitting%obs(jener)%quanta%sigma
-                                ilambda= fitting%obs(jener)%quanta%ilambda
-                                omega  = fitting%obs(jener)%quanta%omega
-                                spin   = fitting%obs(jener)%quanta%spin
-                                ivib   = fitting%obs(jener)%quanta%v
-                                !
-                                Jrot_   = fitting%obs(jener)%Jrot_
-                                istate_ = fitting%obs(jener)%quanta_%istate
-                                sigmai_ = fitting%obs(jener)%quanta_%sigma
-                                ilambda_= fitting%obs(jener)%quanta_%ilambda
-                                omega_  = fitting%obs(jener)%quanta_%omega
-                                spin_   = fitting%obs(jener)%quanta_%spin
-                                ivib_   = fitting%obs(jener)%quanta_%v
-                                !
-                                istateC = calc(irot,itau,i)%istate
-                                sigmaC = calc(irot,itau,i)%sigma
-                                ilambdaC= calc(irot,itau,i)%ilambda
-                                omegaC  = sigmaC + real(ilambdaC,rk)
-                                spinC   = calc(irot,itau,i)%spin
-                                ivibC   = calc(irot,itau,i)%v
-                                !
-                                i_ = fitting%obs(jener)%N_
-                                irot_ = fitting%obs(jener)%irot_
-                                itau_ = fitting%obs(jener)%iparity_+1
-                                !
-                                write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
-                                      &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
-                                   i,fitting%obs(jener)%N,Jrot,pm(itau),&
-                                   enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
-                                   energy_(irot,itau,i)-ezero(1),&
-                                   energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
-                                   istate, ivib, ilambda ,sigmai ,omega ,&
-                                   istate_,ivib_,ilambda_,sigmai_,omega_,&
-                                   mark(jener),trim( poten(istate)%name )
-                                !
-                             endif 
-                             !
-                           enddo
-                           !
-                           if (.not.printed) then 
-                                !
-                                Jrot     = calc(irot,itau,i)%Jrot
-                                istate_  = calc(irot,itau,i)%istate
-                                sigmai_  = calc(irot,itau,i)%sigma
-                                ilambda_ = calc(irot,itau,i)%ilambda
-                                omega_   = calc(irot,itau,i)%omega
-                                spin_    = calc(irot,itau,i)%spin
-                                ivib_    = calc(irot,itau,i)%v
-                                !
-                                write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
-                                   i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                   istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
-                                !
-                           endif
-                           !
-                        endif
-                        !
-                     enddo
-                     !
-                 enddo
-                 !
-              enddo
+              endif
               !
             else
               !
@@ -1099,30 +1131,31 @@ module refinement
                     rjacob(iener,1:numpar) =  deriv(irot,itau,i,1:numpar) - deriv(1,1,1,1:numpar)
                  endif
                  !
-                 !Jrot = fitting%obs(iener)%quanta%Jrot
-                 !
-                 istate = fitting%obs(iener)%quanta%istate
-                 sigmai = fitting%obs(iener)%quanta%sigma
-                 ilambda = fitting%obs(iener)%quanta%ilambda
-                 omega   = fitting%obs(iener)%quanta%omega
-                 spin = fitting%obs(iener)%quanta%spin
-                 ivib = fitting%obs(iener)%quanta%v
-                 !
-                 JrotC   = calc(irot,itau,i)%Jrot
-                 istateC = calc(irot,itau,i)%istate
-                 sigmaC = calc(irot,itau,i)%sigma
-                 ilambdaC= calc(irot,itau,i)%ilambda
-                 omegaC  = sigmaC + real(ilambdaC,rk)
-                 spinC   = calc(irot,itau,i)%spin
-                 ivibC   = calc(irot,itau,i)%v
-                 !
-                 write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
-                        &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
-                        iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
-                        wtall(iener),&
-                        istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                        istate ,ivib ,ilambda ,sigmai,omega ,&
-                        mark(iener)
+                 if (do_print) then 
+                   !
+                   istate = fitting%obs(iener)%quanta%istate
+                   sigmai = fitting%obs(iener)%quanta%sigma
+                   ilambda = fitting%obs(iener)%quanta%ilambda
+                   omega   = fitting%obs(iener)%quanta%omega
+                   spin = fitting%obs(iener)%quanta%spin
+                   ivib = fitting%obs(iener)%quanta%v
+                   !
+                   JrotC   = calc(irot,itau,i)%Jrot
+                   istateC = calc(irot,itau,i)%istate
+                   sigmaC = calc(irot,itau,i)%sigma
+                   ilambdaC= calc(irot,itau,i)%ilambda
+                   omegaC  = sigmaC + real(ilambdaC,rk)
+                   spinC   = calc(irot,itau,i)%spin
+                   ivibC   = calc(irot,itau,i)%v
+                   !
+                   write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
+                          &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                          iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
+                          wtall(iener),&
+                          istateC,ivibC,ilambdaC,sigmaC,omegaC,&
+                          istate ,ivib ,ilambda ,sigmai,omega ,&
+                          mark(iener)
+                 endif
               enddo
               !
               ! Printing all calculated term values. If the obs. counterpats exist, 
@@ -1151,45 +1184,50 @@ module refinement
                           !
                         enddo
                         !
-                        if (jener<=en_npts) then 
+                        if (do_print) then
+                          ! 
+                          if (jener<=en_npts) then 
+                             !
+                             Jrot   = fitting%obs(jener)%Jrot
+                             istate = fitting%obs(jener)%quanta%istate
+                             sigmai = fitting%obs(jener)%quanta%sigma
+                             ilambda= fitting%obs(jener)%quanta%ilambda
+                             omega  = fitting%obs(jener)%quanta%omega
+                             spin   = fitting%obs(jener)%quanta%spin
+                             ivib   = fitting%obs(jener)%quanta%v
+                             !
+                             istateC = calc(irot,itau,i)%istate
+                             sigmaC = calc(irot,itau,i)%sigma
+                             ilambdaC= calc(irot,itau,i)%ilambda
+                             omegaC  = sigmaC + real(ilambdaC,rk)
+                             spinC   = calc(irot,itau,i)%spin
+                             ivibC   = calc(irot,itau,i)%v
+                             !
+                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
+                                          & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                                i,fitting%obs(jener)%N,Jrot,pm(itau),&
+                                enercalc(jener)+eps(jener),&
+                                enercalc(jener),eps(jener),wtall(jener),&
+                                istateC,ivibC,ilambdaC,sigmaC,omegaC,&
+                                istate,ivib  ,ilambda,sigmai,omega,&
+                                mark(jener)
+                            !
+                          else
+                            !
+                            Jrot = calc(irot,itau,i)%Jrot
+                            istate_ = calc(irot,itau,i)%istate
+                            sigmai_ = calc(irot,itau,i)%sigma
+                            ilambda_ = calc(irot,itau,i)%ilambda
+                            omega_ = calc(irot,itau,i)%omega
+                            spin_ = calc(irot,itau,i)%spin
+                            ivib_ = calc(irot,itau,i)%v
+                            !
+                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
+                               i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
+                               istate_,ivib_,ilambda_,sigmai_,omega_
+                               !
+                          endif 
                           !
-                          Jrot   = fitting%obs(jener)%Jrot
-                          istate = fitting%obs(jener)%quanta%istate
-                          sigmai = fitting%obs(jener)%quanta%sigma
-                          ilambda= fitting%obs(jener)%quanta%ilambda
-                          omega  = fitting%obs(jener)%quanta%omega
-                          spin   = fitting%obs(jener)%quanta%spin
-                          ivib   = fitting%obs(jener)%quanta%v
-                          !
-                          istateC = calc(irot,itau,i)%istate
-                          sigmaC = calc(irot,itau,i)%sigma
-                          ilambdaC= calc(irot,itau,i)%ilambda
-                          omegaC  = sigmaC + real(ilambdaC,rk)
-                          spinC   = calc(irot,itau,i)%spin
-                          ivibC   = calc(irot,itau,i)%v
-                          !
-                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
-                                       & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
-                             i,fitting%obs(jener)%N,Jrot,pm(itau),&
-                             enercalc(jener)+eps(jener),&
-                             enercalc(jener),eps(jener),wtall(jener),&
-                             istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                             istate,ivib  ,ilambda,sigmai,omega,&
-                             mark(jener)
-                          !
-                        else
-                          !
-                          Jrot = calc(irot,itau,i)%Jrot
-                          istate_ = calc(irot,itau,i)%istate
-                          sigmai_ = calc(irot,itau,i)%sigma
-                          ilambda_ = calc(irot,itau,i)%ilambda
-                          omega_ = calc(irot,itau,i)%omega
-                          spin_ = calc(irot,itau,i)%spin
-                          ivib_ = calc(irot,itau,i)%v
-                          !
-                          write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
-                             i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
-                             istate_,ivib_,ilambda_,sigmai_,omega_
                         endif 
                         !
                      endif 
@@ -1273,7 +1311,7 @@ module refinement
                    !
                    ! calculate the derivative of the potential function wrt the fitting parameters
                    !
-                   if (itmax.ge.1) then 
+                   if (itmax.ge.1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then 
                       !
                       do ifitpar = 1,numpar
                         !
@@ -1355,7 +1393,7 @@ module refinement
             !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
-            if (itmax>=1) then
+            if (itmax>=1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then
                !----- form the a and b matrix ------c
                ! form A matrix 
                do irow=1,numpar       
@@ -1389,7 +1427,7 @@ module refinement
                  !
                case('LINUR') 
                  !
-                 call MLlinur(numpar,numpar,al(1:numpar,1:numpar),bl(1:numpar),dx(1:numpar),ierror)
+                 call MLlinur(numpar,numpar,al(1:numpar,1:numpar),bl(1:numpar),solution(1:numpar),ierror)
                  !
                  ! In case of dependent parameters  "linur" reports an error = ierror, 
                  ! which is a number of the dependent parameter. We can remove this paramter 
@@ -1419,18 +1457,24 @@ module refinement
                case ('DGELSS')
                  !
                  ai = al 
-                 call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bl(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
+                 bi = bl
+                 call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
                  !
                  if (info/=0) then
                    write(out,"('dgelss:error',i0)") info
                    stop 'dgelss'
                  endif
                  !
-                 dx = bl ! *0.1
+                 solution = bi ! *0.1
                  !
-               end select 
+               end select
                !
-               !----- update the parameter values ------!
+               !
+               ! Scale the correction if required 
+               !
+               dx = solution*fitting%fit_scaling
+               !
+               !----- update the parameter values with a scaled correction------!
                !
                do ncol=1,numpar
                   !
@@ -1438,9 +1482,12 @@ module refinement
                   ifield = fit_index(ncol)%ifield
                   iterm = fit_index(ncol)%iterm
                   !
+                  params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
+                  !
                   objects(iobject,ifield)%field%value(iterm)=objects(iobject,ifield)%field%value(iterm)+dx(ncol)
                   !
                enddo
+               !
                !
                ! Robust fit: adjust the fitting weights
                !
@@ -1491,7 +1538,74 @@ module refinement
                stability=abs( (stadev-stadev_old)/stadev )
                stadev_old=stadev
                !
+               if(do_Armijo) then
+                 !
+                 alpha_Armijo = (1.0_ark-1.0_rk/real(NArmijo)*ialpha_Armijo)
+                 dx = solution*alpha_Armijo
+                 !
+                 rms0=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))*0.5_rk
+                 !
+                 !----- update the parameter values with a scaled correction------!
+                 !
+                 do ncol=1,numpar
+                    !
+                    iobject = fit_index(ncol)%iobject
+                    ifield = fit_index(ncol)%ifield
+                    iterm = fit_index(ncol)%iterm
+                    !
+                    objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                    !
+                 enddo
+                 !
+                 fititer = fititer - 1
+                 ialpha_Armijo = ialpha_Armijo + 1
+                 !
+                 do_print = .false.
+                 !
+                 cycle loop_fititer
+                 !
+               endif
+               !
             else
+               !
+               if(do_Armijo) then
+                 !
+                 ! Armijo condtion: rms2 must be < rms1 
+                 !
+                 rms1 = rms0 + alpha_Armijo*sum(bl(1:numpar)*solution(1:numpar))
+                 !
+                 rms2=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))*0.5_rk
+                 !
+                 alpha_Armijo = (1.0_rk - 1.0_rk/real(NArmijo)*ialpha_Armijo)
+                 !
+                 ialpha_Armijo = ialpha_Armijo + 1
+                 !
+                 dx = solution*alpha_Armijo
+                 !
+                 ! continue linear search if the condition is not fullfilled or too many iterations 
+                 if (rms2>=rms1.and.ialpha_Armijo<NArmijo) then 
+                    !
+                    fititer = fititer - 1
+                    !
+                    do ncol=1,numpar
+                       !
+                       iobject = fit_index(ncol)%iobject
+                       ifield = fit_index(ncol)%ifield
+                       iterm = fit_index(ncol)%iterm
+                       !
+                       objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                       !
+                    enddo
+                    cycle loop_fititer
+                 endif
+                 !
+                 !----- update the parameter values with a scaled correction------!
+                 !
+                 ialpha_Armijo = 0
+                 rms0 = 0 
+                 do_print = .true.
+                 !
+               endif
                !
                stadev=sqrt(ssq/max(nused,1))
                !
@@ -1657,14 +1771,14 @@ module refinement
             !
             if (wtsum>small_) ssq2 = sqrt( sum(eps(1+en_npts:npts)**2*dble(wt_bit(1+en_npts:npts)))/wtsum )
             !
-            rms1=sqrt(sum(eps(1:en_npts)**2)/en_npts)
-            rms2=sqrt(sum(eps(1+en_npts:npts)**2)/max(pot_npts,1))
+            !rms1=sqrt(sum(eps(1:en_npts)**2)/en_npts)
+            !rms2=sqrt(sum(eps(1+en_npts:npts)**2)/max(pot_npts,1))
             !
             write (out,6552) fititer,nused,numpar,stadev,ssq1,ssq2,stability
             !
             if (verbose>=4) call TimerReport
             !
-          enddo  ! --- fititer
+          enddo loop_fititer  ! --- fititer
           !
        enddo outer_loop
        !
@@ -1672,7 +1786,10 @@ module refinement
        if (allocated(deriv)) deallocate(deriv )
        call ArrayStop('fit-ener-deriv')
        !
-       deallocate (nampar,ivar,ifitparam,al,ai,bl,dx,sterr,Tsing,pot_terms)
+       if (allocated(params_t)) deallocate(params_t)
+       call ArrayStop('params_t')
+       !
+       deallocate (nampar,ivar,ifitparam,al,ai,bl,bi,dx,sterr,Tsing,pot_terms,solution)
        call ArrayStop('potparam-mat')
        call ArrayStop('potparam-dx')
        call ArrayStop('potparam-sterr')

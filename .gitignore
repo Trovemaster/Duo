@@ -9,6 +9,10 @@
 /*.states
 /*.trans
 
+# Dev files
+*makefile_LINUXgfortranDBG
+
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -23,7 +27,7 @@ $RECYCLE.BIN/
 *.code-workspace
 *.vscode/
 
-# Swap files
+# Vim files
 *.swp
 
 # Windows Installer files

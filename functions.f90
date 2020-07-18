@@ -379,7 +379,7 @@ module functions
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: y,v0,r0,de,f,rref,z,phi,phiinf,uLR,uLR0
+    real(rk)               :: y,v0,r0,de,f,rref,z,phi,phiinf,uLR,uLR0,phi0
     integer(ik)            :: k,N,p,M,Nstruc,Ntot,Npot
     !
     v0 = parameters(1)
@@ -393,7 +393,7 @@ module functions
     !
     p = nint(parameters(5))
     !
-    if (r<=rref) then
+    if (r<rref) then
       N = parameters(6)
     else
       N = parameters(7)
@@ -409,11 +409,11 @@ module functions
     !
     ! Number of pot-parameters
     !
-    Npot = max(parameters(6),parameters(7))+1
+    Npot = max(parameters(6),parameters(7))
     !
     ! number of long range parameters
     !
-    M = Ntot-Npot-Nstruc
+    M = Ntot-Npot-Nstruc-1
     !
     !if (size(parameters)/=8+max(parameters(7),parameters(8))+1) then
     !  write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
@@ -422,14 +422,16 @@ module functions
     !
     z = (r**p-rref**p)/(r**p+rref**p)
     !
-    phi = 0
+    phi0 = 0
     do k=0,N
-     phi = phi + parameters(k+Nstruc+1)*z**k
+     phi0 = phi0 + parameters(k+Nstruc+1)*z**k
     enddo
+    !
+    !phiinf = parameters(Npot+Nstruc+2)
     !
     ! double check uLR parameters
     !
-    uLR = sum(parameters(1+Npot+Nstruc:M+Npot+Nstruc)**2)
+    uLR = sum(parameters(Npot+Nstruc+2:M+Npot+Nstruc+1)**2)
     !
     if (uLR<small_) then
       write(out,"('poten_MLR: At least one uLR should be non-zero')")
@@ -440,22 +442,24 @@ module functions
     !
     uLR = 0
     do k=1,M
-     uLR = uLR + parameters(k+Npot+Nstruc)/r**k
+     uLR = uLR + parameters(k+Npot+Nstruc+1)/r**k
     enddo
     !
     ! at R=Re
     uLR0 = 0
     do k=1,M
-     uLR0 = uLR0 + parameters(k+Npot+Nstruc)/r0**k
+     uLR0 = uLR0 + parameters(k+Npot+Nstruc+1)/r0**k
     enddo
     !
     phiinf = log(2.0_rk*de/uLR0)
+    !phiinf = -8.8481839714D-01
     !
-    phi = (1.0_rk-z)*phi+z*phiinf
+    phi = (1.0_rk-z)*phi0+z*phiinf
     !
-    phi = uLR/uLR0*exp(-phi*z)
+    z = (r**p-r0**p)/(r**p+r0**p)
     !
-    y  = 1.0_rk-phi
+    y  = 1.0_rk-uLR/uLR0*exp(-phi*z)
+    !y  = 1.0_rk-uLR/uLR0*exp(-phi*(r-r0))
     !
     f = de*y**2+v0
     !
