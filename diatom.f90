@@ -834,7 +834,7 @@ module diatom_module
              !
              job%contraction = trim(w)
              !
-           case ("VMAX","VIBMAX")
+           case ("VMAX","VIBMAX","NMAX")
              !
              vmax = 1
              !
