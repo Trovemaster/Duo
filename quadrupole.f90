@@ -992,7 +992,8 @@ contains
                   stop 'TM is not yet coded'
 
               end select
-
+              
+              !$omp parallel private(vecF, alloc_p)
               allocate(vecF(dimenMax), stat=alloc_p)
 
               if (alloc_p /= 0) then
@@ -1002,6 +1003,9 @@ contains
                 stop 'quadrupole-vecF - out of memory'
               endif
 
+              !$omp do private(indLevelF, energyF, quantaF, stateF, vibF, vF, spinF, sigmaF, lambdaF, omegaF, &
+              !$               guParity, indSymF, passed, branch, nu, indTrans, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
+              !$    schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
 
@@ -1100,7 +1104,7 @@ contains
                     if ( lineStrSq >= Intensity%threshold%linestrength &
                         .and. absInt >= Intensity%threshold%intensity &
                       ) then
-
+                      !$omp critical
                       write(out, &
                         "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
                         &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
@@ -1131,6 +1135,7 @@ contains
 
                         endif
                       endif
+                      !$omp end critical
                     endif
 
                   case('TM')
@@ -1141,19 +1146,21 @@ contains
                     lineStr = tm
 
                     if ( lineStr >= Intensity%threshold%intensity) then
-
+                      !$omp critical
                       write(out, &
                         "( (i4, 1x, a3, 3x),'->', (i4, 1x, a3, 3x),a1, &
                         &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
                         &f15.8)") &
                         jI, sym%label(indSymI), jF, sym%label(indSymF),&
                         branch, lineStr, indTrans, tm
-
+                      !$omp end critical
                     endif
                 end select
               enddo loopLevelsF
+              !$omp enddo
 
               deallocate(vecF)
+              !$omp end parallel
               if ( iVerbose >= 5 ) call TimerReport
 
             enddo loopLevelsI
