@@ -530,9 +530,19 @@ contains
 
     if ( mod(eigen(1,1)%quanta(1)%imulti, 2) == 0) intSpin = .false.
 
+    !$omp parallel private(vecI, info)
     allocate(vecI(dimenMax), stat = info)
     call ArrayStart('intensity-vecI', info, size(vecI), kind(vecI))
 
+    !$omp do private(indI, jI, j_, IDj, &
+    !$              &indGammaI, nLevelsI, dimenI, &
+    !$              &indLevelI, energyI, stateI, guParity, indSymI, indRoot, &
+    !$              &quantaI, vibI, vI, spinI, sigmaI, lambdaI, omegaI, parityI, statename, &
+    !$              &pm, indTau, ef, nDecimals, lande, &
+    !$              &k, spinF, sigmaF, lambdaF, omegaF, vF, &
+    !$              &k_, spinF_, sigmaF_, lambdaF_, omegaF_, vF_, &
+    !$              &passed, passed_) &
+    !$   & schedule(static) reduction(+:nLevelsG)
     do indI = 1, nJ
 
       jI = jVal(indI)
@@ -605,6 +615,7 @@ contains
 
             ! if requested, calculate and print the Lande g-factor for
             ! the selected eigenstate
+            !$omp critical
             if ( Intensity%lande_calc ) then
 
               lande = 0
@@ -714,7 +725,6 @@ contains
                   nint(j_), IDj, parityI+1, 1, energyI-Intensity%ZPE, &
                   omegaI, vI, lambdaI, sigmaI, pm, statename
               endif
-
             ! standard output format if matelem or lande not required
             else
 
@@ -744,6 +754,7 @@ contains
 
               endif
             endif
+            !$omp end critical
           endif
 
           call energy_filter_ul(jI, energyI, passed, 'upper')
@@ -761,9 +772,10 @@ contains
         enddo
       enddo
     enddo
-
+    !$omp end do
     deallocate(vecI)
     call ArrayStop('intensity-vecI')
+    !$omp end parallel
 
     if ( trim(Intensity%linelist_file) /= "NONE") then
       close(enUnit, status='keep')
@@ -1130,7 +1142,7 @@ contains
                         else
 
                           write(transUnit, &
-                            "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
+                            "(i12,1x,i12,2x,es11.4,4x,f16.6)") &
                             quantaF%iroot, quantaI%iroot, einA, nu
 
                         endif
