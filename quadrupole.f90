@@ -1004,7 +1004,7 @@ contains
               endif
 
               !$omp do private(indLevelF, energyF, quantaF, stateF, vibF, vF, spinF, sigmaF, lambdaF, omegaF, &
-              !$               guParity, indSymF, passed, branch, nu, indTrans, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
+              !$               guParity, indSymF, passed, branch, nu, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
               !$    schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
