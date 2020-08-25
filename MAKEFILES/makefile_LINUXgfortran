@@ -10,12 +10,15 @@ EXE = j-duo-v218v1.x
 
 FOR = gfortran  
 
-#FFLAGS = -O3 -fopenmp
-#export OMP_NUM_THREADS=4
-# Debugging options
-FFLAGS = -Og -g -Wall -Wextra -Wline-truncation -pedantic -fimplicit-none -fcheck=all -fbacktrace
-
+# Standard compile (max optimisation)
 #FFLAGS = -O3
+
+# OpenMP parallel compile
+FFLAGS = -O3 -fopenmp
+
+# Debugging options
+#FFLAGS = -Og -g -Wall -Wextra -Wline-truncation -pedantic -fimplicit-none -fcheck=all -fbacktrace
+
 
 LAPACK = -llapack -L/usr/lib/lapack -lblas -L/usr/lib/libblas
 LIB     =   $(LAPACK)
