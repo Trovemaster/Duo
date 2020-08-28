@@ -204,6 +204,8 @@ module diatom_module
     type(weightT)         :: weighting             ! When morphing is the field is used to morph the ab initio couterpart
     character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
+    real(rk)              :: adjust_val = 0.0_rk
+    logical               :: adjust = .false.        ! Add constant adjust_val to all fields
   end type fieldT
   !
   type jobT
@@ -476,7 +478,7 @@ module diatom_module
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
     integer(ik)  :: itau,lambda_,x_lz_y_
     logical      :: integer_spin = .false., matchfound
-    real(rk)     :: unit_field = 1.0_rk,unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
+    real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
     character(len=cl) :: w,ioname
@@ -2685,6 +2687,51 @@ module diatom_module
               !
               field%morphing = .true.
               !
+            case("ADJUST")
+              ! W. Somogyi : add specified constant value to all field values
+              !              e.g for shifting PECs when there is a known error
+              !
+              call readf(field%adjust_val)
+
+              if (nitems>2) then
+                call readu(w)
+                !
+                select case (trim(w))
+                  !
+                case ('CM-1')
+                  !
+                  unit_adjust = 1.0_rk
+                  !
+                case ('EV')
+                  !
+                  unit_adjust = ev
+                  !
+                case ('HARTREE','EH','A.U.', 'AU')
+                  !
+                  unit_adjust = hartree
+                  !
+                  if (trim(field%class)=="DIPOLE") unit_adjust = todebye
+                  !
+                case ('EA0')
+                  !
+                  unit_adjust = todebye
+                  !
+                case ('DEBYE')
+                  !
+                  unit_adjust = 1.0_rk
+                  !
+                case default
+                  !
+                  call report ("Illegal input field"//trim(w),.true.)
+                  !
+                end select
+              else
+                unit_adjust = 1.0_rk
+              endif
+              !
+              field%adjust_val = field%adjust_val * unit_adjust
+              field%adjust = .true.
+              !
             case("MOLPRO")
               !
               field%molpro = .true.
@@ -4667,6 +4714,11 @@ subroutine map_fields_onto_grid(iverbose)
           end select
           !
           ifield = ifield + 1
+          !
+          ! Shift values up or down by specified constant value
+          if (field%adjust) then
+            field%gridvalue = field%gridvalue + field%adjust_val
+          endif
           !
           ! Introduce morphing (not for abinitio)
           !

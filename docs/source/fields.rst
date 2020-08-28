@@ -220,8 +220,9 @@ At the moment Duo cannot compute magnetic dipole transition line intensities.
 ``quadrupole``
 ^^^^^^^^^^^^^^
 
-The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole transition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in the ``intensity`` section also (:ref:`see here <computing-spectra>`).
-
+The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole 
+ransition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in 
+the ``intensity`` section also (:ref:`see here <computing-spectra>`). 
 
 Keywords used in the specification of objects 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -382,11 +383,10 @@ in the Cartesian-representation, see Section~\ref{s:representations}.
 
 * ``units``
 
-This keyword selects the units of measure used for the 
-the object in question. Supported units are: ``angstroms``
-(default) and ``bohr`` for the bond lengths; ``cm-1`` (default),
-``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts)
-for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. 
+This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and 
+``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts)
+for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. **Quadrupole moment curves
+must be provided to Duo in atomic units, so the ``units`` keyword is invalid for these objects.**
 
 Example:
 ::
@@ -419,7 +419,9 @@ space or ``*`` sign.
 
 
 
-* ``Molpro`` is a single, stand-alone keywrd to trigger the molpro even for `non-x` fields.
+* ``Molpro`` 
+
+A single, stand-alone keywrd to trigger the molpro even for `non-x` fields.
 
 Example:
 
@@ -427,7 +429,9 @@ Example:
     molpro
 
 
-* ``morphing`` This keyword is used for fitting and switches on the morphing method. 
+* ``morphing`` 
+
+This keyword is used for fitting and switches on the morphing method. 
 
 * ``ZPE``: Zero-point-energy 
 
@@ -440,6 +444,21 @@ Duo  prints energy of rovibronic levels by subtracting the ZPE. If not specified
 This factor (:math:`d_{\lambda}`) is used as a part of the reference *ab initio* curves of the ``abinitio`` type which (when given) 
 is applied to the corresponding weights assigned to the corresponding values of this object. 
 It is different from ``fit_factor`` defined within in :ref:`fitting`.
+
+* ``adjust`` 
+
+This keyword can be used to add a constant value to the values of the potential, which is useful e.g when there is a known systematic
+error in the values. The keyword is followed by a value and (optionally) units. For a list of the available units see the ``units`` keyword above.
+Note that the units of the shift can be different to the units specified using the ``units`` keyword. 
+Default units are ``cm-1`` for PECs, ``debye`` for dipole moment curves, and ``au`` (atomic units) for quadrupole moment curves.
+
+Examples:
+::
+  adjust -42 cm-1
+::
+
+::
+  adjust 
 
 Example:
 ::
