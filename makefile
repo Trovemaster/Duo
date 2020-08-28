@@ -61,7 +61,7 @@ FFLAGS = -O3 -ip -openmp -mkl=parallel # -xHost -fast
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
 
-LAPACK = -mkl=parallel -static
+LAPACK = -mkl=parallel #-static
 #LAPACK = -mkl=parallel -static
 
 LIB     =   $(LAPACK)

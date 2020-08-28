@@ -1004,7 +1004,7 @@ contains
               endif
 
               !$omp  do private(indLevelF, energyF, quantaF, stateF, vibF, vF, spinF, sigmaF, lambdaF, omegaF, &
-              !$omp&  guParity, indSymF, passed, branch, nu, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
+              !$omp&  dimenF, guParity, indSymF, passed, branch, nu, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
               !$omp&  schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
@@ -1020,6 +1020,8 @@ contains
                 sigmaF  = quantaF%sigma   ! spin projection
                 lambdaF = quantaF%ilambda ! e- orb. ang. mom. projection
                 omegaF  = quantaF%omega   ! tot. ang. mom. proj. mol. ax
+
+                dimenF  = eigen(indF, indgammaF)%Ndimen
 
                 ! reconstruct symmetry for C2v case
                 guParity = poten(stateF)%parity%gu
