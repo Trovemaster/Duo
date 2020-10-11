@@ -49,7 +49,7 @@ Example:
 
 * ``quadrupole``
 
-This keyword is used to trigger the calculation of electric quadrupole transitions (see also :ref:`quadrupole curves` <quadrupole-curves>`).
+This keyword is used to trigger the calculation of electric quadrupole transitions (see also :ref:`quadrupole curves`).
 
 * ``J`` (aliases  ``Jrot``, ``Jlist``) 
 

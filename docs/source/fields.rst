@@ -215,14 +215,30 @@ For any Duo object one can specify a corresponding reference curve as in the fol
 
 At the moment Duo cannot compute magnetic dipole transition line intensities.
 
-.. _quadrupole-curves:
+.. _quadrupole curves:
 
 ``quadrupole``
 ^^^^^^^^^^^^^^
 
 The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole 
 ransition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in 
-the ``intensity`` section also (:ref:`see here <computing-spectra>`). 
+the ``intensity`` section also (:ref:`see here <computing-spectra>`).
+
+Currently Duo requires quadrupole moment curves to be provided in the spherical irreducible representation, with atomic units (a.u.). Additionally, the units must be specified via the ``units`` keyword. For example
+::
+
+     quadrupole 1 1
+     name "<X3Sigma-|QM20|X3Sigma->"
+     spin 1 1
+     lambda 0 0
+     type grid
+     units angstrom au
+     values
+      0.8   -1.4747
+      0.9   -1.1434
+      ...
+     end
+
 
 Keywords used in the specification of objects 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
