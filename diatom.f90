@@ -69,7 +69,7 @@ module diatom_module
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
   real(kind=rk) :: fmmm,fmm,fm,f0,fp,fpp,fppp ! value of PEC on grid stencil
   real(kind=rk) :: der1, der2, der3, der4     ! derivatives
-  real(kind=rk), parameter :: thresh_rel_err_min_x = 1e-15_rk ! threshold (relative error) for convergence of minimum of PEC
+  real(kind=rk), parameter :: thresh_rel_err_min_x = 1e-13_rk ! threshold (relative error) for convergence of minimum of PEC
   integer(kind=ik), parameter       :: max_iter_min_search=20  ! maximum number of iterations for finding minimum of PEC
   real(kind=rk), parameter :: h=2e-3_rk ! `h' is the step size in ang. for computing numerical derivatives of pecs
   real(kind=rk) :: x0, x1 ! generic tmp variables
