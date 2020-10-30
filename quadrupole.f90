@@ -23,10 +23,14 @@ type(ElevelT), allocatable  :: Elevel(:)
 
 integer(ik)    :: nEigenLevels
 
+! Wilfrid Somogyi: Routine for evaluating the quadrupole moment matrix elements
+!                  and linestrength equations. Adapted from dipole.f90 for the
+!                  case of a symmetric tensor of rank two.
+
 contains
 
   subroutine qm_tranint
-    ! computes the parition function and calls qm_intensity to calculate
+    ! computes the partition function and calls qm_intensity to calculate
     ! the electric quadrupole transition moments, linestrengths and
     ! intensities if required.
 

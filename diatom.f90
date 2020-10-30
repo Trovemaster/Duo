@@ -2620,6 +2620,7 @@ module diatom_module
                   unit_field = hartree
                   !
                   if (trim(field%class)=="DIPOLE") unit_field = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
                   !
                 case ('EA0')
                   !
@@ -2711,6 +2712,7 @@ module diatom_module
                   unit_adjust = hartree
                   !
                   if (trim(field%class)=="DIPOLE") unit_adjust = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_adjust = 1.0_rk
                   !
                 case ('EA0')
                   !
@@ -7394,7 +7396,7 @@ end subroutine map_fields_onto_grid
             !
             ! check if the field wass not allocated at previous call to prevent multiple allocatetions 
             !
-            if (.not.fields_allocated) then 
+            if (.not.fields_allocated) then
               allocate(field%matelem(totalroots,totalroots),stat=alloc)
               call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
             endif
