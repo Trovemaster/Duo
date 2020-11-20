@@ -1426,16 +1426,18 @@ contains
         !    ) cycle loop_I
 
         ! alternative selection rules if lambdaF + lambdaI < 2 allowed
-        if (     abs(dLambda) > 2 &
-            .or. abs(dOmega) /= abs(dLambda) &
-            ) cycle loop_I
+        ! if (     abs(dLambda) > 2 &
+        !     .or. abs(dOmega) /= abs(dLambda) &
+        !     ) cycle loop_I
+        if (     abs(dOmega) > 2 &
+            .or. abs(dOmega) /= abs(dLambda)) cycle loop_I
 
         f3j = three_j(jI, 2.0_rk, jF, omegaI, real(dOmega, rk), -omegaF)
         if ( abs(f3j) < Intensity%threshold%coeff ) cycle loop_I
 
         ls = 0
 
-        loop_quadpole :  do  indQuad = 1, nQuadrupoles
+        loop_quadpole :  do indQuad = 1, nQuadrupoles
 
           field  => quadrupoletm(indQuad)
 
@@ -1665,7 +1667,7 @@ contains
       ! In order to avoid double counting of transitions we exclude
       ! jI=jF==intensity%J(2), i.e. Q branch for the highest J is
       ! never considered:
-
+      
       ! set passed
       passed = passed &
         .and. &
