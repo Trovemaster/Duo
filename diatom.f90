@@ -6345,7 +6345,7 @@ end subroutine map_fields_onto_grid
      integer(ik)             :: alloc,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
      integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
      integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
-     integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav
+     integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
      integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v
      integer(ik)             :: ipermute,istate_,jstate_,nener_total
      real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic
@@ -6893,14 +6893,18 @@ end subroutine map_fields_onto_grid
           !
           do iterm = 1,Nmax
              !
+             isigmav_max = 1 ! permuations (account for -omega where omega is the component from the input, only needed for L and S)
+             !
              select case (iobject)
                !
              case (1)
                field => L_omega_obj(iterm)
                field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
+               isigmav_max = 1
              case (2)
                field => S_omega_obj(iterm)
                field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
+               isigmav_max = 1
              case (3)
                field => SR_omega_obj(iterm)
                field%gridvalue(:) = field%gridvalue(:)*sc
@@ -6945,43 +6949,68 @@ end subroutine map_fields_onto_grid
              !Nlambdasigmas_= omega_grid(jomega)%Nstates
              !
              !omp parallel do private(ilevel,jlevel) schedule(guided)
+             !
              do iroot = 1,totalroots
                !
                i = icontrvib(iroot)%v+1
                iomega_ = icontrvib(iroot)%iomega
+               omegai_ = icontrvib(iroot)%omega
                !
-               if (iomega/=iomega_.and.jomega/=iomega_) cycle 
-               !
-               vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
+               !if (iomega/=iomega_.and.jomega/=iomega_) cycle 
                !
                do jroot = 1,iroot
                  !
                  j = icontrvib(jroot)%v+1
                  jomega_ = icontrvib(jroot)%iomega
+                 omegaj_ = icontrvib(jroot)%omega
                  !
-                 if (iomega/=jomega_.and.jomega/=jomega_) cycle
-                 !
-                 !if (ilevel_/=ilevel.or.jlevel_/=ilevel.or.nint(omegai_-omega)/=0) cycle
-                 !
-                 vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
-                 !
-                 ! in the grid representation of the vibrational basis set
-                 ! the matrix elements are evaluated simply by a summation of over the grid points
-                 !
-                 field%matelem(iroot,jroot)  = sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
-                 !
-                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
-                 !if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                 !  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
-                 !endif
-                 !
-                 field%matelem(jroot,iroot) = field%matelem(iroot,jroot)
-                 !
+                 do isigmav = 0,isigmav_max
+                   !
+                   ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                   ! avoid the double counting.
+                   if( isigmav==1.and. nint(abs( field%omegai ) + abs( field%omegaj ))==0 ) cycle
+                   !           
+                   ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                   omegai = field%omegai*(-1)**isigmav
+                   omegaj = field%omegaj*(-1)**isigmav
+                   !
+                   ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                   !
+                   if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+                   !
+                   !if (iomega/=jomega_.and.jomega/=jomega_) cycle
+                   !
+                   !ilevel_ = ilevel
+                   !jlevel_ = jlevel
+                   !
+                   !if (isigmav==1) then
+                   !  ilevel_ = jlevel
+                   !  jlevel_ = ilevel
+                   !endif
+                   !
+                   !if (ilevel_/=ilevel.or.jlevel_/=ilevel.or.nint(omegai_-omega)/=0) cycle
+                   !
+                   vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
+                   vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
+                   !
+                   ! in the grid representation of the vibrational basis set
+                   ! the matrix elements are evaluated simply by a summation of over the grid points
+                   !
+                   field%matelem(iroot,jroot)  = sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
+                   !
+                   ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+                   ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
+                   !if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                   !  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+                   !endif
+                   !
+                   field%matelem(jroot,iroot) = field%matelem(iroot,jroot)
+                   !
+                   !
+                 enddo
                  !
                enddo
              enddo
-             !omp end parallel do
              !
           enddo
           !
@@ -11816,8 +11845,6 @@ end subroutine map_fields_onto_grid
           !
           if (ilevel==1) zpe = vibener(1)
           !
-          
-          !
           ! write the pure vibrational energies and the corresponding eigenfunctions into global matrices
           contracted(iomega)%vector(:,1:nroots) = vibmat(:,1:nroots)
           contracted(iomega)%energy(1:nroots)   = vibener(1:nroots)
@@ -12168,7 +12195,7 @@ end subroutine map_fields_onto_grid
                  !
                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
                  ! avoid the double counting.
-                 if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
+                 if( isigmav==1.and.nint( abs( field%omegai ) + abs( field%omegaj ) )==0 ) cycle
                  !           
                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                  omegai_ = omegai_*(-1)**isigmav
@@ -12224,7 +12251,7 @@ end subroutine map_fields_onto_grid
                  !
                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
                  ! avoid the double counting.
-                 if( isigmav==1.and. abs( field%iomega ) + abs( field%jomega )==0 ) cycle
+                 if( isigmav==1.and. nint(abs( field%omegai ) + abs( field%omegaj ))==0 ) cycle
                  !           
                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                  omegai_ = omegai_*(-1)**isigmav
