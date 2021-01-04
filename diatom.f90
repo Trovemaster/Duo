@@ -11383,7 +11383,7 @@ end subroutine map_fields_onto_grid
               enddo
               !
               mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
-              mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_i))
+              mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,jgrid)),mat_1(1:N_i,1:N_i))
               !
               do i = 1,N_i
                  do j = 1,N_i

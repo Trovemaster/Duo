@@ -678,18 +678,12 @@ module functions
     !
     y  = 1.0_rk-uLR/uLR0*exp(-beta*z)
     !
-
-
-
-    !
     ma = 1.0_rk - parameters(2+M+Npot+Nstruc)/parameters(3+M+Npot+Nstruc)
     mb = 1.0_rk - parameters(4+M+Npot+Nstruc)/parameters(5+M+Npot+Nstruc)
     !
-
 !    write(out,*) parameters(2+M+Npot+Nstruc), parameters(3+M+Npot+Nstruc)
 !    write(out,*) parameters(4+M+Npot+Nstruc), parameters(5+M+Npot+Nstruc)
-
-
+    !
     p = nint(parameters(6+M+Npot+Nstruc))
     q = nint(parameters(7+M+Npot+Nstruc))
     !
@@ -709,9 +703,7 @@ module functions
     enddo
     !
     uinf = parameters(11+NUa+M+Npot+Nstruc)*ma + parameters(13+NUa+NUb+M+Npot+Nstruc)*mb
-
-
-
+    !
     f = de*y**2+v0 + ( (1.0_rk-yp)*u + uinf*yp )
     !
   end function poten_MLR_Douketis_Darby
