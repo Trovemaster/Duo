@@ -296,6 +296,7 @@ module diatom_module
      logical :: matelem       = .false.
      logical :: raman         = .false.
      logical :: quadrupole    = .false.
+     logical :: RWF           = .false.
      !
   end type actionT
   !
@@ -3207,6 +3208,10 @@ module diatom_module
                intensity%do = .true.
                !
              endif
+             !
+           case ('RWF')
+             !
+             action%RWF = .true.
              !
            case ('LANDE')
              !
