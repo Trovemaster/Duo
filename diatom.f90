@@ -5,7 +5,7 @@ module diatom_module
   use functions, only : analytical_fieldT
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
-  !use me_numer,  only : ME_numerov
+  use me_numer,  only : ME_numerov
   !
   implicit none
   !                     by Lorenzo Lodi
@@ -364,6 +364,8 @@ module diatom_module
      logical             :: overlap = .false.      ! print out overlap integrals (Franck-Condon)
      logical             :: tdm      = .true.      ! print out dipole transition moments 
      logical             :: tqm      = .true.      ! print out quadrupole transition moments
+     integer(ik)         :: Npoints = -1           ! used for cross sections grids 
+     real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
      !
  end type IntensityT
   !
@@ -451,7 +453,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot,nrefstates
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -769,6 +771,12 @@ module diatom_module
           job%vibenermax = enermax
           !
           allocate(abinitio(nestates*Nobjects+4*ncouples),stat=alloc)
+          !
+        case ("NREFSTATES")
+          !
+          call readi(nrefstates)
+          !
+          if (nrefstates>nestates) call report("nrefstates cannot be larger than nestates",.true.)
           !
        case ("GRID")
          !
@@ -3377,6 +3385,15 @@ module diatom_module
              call readf(intensity%freq_window(2))
              !
              if (intensity%freq_window(1)<small_) intensity%freq_window(1) = -small_ 
+             !
+           case('NPOINTS')
+             !
+             call readi(intensity%npoints)
+             if (mod(intensity%npoints,2)==2) intensity%npoints = intensity%npoints + 1
+             !
+           case('GAMMA','FWHM')
+             !
+             call readf(intensity%gamma)
              !
            case('ENERGY')
              !
@@ -6385,7 +6402,7 @@ end subroutine map_fields_onto_grid
      ! Lambda-Sigma-> State-Omega contraction
      integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
      integer(ik) :: ilambdasigma,Nlambdasigmas_max
-     integer(ik) :: Nspins,Ndimen,ilevel_,jlevel_,jomega
+     integer(ik) :: Nspins,Ndimen,jomega
      real(rk) :: omega_min,omega_max,spin_min
      !
      type(contract_solT),allocatable :: contracted(:)
@@ -7061,6 +7078,12 @@ end subroutine map_fields_onto_grid
          call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
        endif
        !
+       !
+       ! This is a special case of the Raman-Wave-Function for which we use Nestates for the reference 
+       ! set of states used as lower states nrefstates
+       !
+       !if (action%RWF) Nestates = nrefstates
+       !
        do istate = 1,Nestates
          !
          vibmat = 0
@@ -7189,11 +7212,13 @@ end subroutine map_fields_onto_grid
            !
            mu_rr = 2.0_rk*b_rot
            !
-           write(out,"('Error: ME_numerov is not implemented yet')")
-           stop 'Error: ME_numerov is not implemented yet'
+           !write(out,"('Error: ME_numerov is not implemented yet')")
+           !stop 'Error: ME_numerov is not implemented yet'
            !
-           !call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
-           !                 job%vibenermax(istate),iverbose,vibener,vibmat)
+           !iverbose
+           !
+           call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
+                           job%vibenermax(istate),iverbose,vibener,vibmat)
            deallocate(mu_rr)
            call ArrayStop('mu_rr')
            !
@@ -9755,6 +9780,15 @@ end subroutine map_fields_onto_grid
                    eigen(irot,irrep)%quanta(total_roots)%v = v
                    eigen(irot,irrep)%quanta(total_roots)%name = trim(poten(istate)%name)
                    !
+                   !
+                   ! This is a special case of the Raman-Wave-Function for which we use set all the 
+                   ! eigenvectors back to the basis set
+                   !
+                   if (action%RWF.and.istate>Nrefstates) then
+                       eigen(irot,irrep)%vect(:,total_roots) = 0
+                       eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
+                   endif
+                   !
                 endif
                 !
                 if (present(quantaout)) then
@@ -10080,7 +10114,7 @@ end subroutine map_fields_onto_grid
      integer(ik) :: omega_min,omega_max,iomega,jomega
      integer(ik) :: igrid,jgrid,istate,jstate,imulti,jmulti,ilambda,jlambda,iL2,ieq,ispin,nspins
      integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
-     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count,iBRot
+     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
      integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iKin_omega_,iBRot_omega_
      integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot
      !
