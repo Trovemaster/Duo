@@ -2,7 +2,7 @@ module RWF
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          quadrupoletm
+                          quadrupoletm,nQuadrupoles
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -301,12 +301,12 @@ contains
     integer(ik),intent(in)   :: iverbose
 
     integer(ik)    :: nJ,dimenmax
-    integer(ik)    :: ilevelI, ilevelF,jlevelF
+    integer(ik)    :: ilevelI, ilevelF,ilevelR
     integer(ik)    :: nlevelsG(sym%Nrepresen)
     integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
     integer(ik)    :: igammaI,igammaF
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
-    real(rk)       :: energyI, energyF, nu_if,linestr,ener_,linestr2
+    real(rk)       :: energyI, energyF,energyR,nu_if,linestr,ener_,linestr2
     real(rk)       :: tm,jI,jF,ddot
     logical        :: passed,passed_
 
@@ -720,24 +720,12 @@ contains
          nlevelsI = eigen(indI,igammaI)%Nlevels
          dimenI = eigen(indI,igammaI)%Ndimen
          !
+         if (nlevelsI==0) cycle 
+         !
          do indF = 1, nJ
            !
            jF = jval(indF)
            if (abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0) cycle 
-           !
-           igammaF = igamma_pair(igammaI)
-           nlevelsF = eigen(indF,igammaF)%Nlevels
-           !
-           allocate(mu%matelem(nlevelsF,nlevelsI),stat = info)
-           call ArrayStart('mu%matelem',info,size(mu%matelem),kind(mu%matelem))
-           mu%matelem = 0
-           !
-           allocate(pec%matelem(nlevelsF,nlevelsF),stat = info)
-           call ArrayStart('pec%matelem',info,size(pec%matelem),kind(pec%matelem))
-           pec%matelem = 0
-           !
-           allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF,1),stat = info)
-           call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
            !
            do igammaF=1,Nrepresen
               !
@@ -746,6 +734,24 @@ contains
               !
               nlevelsF = eigen(indF,igammaF)%Nlevels
               dimenF = eigen(indF,igammaF)%Ndimen
+              !
+              !igammaF = igamma_pair(igammaI)
+              !
+              nlevelsF = eigen(indF,igammaF)%Nlevels
+              !
+              if (nlevelsF==0) cycle 
+              !
+              allocate(mu%matelem(nlevelsF,nlevelsI),stat = info)
+              call ArrayStart('mu%matelem',info,size(mu%matelem),kind(mu%matelem))
+              mu%matelem = 0
+              !
+              allocate(pec%matelem(nlevelsF,nlevelsF),stat = info)
+              call ArrayStart('pec%matelem',info,size(pec%matelem),kind(pec%matelem))
+              pec%matelem = 0
+              !
+              allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF,1),stat = info)
+              call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
+              call ArrayStart('RWF:Amat',info,size(B),kind(B))
               !
               !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
               !                        & schedule(guided) reduction(+:Ntransit,nlevelI)
@@ -954,25 +960,27 @@ contains
                      !
                      B(ilevelF,1) = cmplx(0.0_rk,mu%matelem(ilevelF,ilevelI))
                      !
-                     do jlevelF = 1,nlevelsF
+                     do ilevelR = 1,nlevelsF
                        !
-                       energyF = eigen(indF,igammaF)%val(jlevelF)
+                       energyR = eigen(indF,igammaF)%val(ilevelR)
                        !
-                       call energy_filter_upper(jF,energyF,passed)
+                       call energy_filter_upper(jF,energyR,passed)
                        !
                        if (.not.passed) cycle
                        !
-                       if (nint(jI-jF)==0) then 
+                       if (nint(jI-jF)==0.and.igammaF==igammaI) then 
                          !
-                         Amat(ilevelF,jlevelF) = -pec%matelem(ilevelF,jlevelF)
-                         !
-                       endif
-                       !
-                       if (ilevelF==jlevelF) then
-                         !
-                         Amat(ilevelF,jlevelF) = Amat(ilevelF,jlevelF) + nu + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = -pec%matelem(ilevelF,ilevelR)
                          !
                        endif
+                         !
+                         if (ilevelF==ilevelR) then
+                           !
+                           Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                           !
+                         endif
+                         !
+                       !endif
                        !
                      enddo
                      !
@@ -990,21 +998,28 @@ contains
                  !
               enddo
               !
+              deallocate(mu%matelem,stat = info)
+              call ArrayStop('mu%matelem')
+              !
+              deallocate(pec%matelem,stat = info)
+              call ArrayStop('pec%matelem')
+              !
+              deallocate(Amat,B)
+              call Arraystop('RWF:Amat')
               !
            enddo
            !
          enddo
          !
-         deallocate(mu%matelem,stat = info)
-         call ArrayStop('mu%matelem')
-         !
-         deallocate(pec%matelem,stat = info)
-         call ArrayStop('pec%matelem')
-         !
-         deallocate(Amat,B)
-         call Arraystop('RWF:Amat')
-         !
        enddo
+       !
+    enddo
+    !
+    do inu = 1,intensity%npoints
+       !
+       nu = intensity%freq_window(1)+dnu*real(inu,rk)
+       !
+       write(out,"(f12.5,2x,e12.5)") nu,crosssections(inu)
        !
     enddo
     !
@@ -1817,6 +1832,7 @@ contains
 
       subroutine do_matelem_pec(jI,jF,indI,indF,dimenI,dimenF,vector,half_me)
 
+        implicit none
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
@@ -1933,7 +1949,7 @@ contains
                           !
                         endif
                         !
-                        ls  =  f_t*vector(icontrI)
+                        f_t  =  f_t*vector(icontrI)
                         !
                         half_me(icontrF) = half_me(icontrF) + f_t
                         !

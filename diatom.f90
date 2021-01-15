@@ -9784,10 +9784,10 @@ end subroutine map_fields_onto_grid
                    ! This is a special case of the Raman-Wave-Function for which we use set all the 
                    ! eigenvectors back to the basis set
                    !
-                   if (action%RWF.and.istate>Nrefstates) then
-                       eigen(irot,irrep)%vect(:,total_roots) = 0
-                       eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
-                   endif
+                   !if (action%RWF.and.istate>Nrefstates) then
+                   !    eigen(irot,irrep)%vect(:,total_roots) = 0
+                   !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
+                   !endif
                    !
                 endif
                 !
