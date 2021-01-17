@@ -651,35 +651,6 @@ contains
     !
     if (iverbose>=5) call MemoryReport
     !
-    write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
-                          &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
-    !
-    ! Prepare the table header
-    !
-    select case (trim(intensity%action))
-      !
-      case('ABSORPTION')
-        !
-        write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
-                    &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
-        dir = '<-'
-        !
-      case('EMISSION')
-        !
-        write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
-                    &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
-        dir = '->'
-        !
-      case('TM')
-        !
-        write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
-                    &10x,'TM(f->i)')")
-
-       !
-    end select
-    !
     deallocate(vecF)
     !
     !tid = omp_get_thread_num()
@@ -715,12 +686,16 @@ contains
        !
        jI = jval(indI)
        !
+       if (iverbose>=3) write(out,"('J = ',f5.1)") jI
+       !
        do igammaI=1,Nrepresen
          !
          nlevelsI = eigen(indI,igammaI)%Nlevels
          dimenI = eigen(indI,igammaI)%Ndimen
          !
          if (nlevelsI==0) cycle 
+         parity_gu = poten(istateI)%parity%gu
+         isymI = correlate_to_Cs(igammaI,parity_gu)
          !
          do indF = 1, nJ
            !
@@ -737,6 +712,11 @@ contains
               !
               !igammaF = igamma_pair(igammaI)
               !
+              parity_gu = poten(istateF)%parity%gu
+              isymF = correlate_to_Cs(igammaF,parity_gu)
+              !
+              if (isymF /= igamma_pair(isymI)) cycle
+              !
               nlevelsF = eigen(indF,igammaF)%Nlevels
               !
               if (nlevelsF==0) cycle 
@@ -752,6 +732,43 @@ contains
               allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF,1),stat = info)
               call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
               call ArrayStart('RWF:Amat',info,size(B),kind(B))
+              !
+              !
+              do ilevelF = 1, nlevelsF
+                !
+                !energy and and quanta of the final state
+                !
+                energyF = eigen(indF,igammaF)%val(ilevelF)
+                !
+                call energy_filter_upper(jF,energyF,passed)
+                !
+                if (.not.passed) cycle
+                !
+                vecI(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
+                !
+                half_pecme = 0
+                !
+                call do_matelem_pec(jF,jF,indF,indF,dimenF,dimenF,&
+                                                 vecI(1:dimenF),&
+                                                 half_pecme)
+                !
+                do ilevelR = 1,nlevelsF
+                  !
+                  energyR = eigen(indF,igammaF)%val(ilevelR)
+                  !
+                  call energy_filter_upper(jF,energyR,passed)
+                  !
+                  if (.not.passed) cycle
+                  !
+                  vecI(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
+                  !
+                  if (nint(jF-jI)==0)  then
+                    pec%matelem(ilevelF,ilevelR) = ddot(dimenF,half_pecme,1,vecI,1)
+                  endif
+                  !
+                enddo
+                !
+              enddo
               !
               !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
               !                        & schedule(guided) reduction(+:Ntransit,nlevelI)
@@ -786,72 +803,17 @@ contains
                 ! Compute the half-linestrength
                 !
                 half_linestr = 0
-                half_pecme = 0
                 !
-                ! Check if it is really necessary to start the calculations for the given levelI -> jF, 
-                ! i.e. one can skip the rest if no transitions will start from the given ilevelI and 
-                ! finish anywehere at J= jF. 
+                if (isymF /= igamma_pair(isymI)) cycle
                 !
-                !passed = .false.
-                !
-                !loop over final states
-                !
-                do ilevelF = 1, nlevelsF
-                  !
-                  !energy and and quanta of the final state
-                  !
-                  energyF = eigen(indF,igammaF)%val(ilevelF)
-                  !
-                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
-                  istateF  = quantaF%istate
-                  ivibF    = quantaF%ivib
-                  ivF      = quantaF%v
-                  sigmaF   = quantaF%sigma
-                  spinF    = quantaF%spin
-                  ilambdaF = quantaF%ilambda
-                  omegaF   = quantaF%omega
-                  !
-                  ! reconstruct the symmetry for the C2v case which is different from Cs
-                  parity_gu = poten(istateF)%parity%gu
-                  isymF = correlate_to_Cs(igammaF,parity_gu)
-                  !
-                  !call TimerStart('Intens_Filter-2')
-                  !
-                  call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                  !
-                  !call TimerStop('Intens_Filter-2')
-                  !
-                  !if (passed) exit
-                  !
-                enddo
-                !
-                !if (.not.passed) cycle
-                !
-                select case (trim(intensity%action))
-                  !
-                case('ABSORPTION','EMISSION')
-                  !
-                  if (isymF /= igamma_pair(isymI)) cycle
-                  !
-                  if (( intensity%J(1)+intensity%J(2)>0 )&
-                      .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
-                     !
-                     call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                   vecI(1:dimenI),&
-                                                   half_linestr)
-                                                   !
-                     call do_matelem_pec(jI,jF,indI,indF,dimenI,dimenF,&
-                                                   vecI(1:dimenI),&
-                                                   half_pecme)
-                     !
-                  endif 
-                  !
-                case('TM')
-                  !
-                  call do_1st_half_tm(indI,indF,dimenI,dimenF,&
-                                      vecI(1:dimenI),half_linestr)
-                  !
-                end select
+                if (( intensity%J(1)+intensity%J(2)>0 )&
+                    .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
+                   !
+                   call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
+                                                 vecI(1:dimenI),&
+                                                 half_linestr)
+                   !
+                endif
                 !
                 !loop over final states
                 !
@@ -920,10 +882,6 @@ contains
                    !
                    mu%matelem(ilevelF,ilevelI) = linestr
                    !
-                   if (nint(jF-jI)==0)  then
-                     pec%matelem(ilevelF,ilevelI) = ddot(dimenF,half_pecme,1,vecF,1)
-                   endif
-                   !
                 end do Flevels_loop
                 !omp enddo
                 !
@@ -968,18 +926,14 @@ contains
                        !
                        if (.not.passed) cycle
                        !
-                       if (nint(jI-jF)==0.and.igammaF==igammaI) then 
+                       Amat(ilevelF,ilevelR) = -pec%matelem(ilevelF,ilevelR)
+                       !
+                       if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = -pec%matelem(ilevelF,ilevelR)
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
-                         !
-                         if (ilevelF==ilevelR) then
-                           !
-                           Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
-                           !
-                         endif
-                         !
+                       !
                        !endif
                        !
                      enddo
