@@ -6380,7 +6380,7 @@ end subroutine map_fields_onto_grid
      real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
      integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
-     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
+     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:),kinmat(:,:)
      real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
      integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
@@ -6402,7 +6402,7 @@ end subroutine map_fields_onto_grid
      ! Lambda-Sigma-> State-Omega contraction
      integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
      integer(ik) :: ilambdasigma,Nlambdasigmas_max
-     integer(ik) :: Nspins,Ndimen,jomega
+     integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
      real(rk) :: omega_min,omega_max,spin_min
      !
      type(contract_solT),allocatable :: contracted(:)
@@ -7063,6 +7063,8 @@ end subroutine map_fields_onto_grid
        call ArrayStart('vibener',alloc,size(vibener),kind(vibmat))
        call ArrayStart('contrenergy',alloc,size(contrenergy),kind(contrenergy))
        call ArrayStart('vec',alloc,size(vec),kind(vec))
+       allocate(kinmat(ngrid,ngrid),stat=alloc)
+       call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
        !
        if (trim(solution_method)=="LOBATTO") then 
          allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),vibTmat(ngrid,ngrid),stat=alloc)
@@ -7084,9 +7086,11 @@ end subroutine map_fields_onto_grid
        !
        !if (action%RWF) Nestates = nrefstates
        !
+       call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+       !
        do istate = 1,Nestates
          !
-         vibmat = 0
+         !vibmat = 0
          !
          if (iverbose>=6) write(out,'("istate = ",i0)') istate
          !
@@ -7097,6 +7101,8 @@ end subroutine map_fields_onto_grid
          spini = poten(istate)%spini
          !
          if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
+         !
+         vibmat = kinmat
          !
          !$omp parallel do private(igrid,f_rot,epot,f_l2,iL2,erot) shared(vibmat) schedule(guided)
          do igrid =1, ngrid
@@ -7128,81 +7134,16 @@ end subroutine map_fields_onto_grid
            erot = f_l2
            !
            ! the diagonal matrix element will include PEC +L**2 as well as the vibrational kinetic contributions.
-           vibmat(igrid,igrid) = epot + erot
+           vibmat(igrid,igrid) = vibmat(igrid,igrid) + epot + erot
            !
-           method_choice_i: select case(solution_method)
-             case ("5POINTDIFFERENCES")
-              !
-              vibmat(igrid,igrid) = vibmat(igrid,igrid) + d2dr(igrid)
-              !
-              ! The nondiagonal matrix elemenets are:
-              ! The vibrational kinetic energy operator will connect only the
-              ! neighbouring grid points igrid+/1 and igrid+/2.
-              !
-              ! Comment by Lorenzo Lodi
-              ! The following method corresponds to approximating the second derivative of the wave function
-              ! psi''  by the 5-point finite difference formula:
-              !
-              ! f''(0) = [-f(-2h) +16*f(-h) - 30*f(0) +16*f(h) - f(2h) ] / (12 h^2)  + O( h^4 )
-              !
-              if (igrid>1) then
-                vibmat(igrid,igrid-1) = -16.0_rk*z(igrid-1)*z(igrid)
-                vibmat(igrid-1,igrid) = vibmat(igrid,igrid-1)
-              endif
-              !
-              if (igrid>2) then
-                vibmat(igrid,igrid-2) = z(igrid-2)*z(igrid)
-                vibmat(igrid-2,igrid) = vibmat(igrid,igrid-2)
-              endif
-              !
-              case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
-                             ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
-                if( grid%nsub /=0) then
-                  write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
-                  write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
-                  stop
-                endif
-                vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
-                !
-                do jgrid =igrid+1, ngrid
-                  vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
-                  vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
-                enddo
-                !
-              case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
-                              ! Requires the Lobatto nonuniform grid to work
-                if(grid%nsub /= 6) then
-                  write(out, '(A)') 'The Lobatto DVR method only works with the'
-                  write(out, '(A)') 'Lobatto grid (grid type 6).'
-                  stop
-                endif
-                !
-                vibTmat = 0 
-                !
-                do jgrid = igrid,ngrid
-                   do kgrid=1,ngrid
-                      vibTmat(igrid,jgrid) = vibTmat(igrid,jgrid) + (12._rk)*(hstep**2)*(LobWeights(kgrid))*& 
-                                             LobDerivs(igrid,kgrid)*LobDerivs(jgrid,kgrid)
-                   enddo
-                   vibTmat(jgrid,igrid) = vibTmat(igrid,jgrid)
-                   vibmat(igrid,jgrid) = vibmat(igrid,jgrid) + vibTmat(igrid,jgrid)
-                   vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
-                enddo
-                !
-              case default
-               write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
-               write(out, '(A)') 'Possible options are: '
-               write(out, '(A)') '                      5POINTDIFFERENCES'
-               write(out, '(A)') '                      SINC'
-               write(out, '(A)') '                      LOBATTO'
-              end select method_choice_i
-              !
          enddo
          !$omp end parallel do
          !
          if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
          !
-         if (trim(poten(istate)%integration_method)=='NUMEROV') then 
+         select case (trim(poten(istate)%integration_method))
+           !
+         case ('NUMEROV') 
            !
            ! we need only these many roots
            !
@@ -7229,7 +7170,22 @@ end subroutine map_fields_onto_grid
              nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
            endif
            !
-         else
+           if (istate==1) zpe = vibener(1)
+           !
+         case ('NONE','RAW')
+           !
+           vibener = poten(istate)%gridvalue*sc
+           !
+           nroots = Ngrid
+           !
+           vibmat = 0
+           do i=1,nroots
+             vibmat(i,i) = 1.0_ark
+           enddo
+           !
+           if (istate==1) zpe = minval(vibener(:))
+           !
+         case default
            !
            if (job%vibmax(istate)>ngrid/2) then
               !
@@ -7268,7 +7224,12 @@ end subroutine map_fields_onto_grid
               call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
               !
            endif
-         endif
+           !
+           ! ZPE is obatined only from the lowest state
+           !
+           if (istate==1) zpe = vibener(1)
+           !
+         end select
          !
          if (nroots<1) then
            nroots = 1
@@ -7276,10 +7237,6 @@ end subroutine map_fields_onto_grid
            vibmat = 0
            vibmat(1,1) = 1.0_rk
          endif
-         !
-         ! ZPE is obatined only from the lowest state
-         !
-         if (istate==1) zpe = vibener(1)
          !
          ! write the pure vibrational energies and the corresponding eigenfunctions into global matrices
          contrfunc(:,totalroots+1:totalroots+nroots) = vibmat(:,1:nroots)
@@ -8210,9 +8167,9 @@ end subroutine map_fields_onto_grid
          !
          if (iverbose>=3) write(out,'(/"Construct the hamiltonian matrix")')
          !
-         !omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,jvib,jlevel,jstate,sigmaj,  & 
-         !                        jmulti,jlambda,omegaj,spinj,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute, &
-         !                        istate_,ilambda_,sigmai_,spini_,jstate_,jlambda_,sigmaj_,spinj_,isigmav,omegai_,    &
+         !omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,v_i,jvib,jlevel,jstate,sigmaj, & 
+         !                        jmulti,jlambda,omegaj,spinj,v_j,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute,&
+         !                        istate_,ilambda_,sigmai_,spini_,jstate_,jlambda_,sigmaj_,spinj_,isigmav,omegai_,       &
          !                        omegaj_,itau,ilxly,f_grid,f_l,f_ss) shared(hmat) schedule(guided)
          do i = 1,Ntotal
            !
@@ -8225,6 +8182,7 @@ end subroutine map_fields_onto_grid
            ilambda = icontr(i)%ilambda
            omegai = icontr(i)%omega
            spini = icontr(i)%spin
+           v_i = icontr(i)%v
            !
            ! the diagonal contribution is the energy from the contracted vibrational solution
            !
@@ -8240,6 +8198,7 @@ end subroutine map_fields_onto_grid
               jlambda = icontr(j)%ilambda
               omegaj = icontr(j)%omega
               spinj = icontr(j)%spin
+              v_j = icontr(j)%v
               !
               if (iverbose>=6) write(out,'("ilevel,ivib = ",2(i0,2x) )') ilevel,ivib
               !
@@ -8257,6 +8216,19 @@ end subroutine map_fields_onto_grid
                   exit
                 endif
               enddo
+              !
+              ! For the raw non-integrated basis add the kinetic energy matrix elemenent which otherwsie is not included in the 
+              ! corresponding contracted enegy values 
+              !
+              if (istate==jstate.and.ilevel==jlevel) then
+                !
+                select case (trim(poten(istate)%integration_method))
+                !
+                case ('NONE','RAW')
+                  hmat(i,j) = hmat(i,j) + kinmat(v_i+1,v_j+1)
+                end select 
+                !
+              endif
               !
               ! diagonal elements
               !
@@ -9913,6 +9885,9 @@ end subroutine map_fields_onto_grid
        !  
      endif
      !
+     deallocate(kinmat)
+     call ArrayStop('kinmat')
+     !
      if (allocated(contrenergy)) then 
        deallocate(contrenergy)
        call ArrayStop('contrenergy')
@@ -10018,19 +9993,23 @@ end subroutine map_fields_onto_grid
 
     
 
-     subroutine kinetic_energy_grid_points(ngrid,igrid,vibmat,vibTmat,LobWeights,LobDerivs)
+     subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
         !
-        real(rk),intent(inout)  :: vibmat(ngrid,ngrid)
+        real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
         real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
         real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
         !
-        integer(ik),intent(in)  :: ngrid,igrid
-        integer(ik)   :: jgrid,kgrid
+        integer(ik),intent(in)  :: ngrid
+        integer(ik)   :: jgrid,kgrid,igrid
         !
-        method_choice_i: select case(solution_method)
+        kinmat = 0
+        !
+        do igrid =1, ngrid
+          !
+          select case(solution_method)
           case ("5POINTDIFFERENCES")
            !
-           vibmat(igrid,igrid) = vibmat(igrid,igrid) + d2dr(igrid)
+           kinmat(igrid,igrid) = kinmat(igrid,igrid) + d2dr(igrid)
            !
            ! The nondiagonal matrix elemenets are:
            ! The vibrational kinetic energy operator will connect only the
@@ -10043,13 +10022,13 @@ end subroutine map_fields_onto_grid
            ! f''(0) = [-f(-2h) +16*f(-h) - 30*f(0) +16*f(h) - f(2h) ] / (12 h^2)  + O( h^4 )
            !
            if (igrid>1) then
-             vibmat(igrid,igrid-1) = -16.0_rk*z(igrid-1)*z(igrid)
-             vibmat(igrid-1,igrid) = vibmat(igrid,igrid-1)
+             kinmat(igrid,igrid-1) = -16.0_rk*z(igrid-1)*z(igrid)
+             kinmat(igrid-1,igrid) = kinmat(igrid,igrid-1)
            endif
            !
            if (igrid>2) then
-             vibmat(igrid,igrid-2) = z(igrid-2)*z(igrid)
-             vibmat(igrid-2,igrid) = vibmat(igrid,igrid-2)
+             kinmat(igrid,igrid-2) = z(igrid-2)*z(igrid)
+             kinmat(igrid-2,igrid) = kinmat(igrid,igrid-2)
            endif
            !
            case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
@@ -10059,11 +10038,11 @@ end subroutine map_fields_onto_grid
                write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
                stop
              endif
-             vibmat(igrid,igrid) = vibmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
+             kinmat(igrid,igrid) = kinmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
              !
              do jgrid =igrid+1, ngrid
-               vibmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
-               vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
+               kinmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
+               kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
              enddo
              !
            case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
@@ -10084,18 +10063,20 @@ end subroutine map_fields_onto_grid
                                           LobDerivs(igrid,kgrid)*LobDerivs(jgrid,kgrid)
                 enddo
                 vibTmat(jgrid,igrid) = vibTmat(igrid,jgrid)
-                vibmat(igrid,jgrid) = vibmat(igrid,jgrid) + vibTmat(igrid,jgrid)
-                vibmat(jgrid,igrid) = vibmat(igrid,jgrid)
+                kinmat(igrid,jgrid) = kinmat(igrid,jgrid) + vibTmat(igrid,jgrid)
+                kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
              enddo
              !
            case default
-            write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
-            write(out, '(A)') 'Possible options are: '
-            write(out, '(A)') '                      5POINTDIFFERENCES'
-            write(out, '(A)') '                      SINC'
-            write(out, '(A)') '                      LOBATTO'
-           end select method_choice_i     
-     
+             write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
+             write(out, '(A)') 'Possible options are: '
+             write(out, '(A)') '                      5POINTDIFFERENCES'
+             write(out, '(A)') '                      SINC'
+             write(out, '(A)') '                      LOBATTO'
+           end select
+           !
+        enddo
+        !     
      end subroutine kinetic_energy_grid_points
 
 
@@ -11389,13 +11370,9 @@ end subroutine map_fields_onto_grid
        call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
        !
        !
-       vibmat = 0 
+       ! Kinetic energy part 
        !
-       ! Kinetic energy part is diagonal
-       !
-       do igrid =1, ngrid
-          call kinetic_energy_grid_points(ngrid,igrid,vibmat)
-       enddo
+       call kinetic_energy_grid_points(ngrid,vibmat)
        !
        ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
        do igrid =1, ngrid
