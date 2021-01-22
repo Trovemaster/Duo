@@ -8230,6 +8230,10 @@ end subroutine map_fields_onto_grid
                 !
               endif
               !
+              if (action%RWF) then
+                if (istate>Nrefstates.or.jstate>Nrefstates) cycle
+              endif 
+              !
               ! diagonal elements
               !
               if (ilevel==jlevel) then
@@ -9622,6 +9626,7 @@ end subroutine map_fields_onto_grid
                  basis(irot)%icontr(i)%spin   = icontr(i)%spin
                  basis(irot)%icontr(i)%omega  = real(icontr(i)%ilambda,rk)+icontr(i)%sigma
                  basis(irot)%icontr(i)%ivib   = icontr(i)%ivib
+                 basis(irot)%icontr(i)%v   = icontr(i)%v
                  !
                enddo
                !
