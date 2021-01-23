@@ -453,7 +453,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot,nrefstates
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -6383,7 +6383,7 @@ end subroutine map_fields_onto_grid
      real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:),kinmat(:,:)
      real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
-     integer(ik),allocatable :: ivib_level2icontr(:,:),iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
+     integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      integer(ik),allocatable :: vib_count(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
      !real(rk),allocatable    :: psi_vib(:)
@@ -7737,8 +7737,7 @@ end subroutine map_fields_onto_grid
          !
          ! allocate the book keeping array to manage the mapping between
          ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
-         allocate(ivib_level2icontr(Nomegas,totalroots),icontr(Ntotal),stat=alloc)
-         call ArrayStart('ivib_level2icontr',alloc,size(ivib_level2icontr),kind(ivib_level2icontr))
+         allocate(icontr(Ntotal),stat=alloc)
          printout = ''
          !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
@@ -7764,7 +7763,6 @@ end subroutine map_fields_onto_grid
            ilambda     =  Omega_grid(iomega)%qn(ilevel)%ilambda
            spini       =  Omega_grid(iomega)%qn(ilevel)%spin
            !
-           ivib_level2icontr(ilevel,ivib) = i
            icontr(i) = omega_grid(iomega)%qn(ilevel)
            icontr(i)%ivib = ivib
            icontr(i)%ilevel = ilevel
@@ -8111,8 +8109,7 @@ end subroutine map_fields_onto_grid
          !
          ! allocate the book keeping array to manage the mapping between
          ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
-         allocate(ivib_level2icontr(Nlambdasigmas,totalroots),icontr(Ntotal),printout(Nlambdasigmas),stat=alloc)
-         call ArrayStart('ivib_level2icontr',alloc,size(ivib_level2icontr),kind(ivib_level2icontr))
+         allocate(icontr(Ntotal),printout(Nlambdasigmas),stat=alloc)
          printout = ''
          !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
@@ -8139,7 +8136,6 @@ end subroutine map_fields_onto_grid
              !
              i = i + 1
              !
-             ivib_level2icontr(ilevel,ivib) = i
              icontr(i) = quanta(ilevel)
              icontr(i)%ivib = ivib
              icontr(i)%ilevel = ilevel
@@ -9877,8 +9873,7 @@ end subroutine map_fields_onto_grid
        !
        if (allocated(printout)) deallocate(printout)
        !
-       deallocate(ivib_level2icontr,icontr)
-       call ArrayStop('ivib_level2icontr')
+       deallocate(icontr)
        !
      enddo loop_jval
      !
