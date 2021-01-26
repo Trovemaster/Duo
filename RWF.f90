@@ -901,7 +901,7 @@ contains
                  !
                  nu = intensity%freq_window(1)+dnu*real(inu,rk)
                  !
-                 if (iverbose>=4.and.mod(inu,50)) write(out,"('nu = ',f9.2)") nu
+                 if (iverbose>=4.and.mod(inu,50)==0) write(out,"('nu = ',f9.2)") nu
                  !
                  do ilevelI = 1, nlevelsI
                    !
@@ -934,7 +934,8 @@ contains
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR &
+			 + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1637,7 +1638,8 @@ contains
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR &
+			 + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !

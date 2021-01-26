@@ -6849,7 +6849,8 @@ end subroutine map_fields_onto_grid
           Ndimen = Nlambdasigmas*ngrid
           contracted(iomega)%Ndimen = Ndimen
           !
-          allocate(contracted(iomega)%vector(Ndimen,Ndimen),contracted(iomega)%energy(Ndimen),contracted(iomega)%ilevel(Ndimen),stat=alloc)
+          allocate(contracted(iomega)%vector(Ndimen,Ndimen),contracted(iomega)%energy(Ndimen),&
+		contracted(iomega)%ilevel(Ndimen),stat=alloc)
           call ArrayStart('contracted%vector',alloc,size(contracted(iomega)%vector),kind(contracted(iomega)%vector))
           call ArrayStart('contracted%energy',alloc,size(contracted(iomega)%energy),kind(contracted(iomega)%energy))
           call ArrayStart('contracted%ilevel',alloc,size(contracted(iomega)%ilevel),kind(contracted(iomega)%ilevel))

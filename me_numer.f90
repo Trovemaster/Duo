@@ -2565,7 +2565,8 @@ end subroutine polintrk
   605 FORMAT(' At  J=',I3,'   E= ',F12.2,'   R(end)= R(',I5,')=',F7.4,'    FCM(',I1,')=',F12.8:/(4x,3(5x,'FCM(',I1,')=',F12.8:)))
   606 FORMAT(5X,'S0= ',1PD10.3,'   & last 4 amplitudes are',2D14.6/45x,2D14.6)
   607 FORMAT(' *** ERROR ***   At   J = ',I3,'   EFN = ',F10.2,'  have  V .GT. E  everywhere.' )
-  608 FORMAT(' *** Caution ***  For   J = ',I3,'   (EFN= ',F10.2,') .GE. (V = ',F10.2,')   at  I = ',I4,' ,so initialize with a node.')
+  608 FORMAT(' *** Caution ***  For   J = ',I3,'   (EFN= ',F10.2,') .GE. (V = ',F10.2,')   at  I = ',I4, &
+           &' ,so initialize with a node.')
   
       END subroutine OVRLAP
 
