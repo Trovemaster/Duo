@@ -93,7 +93,7 @@ module refinement
       type(object_containerT), allocatable :: objects(:,:)
       type(fieldT),allocatable      :: object0(:,:)
       character(len=130)  :: my_fmt ! contains format specification for intput/output
-      logical :: printed ! used to print frequencies 
+      logical :: printed ! used to print frequencies
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
@@ -482,7 +482,8 @@ module refinement
           !
           rjacob = 0
           !
-          ! NArmijo iterations for linear search 
+          ! NArmijo iterations for linear search
+          do_Armijo = .false.
           if (fitting%linear_search>0) do_Armijo = .true.
           NArmijo = fitting%linear_search
           rms0 = 0

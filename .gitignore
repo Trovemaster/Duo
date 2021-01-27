@@ -8,9 +8,11 @@
 /*.out
 /*.states
 /*.trans
+/*.en
+/*.pot
 
 # Dev files
-*makefile_LINUXgfortranDBG
+*makefile_LINUXgfortranD_debug
 
 
 # Windows image file caches

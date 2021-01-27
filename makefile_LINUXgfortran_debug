@@ -6,15 +6,16 @@ tarball:
 checkin:
 	ci -l Makefile *.f90
 
-EXE = j-duo-v218v1.x
+EXE = duo.x
 
 FOR = gfortran  
 
-# Default
-FFLAGS = -O3 -fopenmp
-
+#FFLAGS = -O3 -fopenmp
+#export OMP_NUM_THREADS=4
 # Debugging options
-#FFLAGS = -Og -g -Wall -Wextra -Wline-truncation -pedantic -fimplicit-none -fcheck=all -fbacktrace
+FFLAGS = -Og -g -Wall -Wextra -Wline-truncation -pedantic -fimplicit-none -fcheck=all -fbacktrace
+
+#FFLAGS = -O3
 
 LAPACK = -llapack -L/usr/lib/lapack -lblas -L/usr/lib/libblas
 LIB     =   $(LAPACK)
