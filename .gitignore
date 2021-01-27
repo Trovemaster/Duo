@@ -12,7 +12,7 @@
 /*.pot
 
 # Dev files
-*makefile_LINUXgfortranD_debug
+*makefile_LINUXgfortran_debug
 
 
 # Windows image file caches
