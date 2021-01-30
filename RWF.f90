@@ -1,13 +1,13 @@
 module RWF
 
- use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
+ use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, aston
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
                           quadrupoletm,nQuadrupoles,grid,kinetic_energy_grid_points,Nestates,Nrefstates,brot,&
-                          matrixT
+                          matrixT,amass,hstep
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
- use lapack,only : lapack_zgelss
+ use lapack,only : lapack_zgelss,lapack_zgesv
 
 
 
@@ -937,8 +937,7 @@ contains
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR &
-			 + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1058,14 +1057,14 @@ contains
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
     character(1)  :: let_LF ! richmol letters x,y,z
-    real(rk) :: dnu, nu,RWF2,intens_cm_molecule
+    real(rk) :: dnu, nu,RWF2,intens_cm_molecule,sc,scale,h12
     complex(rk),allocatable :: Amat(:,:),B(:,:)
     !
     real(rk),allocatable :: crosssections(:)
     !
-    real(rk),allocatable :: kinmat(:,:),hmat(:,:)
+    real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:)
     !
-    type(Mat2DT) :: mu,pec
+    type(Mat2DT) :: pec
     !
     integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2),irrep,isym,jrrep,jtau,jsym
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
@@ -1088,6 +1087,11 @@ contains
     intens_cm_mol  = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef = planck*vellgt/(4.0_rk*pi)
     A_coef_s_1     =64.0d-36 * pi**4  / (3.0_rk * planck)
+    !
+    scale = amass/aston
+    !
+    h12 = 12.0_rk*hstep**2
+    sc  = h12*scale
     !
     nJ = size(Jval)
     !
@@ -1152,90 +1156,6 @@ contains
     ! in case of absorption or emission calcs. 
     !
     call find_igamma_pair(igamma_pair)
-    !
-    call TimerStart('Intens_Filter-1')
-    !
-    ! loop over initial states
-    !
-    ener_ = 0
-    !
-    nlower = 0
-    iroot = 0
-    !
-    do indI = 1, nJ
-       !
-       ! rotational quantum number 
-       !
-       jI = Jval(indI)
-       !
-       do igammaI=1,Nrepresen
-         !
-         nlevelsI = eigen(indI,igammaI)%Nlevels
-         !
-         !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-         !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
-         do ilevelI = 1, nlevelsI
-           !
-           !energy energy and and quanta of the initial state
-           !
-           energyI = eigen(indI,igammaI)%val(ilevelI)
-           !
-           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
-           parity_gu = poten(istateI)%parity%gu
-           isymI = correlate_to_Cs(igammaI,parity_gu)
-           !
-           call energy_filter_lower(jI,energyI,passed)
-           !
-           if (.not.passed) cycle
-           !
-           nlower = nlower + 1
-           !
-           do indF = 1, nJ
-              !
-              ! rotational quantum number 
-              !
-              jF = jval(indF)
-              !
-              do igammaF=1,Nrepresen
-                !
-                nlevelsF = eigen(indF,igammaF)%Nlevels
-                !
-                !call Jgamma_filter(jI,jF,igammaI,igammaF,igamma_pair,passed)
-                !
-                !if (.not.passed) cycle
-                !
-                !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-                !                        & schedule(guided) reduction(+:Ntransit,nlevelI)
-                do ilevelF = 1, nlevelsF
-                  !
-                  !energy and and quanta of the final state
-                  !
-                  energyF = eigen(indF,igammaF)%val(ilevelF)
-                  !
-                  istateF  = eigen(indF,igammaF)%quanta(ilevelF)%istate
-                  parity_gu = poten(istateF)%parity%gu
-                  isymF = correlate_to_Cs(igammaF,parity_gu)
-                  !
-                  call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                  !
-                  if (passed) then 
-                    !
-                    Ntransit = Ntransit + 1
-                    !
-                  endif 
-                  !
-                enddo
-              enddo
-           enddo
-           !
-         enddo
-         !
-       enddo
-    enddo
-    !omp end parallel do
-    !
-    call TimerStop('Intens_Filter-1')
-    !
     !
     !loop over final states -> count states for each symmetry
     !
@@ -1317,11 +1237,6 @@ contains
     !if (info/=0)  stop 'vecI,vecF,icoeffF - out of memory'
     !
     !allocate(icoeffF(sym%Maxdegen,dimenmax), stat = info)
-    !
-    if (Ntransit==0) then 
-         write(out,"('dm_intensity: the transition filters are too tight: no entry')") 
-         stop 'dm_intensity: the filters are too tight' 
-    endif 
     !
     !call TimerStop('Dipole moment integration (i)')
     !
@@ -1493,7 +1408,7 @@ contains
          !
          hmat(i,i) = poten(istate)%gridvalue(ivib)
          !
-         f_rot=brot(1)%gridvalue(ivib)
+         f_rot=brot(1)%gridvalue(ivib)/sc
          erot = f_rot*( jF*(jF+1.0_rk) - omegai**2 -job%diag_L2_fact*real(ilambda**2,rk)  & 
                 +   spini*(spini+1.0_rk) - sigmai**2 )
          !
@@ -1521,7 +1436,7 @@ contains
               select case (trim(poten(istate)%integration_method))
               !
               case ('NONE','RAW')
-                hmat(i,j) = hmat(i,j) + kinmat(ivib,jvib)
+                hmat(i,j) = hmat(i,j) + kinmat(ivib,jvib)/sc
               end select 
               !
             endif
@@ -1561,9 +1476,10 @@ contains
            nlevelsI = eigen(indI,igammaI)%Nlevels
            dimenI = eigen(indI,igammaI)%Ndimen
            !
-           if (nlevelsI==0) cycle 
-           parity_gu = poten(istateI)%parity%gu
-           isymI = correlate_to_Cs(igammaI,parity_gu)
+           if (nlevelsI==0) cycle
+           !
+           !parity_gu = poten(istateI)%parity%gu
+           !isymI = correlate_to_Cs(igammaI,parity_gu)
            !
            if (abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0) cycle 
            !
@@ -1574,24 +1490,23 @@ contains
               !
               !igammaF = igamma_pair(igammaI)
               !
-              parity_gu = poten(istateF)%parity%gu
-              isymF = correlate_to_Cs(igammaF,parity_gu)
+              !parity_gu = poten(istateF)%parity%gu
+              !isymF = correlate_to_Cs(igammaF,parity_gu)
               !
-              if (isymF /= igamma_pair(isymI)) cycle
+              if (trim(job%symmetry) == "CS(M)".and.igammaF==igammaI) cycle
+              !if (isymF /= igamma_pair(isymI)) cycle
               !
-              allocate(mu%matelem(dimenF,nlevelsI),stat = info)
-              call ArrayStart('mu%matelem',info,size(mu%matelem),kind(mu%matelem))
-              mu%matelem = 0
-              !
-              allocate(Amat(dimenF,dimenF),B(dimenF,1),stat = info)
-              call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
-              call ArrayStart('RWF:Amat',info,size(B),kind(B))
+              allocate(dipole_mat(dimenF,nlevelsI),stat = info)
+              call ArrayStart('dipole_mat',info,size(dipole_mat),kind(dipole_mat))
+              dipole_mat = 0
               !
               Ilevels_loop : do ilevelI = 1, nlevelsI
                 !
                 !energy and and quanta of the final state
                 !
                 energyI = eigen(indI,igammaI)%val(ilevelI)
+                !
+                istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
                 !
                 !dimension of the bases for the initial states
                 !
@@ -1619,7 +1534,7 @@ contains
                 !
                 half_linestr = 0
                 !
-                if (isymF /= igamma_pair(isymI)) cycle
+                !if (isymF /= igamma_pair(isymI)) cycle
                 !
                 if (( intensity%J(1)+intensity%J(2)>0 )&
                     .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
@@ -1638,23 +1553,23 @@ contains
                 !omp                                                                             & reduction(+:itransit)
                 Flevels_loop: do ilevelF = 1,nlevelsF
                    !
-                   j = ilevel2i(ilevelF,isymF)
-                   istateF = icontr(j)%istate
+                   !j = ilevel2i(ilevelF,isymF)
+                   !istateF = icontr(j)%istate
                    !
-                   parity_gu = poten(istateF)%parity%gu
-                   isymF = correlate_to_Cs(igammaF,parity_gu)
+                   !parity_gu = poten(istateF)%parity%gu
+                   !isymF = correlate_to_Cs(igammaF,parity_gu)
                    !
                    !call TimerStart('Intens_Filter-3')
                    !
-                   call intens_filter_sym(jI,jF,isymI,isymF,igamma_pair,passed)
+                   !call intens_filter_sym(jI,jF,isymI,isymF,igamma_pair,passed)
                    !
                    !call TimerStop('Intens_Filter-3')
                    !
-                   if (.not.passed) cycle Flevels_loop
+                   !if (.not.passed) cycle Flevels_loop
                    !
                    !linestr = ddot(dimenF,half_linestr,1,vecF,1)
                    !
-                   mu%matelem(ilevelF,ilevelI) = half_linestr(ilevelF)
+                   dipole_mat(ilevelF,ilevelI) = half_linestr(ilevelF)
                    !
                 end do Flevels_loop
                 !omp enddo
@@ -1663,14 +1578,31 @@ contains
                 !
               enddo Ilevels_loop
               !
+              !$omp parallel private(Amat,B,alloc_p) shared(crosssections) 
+              allocate(Amat(dimenF,dimenF),B(dimenF,1),stat = alloc_p)
+              if (alloc_p/=0) then
+                  write (out,"(' RWF: ',i9,' trying to allocate arrays A and B')") alloc_p
+                  stop 'RWF A and B - out of memory'
+              end if
+              !call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
+              !call ArrayStart('RWF:Amat',info,size(B),kind(B))
               !
               ! Wavenumber grid 
               !
+              !$omp do private(inu,nu,ilevelI,istateI,parity_gu,isymI,energyI,ilevelF,ilevelR,RWF2,boltz_fc) schedule(static) 
               do inu = 1,intensity%npoints
                  !
                  nu = intensity%freq_window(1)+dnu*real(inu,rk)
                  !
+                 if (iverbose>=4.and.mod(inu,2)==0) write(out,"(2f8.1,1x,2i2,1x,i7,1x,'nu = ',f9.2)") Jf,Ji,igammaF,igammaI,inu,nu
+                 !
                  do ilevelI = 1, nlevelsI
+                   !
+                   istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+                   !
+                   ! reconstruct the symmetry for the C2v case which is different from Cs
+                   parity_gu = poten(istateI)%parity%gu
+                   isymI = correlate_to_Cs(igammaI,parity_gu)
                    !
                    energyI = eigen(indI,igammaI)%val(ilevelI)
                    !
@@ -1679,16 +1611,15 @@ contains
                    !
                    do ilevelF = 1, nlevelsF
                      !
-                     B(ilevelF,1) = cmplx(0.0_rk,mu%matelem(ilevelF,ilevelI))
+                     B(ilevelF,1) = cmplx(0.0_rk,dipole_mat(ilevelF,ilevelI))
                      !
                      do ilevelR = 1,nlevelsF
                        !
-                       Amat(ilevelF,ilevelR) = -transform(isymF)%matrix(ilevelF,ilevelR)
+                       Amat(ilevelF,ilevelR) = -transform(isymI)%matrix(ilevelF,ilevelR)
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR &
-			 + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI  + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1699,6 +1630,7 @@ contains
                    enddo
                    !
                    call lapack_zgelss(Amat,b)
+                   !call  lapack_zgesv(Amat,b)
                    !
                    RWF2 = sum(conjg(b)*b)
                    boltz_fc = intensity%gns(isymI)*real( (2*jI + 1)*(2 * jF + 1),rk )*nu *&
@@ -1709,12 +1641,14 @@ contains
                  enddo
                  !
               enddo
-              !
-              deallocate(mu%matelem,stat = info)
-              call ArrayStop('mu%matelem')
+              !$omp enddo
               !
               deallocate(Amat,B)
-              call Arraystop('RWF:Amat')
+              !$omp end parallel
+              !call Arraystop('RWF:Amat')
+              !
+              deallocate(dipole_mat,stat = info)
+              call ArrayStop('dipole_mat')
               !
            enddo
            !
