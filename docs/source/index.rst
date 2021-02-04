@@ -11,7 +11,7 @@ Welcome to Duo's documentation!
    input
    energies
    spectra
-   vibbasis
+   contraction
    fields
    functions
    fitting

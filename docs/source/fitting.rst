@@ -7,11 +7,11 @@ Duo allows the user to modify (`refine`)
 the potential energy curves and other coupling curves
 by least-squares-fit to `experimental` energy term values or wavenumbers.
 
-Duo uses Gauss-Newton least-squares fitting. Optionally, this algorythm can be supplemented 
+Duo uses Gauss-Newton least-squares fitting supplemented with the Marquardt approach. 
+Optionally, this algorythm can be supplemented 
 by a linear search via the keyword ``linear-search``. The associated system of linear equations 
 is solved either using the LAPACK subroutine ``DGELSS`` or a home-made subroutine ``LINUR`` 
 as controlled by the keyword ``FIT_TYPE``. 
-
 
 Fitting is, by far, the trickiest part of Duo, both on the part of the
 program itself and on the part of the user. While the calculation of energy levels

@@ -13,7 +13,7 @@ Extended Morse Oscillator ``EMO``
 
 which has the form of a Morse potential with a exponential tail and the distance-dependent exponent coefficient
 
-:math:`\beta_{\rm EMO}(r) =  \sum_{i=0} a_i y_p^{\rm eq}(r)^i`,
+:math:`\beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i`,
 
 expressed as a simple power series in the reduced variable:
 
@@ -744,8 +744,8 @@ Example:
 
 
 
-``LORENTZ``,``LORENTZIAN``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+``LORENTZ`` (alis ``LORENTZIAN``)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 A Lorentzian type function used to represent the ``diabatic`` coupling:
                  
@@ -821,8 +821,8 @@ Example
 
 
 
-``PADE_GOODISMAN2``,``PADE2``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``PADE_GOODISMAN2`` (``PADE2``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :math:`\mu(r) = \left[P(a_i,y) + a_3/2  \right] \frac{z^3}{1+z^7}`, 
 

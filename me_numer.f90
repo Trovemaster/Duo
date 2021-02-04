@@ -66,6 +66,7 @@ module me_numer
 
   integer(ik) :: iswitch                                 ! the grid point of switch
 
+
   !
   contains
 
@@ -93,6 +94,14 @@ module me_numer
    real(rk),allocatable :: f(:),poten(:),mu_rr(:),d2fdr2(:),dfdr(:),rho_(:)
    character(len=cl)     :: unitfname 
    real(rk),allocatable :: enerslot(:),enerslot_(:)
+   !
+   integer,parameter :: NEND = 500,mxfs=5,mxprm=6,mxfsp=16001,mxisp=16001
+   !
+   real(rk) ::  BFCT,EFN,OVR,OVRCRT,RH,RMIN,VLIM
+   integer(ik) :: ifs,IWR,JP,OTMF,TMFTYP(mxfs)
+   real(rk) :: DER(0:mxprm-1),PSI(NEND),TMFPRM(0:mxprm-1,mxfs),VJ(mxfsp),z(mxisp)
+   
+   
     !
     if (verbose>=4) write (out,"(/'Numerov matrix elements calculations')")
      !
@@ -203,6 +212,22 @@ module me_numer
      !
      call numerov(npoints,npoints_,step_scale,poten,mu_rr,f,enerslot)
      !
+     psi = 0
+     BFCT = 1.0
+     der = 0 
+     OTMF = -1
+     !
+     TMFTYP = 0
+     !
+     EFN = 48000.0
+     BFCT = rhostep**2/mu_rr(1)
+     VJ(1:npoints+1) = poten(0:npoints)*BFCT
+     VLIM = poten(npoints)
+     !MU(ISOT(iset))*RH*RH/16.85762908d0
+     !
+     !call OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
+     !                   VLIM,z,ifs,IWR,JP,NEND,OTMF,TMFTYP)
+     !
      if (iperiod/=0) then
        allocate(enerslot_(0:maxslots),stat=alloc)
        if (alloc/=0) then 
@@ -232,7 +257,10 @@ module me_numer
      sigma = 0.0_rk 
      rms   = 0.0_rk 
      characvalue = maxval(enerslot(0:vmax))
-     energy(0:vmax) = enerslot(0:vmax)-enerslot(0)
+     energy(0:vmax) = enerslot(0:vmax)
+     if (trim(boundary_condition)/='UNBOUND') then
+       energy(0:vmax) = energy(0:vmax)-energy(0)
+     endif
      !
      do vl = 0,vmax
         !
@@ -269,7 +297,10 @@ module me_numer
             !
             h_t = h_t - 0.5_rk*psipsi_t
             !
-            psipsi_t = 0 
+            !
+            phivphi(:) = phil(:)*phir(:)
+            !
+            psipsi_t = simpsonintegral_rk(npoints_,rho_b(2)-rho_b(1),phivphi)
             !
             ! Count the error, as a maximal deviation sigma =  | <i|H|j>-E delta_ij |
             !
@@ -281,18 +312,19 @@ module me_numer
             !
             ! Now we test the h_t = <vl|h|vr> matrix elements and check if Numerov cracked
             ! the Schroedinger all right
-            if (vl/=vr.and.abs(h_t)>sqrt(small_)*abs(characvalue)*1e4) then 
+            if (vl/=vr.and.abs(h_t)>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
                write(out,"('ME_numerov: wrong Numerovs solution for <',i4,'|H|',i4,'> = ',f20.10)") vl,vr,h_t
                stop 'ME_numerov: bad Numerov solution'
             endif 
             !
-            if (vl==vr.and.abs(h_t-enerslot(vl))>sqrt(small_)*abs(characvalue)*1e4) then 
+            if (vl==vr.and.abs(h_t-enerslot(vl))>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
                write(out,"('ME_numerov: wrong <',i4,'|H|',i4,'> (',f16.6,') =/= energy (',f16.6,')')") vl,vr,h_t,enerslot(vl)
                stop 'ME_numerov: bad Numerov solution'
             endif 
             !
             ! Reporting the quality of the matrix elemenst 
             !
+            !if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
             if (verbose>=3) then 
               if (vl/=vr) then 
                write(out,"('<',i4,'|H|',i4,'> = ',e16.2,'<-',8x,'0.0',5x,'; <',i4,'|',i4,'> = ',e16.2,'<-',8x,'0.0')") & 
@@ -348,7 +380,7 @@ module me_numer
    !
    logical :: notfound
    !
-   real(rk) :: potmin,oldphi,newphi,v_t(-2:2)
+   real(rk) :: potmin,oldphi,newphi,v_t(-2:2),amplit,amplit0,diff
    !
    real(rk) :: df_t1,df_t2,deltaE = 1.0_rk
    !
@@ -470,7 +502,7 @@ module me_numer
         !
      enddo
      !
-     icslots(0:maxslots) = npoints/2
+     icslots(0:maxslots) = npoints-2 !/2
      enerupp=enermax
      !
      !if (imin==npoints) imin = npoints/2
@@ -508,6 +540,7 @@ module me_numer
        ic  = icslots(v)
        enerupp=enerslot(v+1)
        enerlow=max(enerslot(v)-deltaE,poten(imin))
+       enerlow = enerslot(v)
        !  
      end select 
      !
@@ -603,29 +636,29 @@ module me_numer
            !
        endif
        !
-       if ( ierr==0.and.numnod+1<maxslots.and.numnod>=v ) then
-          !
-          enerslot(numnod)=eguess
-          icslots(numnod) = ic 
-          !
-          if (verbose>=6) then 
-             !
-             write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
-             !
-             do i=0,npoints 
-                !
-                write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
-                !
-             enddo
-             !
-          endif 
-       endif 
-       !
        if (verbose>=5) write(out,"('v = ',i5,'; numnod = ',i8,', efound = ',f16.7,', ierr = ',i9)") v,numnod,eguess,ierr
        !
        select case (trim(boundary_condition))
          !
        case default
+         !
+         if ( ierr==0.and.numnod+1<maxslots.and.numnod>=v ) then
+            !
+            enerslot(numnod)=eguess
+            icslots(numnod) = ic 
+            !
+            if (verbose>=6) then 
+               !
+               write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
+               !
+               do i=0,npoints 
+                  !
+                  write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+                  !
+               enddo
+               !
+            endif 
+         endif 
          !
          if ( ierr == 0.and.v==numnod ) notfound = .false.
          ! if it cannot find a solution by Numerov procedure and ierr = 1, we can still try to
@@ -715,12 +748,64 @@ module me_numer
             !
          endif
          !
+         ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
+         ! 
+         phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         phi_t(:) = phi_f(:)*phi_f(:)
+         !
+         !   numerical intagration with simpson's rule #2
+         !
+         tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t)
+         !
+         phi_f(:)=phi_f(:)/sqrt(tsum)
+         !
        case ('UNBOUND')
          !
-         enerslot(v)=eguess
-         icslots(v) = ic 
+         if (verbose>=6) then 
+            !
+            write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
+            !
+            do i=0,npoints 
+               !
+               write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+               !
+            enddo
+            !
+         endif 
          !
          if ( ierr == 0 ) notfound = .false.
+         !
+         ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
+         ! 
+         phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         oldphi = phi_f(0)
+         newphi = phi_f(1)
+         amplit = 0 
+         amplit0 = 0
+         do i=2,npoints 
+            oldphi=newphi
+            newphi=phi_f(i-1)
+            if ( oldphi<newphi.and.newphi<=phi_f(i) ) then
+               diff = abs(amplit-amplit0)
+               !
+               amplit0 = amplit
+               amplit = newphi
+               !
+            endif
+         enddo
+
+         !
+         phi_t(:) = phi_f(:)*phi_f(:)
+         !
+         !   numerical intagration with simpson's rule #2
+         !
+         tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t)
+         !
+         if (tsum>small_*100) then
+           phi_f(:)=phi_f(:)/sqrt(tsum)
+         endif
          !
        end select
        !
@@ -743,36 +828,6 @@ module me_numer
         if (verbose>=5) write(out,"(/'phi_t(0)-phi_t(npoints  )    : ',3g18.8)") phi_t(0),phi_t(npoints  ),phi_t(0)-phi_t(npoints  )
         if (verbose>=5) write(out,"(/'dphi_t(0)-dphi_t(npoints)    : ',5g18.8)") phi_t(1),phi_t(npoints-1),df_t1,df_t2,df_t1-df_t2
      endif 
-     !
-     ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
-     ! 
-     phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
-     !
-     phi_t(:) = phi_f(:)*phi_f(:)
-     !
-     !if (trim(molec%coords_transform)=='R-RHO'.and.imode==molec%Nmodes) then 
-     !  !
-     !  do i = 0,Npoints
-     !    !
-     !   phi_t(i) = phi_t(i)*sqrt(rho_b(1)+rhostep*real(i,rk) )**1
-     !   !
-     !  enddo
-     !  !
-     !endif 
-     !
-     ! normalize the wavefunction using the Simpson rule integration 
-     !
-     !tsum = sum(phi_f(:)*phi_f(:):0:2)*facodd + sum(phi_f(:)*phi_f(:):0:2)*faceve
-     !
-     !do i=0,npoints-1,2
-     !   tsum=tsum+facodd*phi_f(i)*phi_f(i)+faceve*phi_f(i+1)*phi_f(i+1)
-     !enddo             ! --- i 
-     !
-     !   numerical intagration with simpson's rule #2
-     !
-     tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t)
-     !
-     phi_f(:)=phi_f(:)/sqrt(tsum)
      !
      !if (iperiod<0) phi_f(:)=phi_f(:)/sqrt(2.0_rk)
      !
@@ -995,7 +1050,8 @@ module me_numer
      integer(ik),intent(out) :: ierr
 
      real(rk) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff
-     integer(ik) :: niter,ic,istart
+     integer(ik) :: niter,ic,istart,i,id,i0_,jt,i1,i2
+     real(rk) :: G1,G0,DI,SG0,SG1,SI,VV,Y1,Y2,S0,GI,SGI
      !
      !y(i)=(1.0_rk-hh*(pot_eff(i)-i0(i)*eguess)/12.0_rk)*phi_f(i)
      !
@@ -1065,9 +1121,65 @@ module me_numer
           !
         case ('UNBOUND')
           !
-          phi_f(0)  = 0.0_rk
-          phi_f(1)  = small_
-          k_coeff  = sqrt(i0(npoints))*sqrt(eguess)
+          ic = npoints
+          !
+          ID= nint(0.2_rk/rhostep)
+          !
+          do i = id+1,npoints,1 !id   
+            jt = i
+            G1= pot_eff(i)-i0(i)*eguess
+            if (G1 < small_) exit
+            i0_ = i
+            G0= G1
+          enddo
+          !
+          !i1 = jt
+          !jt = I0+(I1-I0)*G0/(G0-G1)
+          !
+          DI= 10.0_rk/(hh*(pot_eff(jt-1)-pot_eff(jt)))**(1.0_rk/3.0_rk)
+          ID= nint(DI)
+          I0_= max(0,jt-id)
+          IF(I0_>npoints) stop 'Airy I0_>npoints'
+          G0=  (pot_eff(I0_)-i0(I0_)*eguess)*hh
+          !
+          ! Adjust starting point outward to ensure integration scheme stability
+          do while(G0>10.0_rk.and.i0_<npoints)
+             i0_ = i0_+1
+             G0= (pot_eff(i0_)-i0(i0_)*eguess)*hh
+          enddo
+          !
+          IF(I0_>=npoints) stop 'Airy I0_>npoints'
+          !
+          i1= i0_+1
+          i2= i1+1
+          
+          !** WKB starting condition for wave function    
+          S0= 1.0_rk
+          G0= (pot_eff(i0_)-i0(i0_)*eguess)*hh
+          GI= (pot_eff(i1)-i0(i1)*eguess)*hh
+          !
+          if ((G0<=small_).or.(GI<=small_)) then
+             VV= pot_eff(i1)*i0(i1)
+             S0= 0
+             SI= 1.0_rk
+          else
+             !
+             SG0= sqrt(G0)
+             SGI= sqrt(GI)
+             SI= S0*sqrt(SG0/SGI)*exp((SG0+SGI)*0.5_ark)  
+             if (SI<small_) S0=0
+             Y1= S0*(1.0_rk-1.0_ark/12.0_ark*G0)
+             Y2= SI*(1.0_rk-1.0_ark/12.0_ark*GI)
+             !
+          endif
+          !
+          istart = i0_+1
+          !
+          phi_f = 0
+          !
+          phi_f(istart-1)  = S0
+          phi_f(istart)  = SI
+          k_coeff  = sqrt(i0(npoints)*eguess-pot_eff(npoints))
           !k_coeff  = sqrt(i0(npoints))*sqrt(eguess-pot_eff(imin)/i0(imin))
           !
           phi_f(npoints  )  = sin(k_coeff*rho_b(2))
@@ -1109,6 +1221,8 @@ module me_numer
         ycm1=y(ic-1)/pcout
         ycp1=y(ic+1)/pcin
         !
+        if (trim(boundary_condition)=='UNBOUND') exit
+        !
         dx=((-ycm1+yc+yc-ycp1)/hh+(pot_eff(ic)-i0(ic)*eguess))*yc/tsum
         !
         eguess=eguess+dx
@@ -1133,8 +1247,15 @@ module me_numer
      !
      iref = ic
      !
-     phi_f(0:ic)=phi_f(0:ic)/pcout
-     phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+     if (trim(boundary_condition)=='UNBOUND') then 
+       !
+       !phi_f(0:ic)=phi_f(0:ic)/pcout*pcin
+       !phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+       !
+    else
+       phi_f(0:ic)=phi_f(0:ic)/pcout
+       phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+     endif
      !
   contains 
      !
@@ -1196,7 +1317,7 @@ module me_numer
      !imin_ref = imin
      imin_ref = iref
      !
-     do while(notfound.and.i<=iend)
+     do while(notfound.and.i<=iend-1)
         !
         i = i + 1
         !
@@ -2149,6 +2270,307 @@ recursive subroutine polintrk(xa, ya, x, y, dy)
   !
 
 end subroutine polintrk
+
+
+
+
+      SUBROUTINE OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
+                        VLIM,z,ifs,IWR,JP,NEND,OTMF,TMFTYP)
+!=======================================================================
+!        Routine by R.J. Le Roy;  Last Modified 19 August 2003
+!=======================================================================
+! Calculate overlap integral Franck-Condon Moment FCM(i) array 
+! between the given bound state wave function PSI(i) (which is zero
+! for  i > NEND) and the J' = JP continuum final state wave function
+! (asymptotocally normalized to unit amplitude) at energy EFN on the
+! effective potential VJ(I) with asymptote VLIM, with input array
+! z(i).  z(i) is the input (radial) array whose moments are being taken.
+! NOTE that z(i) = zin(i) = ztmf
+!
+! On entry, energy units for EFN and VLIM are (cm-1), while VJ(I)
+! incorporates the factor BFCT (i.e., VJ/BFCT has units cm-1).
+!
+! Convergence of asymptotic wave function normalization defined by
+! requirement that W.K.B. fits to 3 successive maxima must agree
+! relatively to within OVRCRT. 
+!-----------------------------------------------------------------------
+!cc   INCLUDE 'arrsizes.h'
+!-----------------------------------------------------------------------
+!  Utility routine to summarize dimensioning of arrays
+!-----------------------------------------------------------------------
+      INTEGER mxdata,mxisp,mxfsp,mxnj,mxnp,mxntp,mxprm,mxv,mxfs,mxisot,&
+              mxsets,mxfreq
+      REAL*8 CCM,PI
+!-----------------------------------------------------------------------
+!  mxdata - maximum number of input data points
+!  mxisp  - maximum number of points for initial state potential array
+!           (also used for number of points in transition moment array)
+!  mxnj    - maxiumum value of j quantum number allowed
+!  mxfsp  - maximum number of points for final state potential array
+!  mxnp   - maximum number of parameters total
+!  mxntp  - maximum number of turning points to be read in
+!  mxprm  - maximum number of parameters for final state pot'l or TMF
+!  mxv    - largest value for the v quantum number
+!  mxfs   - maximum number of final states allowed
+!  mxisot - maximum number of isotopomers allowed
+!  mxsets - maximum number of data sets allowed
+!  mxfreq - maximum number of data points allowed in a given set
+!-----------------------------------------------------------------------
+      PARAMETER (mxisp=16001)
+      PARAMETER (mxnj=20)
+      PARAMETER (mxfsp=16001)
+      PARAMETER (mxntp=9999)
+      PARAMETER (mxprm=6)
+      PARAMETER (mxv=200)
+      PARAMETER (mxfs=5)
+      PARAMETER (mxisot=3)
+      PARAMETER (mxsets=11)
+      PARAMETER (mxfreq=501)
+      PARAMETER (PI=3.141592653589793238d0)
+      PARAMETER (mxnp=2*mxprm*mxfs+mxsets-1)
+      PARAMETER (mxdata=mxfreq*mxsets)
+      PARAMETER (CCM= 299792458d2)
+      INTEGER i,ifs,MESH1,MESH2,MESH3,step,first,last,IWR,JP,TURNPT,m,&
+              OTMF,NAMP,NEND,TMFTYP(mxfs)
+      REAL*8 AMP1,AMP2,AMP3,AMP4,BFCT,DER(0:mxprm-1),DI,FCFACT,&
+             EFN,ELIM,ER,FCM(0:MXPRM-1),EDIFF1,EDIFF2,EDIFFi,HALF,HARG,&
+             NFACT,&
+             RH,RMIN,OVR,OVRCRT,PSI(NEND),S0,S1,S2,SG1,SG2,SGi,Si,&
+             SNARG,SQKINF,&
+             THIRD,TMFPRM(0:mxprm-1,mxfs),VLIM,VJ(mxfsp),VV,XIITH,XX,&
+             Y1,Y2,Y3,z(mxisp),&
+             ZTST,ZZ0,ZZ1
+!-----------------------------------------------------------------------
+      HALF=  1.D0/2.D0
+      XIITH= 1.D0/12.D0
+      THIRD= 1.D0/3.D0
+      ER= EFN*BFCT
+      ELIM= VLIM*BFCT
+      SQKINF= DSQRT(ER-ELIM)
+      AMP1= 1.D0
+      AMP2= 2.D0
+      AMP3= 0.D0
+      AMP4= 0.D0
+      DO m= 0,OTMF
+         DER(m)= 0.D0
+         FCM(m)= 0.d0
+      ENDDO
+!-----------------------------------------------------------------------
+!** Locate first turning point and use Airy function to estimate
+!  appropriate integration starting point such that  PSI(1) .LE. 1.D-10
+!-----------------------------------------------------------------------
+      MESH1= 1
+      EDIFF1= VJ(MESH1)-ER
+      step= DINT(0.05d0/RH)
+      IF(step.LT.1) step= 1
+      first= step+1
+      DO i= first,mxfsp,step
+         TURNPT= i
+         EDIFF2= VJ(i)-ER
+         IF(EDIFF2.LE. 0.D0) GOTO 4
+         MESH1= i
+         EDIFF1= EDIFF2
+      ENDDO     
+      IF(IWR.NE.0) THEN
+         WRITE(6,607) JP,EFN
+         OVR= 0.d0
+         RETURN
+      ENDIF
+    4 MESH2= TURNPT
+      TURNPT= MESH1+(MESH2-MESH1)*EDIFF1/(EDIFF1-EDIFF2)
+      IF(IABS(TURNPT-MESH2).LE.1) GOTO 6
+      IF((TURNPT.LE.0).OR.(TURNPT.GT.mxfsp)) THEN
+         IF(IWR.NE.0) WRITE(6,601) JP,EFN
+         OVR= 0.d0
+         RETURN
+      ENDIF
+      MESH1= MESH2
+      EDIFF1= EDIFF2
+      EDIFF2= VJ(TURNPT)-ER
+      GOTO 4
+    6 DI= 10.D0/(VJ(TURNPT-1)-VJ(TURNPT))**THIRD
+      step= DINT(DI)
+      MESH1= MAX0(1,TURNPT-step)
+      IF(MESH1.GE.NEND) THEN
+         OVR= 0.D0
+         RETURN
+      ENDIF
+    8 EDIFF1= VJ(MESH1)-ER
+      IF(EDIFF1.LT.10.D0) GOTO 10
+!-----------------------------------------------------------------------
+!** Adjust starting point outward to ensure integration scheme stability
+!-----------------------------------------------------------------------
+      MESH1= MESH1+1
+      IF((MESH1-mxfsp).LT.0) GOTO 8
+      IF((MESH1-mxfsp).GE.0) THEN
+         OVR= 0.D0
+         RETURN
+      ENDIF
+   10 MESH2= MESH1+1
+      MESH3= MESH2+1
+!-----------------------------------------------------------------------
+!** WKB starting condition for wave function
+!-----------------------------------------------------------------------
+      S0= 1.D0
+      EDIFF1= VJ(MESH1)-ER
+      EDIFFi= VJ(MESH2)-ER
+      IF((EDIFF1.GT. 0.D0).AND.(EDIFFi.GT. 0.D0)) THEN
+         SG1= DSQRT(EDIFF1)
+         SGi= DSQRT(EDIFFi)
+         Si= S0*DSQRT(SG1/SGi)*DEXP((SG1+SGi)/2.D0)
+         IF(Si.LE.S0) S0= 0.D0
+      ELSE
+         VV= VJ(MESH2)/BFCT
+         IF(IWR.NE.0) WRITE(6,608) JP,EFN,VV,MESH2
+         S0= 0.D0
+         Si= 1.D0
+      ENDIF   
+!-----------------------------------------------------------------------
+!  notationally speaking, all Yi's refer to values used in the Numerov
+!  Algorithm for wavefunciont propagation.
+!-----------------------------------------------------------------------
+      Y1= S0*(1.D0-XIITH*EDIFF1)
+      Y2= Si*(1.D0-XIITH*EDIFFi)
+!-----------------------------------------------------------------------
+!  Use trapezoid rule for numerical integration.  Initialize FCM(m)
+!  values using first section of area.   
+!-----------------------------------------------------------------------
+      ZZ0= 1.D0
+      ZZ1= 1.D0
+      DO m= 0,OTMF
+         FCM(m)= HALF*S0*PSI(MESH1)*ZZ0 + Si*PSI(MESH2)*ZZ1
+         ZZ0= ZZ0*z(MESH1)
+         ZZ1= ZZ1*z(MESH2)
+      ENDDO
+      S2= S0
+!-----------------------------------------------------------------------
+!** Integrate outward to first turning point.  NOTE that Airy-estimated
+!  initialization minimizes need for renormalizations.
+!-----------------------------------------------------------------------
+      DO 16 i= MESH3,TURNPT
+         Y3= Y2+Y2-Y1+EDIFFi*Si
+         Y1= Y2
+         Y2= Y3
+         EDIFFi= VJ(I)-ER
+         S1= S2
+         S2= Si
+         Si= Y3/(1.D0-XIITH*EDIFFi)
+!-----------------------------------------------------------------------
+!** If bound wavefx. non-negligible, accumulate overlap moments
+!  NOTE that FCFACT is the Franck-Condon factor
+!-----------------------------------------------------------------------
+         IF(I.LE.NEND) THEN
+            FCFACT= Si*PSI(i)
+            DO m= 0,OTMF
+               FCM(m)= FCM(m) + FCFACT
+               FCFACT= FCFACT*z(i)
+            ENDDO
+         ENDIF
+!-----------------------------------------------------------------------
+!** If wavefuntion too large in forbidden region, renormalize it ...
+!-----------------------------------------------------------------------
+         IF((Si.GE.1.D32).OR.(i.EQ.TURNPT)) THEN
+            NFACT= 1.D0/Si
+            Si= 1.D0
+            IF(S0.GT.1.D-30) S0= S0*NFACT
+            DO m= 0,OTMF
+               FCM(m)= FCM(m)*NFACT
+            ENDDO
+            Y1= Y1*NFACT
+            Y2= Y2*NFACT
+         ENDIF
+   16 CONTINUE
+      IF((IWR.NE.0).AND.(S0/SI.GT.1.D-8))&
+                                 WRITE(6,602)JP,EFN,MESH1,S0/Si,TURNPT
+      MESH2= TURNPT+1
+!-----------------------------------------------------------------------
+!** If turning point NOT past end of range for bound state wavefx., then
+!   integrate from turning point to end of bound-state wave function
+!-----------------------------------------------------------------------
+      IF(TURNPT.LT.NEND) THEN
+         DO i= MESH2,NEND
+            Y3= Y2 + Y2 - Y1 + EDIFFi*Si
+            Y1= Y2
+            Y2= Y3
+            EDIFFi= VJ(i)-ER
+            S1= S2
+            S2= Si
+            Si= Y3/(1.D0 - XIITH*EDIFFi)
+            FCFACT= Si*PSI(i)
+            DO m= 0,OTMF
+               FCM(m)= FCM(m) + FCFACT
+               FCFACT= FCFACT*z(i)
+            ENDDO
+         ENDDO   
+         MESH2= NEND+1
+      ENDIF
+!-----------------------------------------------------------------------
+!** Continue wave function propagation until amplitude converges
+!-----------------------------------------------------------------------
+      NAMP= 0
+      DO 30 i= MESH2,mxfsp
+         Y3= Y2 + Y2 - Y1 + EDIFFi*Si
+         Y1= Y2
+         Y2= Y3
+         EDIFF2= EDIFFi
+         EDIFFi= VJ(i)-ER
+         S1= S2
+         S2= Si
+         Si= Y3/(1.D0-XIITH*EDIFFi)
+         IF((Si.GE.S2).OR.(S1.GT.S2)) GOTO 30
+!-----------------------------------------------------------------------
+!** At successive maxima, fit solution to W.K.B. form to determine
+!  apparent asymptotic amplitude.
+!-----------------------------------------------------------------------
+         SG2= DSQRT(-EDIFF2)
+         SGi= DSQRT(-EDIFFi)
+         HARG= (SG2 + SGi)/2.D0
+         SNARG= 1.D0/DSQRT(1.D0 + ((DSQRT(SG2/SGi)*S2/Si- DCOS(HARG))&
+                /DSIN(HARG))**2)
+         NAMP= NAMP+1
+         AMP4= AMP3
+         AMP3= AMP2
+         AMP2= AMP1
+         AMP1= Si*DSQRT(SGi/SQKINF)/SNARG
+         XX= RMIN + (i-1)*RH
+         IF(IWR.GE.3) WRITE(6,604) JP,EFN,XX,AMP1
+         last= i
+!-----------------------------------------------------------------------
+!** Test successive amplitudes for convergence
+!-----------------------------------------------------------------------
+         ZTST= OVRCRT*AMP1
+         IF((DABS(AMP1-AMP2).LT.ZTST).AND.(DABS(AMP2-AMP3).LT.ZTST))  GOTO 35
+   30 CONTINUE
+      IF(IWR.NE.0) WRITE(6,603) JP,EFN,AMP1,AMP2,AMP3,AMP4
+   35 OVR= 0.d0
+      DO m= 0,OTMF
+          FCM(m)= FCM(m)*RH/AMP1
+          OVR= OVR + TMFPRM(m,ifs)*FCM(m)
+          ENDDO
+      IF(IWR.GE.1) WRITE(6,605) JP,EFN,last,XX,(m,FCM(m),m=0,OTMF)
+      IF(IWR.GE.2) WRITE(6,606) S0,AMP1,AMP2,AMP3,AMP4
+      DO m= 0,OTMF
+          DER(m)= 2.d0*OVR*FCM(m)
+          ENDDO
+      OVR= OVR*OVR
+      RETURN
+!-----------------------------------------------------------------------
+  601 FORMAT(' *** OVRLAP BOMBed ***  For   J = ',I3,'   EFN = ',&
+        F10.2,'   never got to first turning point')
+  602 FORMAT(' ** WARNING **  For   J = ', I3 ,'   EFN = ',F10.2,&
+       '  starting wavefunction is PSI(',I4,') = ',D10.3,' and  I(turn.pt.) = ',I4)
+  603 FORMAT(' ** WARNING ** For J= ',I3,' EFN= ',F9.2,' amplitude not',&
+       ' converged by end of range'/3x,'Last four values are ', 4(1PD14.6))
+  604 FORMAT(' At  J=',I3,'   E=',F9.2,'   R=',F6.3,'  apparent asymptotic amplitude',1PD14.6)
+  605 FORMAT(' At  J=',I3,'   E= ',F12.2,'   R(end)= R(',I5,')=',F7.4,'    FCM(',I1,')=',F12.8:/(4x,3(5x,'FCM(',I1,')=',F12.8:)))
+  606 FORMAT(5X,'S0= ',1PD10.3,'   & last 4 amplitudes are',2D14.6/45x,2D14.6)
+  607 FORMAT(' *** ERROR ***   At   J = ',I3,'   EFN = ',F10.2,'  have  V .GT. E  everywhere.' )
+  608 FORMAT(' *** Caution ***  For   J = ',I3,'   (EFN= ',F10.2,') .GE. (V = ',F10.2,')   at  I = ',I4, &
+           &' ,so initialize with a node.')
+  
+      END subroutine OVRLAP
+
+
 
 
  end module me_numer

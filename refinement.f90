@@ -53,6 +53,7 @@ module refinement
       real(rk),allocatable :: rjacob(:,:),eps(:),energy_(:,:,:),enercalc(:)
       real(rk),allocatable :: local(:,:),pot_values(:),wspace(:),Tsing(:)
       real(rk),allocatable :: al(:,:),bl(:),dx(:),ai(:,:),sterr(:),sigma(:),bi(:),solution(:)
+      real(rk),allocatable :: am(:,:),bm(:)
       character(len=cl),allocatable :: nampar(:)    ! parameter names 
       real(ark),allocatable :: pot_terms(:)
       !
@@ -61,7 +62,7 @@ module refinement
       logical      :: still_run,do_deriv,deriv_recalc,do_Armijo,do_print
       real(rk)     :: stadev_old,stability,stadev,sum_sterr,conf_int
       real(rk)     :: ssq,rms,ssq1,ssq2,rms1,rms2,fit_factor
-      real(rk)     :: a_wats = 1.0_rk
+      real(rk)     :: a_wats = 1.0_rk,lambda = 0.01_rk,nu = 10.0_rk
       integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max
       integer(ik)  :: iener,jener,irow,icolumn,ndigits,nrot,irot,irot_
       integer(ik)  :: enunit,abinitunit,i0,i1,iter_th,k0,frequnit
@@ -92,7 +93,7 @@ module refinement
       type(object_containerT), allocatable :: objects(:,:)
       type(fieldT),allocatable      :: object0(:,:)
       character(len=130)  :: my_fmt ! contains format specification for intput/output
-      logical :: printed ! used to print frequencies 
+      logical :: printed ! used to print frequencies
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
@@ -176,6 +177,10 @@ module refinement
        call ArrayStart('a-b-mat',info,size(al),kind(al))
        call ArrayStart('a-b-mat',info,size(bl),kind(bl))
        call ArrayStart('pot_terms',info,size(pot_terms),kind(pot_terms))
+       !
+       allocate (am(parmax,parmax),bm(parmax),stat=info)
+       call ArrayStart('a-b-mat',info,size(am),kind(am))
+       call ArrayStart('a-b-mat',info,size(bm),kind(bm))
        !
        allocate (pot_values(pot_npts),stat=info)
        call ArrayStart('pot_values-mat',info,size(pot_values),kind(pot_values))
@@ -477,7 +482,8 @@ module refinement
           !
           rjacob = 0
           !
-          ! NArmijo iterations for linear search 
+          ! NArmijo iterations for linear search
+          do_Armijo = .false.
           if (fitting%linear_search>0) do_Armijo = .true.
           NArmijo = fitting%linear_search
           rms0 = 0
@@ -1414,6 +1420,29 @@ module refinement
                  !dec end if
                enddo  
                !
+               !
+               ! Using Marquardt's fitting method
+               !
+               ! solve the linear equatins for two values of lambda and lambda/10
+               !
+               ! Defining scalled (with covariance) A and b
+               ! 
+               ! form A matrix 
+               do irow=1,numpar       
+                 do icolumn=1,irow    
+                   Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
+                   Am(icolumn,irow)=Am(irow,icolumn)
+                 enddo
+                 bm(irow) = bl(irow)/sqrt(al(irow,irow))
+               enddo
+               !
+               ! define shifted A as A =  A+lambda I
+               ! lambda is Marquard's scaling factor
+               !
+               do irow=1,numpar       
+                   Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
+               enddo
+               !
                ! Two types of the linear solver are availible: 
                ! 1. linur (integrated into the program, from Ulenikov Oleg)
                ! 2. dgelss - Lapack routine (recommended).
@@ -1427,7 +1456,7 @@ module refinement
                  !
                case('LINUR') 
                  !
-                 call MLlinur(numpar,numpar,al(1:numpar,1:numpar),bl(1:numpar),solution(1:numpar),ierror)
+                 call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
                  !
                  ! In case of dependent parameters  "linur" reports an error = ierror, 
                  ! which is a number of the dependent parameter. We can remove this paramter 
@@ -1456,8 +1485,8 @@ module refinement
                   !
                case ('DGELSS')
                  !
-                 ai = al 
-                 bi = bl
+                 ai = am 
+                 bi = bm
                  call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
                  !
                  if (info/=0) then
@@ -1469,6 +1498,11 @@ module refinement
                  !
                end select
                !
+               ! convert back from Marquardt's representation
+               !
+               do ncol=1,numpar
+                  solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
+               enddo
                !
                ! Scale the correction if required 
                !
@@ -1507,6 +1541,12 @@ module refinement
                  stadev=sqrt(ssq/float(nused-numpar))
                else 
                  stadev=sqrt(ssq/nused)
+               endif
+               !               
+               if (stadev<stadev_old) then
+                 lambda = lambda/nu
+               else 
+                 lambda = min(lambda*nu,10000.0)
                endif
                !
                ! Estimate the standard errors for each parameter using 
@@ -1568,7 +1608,7 @@ module refinement
                !
             else
                !
-               if(do_Armijo) then
+               if(do_Armijo.and.itmax>=1) then
                  !
                  ! Armijo condtion: rms2 must be < rms1 
                  !
@@ -1600,6 +1640,9 @@ module refinement
                  endif
                  !
                  !----- update the parameter values with a scaled correction------!
+                 !
+                 if (verbose>=4.and.do_Armijo) write(out,"(/a,f15.8,1x,i5,' steps')") 'Armijo    alpha  parameter = ',&
+                                               alpha_Armijo,ialpha_Armijo
                  !
                  ialpha_Armijo = 0
                  rms0 = 0 
@@ -1776,6 +1819,8 @@ module refinement
             !
             write (out,6552) fititer,nused,numpar,stadev,ssq1,ssq2,stability
             !
+            if (verbose>=4) write(out,"(/'Marquardt lambda parameter = ',g15.8)") lambda
+            !
             if (verbose>=4) call TimerReport
             !
           enddo loop_fititer  ! --- fititer
@@ -1789,7 +1834,7 @@ module refinement
        if (allocated(params_t)) deallocate(params_t)
        call ArrayStop('params_t')
        !
-       deallocate (nampar,ivar,ifitparam,al,ai,bl,bi,dx,sterr,Tsing,pot_terms,solution)
+       deallocate (nampar,ivar,ifitparam,al,ai,bl,bi,dx,sterr,Tsing,pot_terms,solution,am,bm)
        call ArrayStop('potparam-mat')
        call ArrayStop('potparam-dx')
        call ArrayStop('potparam-sterr')
