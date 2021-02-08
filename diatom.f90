@@ -7159,6 +7159,8 @@ end subroutine map_fields_onto_grid
            !
            !iverbose
            !
+           nroots = min(nroots,ngrid-2)
+           !
            call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
                            job%vibenermax(istate),iverbose,vibener,vibmat)
            deallocate(mu_rr)
@@ -8185,6 +8187,8 @@ end subroutine map_fields_onto_grid
            !
            hmat(i,i) = contrenergy(ivib)
            !
+           if (trim(poten(istate)%integration_method)=="NUMEROV") cycle
+           !
            do j =i,Ntotal
               !
               jvib = icontr(j)%ivib
@@ -8229,7 +8233,9 @@ end subroutine map_fields_onto_grid
               !
               if (action%RWF) then
                 if (istate>Nrefstates.or.jstate>Nrefstates) cycle
-              endif 
+              endif
+              !
+              if (trim(poten(jstate)%integration_method)=="NUMEROV") cycle
               !
               ! diagonal elements
               !

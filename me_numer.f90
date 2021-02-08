@@ -324,8 +324,7 @@ module me_numer
             !
             ! Reporting the quality of the matrix elemenst 
             !
-            !if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
-            if (verbose>=3) then 
+            if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
               if (vl/=vr) then 
                write(out,"('<',i4,'|H|',i4,'> = ',e16.2,'<-',8x,'0.0',5x,'; <',i4,'|',i4,'> = ',e16.2,'<-',8x,'0.0')") & 
                                 vl,vr,h_t,vl,vr,psipsi_t
