@@ -10,7 +10,10 @@ EXE = j-duo-v218v1.x
 
 FOR = gfortran  
 
-# Default
+# Standard compile (max optimisation)
+#FFLAGS = -O3
+
+# OpenMP parallel compile
 FFLAGS = -O3 -fopenmp
 
 # Debugging options
