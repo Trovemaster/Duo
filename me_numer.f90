@@ -444,6 +444,11 @@ module me_numer
    !
    potmin = pot_eff(imin)
    !
+   if(trim(boundary_condition)=='UNBOUND') then 
+     potmin = pot_eff(npoints)
+     imin = npoints
+   endif
+   !
    if (imin<0.or.imin>npoints) then 
        write(out,"('numerov: pot_eff has no minimum',i8)") 
        stop 'numerov: pot_eff has no minimum'
@@ -1178,6 +1183,12 @@ module me_numer
           !
           phi_f(istart-1)  = S0
           phi_f(istart)  = SI
+          !
+          if (i0(npoints)*eguess-pot_eff(npoints)<-small_) then 
+            write(out,"('Error-Numerov: wrong usage of unbound integration for bound state ')")
+            stop 'Error-Numerov: wrong usage of unbound integration for bound state '
+          endif
+          !
           k_coeff  = sqrt(i0(npoints)*eguess-pot_eff(npoints))
           !k_coeff  = sqrt(i0(npoints))*sqrt(eguess-pot_eff(imin)/i0(imin))
           !

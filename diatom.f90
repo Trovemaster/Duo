@@ -7216,7 +7216,7 @@ end subroutine map_fields_onto_grid
            nroots = min(nroots,ngrid-2)
            !
            call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
-                           job%vibenermax(istate),iverbose,vibener,vibmat)
+                           job%vibenermax(istate),iverbose,vibener(1:nroots+1),vibmat)
            deallocate(mu_rr)
            call ArrayStop('mu_rr')
            !
