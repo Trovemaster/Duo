@@ -3528,6 +3528,12 @@ module diatom_module
        !
     end do
     !
+    if (Nestates > iobject(1)) then 
+      write(out,"('input error: Nestates = ',i4,' is lager than number of poten-s in input =',i4)") Nestates,iobject(1)
+      write(out,"('Nestates can be smaller or equal to the number of poten-objects in input')")
+      stop 'input error: Nestates is lager than potentials in input'
+    endif
+    !
     Nestates = iobject(1)
     !
     ! make sure job%vibmax is not larger than npoints 
@@ -6046,6 +6052,7 @@ subroutine map_fields_onto_grid(iverbose)
                                                                      'of states ",i2," and ",i2)') &
                         i,fl(i)%lambda,fl(i)%lambdaj,poten(istate)%lambda, &
                         poten(jstate)%lambda,istate,jstate
+              write(out,'("The problem might be in <x|Lz|y> which should be 0, -i or i , -2i or 2i etc for |Lambda|=0,1,2")')
               stop 'illegal lambdas in map_fields_onto_grid'
            endif
            !
@@ -6074,9 +6081,17 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal  - diagonal  - L+/Lx coupling: map_fields_onto_grid'
            endif
            !
+           if (fl(i)%IX_LZ_Y/=1000.and.(abs(fl(i)%ix_Lz_y)/=abs(fl(i)%lambda).or.abs(fl(i)%jx_Lz_y)/=abs(fl(i)%lambda))) then 
+              write(out,'("For N =",i3," <x|Lz|y> (",2i4,") dont agree with lambdas (",2i4,") of states ",i2," and ",i2)') &
+                        i,fl(i)%ix_Lz_y,fl(i)%jx_Lz_y,fl(i)%lambda, &
+                        fl(i)%lambdaj,istate,jstate
+              write(out,'("<x|Lz|y>  can be 0, -i or i , -2i or 2i etc for Sig, Pi and Del states, usually negative in Molpro.")')
+              stop 'illegal <x|Lz|y> in map_fields_onto_grid'
+           endif
+           !
            if ( trim(name(1:6))=="Lambda".and.istate/=jstate ) then
               write(out,'("For N =",i3," Lambda-doubling must be defined for the same state, not ",i2," and ",i2," ",a)') &
-                        i,istate,jstate,trim(name)
+                   i,istate,jstate,trim(name)
               stop 'illegal  - non-diagonal  - Lambda doubling coupling: map_fields_onto_grid'
            endif
            !
@@ -9427,6 +9442,14 @@ end subroutine map_fields_onto_grid
        ! Now we diagonalize the two matrices contructed one by one 
        !
        if (iverbose>=2) write(out,'(/"Eigenvalues for J = ",f8.1)') jval
+       !
+       !allocate(eigenval(Ntotal),hsym(Ntotal,Ntotal),stat=alloc)
+       !
+       !hsym = hmat
+       !
+       !call lapack_syev(hsym,eigenval)
+       !
+       !deallocate(hsym,eigenval)
        !
        ! the loop over the two parities
        do irrep = 1,sym%NrepresCs
