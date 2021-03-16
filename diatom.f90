@@ -6081,7 +6081,7 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal  - diagonal  - L+/Lx coupling: map_fields_onto_grid'
            endif
            !
-           if (fl(i)%IX_LZ_Y/=1000.and.(abs(fl(i)%ix_Lz_y)/=abs(fl(i)%lambda).or.abs(fl(i)%jx_Lz_y)/=abs(fl(i)%lambda))) then 
+           if (fl(i)%IX_LZ_Y/=1000.and.(abs(fl(i)%ix_Lz_y)/=abs(fl(i)%lambda).or.abs(fl(i)%jx_Lz_y)/=abs(fl(i)%lambdaj))) then 
               write(out,'("For N =",i3," <x|Lz|y> (",2i4,") dont agree with lambdas (",2i4,") of states ",i2," and ",i2)') &
                         i,fl(i)%ix_Lz_y,fl(i)%jx_Lz_y,fl(i)%lambda, &
                         fl(i)%lambdaj,istate,jstate
