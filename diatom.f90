@@ -8300,9 +8300,9 @@ end subroutine map_fields_onto_grid
                 !
               endif
               !
-              if (action%RWF) then
-                if (istate>Nrefstates.or.jstate>Nrefstates) cycle
-              endif
+              !if (action%RWF) then
+              !  if (istate>Nrefstates.or.jstate>Nrefstates) cycle
+              !endif
               !
               if (trim(poten(jstate)%integration_method)=="NUMEROV") cycle
               !

@@ -194,9 +194,9 @@ contains
           !
        endif
        !
-       !call rwf_intensity(Jval,iverbose)
+       call rwf_intensity(Jval,iverbose)
        !
-       call rwf_dvr_intensity(Jval,iverbose)
+       !call rwf_dvr_intensity(Jval,iverbose)
        !
        write(out, '(/a)') 'done'
        !
@@ -386,13 +386,8 @@ contains
     ! open units for the line list in the exomol format
     if (trim(intensity%linelist_file)/="NONE") then
       !
-      filename =  trim(intensity%linelist_file)//'.states'
-      write(ioname, '(a, i4)') 'Energy file '
-      call IOstart(trim(ioname),transunit)
-      open(unit = transunit, action = 'write',status='replace' , file = filename)
-      !
-      filename =  trim(intensity%linelist_file)//'.trans'
-      write(ioname, '(a, i4)') 'Transition file '
+      filename =  trim(intensity%linelist_file)//'.xsec'
+      write(ioname, '(a, i4)') 'cross sections '
       call IOstart(trim(ioname),transunit)
       open(unit = transunit, action = 'write',status='replace' , file = filename)
       !
@@ -587,8 +582,6 @@ contains
     !
     deallocate(vecI)
     call ArrayStop('intensity-vecI')
-    !
-    if (trim(intensity%linelist_file)/="NONE") close(transunit,status='keep')
     !
     write(my_fmt,'(A,I0,A)') "('Number of states for each symm = ',", sym%Nrepresen, "i8)"
     write(out,my_fmt) nlevelsG(:)
