@@ -930,7 +930,8 @@ contains
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI - energyR &
+                            + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1612,7 +1613,8 @@ contains
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI  + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI &
+                          + cmplx(0.0_rk,intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1712,6 +1714,10 @@ contains
     integer(ik),allocatable :: iswap(:),ilevel2isym(:,:)
     real(rk),allocatable :: vec(:),tau(:),J_list(:),Utransform(:,:,:)
     real(rk) :: vecti(2,2),vectj(2,2),pmat(2,2),smat(2,2)
+
+    integer(ik) :: ilambda,ilevel,irrep,istate,isym,itau,ivib,jlambda,jlevel,jrrep,jstate,&
+                   jsym,jtau,jvib,nlevels,i,j,info
+    real(rk) :: sigmai,sigmaj,Ji,omegai,omegaj,spini,spinj
 
   
        allocate(iswap(Ntotal),vec(Ntotal),tau(Ntotal),ilevel2isym(Ntotal,2),stat=info)
@@ -3103,6 +3109,8 @@ contains
     integer(ik),intent(out) :: Nlambdasigmas ! to count states with different lambda/sigma
     integer(ik) :: ilevel,itau,ilambda,nlevels,multi_max,imulti,istate,multi,alloc,taumax
     real(rk)    :: sigma,omega
+    integer(ik) :: iquanta2ilevel
+
     !
     if (iverbose>=4) call TimerStart('Define quanta')
     !
