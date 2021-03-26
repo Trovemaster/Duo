@@ -1402,11 +1402,18 @@ contains
         spinI   = basis(indI)%icontr(icontrI)%spin
         sigmaI  = basis(indI)%icontr(icontrI)%sigma
 
-        ! remove imaginary factor (-1)^Omega when J is half-int
+        if (abs(nint(omegaF - omegaI))>2.or.nint(spinI-spinF)/=0.or.nint(sigmaI-sigmaF)/=0) cycle loop_I
+        if (abs(nint(omegaF - omegaI))==0.and.lambdaI/=lambdaF) cycle loop_I
+        if (abs(nint(omegaF - omegaI))==2.and.abs(lambdaI-lambdaF)/=2) cycle loop_I
+        
+        omegaI_ = int(omegaI)
+        if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) omegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
+
+        !remove imaginary factor (-1)^Omega when J is half-int
         if ( mod(nint(2.0_rk*omegaI) + 1, 2) ==0 ) then
-          omegaI_ = nint(omegaI + 0.5_rk)
+         omegaI_ = nint(omegaI + 0.5_rk)
         else
-          omegaI_ = nint(omegaI)
+         omegaI_ = nint(omegaI)
         endif
 
         dSpin   = nint(spinF - spinI)
@@ -1414,23 +1421,23 @@ contains
         dLambda = lambdaF - lambdaI
         dOmega  = nint(omegaF - omegaI)
 
-        ! spin selection rules
+        !spin selection rules
         if (     dSpin /= 0 &
-            .or. dSigma /= 0 &
-            ) cycle loop_I
+           .or. dSigma /= 0 &
+           ) cycle loop_I
 
-        ! electron orbit selection rules
-        !if (     lambdaF + lambdaI < 2 &
-        !    .or. abs(dLambda) > 2 &
-        !    .or. abs(dOmega) /= abs(dLambda) &
-        !    ) cycle loop_I
+        !electron orbit selection rules
+        if (     lambdaF + lambdaI < 2 &
+           .or. abs(dLambda) > 2 &
+           .or. abs(dOmega) /= abs(dLambda) &
+           ) cycle loop_I
 
         ! alternative selection rules if lambdaF + lambdaI < 2 allowed
         ! if (     abs(dLambda) > 2 &
         !     .or. abs(dOmega) /= abs(dLambda) &
         !     ) cycle loop_I
-        if (     abs(dOmega) > 2 &
-            .or. abs(dOmega) /= abs(dLambda)) cycle loop_I
+        !if (     abs(dOmega) > 2 &
+        !    .or. abs(dOmega) /= abs(dLambda)) cycle loop_I
 
         f3j = three_j(jI, 2.0_rk, jF, omegaI, real(dOmega, rk), -omegaF)
         if ( abs(f3j) < Intensity%threshold%coeff ) cycle loop_I

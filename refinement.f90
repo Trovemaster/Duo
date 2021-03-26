@@ -5,7 +5,7 @@ module refinement
   !use functions,only : define_analytical_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,Nlambdap2q,Nlambdaq,&
-                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,&
+                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
                            action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax,&
                            l_omega_obj,s_omega_obj
   !
@@ -383,6 +383,8 @@ module refinement
               objects(iobject,ifield)%field => lambdap2q(ifield)
             case (12)
               objects(iobject,ifield)%field => lambdaq(ifield)
+            case (13)
+              objects(iobject,ifield)%field => quadrupoletm(ifield)
             end select
             !
             Nterms = objects(iobject,ifield)%field%Nterms
