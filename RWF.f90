@@ -10,7 +10,8 @@ module RWF
  use lapack,only : lapack_zgelss,lapack_zgesv
 
 
-
+ implicit none
+ !
  private
  public Raman_wavefunction
 
@@ -312,8 +313,8 @@ contains
     integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
     integer(ik)    :: igammaI,igammaF
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
-    real(rk)       :: energyI, energyF,energyR,nu_if,linestr,ener_,linestr2
-    real(rk)       :: tm,jI,jF,ddot
+    real(rk)       :: energyI, energyF,energyR,nu_if,linestr,ener_
+    real(rk)       :: jI,jF,ddot
     logical        :: passed,passed_
 
     real(rk),allocatable :: vecI(:), vecF(:)
@@ -321,22 +322,19 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower
     !
-    integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    integer(ik)  :: ivF_,ilambdaF_
-    real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
+    integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF
+    real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
     integer(hik) :: matsize
     !
-    character(len=1) :: branch,ef,pm
-    character(len=10) :: statename
+    character(len=1) :: branch
     !
     type(quantaT),pointer  :: quantaI,quantaF
     !
-    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
+    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1
     !
     character(len=130) :: my_fmt !format for I/O specification
-    integer :: ndecimals
     integer(ik)  :: transunit
     character(len=cl) :: filename,ioname
     !
@@ -344,11 +342,8 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,inu
+    integer(ik) :: inu
     real(rk) :: J_
-    character(len=12) :: char_Jf,char_Ji,char_LF
-    integer(ik),allocatable :: richunit(:,:)
-    character(1)  :: let_LF ! richmol letters x,y,z
     real(rk) :: dnu, nu,RWF2,intens_cm_molecule
     complex(rk),allocatable :: Amat(:,:),B(:,:)
     !
@@ -1013,9 +1008,9 @@ contains
     integer(ik)    :: nlevelsG(sym%Nrepresen)
     integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
     integer(ik)    :: igammaI,igammaF
-    integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
-    real(rk)       :: energyI, energyF,energyR,nu_if,linestr,ener_,linestr2
-    real(rk)       :: tm,jI,jF,ddot
+    integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI
+    real(rk)       :: energyI
+    real(rk)       :: jI,jF
     logical        :: passed,passed_
 
     real(rk),allocatable :: vecI(:), vecF(:)
@@ -1023,22 +1018,18 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower
     !
-    integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    integer(ik)  :: ivF_,ilambdaF_,ngrid
-    real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
+    integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,ivibI,ivI,ilambdaI
+    integer(ik)  :: ngrid
+    real(rk)     :: spinI,omegaI,sigmaI
     integer(hik) :: matsize
     !
-    character(len=1) :: branch,ef,pm
-    character(len=10) :: statename
+    type(quantaT),pointer  :: quantaI
     !
-    type(quantaT),pointer  :: quantaI,quantaF
-    !
-    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
+    real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1
     !
     character(len=130) :: my_fmt !format for I/O specification
-    integer :: ndecimals
     integer(ik)  :: enunit,transunit
     character(len=cl) :: filename,ioname
     !
@@ -1046,11 +1037,8 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,inu,Nlambdasigmas,i,ilevel,ivib,totalroots,Ntotal
+    integer(ik) :: inu,Nlambdasigmas,i,ilevel,ivib,Ntotal
     real(rk) :: J_
-    character(len=12) :: char_Jf,char_Ji,char_LF
-    integer(ik),allocatable :: richunit(:,:)
-    character(1)  :: let_LF ! richmol letters x,y,z
     real(rk) :: dnu, nu,RWF2,intens_cm_molecule,sc,scale,h12
     complex(rk),allocatable :: Amat(:,:),B(:,:)
     !
@@ -1058,9 +1046,7 @@ contains
     !
     real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:)
     !
-    type(Mat2DT) :: pec
-    !
-    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2),irrep,isym,jrrep,jtau,jsym
+    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2)
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
     type(quantaT),allocatable :: icontr(:)
     integer(ik),allocatable :: Nirr(:,:),ilevel2i(:,:)
@@ -1705,6 +1691,7 @@ contains
 
   subroutine transform_hmat_to_symmety_addapted_matrices(Ntotal,icontr,hmat,Nirr,Nsym,ilevel2i,transform)
   
+    implicit none
     integer(ik),intent(in)  :: Ntotal
     type(quantaT),intent(in) :: icontr(Ntotal)
     real(rk) :: hmat(Ntotal,Ntotal)
@@ -1712,7 +1699,7 @@ contains
     type(matrixT),intent(out) :: transform(2)
     
     integer(ik),allocatable :: iswap(:),ilevel2isym(:,:)
-    real(rk),allocatable :: vec(:),tau(:),J_list(:),Utransform(:,:,:)
+    real(rk),allocatable :: vec(:),tau(:),Utransform(:,:,:)
     real(rk) :: vecti(2,2),vectj(2,2),pmat(2,2),smat(2,2)
 
     integer(ik) :: ilambda,ilevel,irrep,istate,isym,itau,ivib,jlambda,jlevel,jrrep,jstate,&
@@ -2232,7 +2219,6 @@ contains
         real(rk),intent(in) :: jI,jF
         integer(ik),intent(in) :: isymI,isymF
         integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
-        real(rk)               :: nu_if
         logical,intent(out)    :: passed
 
           passed = .false.
@@ -2840,7 +2826,7 @@ contains
         integer(ik)             :: icontrF,icontrI, & 
                                    ivibF,ivibI,ipec,istateI,istateF,ilambdaF,ilambdaI
         integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
-        real(rk)                :: f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
+        real(rk)                :: omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
         real(rk)                :: spinI_,spinF_,f_t
         type(fieldT),pointer    :: field
           !
