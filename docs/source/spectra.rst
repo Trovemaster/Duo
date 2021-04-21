@@ -274,7 +274,7 @@ Thresholds
  
 ** ``thresh_intes`` intensity (TM) threshold (cm/molecule)
 
-** ``THRESH_DIPOL`` transition dipole threshold (debye)
+** ``THRESH_DIPOLE`` transition dipole threshold (debye)
 
 
 

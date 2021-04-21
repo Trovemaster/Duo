@@ -3343,6 +3343,12 @@ module diatom_module
              call readf(Nspin1)
              call readf(Nspin2)
              !
+             if (Nitems>3) then
+               write (out,"('input: illegal number  of entries in nspin,: ',i8,' /= 2')") Nitems
+               write (out,"('Please provide two values of nucler spins for both nucli')") 
+               stop 'input - illegal number entries in nspin'
+             endif 
+             !
              if ( ( m1>0.and.abs(m1-m2)<small_ ).or.( trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2) ) ) then
                !
                gns_a = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2+(2.0_rk*Nspin1+1.0_rk))
