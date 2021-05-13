@@ -1641,7 +1641,7 @@ module diatom_module
              iobject(1) = iobject(1) + 1
              !
              if (iobject(1)>nestates) then
-                 print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
+                 !print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
                  !call report ("Too many potentials given in the input",.true.)
                  iobject(1) = iobject(1) - 1
                  !
