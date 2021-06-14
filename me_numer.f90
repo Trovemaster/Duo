@@ -2274,7 +2274,7 @@ end subroutine polintrk
 
 
 
-      SUBROUTINE OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
+SUBROUTINE OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
                         VLIM,z,ifs,IWR,JP,NEND,OTMF,TMFTYP)
 !=======================================================================
 !        Routine by R.J. Le Roy;  Last Modified 19 August 2003
@@ -2298,9 +2298,9 @@ end subroutine polintrk
 !-----------------------------------------------------------------------
 !  Utility routine to summarize dimensioning of arrays
 !-----------------------------------------------------------------------
-      INTEGER mxdata,mxisp,mxfsp,mxnj,mxnp,mxntp,mxprm,mxv,mxfs,mxisot,&
+      INTEGER :: mxdata,mxisp,mxfsp,mxnj,mxnp,mxntp,mxprm,mxv,mxfs,mxisot,&
               mxsets,mxfreq
-      REAL*8 CCM,PI
+      REAL*8 :: CCM,PI
 !-----------------------------------------------------------------------
 !  mxdata - maximum number of input data points
 !  mxisp  - maximum number of points for initial state potential array

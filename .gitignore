@@ -2,6 +2,8 @@
 *.o
 *.mod
 /*j-duo*.x
+/debug.log
+*genmod.f90
 
 # Stray I/O files
 /*.inp
@@ -10,10 +12,6 @@
 /*.trans
 /*.en
 /*.pot
-
-# Dev files
-*makefile_LINUXgfortran_debug
-
 
 # Windows image file caches
 Thumbs.db
@@ -27,7 +25,8 @@ $RECYCLE.BIN/
 
 # VSCode files
 *.code-workspace
-*.vscode/
+.vscode/
+.vs/
 
 # Vim files
 *.swp
@@ -40,6 +39,9 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Directories
+/Duo.und/
 
 # =========================
 # Operating System Files
