@@ -925,34 +925,41 @@ contains
     !
     if (iverbose>=5) call MemoryReport
     !
-    write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
-                          &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
-    !
-    ! Prepare the table header
-    !
-    select case (trim(intensity%action))
+    if (trim(intensity%linelist_file)/="NONE") then 
+       write(out,"(/'This is a line list poduction only, intensity print-out is swtitched off')")
+       write(out,"('For intensities remove the keyword LINELIST from INTENSITY'/)")
+    else 
       !
-      case('ABSORPTION')
+      write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
+                            &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
+      !
+      ! Prepare the table header
+      !
+      select case (trim(intensity%action))
         !
-        write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
-                    &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
-        dir = '<-'
-        !
-      case('EMISSION')
-        !
-        write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
-                    &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
-        dir = '->'
-        !
-      case('TM')
-        !
-        write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
-                    &10x,'TM(f->i)')")
-
-       !
-    end select
+        case('ABSORPTION')
+          !
+          write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
+                      &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
+                      &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
+          dir = '<-'
+          !
+        case('EMISSION')
+          !
+          write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
+                      &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
+                      &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
+          dir = '->'
+          !
+        case('TM')
+          !
+          write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
+                      &10x,'TM(f->i)')")
+   
+         !
+      end select
+      !
+    endif
     !
     deallocate(vecF)
     !
@@ -975,6 +982,8 @@ contains
     do indI = 1, nJ
        !
        jI = jval(indI)
+       !
+       if (trim(intensity%linelist_file)/="NONE".and.iverbose>=4) write(out,"('J = ',f9.1)") jI
        !
        do igammaI=1,Nrepresen
          !
@@ -1196,16 +1205,6 @@ contains
                        if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then 
                          !
                          !$omp critical
-                         write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
-                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                                      & 3(1x, es16.8),&
-                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
-                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
-                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
-                                      linestr2,A_einst,absorption_int,&
-                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
-                                      istateI,ivI,ilambdaI,sigmaI,omegaI
-                                      !
                          !
                          ! generate the line list (Transition file)
                          !
@@ -1220,7 +1219,20 @@ contains
                              !
                              write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
                                        quantaF%iroot,quantaI%iroot,A_einst,nu_if
-                           endif 
+                           endif
+                           !
+                         else
+                           !
+                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                                      & 3(1x, es16.8),&
+                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
+                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
+                                      linestr2,A_einst,absorption_int,&
+                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
+                                      istateI,ivI,ilambdaI,sigmaI,omegaI
+                                      !
                            !
                          endif
                          !

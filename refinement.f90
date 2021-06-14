@@ -5,7 +5,7 @@ module refinement
   !use functions,only : define_analytical_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,Nlambdap2q,Nlambdaq,&
-                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,&
+                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
                            action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax,&
                            l_omega_obj,s_omega_obj
   !
@@ -93,7 +93,7 @@ module refinement
       type(object_containerT), allocatable :: objects(:,:)
       type(fieldT),allocatable      :: object0(:,:)
       character(len=130)  :: my_fmt ! contains format specification for intput/output
-      logical :: printed ! used to print frequencies 
+      logical :: printed ! used to print frequencies
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
@@ -383,6 +383,8 @@ module refinement
               objects(iobject,ifield)%field => lambdap2q(ifield)
             case (12)
               objects(iobject,ifield)%field => lambdaq(ifield)
+            case (13)
+              objects(iobject,ifield)%field => quadrupoletm(ifield)
             end select
             !
             Nterms = objects(iobject,ifield)%field%Nterms
@@ -482,7 +484,8 @@ module refinement
           !
           rjacob = 0
           !
-          ! NArmijo iterations for linear search 
+          ! NArmijo iterations for linear search
+          do_Armijo = .false.
           if (fitting%linear_search>0) do_Armijo = .true.
           NArmijo = fitting%linear_search
           rms0 = 0

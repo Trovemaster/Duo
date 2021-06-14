@@ -54,6 +54,12 @@ module lapack
     module procedure lapack_ginverse_double
   end interface ! lapack_ginverse
 
+
+  interface lapack_gelsv
+    module procedure lapack_zgesv
+  end interface ! lapack_gelss
+
+
   integer,parameter:: verbose = 3
   real(rk),parameter :: singtol = -1.0d-12 ! 100.0d0*spacing(1.0d0)
   !
@@ -1078,6 +1084,30 @@ module lapack
     amat = matmul(evec,transpose(evec))
 
   end subroutine lapack_ginverse_double
+
+
+
+  subroutine lapack_zgesv(a,b)
+    integer, parameter :: dp=kind(1.d0)
+    complex(dp), intent(inout) :: a(:,:)
+    complex(dp), intent(inout) :: b(:,:)
+    integer(ik) :: ipiv(max(size(a,dim=1),1))
+
+    external zgesv
+    integer                :: info
+    integer                :: na1, na2, nb1, nb2
+
+    na1 = size(a,dim=1) ; na2 = size(a,dim=2)
+    nb1 = size(b,dim=1) ; nb2 = size(b,dim=2)
+    call zgesv(na1,nb2,a(1:na1,1:na2),na1,ipiv,b(1:nb1,1:nb2),nb1,info)
+    !
+    if (info/=0) then
+      write (out,"(' zgesv returned ',i8)") info
+      stop 'lapack_zgesv - cgelss failed'
+    end if
+    !
+  end subroutine lapack_zgesv
+
 
 
 end module lapack

@@ -5,6 +5,7 @@
     use refinement
     use dipole
     use quadrupole
+    use RWF
     !use polarizability
 !    use compilation_details, only: write_compilation_details
     use header_info, only: write_logo
@@ -77,6 +78,10 @@
          call qm_tranint
          write(out, '(a)') '--End--'
          stop
+       elseif(action%RWF) then
+         call Raman_wavefunction
+         write(out, '(a)') '--End--'
+         stop
        else
          call dm_tranint
          write(out, '(a)') '--End--'
@@ -86,7 +91,7 @@
        write(out, '(a)') '--End--'
        stop
        !
-     endif 
+     endif
      !
      select case (job%contraction)  
        !

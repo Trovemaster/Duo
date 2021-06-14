@@ -790,6 +790,33 @@ Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by d
 When used for morphing, the parameter :math:`B_{\infty}` is usually fixed to 1.
 
 
+Example
+::
+
+   spin-orbit 6 6
+   name "<3Pi|LSZ|3Pi>"
+   spin 1 1
+   lambda 1 1
+   sigma  1 1
+   factor    i   (0, 1 or i)
+   <x|LZ|y>  -i -i
+   type polynom_decay_24
+   morphing
+   values
+   RE           1.52
+   BETA         8.00000000000000E-01
+   GAMMA        2.00000000000000E-02
+   P            6.00000000000000E+00
+   B0           1.000
+   B1           0.000
+   B2           0.000
+   B3           0.00000000000000
+   BINF         1.0
+   end
+
+
+
+
 ``POLYNOM_DIMENSIONLESS`` 
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
