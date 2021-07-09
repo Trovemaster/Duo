@@ -3,7 +3,7 @@ module accuracy
   private
   public sik, ik, hik, rk, ark, out, inp, safe_max,safe_min,max_exp, pi, twopi, cl, wl
   public accuracyInitialize, print_physical_constants
-  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau
+  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau,g_s
   public epsil,small_,sqrt2,sqrt3,rad,fititermax,aston,hartree,ev,my_fmt
   !
   integer, parameter :: sik         = selected_int_kind(4)       ! Small integers
@@ -63,6 +63,7 @@ module accuracy
   real(drk), parameter :: kCal       =  kJoule*4.184_rk   !1 Cal (thermochemical)= 4.184 Joules
   real(drk), parameter :: THz        =  1e12_rk / vellgt
   real(drk), parameter :: hc         =  vellgt*planck
+  real(drk), parameter :: g_s        =  2.00231930436256_rk       ! spin Lande g-factor
   
   contains
 
