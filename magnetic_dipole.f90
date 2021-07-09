@@ -1,7 +1,7 @@
 module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global
+ use diatom_module,only : job,Intensity,quantaT,eigen,basis,Nlxly,lxly,duo_j0,fieldT,poten,three_j,jmin_global
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -1874,9 +1874,9 @@ contains
                   !
                   ls = 0 
                   !
-                  loop_idipole : do idip =1,Ndipoles
+                  loop_idipole : do idip =1,Nlxly
                     !
-                    field => dipoletm(idip)
+                    field => lxly(idip)
                     !
                     do ipermute  = 0,1
                       !
@@ -1889,6 +1889,84 @@ contains
                         !
                         istateF_ = field%istate ; ilambdaF_ = field%lambda  ; spinF_ = field%spini
                         istateI_ = field%jstate ; ilambdaI_ = field%lambdaj ; spinI_ = field%spinj
+                        !
+                      endif
+                      !
+                      ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                      ! otherwise it will cause a double counting:
+                      !
+                      if (ipermute==1.and.istateI_==istateF_.and.ilambdaI_==ilambdaF_.and.nint(spinI_-spinF_)==0) cycle
+                      !
+                      ! check if we at the right electronic states
+                      if( istateI/=istateI_.or.istateF/=istateF_ ) cycle
+                      !
+                      ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                      ! In order to recover other combinations we apply the symmetry transformation
+                      ! laboratory fixed inversion which is equivalent to the sigmav operation 
+                      !                    (sigmav= 0 correspond to the unitary transformation)
+                      do isigmav = 0,1
+                        !
+                        ! the permutation is only needed if at least some of the quanta is not zero. 
+                        ! otherwise it should be skipped to avoid the double counting.
+                        if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+                
+                        ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                        ilambdaI_ = ilambdaI_*(-1)**isigmav
+                        ilambdaF_ = ilambdaF_*(-1)**isigmav
+                        !
+                        ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                        if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
+                        !
+                        ! check the selection rule Delta Lambda = +/1
+                        if (abs(ilambdaI-ilambdaF)>1) cycle
+                        !
+                        ! double check
+                        !if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                        !  write(out,'("dipole_intens: reconsrtucted spini ",f8.1," or spinj ",f8.1, & 
+                        !            & " do not agree with stored values ",f8.1,x,f8.1)') &
+                        !        spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                        !  stop 'dipole_intens: wrongly reconsrtucted spini or spinj'
+                        !endif
+                        !
+                        !f_grid  = field%matelem(ivib,jvib)
+                        !
+                        f_t = field%matelem(ivibI,ivibF)
+                        !
+                        ! the result of the symmetry transformation:
+                        if (isigmav==1) then
+                          !
+                          itau = 0
+                          !
+                          if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
+                          if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
+                          !
+                          f_t = f_t*(-1.0_rk)**(itau)
+                          !
+                        endif
+                        !
+                        ls  =  f_t*f3j*vector(icontrI)
+                        !
+                        half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                        !
+                      enddo
+                      !
+                    enddo
+                    !
+                  enddo loop_idipole
+                  !
+                  loop_idipole : do idip =-1,1
+                    !
+                    do ipermute  = 0,1
+                      !
+                      if (ipermute==0) then
+                        !
+                        istateI_ = istateI ; ilambdaI_ = ilambdaI ; spinI_ = spinI ; sigmaI_ = sigmaI
+                        istateF_ = istateF ; ilambdaF_ = ilambdaF ; spinF_ = spinF ; sigmaF_ = sigmaF
+                        !
+                      else  ! permute
+                        !
+                        istateI_ = istateF ; ilambdaI_ = ilambdaF ; spinI_ = spinF ; sigmaI_ = sigmaF
+                        istateF_ = istateI ; ilambdaF_ = ilambdaI ; spinF_ = spinI ; sigmaF_ = sigmaI
                         !
                       endif
                       !
