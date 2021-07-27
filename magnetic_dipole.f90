@@ -364,6 +364,7 @@ contains
     type(quantaT),pointer  :: quantaI,quantaF
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
+    real(rk)     :: vacPerm, unitConv
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer :: ndecimals
@@ -394,7 +395,17 @@ contains
     beta = planck * vellgt / (boltz * intensity%temperature)
     intens_cm_mol  = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef = planck*vellgt/(4.0_rk*pi)
-    A_coef_s_1     =64.0d-36 * pi**4  / (3.0_rk * planck)
+    !
+
+    !vacuum permeability (NIST 2018)
+    vacPerm = 1.25663706212d-6
+
+    ! conversion factor for Q[a.u] -> Q[S.I],
+    ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m]
+    unitConv = 4.486551525d-40
+
+    ! calculate the common factor for the Einstein coefficient
+    A_coef_s_1 = unitConv*(16.0_rk * pi**5 * vacPerm)/(planck)
     !
     nJ = size(Jval)
     !
@@ -1887,11 +1898,15 @@ contains
                     !
                     if (ilambdaI_ /= ilambdaF_) cycle
                     !
+                    !spin magnetic moment
                     if (nint(2*sigmaF_) == nint(2*(sigmaI_ + 1.0_rk))) then
+                      ! ΔΣ = +1
                       f_t = -(2.0_rk)**(-0.5_rk)*g_s*(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))**(0.5_rk)
                     elseif (nint(2*sigmaF_) == nint(2*(sigmaI_ - 1.0_rk))) then
+                      ! ΔΣ = -1
                       f_t = -(2.0_rk)**(-0.5_rk)*g_s*(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))**(0.5_rk)
                     elseif (nint(2*sigmaF_) == nint(2*sigmaI_)) then
+                      ! ΔΣ = 0
                       f_t = ilambdaI_ + g_s*sigmaI_
                     else
                       cycle
@@ -1909,6 +1924,7 @@ contains
                       !
                     endif
                     !
+                    !add spin magnetic moment
                     ls  =  f_t*f3j*vector(icontrI)
                     !
                     half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
@@ -1917,6 +1933,7 @@ contains
                   !
                   ls = 0
                   !
+                  !orbital magnetic moments
                   loop_iorbdipole : do idip =1,Nlxly
                     !
                     field => lxly(idip)
@@ -1989,6 +2006,7 @@ contains
                         !
                         ls  =  f_t*f3j*vector(icontrI)
                         !
+                        !add orbital magnetic moment
                         half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
                         !
                       enddo

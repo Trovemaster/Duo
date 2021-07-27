@@ -5,7 +5,7 @@ use accuracy,      only : hik, ik, rk, ark, cl, out,&
 use diatom_module, only : job, Intensity, quantaT, eigen, basis,&
                           nQuadrupoles, quadrupoletm, duo_j0, fieldT, poten,&
                           three_j, jmin_global
-use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
+use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinu_ifs,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
 use symmetry,      only : sym, correlate_to_Cs
@@ -58,14 +58,14 @@ contains
 
     ! now find lowest possible J value of system to make sure all
     ! energies J > 0 are included in line list file regardless of the
-    ! value Intensity%J, otherwise energy list numbering will not be
+    ! value Intensity%J, otherwise energy list nu_ifmbering will not be
     ! consistent with the actual J values.
     jValMin = 0
     if  ( mod(nint(2.0_rk * job%j_list(1)), 2) /= 0 ) jValMin = 0.5_rk
 
     jValMin = max(jmin_global, jValMin)
 
-    ! now count number of J states
+    ! now count nu_ifmber of J states
     jVal_ =  jValMin
     nJ = 1
     do while ( jVal_ < jMax )
@@ -151,7 +151,7 @@ contains
                 energy =  eigen(jInd, indGamma)%val(indLevel)
                 irrep = eigen(jInd, indGamma)%quanta(indLevel)%igamma
 
-                ! for homonuclear Nrepres = 4 and the irrep can be
+                ! for homonu_ifclear Nrepres = 4 and the irrep can be
                 ! reconstructed from parity and g/u
                 indState = eigen(jInd, indGamma)%quanta(indLevel)%istate
                 guParity = poten(indState)%parity%gu
@@ -199,7 +199,7 @@ contains
               energy =  eigen(jInd, indGamma)%val(indLevel)
               irrep = eigen(jInd, indGamma)%quanta(indLevel)%igamma
 
-              ! for homonuclear Nrepres = 4 and the irrep can be
+              ! for homonu_ifclear Nrepres = 4 and the irrep can be
               ! reconstructed from parity and g/u
               indState = eigen(jInd, indGamma)%quanta(indLevel)%istate
               guParity = poten(indState)%parity%gu
@@ -248,7 +248,7 @@ contains
 
     ! filenames, identifiers, etc.
     character(len=cl)         :: filename, ioname
-    integer(ik)               :: enUnit, transUnit, info
+    integer(ik)               :: enu_ifnit, transUnit, info
     integer(ik), allocatable  :: richUnit(:, :)
     character(len=130)        :: myFmt
     character(len=12)         :: char_Jf, char_Ji, char_LF
@@ -267,7 +267,7 @@ contains
     integer(ik)               :: nLevelsG(sym%Nrepresen)
     integer(ik)               :: indRoot, k, k_
 
-    ! (pseudo) quantum numbers
+    ! (pseudo) quantum nu_ifmbers
     real(rk), allocatable     :: vecI(:), vecF(:)
     type(quantaT), pointer    :: quantaI, quantaF
     real(rk)                  :: j_, jI, jF
@@ -285,9 +285,9 @@ contains
     integer(ik)               :: nRepresen, dimenMax, dimenI, dimenF, &
                                  iGammaPair(sym%nRepresen)
     real(hik)                 :: matSize
-    real(rk)                  :: beta, inten_cm_mol, emcoef, coefA_s1, &
-                                 einA, boltz_fc, absInt, unitConv, vacPerm
-    real(rk)                  :: lande, nu, lineStr, lineStrSq, tm, ddot
+    real(rk)                  :: beta, inten_cm_mol, emcoef, A_coef_s_1, &
+                                 A_einst, boltz_fc, absorption_int, unitConv, vacPerm
+    real(rk)                  :: lande, nu_if, lineStr, linestr2, tm, ddot
     real(rk), allocatable     :: halfLineStr(:)
 
     ! logicals
@@ -300,7 +300,7 @@ contains
     beta         = planck * vellgt / (boltz * Intensity%temperature)
     inten_cm_mol = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef       = planck*vellgt/(4.0_rk*pi)
-    coefA_s1     = 64.0d-36 * pi**4  / (3.0_rk * planck)
+    A_coef_s_1     = 64.0d-36 * pi**4  / (3.0_rk * planck)
 
     !
     ! vacuum permittivity (NIST 2018) - needs to be
@@ -308,11 +308,11 @@ contains
     vacPerm = 8.8541878128d-12
 
     ! conversion factor for Q[a.u] -> Q[S.I],
-    ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m]
+    ! h[erg.s] -> h[J.s] and nu_if[/cm] -> nu_if[/m]
     unitConv = 2.012914458d-62
 
     ! calculate the common factor for the Einstein coefficient
-    coefA_s1 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
+    A_coef_s_1 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
     !
 
     if ( sym%maxdegen > 2) then
@@ -324,7 +324,7 @@ contains
 
     nRepresen = sym%NrepresCs
 
-    ! define number of J states from input
+    ! define nu_ifmber of J states from input
     nJ = size(Jval)
 
     if  ( trim(Intensity%linelist_file) /= 'NONE' ) then
@@ -332,8 +332,8 @@ contains
       ! prepare and open the .states file
       filename = trim(Intensity%linelist_file)//'.states'
       write(ioname, '(a, i4)') 'Energy file'
-      call IOStart(trim(ioname), enUnit)
-      open(unit = enunit, action='write', &
+      call IOStart(trim(ioname), enu_ifnit)
+      open(unit = enu_ifnit, action='write', &
            status='replace', file=filename)
 
       ! prepare and open the .trans file
@@ -442,15 +442,15 @@ contains
       enddo
     enddo
 
-    ! count the number of transitions that need to be calculated first
+    ! count the nu_ifmber of transitions that need to be calculated first
     ! this will help keep track of the calculation progress, also count
-    ! the number of lower levels from which transitions occur
+    ! the nu_ifmber of lower levels from which transitions occur
     nTrans = 0
     nLower = 0
 
     indRoot = 0
 
-    ! number of initial states
+    ! nu_ifmber of initial states
     nLevels = nEigenLevels
 
     ! for a given symmetry, iGamma, with some g_ns(iGamma) we find
@@ -529,7 +529,7 @@ contains
 
     call TimerStop('Intens_Filter-1')
 
-    ! we now count the number of states with a given symmetry
+    ! we now count the nu_ifmber of states with a given symmetry
     nLevelsG = 0
 
     if ( mod(eigen(1,1)%quanta(1)%imulti, 2) == 0) intSpin = .false.
@@ -544,7 +544,7 @@ contains
 
       do indGammaI = 1, nRepresen
 
-        ! number of initial levels
+        ! nu_ifmber of initial levels
         nLevelsI = eigen(indI, indGammaI)%Nlevels
         dimenI   = eigen(indI, indGammaI)%Ndimen
 
@@ -558,16 +558,16 @@ contains
           guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
 
-          ! ignore states with zero nuclear spin statistical weighting
+          ! ignore states with zero nu_ifclear spin statistical weighting
           if  ( Intensity%gns(indSymI) < small_ ) cycle
 
-          ! indRoot is a running number over states
+          ! indRoot is a running nu_ifmber over states
           indRoot = indRoot + 1
           eigen(indI, indGammaI)%quanta(indLevelI)%iroot = indRoot
 
           if ( trim(Intensity%linelist_file) /= 'NONE') then
 
-            ! assign quantum numbers for initial state
+            ! assign quantum nu_ifmbers for initial state
             quantaI   => eigen(indI, indGammaI)%quanta(indLevelI)
             ivibI      = quantaI%ivib
             vI        = quantaI%v
@@ -598,7 +598,7 @@ contains
               ef = 'f'
             endif
 
-            ! the variable nDecimals determines the number of decimal
+            ! the variable nDecimals determines the nu_ifmber of decimal
             ! places to which we print the energy levels. By default we
             ! use 6 decimals for energies up to 100,000 /cm, sacrificing
             ! more for higher energies in order that the value fits
@@ -663,22 +663,22 @@ contains
 
               endif
 
-              ! if integer spin, then integerise quantum numbers
+              ! if integer spin, then integerise quantum nu_ifmbers
               if ( intSpin ) then
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,&
                   &a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   indRoot, energyI - Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   nint(jI), lande, pm, ef, statename, &
                   vI, ilambdaI, nint(sigmaI), nint(omegaI)
-              ! if not then write quantum numbers as reals
+              ! if not then write quantum nu_ifmbers as reals
               else
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,&
                   &a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   indRoot, (energyI - Intensity%ZPE), &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   jI, lande, pm, ef, statename, &
@@ -699,22 +699,22 @@ contains
               IDj = IDj + 1
               quantaI%iJ_ID = IDj
 
-              ! if integer spin, then integerise quantum numbers
+              ! if integer spin, then integerise quantum nu_ifmbers
               if ( intSpin ) then
                 write(myFmt, '(a)') &
                   "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,&
                   &1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   nint(j_), IDj, parityI+1, 1, energyI-Intensity%ZPE, &
                   'tau:', parityI, 'j:', nint(j_), 'c', 1.000_rk, &
                   nint(omegaI), vI, ilambdaI, nint(sigmaI), pm, statename
 
-              ! if not then write quantum numbers as reals
+              ! if not then write quantum nu_ifmbers as reals
               else
                 write(myFmt, '(A,i0,a)') &
                   "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,&
                   ",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   nint(j_), IDj, parityI+1, 1, energyI-Intensity%ZPE, &
                   omegaI, vI, ilambdaI, sigmaI, pm, statename
               endif
@@ -725,23 +725,23 @@ contains
               nDecimals = 6 - max(0, &
                 int(log10(abs(energyI - Intensity%ZPE) + 1.d-6) - 4))
 
-              ! if integer spin, then integerise quantum numbers
+              ! if integer spin, then integerise quantum nu_ifmbers
               if ( intSpin ) then
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.", ndecimals, &
                   ",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   indRoot, energyI-Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   nint(jI), pm, ef, statename, vI, ilambdaI, &
                   nint(sigmaI), nint(omegaI)
 
-              ! if not then write quantum numbers as reals
+              ! if not then write quantum nu_ifmbers as reals
               else
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.", ndecimals, &
                   ",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enUnit, myFmt) &
+                write(enu_ifnit, myFmt) &
                   indRoot, energyI-Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   jI, pm, ef, statename, vI, ilambdaI, sigmaI, omegaI
@@ -770,11 +770,11 @@ contains
     call ArrayStop('intensity-vecI')
 
     if ( trim(Intensity%linelist_file) /= "NONE") then
-      close(enUnit, status='keep')
+      close(enu_ifnit, status='keep')
     endif
 
     write(myFmt, '(a,i0,a)') &
-      "('Number of states for each sym = ',", sym%Nrepresen, "i8)"
+      "('nu_ifmber of states for each sym = ',", sym%Nrepresen, "i8)"
     write(out, myFmt) nLevelsG(:)
 
     matSize = int( sum(nLevelsG(:)), hik )
@@ -797,12 +797,12 @@ contains
 
     !!! why is this duplicated from above?
     write(myFmt, '(a,i0,a)') &
-      "('Number of states for each sym = ',", sym%Nrepresen, "i8)"
+      "('nu_ifmber of states for each sym = ',", sym%Nrepresen, "i8)"
     write(out, myFmt) nLevelsG(:)
 
     if ( iVerbose >= 0 ) then
-      write(out, "('Total number of lower states = ',i8)") nLower
-      write(out, "('Total number of transitions  = ',i8)") nTrans
+      write(out, "('Total nu_ifmber of lower states = ',i8)") nLower
+      write(out, "('Total nu_ifmber of transitions  = ',i8)") nTrans
     endif
 
     if ( iVerbose >= 0 ) then
@@ -844,7 +844,7 @@ contains
       case('ABSORPTION')
         write(out, &
           "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
+          &'Ei',t44,'<-',t52,'Ef',t64,'nu_if_if',8x,'S(f<-i)',10x,'A(if)',&
           &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
           &lambda sigma  omega ')" &
         )
@@ -854,7 +854,7 @@ contains
       case('EMISSION')
         write(out, &
           "(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'->',t52,'Ef',t64,'nu_if',8x,'S(i->f)',10x,'A(if)',&
+          &'Ei',t44,'->',t52,'Ef',t64,'nu_if_if',8x,'S(i->f)',10x,'A(if)',&
           &12x,'I(i->f)',7x,'State v lambda sigma  omega -> State v &
           &lambda sigma  omega ')" &
         )
@@ -864,7 +864,7 @@ contains
       case('TM')
         write(out, &
           "(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,&
-          &'Ei',t42,'<-',t52,'Ef',t65,'nu_if',10x,'TM(f->i)')" &
+          &'Ei',t42,'<-',t52,'Ef',t65,'nu_if_if',10x,'TM(f->i)')" &
         )
 
     end select
@@ -907,7 +907,7 @@ contains
             ! loop over levels in the initial state
             loopLevelsI : do indLevelI = 1, nLevelsI
 
-              ! energy and quantum numbers of initial state
+              ! energy and quantum nu_ifmbers of initial state
               energyI =  eigen(indI, indGammaI)%val(indLevelI)
               quantaI => eigen(indI, indGammaI)%quanta(indLevelI)
 
@@ -1008,12 +1008,12 @@ contains
               endif
 
               !$omp  do private(indLevelF, energyF, quantaF, istateF, ivibF, vF, spinF, sigmaF, ilambdaF, omegaF, &
-              !$omp&  dimenF, guParity, indSymF, passed, branch, nu, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
+              !$omp&  dimenF, guParity, indSymF, passed, branch, nu_if, lineStr, linestr2, A_einst, boltz_fc, absorption_int, tm) &
               !$omp&  schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
 
-                ! energy and quantum numbers of final state
+                ! energy and quantum nu_ifmbers of final state
                 energyF =  eigen(indF, indGammaF)%val(indLevelF)
                 quantaF => eigen(indF, indGammaF)%quanta(indLevelF)
 
@@ -1051,8 +1051,8 @@ contains
                 branch = OQS_branch(jI, jF)
 
                 ! transitions should have energy change > 0
-                nu = energyF - energyI
-                if ( nu < small_) cycle
+                nu_if = energyF - energyI
+                if ( nu_if < small_) cycle
 
                 ! increment transition counter for valid transition
                 indTrans = indTrans + 1
@@ -1069,29 +1069,29 @@ contains
 
                   case('ABSORPTION', 'EMISSION')
                     lineStr = ddot(dimenF, halfLineStr, 1, vecF, 1)
-                    lineStrSq = lineStr**2
+                    linestr2 = lineStr**2
 
                     ! calculate the Einstein A coefficient
-                    !einA = unitConv * (2.0_rk*jI + 1.0_rk) * lineStrSq &
-                    !  * (8.0_rk * pi**5 * abs(nu)**5) / (5.0_rk * vacPerm * planck)
+                    !A_einst = unitConv * (2.0_rk*jI + 1.0_rk) * linestr2 &
+                    !  * (8.0_rk * pi**5 * abs(nu_if)**5) / (5.0_rk * vacPerm * planck)
 
                     ! calculate the Einstein A coefficient
-                    einA =  coefA_s1 * (2.0_rk*jI + 1.0_rk) * lineStrSq*abs(nu)**5
+                    A_einst =  A_coef_s_1 * (2.0_rk*jI + 1.0_rk) * linestr2*abs(nu_if)**5
 
-                    lineStrSq = lineStrSq * Intensity%gns(indSymI) &
+                    linestr2 = linestr2 * Intensity%gns(indSymI) &
                     ! linestrength times transition degeneracy
                       * (2.0_rk*jI + 1.0_rk) * (2.0_rk*jF + 1.0_rk)
 
                     if ( trim(Intensity%action) == 'ABSORPTION') then
 
                       boltz_fc = exp(-(energyI - Intensity%ZPE) * beta)&
-                        * (1.0_rk - exp(-abs(nu) * beta)) &
-                        / (Intensity%part_func * nu**2)
+                        * (1.0_rk - exp(-abs(nu_if) * beta)) &
+                        / (Intensity%part_func * nu_if**2)
 
                       ! intensity in cm/mol
-                      absInt = 1.0_rk / (8.0_rk * pi * vellgt) &
+                      absorption_int = 1.0_rk / (8.0_rk * pi * vellgt) &
                         * Intensity%gns(indSymF)*(2.0_rk*jF + 1.0_rk) &
-                        * einA * boltz_fc
+                        * A_einst * boltz_fc
 
                     else
                       stop 'EMISSION has not yet been coded for the &
@@ -1101,14 +1101,14 @@ contains
                       ! emissivity in ergs/mol/sr
                       boltz_fc = exp(-(energyF - Intensity%ZPE) * beta)
 
-                      absInt = emcoef * einA * boltz_fc * nu &
+                      absorption_int = emcoef * A_einst * boltz_fc * nu_if &
                         * Intensity%gns(indSymI)*(2.0_rk*jF + 1.0_rk) &
                         / Intensity%part_func
 
                     endif
 
-                    if ( lineStrSq >= Intensity%threshold%linestrength &
-                        .and. absInt >= Intensity%threshold%intensity &
+                    if ( linestr2 >= Intensity%threshold%linestrength &
+                        .and. absorption_int >= Intensity%threshold%intensity &
                       ) then
                       !$omp critical
                       write(out, &
@@ -1120,8 +1120,8 @@ contains
                         jF, sym%label(indSymF), dir, &
                         jI, sym%label(indSymI), branch, &
                         energyF - Intensity%ZPE, dir, &
-                        energyI - Intensity%ZPE, nu, &
-                        lineStrSq, einA, absInt, &
+                        energyI - Intensity%ZPE, nu_if, &
+                        linestr2, A_einst, absorption_int, &
                         istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
                         istateI, vI, ilambdaI, sigmaI, omegaI
 
@@ -1137,7 +1137,7 @@ contains
 
                           write(transUnit, &
                             "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
-                            quantaF%iroot, quantaI%iroot, einA, nu
+                            quantaF%iroot, quantaI%iroot, A_einst, nu_if
 
                         endif
                       endif
@@ -1219,7 +1219,7 @@ contains
     integer(ik), intent(in)             :: iLFa, iLFb, iunit
     integer(ik), intent(out), optional  :: icount
 
-    ! quantum numbers and indexes
+    ! quantum nu_ifmbers and indexes
     integer(ik)                         :: indJf, indJi, indMf, indMi
     integer(ik)                         :: Mf_, Mi_
     real(rk)                            :: Mf, Mi
@@ -1313,7 +1313,7 @@ contains
           Mi_ = nint(0.5_rk*indMi)
         endif
 
-        ! M quantum number selection rule (from 3-j symbol)
+        ! M quantum nu_ifmber selection rule (from 3-j symbol)
         m = nint(Mi - Mf)
         if  ( abs(m) > 2 )  cycle
 
@@ -1351,13 +1351,13 @@ contains
     real(rk), intent(in)    :: vector(:)
     real(rk), intent(out)   :: half_ls(:)
 
-    ! quantum numbers
+    ! quantum nu_ifmbers
     integer(ik)             :: istateI, istateF, ivibI, ivibF, &
                                 ilambdaI, ilambdaF
     real(rk)                :: omegaI, omegaF, spinI, spinF, &
                                 sigmaI, sigmaF
 
-    ! psuedo quantum numbers and indexes
+    ! psuedo quantum nu_ifmbers and indexes
     integer(ik)             :: iomegaI_, iomegaF_, istateI_, istateF_, &
                                 ilambdaI_, ilambdaF_
     real(rk)                :: spinI_, spinF_
@@ -1542,7 +1542,7 @@ contains
 
     do igammaI = 1,sym%Nrepresen
 
-      ! count number of hits
+      ! count nu_ifmber of hits
       ngamma = 0
       igamma_pair(igammaI) = igammaI
 
@@ -1596,24 +1596,24 @@ contains
     integer(ik), intent(in) :: isymI, isymF
     real(rk), intent(in)    :: energyI, energyF
     integer(ik), intent(in) :: igamma_pair(sym%Nrepresen)
-    real(rk)                :: nu_if
+    real(rk)                :: nu_if_if
     logical, intent(out)    :: passed
     real(rk), dimension(4)  :: local_sym
 
     passed = .false.
     local_sym = Intensity%isym_pairs
-    nu_if = energyF - energyI
+    nu_if_if = energyF - energyI
 
     if ( &
-        ! nuclear stat.weight:
+        ! nu_ifclear stat.weight:
         intensity%gns(isymI) > small_ &
 
         ! absorption/emission go only in one direction
-        .and. nu_if > small_ &
+        .and. nu_if_if > small_ &
 
         ! spectroscopic window
-        .and. nu_if >= intensity%freq_window(1) &
-        .and. nu_if <= intensity%freq_window(2) &
+        .and. nu_if_if >= intensity%freq_window(1) &
+        .and. nu_if_if <= intensity%freq_window(2) &
 
         .and. jI >= intensity%J(1) &
         .and. jI <= intensity%J(2) &
@@ -1673,22 +1673,22 @@ contains
     integer(ik), intent(in) :: isymI, isymF
     real(rk), intent(in)    :: energyI, energyF
     integer(ik), intent(in) :: igamma_pair(sym%Nrepresen)
-    real(rk)                :: nu_if
+    real(rk)                :: nu_if_if
     logical, intent(out)    :: passed
 
     passed = .false.
 
-    nu_if = energyF - energyI
+    nu_if_if = energyF - energyI
 
-    if ( &   ! nuclear stat.weight:
+    if ( &   ! nu_ifclear stat.weight:
              intensity%gns(isymI) > small_ &
        .and. &
              ! absorption/emission go only in one direction
              (Jf-Ji) > -small_ &
        .and. &
              ! spectroscopic window
-             nu_if >=intensity%freq_window(1) &
-       .and. nu_if <=intensity%freq_window(2) &
+             nu_if_if >=intensity%freq_window(1) &
+       .and. nu_if_if <=intensity%freq_window(2) &
        .and. jI >= intensity%J(1) &
        .and. jI <= intensity%J(2) &
        .and. jF >= intensity%J(1) &
@@ -1759,7 +1759,7 @@ contains
     ! b) to read. After reading all states will be combined together and
     ! sorted wrt energy increasing to produce just one list of states.
 
-    ! Estimate the maximal number of energy records
+    ! Estimate the maximal nu_ifmber of energy records
     Nlevels = 0
     do jind = 1, njval
       do itau = 1,sym%NrepresCs
@@ -1798,7 +1798,7 @@ contains
       write(out,"('Sort_levels: the filters are too tight: no entry')")
     endif
 
-    ! total number of levels to be processed, a global variable
+    ! total nu_ifmber of levels to be processed, a global variable
     Neigenlevels = nroots
 
     return
@@ -1811,7 +1811,7 @@ contains
 
     if (iverbose >= 4) then
       write(out, &
-        "('   Number of selected eigenvectors: ',i8)") Neigenlevels
+        "('   nu_ifmber of selected eigenvectors: ',i8)") Neigenlevels
     end if
 
     ! Now we can read and store the energies and their description.
@@ -1830,7 +1830,7 @@ contains
 
     if (iroot/=Neigenlevels) then
       write(out,&
-        '("The number of selected levels ",i0," does&
+        '("The nu_ifmber of selected levels ",i0," does&
         & not agree with Neigenlevels =  ",i0)') ilevel, Neigenlevels
       stop 'iroot/=Neigenlevels'
     endif
