@@ -18,7 +18,7 @@ LIB     =   $(LAPACK)
 
 ###############################################################################
 
-OBJ = atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o Lobatto.o
+OBJ = atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o header_info.o RWF.o Lobatto.o
 #compilation_details.o 
 
 duo.x:	$(OBJ) duo.o
@@ -30,7 +30,7 @@ duo.o:	duo.f90 $(OBJ)
 grids.o:	grids.f90 accuracy.o input.o Lobatto.o
 	$(FOR) -c grids.f90 $(FFLAGS)
 
-diatom.o:	diatom.f90 accuracy.o input.o lapack.o functions.o symmetry.o atomic_and_nuclear_data.o Lobatto.o
+diatom.o:	diatom.f90 accuracy.o input.o lapack.o functions.o symmetry.o atomic_and_nuclear_data.o Lobatto.o me_numer.o
 	$(FOR) -c diatom.f90 $(FFLAGS)
 
 refinement.o:	refinement.f90 accuracy.o input.o lapack.o diatom.o
@@ -42,11 +42,17 @@ functions.o:	functions.f90 accuracy.o input.o lapack.o
 dipole.o:	dipole.f90 accuracy.o input.o lapack.o diatom.o 
 	$(FOR) -c dipole.f90 $(FFLAGS)
 
+quadrupole.o:	quadrupole.f90 accuracy.o input.o lapack.o diatom.o 
+	$(FOR) -c quadrupole.f90 $(FFLAGS)
+
 accuracy.o:  accuracy.f90
 	$(FOR) -c accuracy.f90 $(FFLAGS)
 
 symmetry.o:  symmetry.f90
 	$(FOR) -c symmetry.f90 $(FFLAGS)
+
+me_numer.o: me_numer.f90 accuracy.o lapack.o timer.o
+	$(FOR) -c me_numer.f90 $(FFLAGS)
 
 lapack.o:  lapack.f90 accuracy.o timer.o 
 	$(FOR) -c lapack.f90 $(FFLAGS)
@@ -68,6 +74,9 @@ atomic_and_nuclear_data.o:  atomic_and_nuclear_data.f90
 
 Lobatto.o: Lobatto.f90 timer.o
 	$(FOR) -c Lobatto.f90 $(FFLAGS)
+
+RWF.o: RWF.f90 accuracy.o diatom.o timer.o symmetry.o lapack.o
+	$(FOR) -c RWF.f90 $(FFLAGS)
 
 clean:
 	rm -f $(OBJ) *.mod *__genmod.f90 duo.o
