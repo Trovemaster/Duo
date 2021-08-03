@@ -53,6 +53,10 @@ module functions
       !
       fanalytical_field => poten_EMO
       !
+    case("EMO-BOB") ! "Expanded MorseOscillator with BOB correction"
+      !
+      fanalytical_field => poten_EMO_BOB
+      !
     case("MLR") ! "Morse/Long-Range"
       !
       fanalytical_field => poten_MLR
@@ -373,6 +377,79 @@ module functions
     !
   end function poten_EMO
   !
+  
+
+
+  function poten_EMO_BOB(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,rref,z,phi, ma, mb, yp, yq, u, uinf
+    integer(ik)            :: k,N,p, NUa, NUb, q
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    rref = parameters(4)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    if (r<=rref) then 
+      p = nint(parameters(5))
+      N = parameters(7)
+    else
+      p = nint(parameters(6))
+      N = parameters(8)
+    endif 
+    !
+    NUa = nint(parameters(16+N))
+    NUb = nint(parameters(17+N))
+    !
+    if (size(parameters)/=8+max(parameters(7),parameters(8))+1+12+NUa+NUb) then 
+      write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+      stop 'poten_EMO: Illegal number of parameters, check NS and NL'
+    endif 
+    !
+    z = (r**p-rref**p)/(r**p+rref**p)
+    !
+    phi = 0
+    do k=0,N
+     phi = phi + parameters(k+9)*z**k
+    enddo
+    !
+    y  = 1.0_rk-exp(-phi*(r-r0))
+    !
+    ma = 1.0_rk - parameters(10+N)/parameters(11+N)
+    mb = 1.0_rk - parameters(12+N)/parameters(13+N)
+    !
+    p = nint(parameters(14+N))
+    q = nint(parameters(15+N))
+    !
+    !
+    yp = (r**p-r0**p)/(r**p+r0**p)
+    yq = (r**q-r0**q)/(r**q+r0**q)
+    !
+    u = 0
+    do k=0,NUa
+     u = u + ma*parameters(k+18+N)*yq**k
+    enddo
+    do k=0,NUb
+     u = u + mb*parameters(k+20+NUa+N)*yq**k
+    enddo
+    !
+    uinf = parameters(19+NUa+N)*ma + parameters(21+NUa+NUb+N)*mb
+    !
+    f = de*y**2+v0+ ( (1.0_rk-yp)*u + uinf*yp )
+    !
+  end function poten_EMO_BOB
+
+
+  
+  
+  
+  !
   ! Morse/Long-Range, see Le Roy manuals
   !
   function poten_MLR(r,parameters) result(f)
@@ -529,12 +606,10 @@ module functions
     s = -1.0_rk
     b = 3.3_rk
     c = 0.423_rk
-
+    !
     !s = -2.0_rk
     !b = 2.50_rk
     !c = 0.468_rk
-
-
     !
     ! long-range part
     !
@@ -548,7 +623,6 @@ module functions
      !
     enddo
     !
-    !
     ! at R=Re
     uLR0 = 0
     do k=1,M
@@ -558,8 +632,6 @@ module functions
      uLR0 = uLR0 + Damp*parameters(k+Npot+Nstruc)/r0**k
      !
     enddo
-
-
     !
     betaN = 0
     do k=0,N
@@ -637,12 +709,10 @@ module functions
     s = -1.0_rk
     b = 3.3_rk
     c = 0.423_rk
-
+    !
     !s = -2.0_rk
     !b = 2.50_rk
     !c = 0.468_rk
-
-
     !
     ! long-range part
     !
@@ -655,7 +725,6 @@ module functions
      uLR = uLR + Damp*parameters(1+k+Npot+Nstruc)/r**k
      !
     enddo
-    !
     !
     ! at R=Re
     uLR0 = 0

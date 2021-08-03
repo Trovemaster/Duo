@@ -658,6 +658,14 @@ contains
            ! ignore states with zero nuclear weight 
            if (intensity%gns(isymI)<small_) cycle 
            !
+           ! apply the energy filters
+           !
+           call energy_filter_upper(jI,energyI,passed)
+           !
+           call energy_filter_lower(jI,energyI,passed_)
+           !
+           if (.not.passed.and..not.passed_) cycle
+           !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
            !
@@ -838,12 +846,6 @@ contains
              endif
              !
            endif           
-           !
-           call energy_filter_upper(jI,energyI,passed)
-           !
-           call energy_filter_lower(jI,energyI,passed_)
-           !
-           if (.not.passed.and..not.passed_) cycle
            !
            istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
            parity_gu = poten(istateI)%parity%gu
