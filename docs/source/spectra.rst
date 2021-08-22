@@ -30,6 +30,13 @@ avoid the intensity calculation without removing or commenting out
 the relative input section from the input file.
 The meaning of the keywords is explained in the following.
 
+
+It is possible to run intensities by batches, J1-J2: 0-1,1-2,2-3.... In order to prevern any overlaps, the 
+transitions between J1-J1 are always omitted from the intensity calculations. 
+The line list will contain states and transitions for the given batch only and the states with J1 will be 
+exluded from the .states file, except for J1=0 or J1=0.5. The complete line list is the produced by stitchig  
+together the individual  .statets and .trans files. The states numbering will be internally consistent. 
+
 Keywords
 ^^^^^^^^
 

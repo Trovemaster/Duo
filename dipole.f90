@@ -660,14 +660,14 @@ contains
            !
            ! apply the energy filters
            !
+           iroot = iroot + 1
+           eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+           !
            call energy_filter_upper(jI,energyI,passed)
            !
            call energy_filter_lower(jI,energyI,passed_)
            !
            if (.not.passed.and..not.passed_) cycle
-           !
-           iroot = iroot + 1
-           eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
            !
            if (trim(intensity%linelist_file)/="NONE") then
              !
@@ -708,6 +708,8 @@ contains
              ! The present format works for energy levels larger than -10000 cm-1 and less than 1e11 cm-1
              ! By Lorenzo Lodi
              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+             !
+             if ( nint(intensity%J(1)-Ji)==0.and.( nint(2.0_rk*intensity%J(1))>1) ) cycle
              !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate
              !
