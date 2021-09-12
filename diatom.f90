@@ -5106,7 +5106,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             if (check_ai<small_) then 
               !
-              write(out,"('Error: Corresponding ab initio field is undefined when using MORPHING for ',a)") trim(field%name)
+              write(out,"(Error: Corresponding ab initio field is undefined or zero when using MORPHING ',a)") trim(field%name)
               stop 'ab initio field is undefined while using MORPHING'
               !
             endif
