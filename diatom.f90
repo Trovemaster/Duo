@@ -60,8 +60,8 @@ module diatom_module
   !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
   !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
   !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
-  !        case (26) hfcc1(6) for eQq0
-  !        case (27) hfcc1(7) for eQq2
+  !        case (26) hfcc1(6) for electric dipole, eQq0
+  !        case (27) hfcc1(7) for electric diople, eQq2
   !        case (28) reserved
   !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
@@ -500,7 +500,7 @@ module diatom_module
   REAL(rk), ALLOCATABLE :: vibrational_contrfunc(:,:)  
   TYPE(quantaT), ALLOCATABLE :: vibrational_quantum_number(:)
   INTEGER(ik) :: vibrational_totalroots
-  REAL(rk) :: I1, scaling_factor
+  REAL(rk) :: I1
   INTEGER(ik), PARAMETER :: GLOBAL_NUM_HFCC_OBJECT = 7
   TYPE(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   !
@@ -2512,7 +2512,7 @@ module diatom_module
              !
              field%class = "QUADRUPOLE"
              !
-           case("ABINITIO")
+          case("ABINITIO")
              !
              iabi = iabi + 1
              !
@@ -4738,20 +4738,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
-          case (21)
-            field => hfcc1(1)%field(iterm)
-          case (22)
-            field => hfcc1(2)%field(iterm)
-          case (23)
-            field => hfcc1(3)%field(iterm)
-          case (24)
-            field => hfcc1(4)%field(iterm)
-          case (25)
-            field => hfcc1(5)%field(iterm)
-          case (26)
-            field => hfcc1(6)%field(iterm)
-          case (27)
-            field => hfcc1(7)%field(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -6884,7 +6872,6 @@ end subroutine map_fields_onto_grid
      h12 = 12.0_rk*hstep**2
      sc  = h12*scale
 
-     scaling_factor = sc
      !
      b_rot = aston/amass
      !
