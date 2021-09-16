@@ -5,7 +5,7 @@ use accuracy,      only : hik, ik, rk, ark, cl, out,&
 use diatom_module, only : job, Intensity, quantaT, eigen, basis,&
                           nQuadrupoles, quadrupoletm, duo_j0, fieldT, poten,&
                           three_j, jmin_global
-use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinu_ifs,&
+use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
 use symmetry,      only : sym, correlate_to_Cs
@@ -1361,7 +1361,6 @@ contains
     integer(ik)             :: iomegaI_, iomegaF_, istateI_, istateF_, &
                                 ilambdaI_, ilambdaF_
     real(rk)                :: spinI_, spinF_
-    integer(ik)             :: dSpin, dSigma, dLambda, dOmega
     integer(ik)             :: icontrI, icontrF, indQuad, indPermute, &
                                 indSigmaV
 
@@ -1517,12 +1516,18 @@ contains
 
       case ('ABSORPTION','EMISSION')
 
-        if ( jI>jF ) then
+        if ( nint(jF-jI)==-2 ) then
           X = 'O'
-        elseif( nint(jI-jF)/=0 ) then
+        elseif ( nint(jF-jI)==-1) then
+          X = 'P'
+        elseif( nint(jF-jI)==0 ) then
+          X = 'Q'
+        elseif( nint(jF-jI)==1) then
+          X = 'R'
+        elseif( nint(jF-jI)==2) then
           X = 'S'
         else
-          X = 'Q'
+          X = 'X'
         endif
 
     end select

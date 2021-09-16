@@ -297,6 +297,7 @@ module diatom_module
      logical :: frequency     = .false.
      logical :: matelem       = .false.
      logical :: raman         = .false.
+     logical :: magdipole     = .false.
      logical :: quadrupole    = .false.
      logical :: RWF           = .false.
      !
@@ -324,6 +325,7 @@ module diatom_module
      real(rk) :: intensity    = -1e0    ! threshold defining the output intensities
      real(rk) :: linestrength = -1e0    ! threshold defining the output linestrength
      real(rk) :: dipole       = -1e0    ! threshold defining the output linestrength
+     real(rk) :: quadrupole   = -1e0    ! threshold defining the output linestrength
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
   end type thresholdsT
@@ -3290,6 +3292,9 @@ module diatom_module
              !
              action%quadrupole = .true.
              !action%dipole     = .false.
+           case('MAGDIPOLE')
+             !
+             action%magdipole = .true.
              !
            case('OVERLAP')
              !
@@ -3322,6 +3327,10 @@ module diatom_module
            case('THRESH_DIPOLE')
              !
              call readf(intensity%threshold%dipole)
+             !
+           case('THRESH_QUADRUPOLE')
+             !
+             call readf(intensity%threshold%quadrupole)
              !
            case('THRESH_COEFF','THRESH_COEFFICIENTS')
              !
@@ -7564,8 +7573,10 @@ end subroutine map_fields_onto_grid
                 !
                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
-                if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+                if (iobject==Nobjects) then
+                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
+                elseif (iobject==Nobjects-3)
+                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%quadrupole) field%matelem(ilevel,jlevel) = 0
                 endif
                 !
                 field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)

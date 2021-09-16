@@ -1,4 +1,4 @@
-module dipole
+module magnetic_dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Nlxly,lxly,duo_j0,fieldT,poten,three_j,jmin_global
@@ -9,7 +9,7 @@ module dipole
 
 
  private
- public dm_tranint
+ public md_tranint
 
  real(rk),allocatable,save  :: dipole_me(:, :)
 
@@ -49,7 +49,7 @@ module dipole
 
 contains
   
- subroutine dm_tranint
+ subroutine md_tranint
 
  ! compute  partition function, electric dipole transition moments, linestrength, and intensities
 
@@ -87,10 +87,10 @@ contains
     enddo
     !
     allocate(Jval(nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: Jval - out of memory'
+    if (info /= 0) stop 'md_tranint allocation error: Jval - out of memory'
     !
     allocate(q_part(20,nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: q_part - out of memory'
+    if (info /= 0) stop 'md_tranint allocation error: q_part - out of memory'
     !
     Jval_ = Jval_min
     jind = 1
@@ -282,7 +282,7 @@ contains
     !
     call TimerReport
     !
- end subroutine dm_tranint
+ end subroutine md_tranint
  !
 
  !
@@ -412,7 +412,7 @@ contains
     ! Prepare the list of units with the stored eigenvectors
     !
     !allocate(Jeigenvec_unit(nJ), stat = info)
-    !if (info /= 0) stop 'dm_tranint allocation error: Jeigenvec_unit - out of memory'
+    !if (info /= 0) stop 'md_tranint allocation error: Jeigenvec_unit - out of memory'
     !
     !do jind=1,nJ 
     !  Jeigenvec_unit(jind) = TReigenvec_unit(jind,Jval)
@@ -2053,8 +2053,8 @@ contains
                   !
                   do idip = 1,Ndipoles
                     !
-                    if (dipoletm(idip)%istate/=istateI.or.dipoletm(idip)%jstate/=istateF) cycle
-                    f = dipoletm(idip)%matelem(ivibI,ivibF)
+                    if (lxly(idip)%istate/=istateI.or.lxly(idip)%jstate/=istateF) cycle
+                    f = lxly(idip)%matelem(ivibI,ivibF)
                     !
                     half_tm(icontrF) = half_tm(icontrF) + f*vector(icontrI)
                     !
@@ -2275,4 +2275,4 @@ contains
 
 
 
-end module dipole
+end module magnetic_dipole
