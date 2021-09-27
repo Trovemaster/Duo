@@ -266,7 +266,7 @@ BINF         1.00000000000000E+00
 end
 
 
-INTENSITY  
+INTENSITY off 
   absorption
   thresh_intes  1e-55
   thresh_line   1e-55
