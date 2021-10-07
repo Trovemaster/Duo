@@ -300,6 +300,7 @@ module diatom_module
      logical :: magdipole     = .false.
      logical :: quadrupole    = .false.
      logical :: RWF           = .false.
+     logical :: overlap       = .false.
      !
   end type actionT
   !
@@ -472,9 +473,12 @@ module diatom_module
   logical :: fields_allocated  = .false.
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
   !
+  real(rk),allocatable :: overlap_matelem(:,:)
+  !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
          jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm,&
-         l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj
+         l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
+         overlap_matelem
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
   !
@@ -3295,6 +3299,7 @@ module diatom_module
            case('MAGDIPOLE')
              !
              action%magdipole = .true.
+             action%overlap = .true.
              !
            case('OVERLAP')
              !
@@ -7485,7 +7490,7 @@ end subroutine map_fields_onto_grid
           if ( iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
              !
              write(out,'(/"Vibrational transition moments: ")')
-!              write(out,'("    State    TM   State"/)')
+             !write(out,'("    State    TM   State"/)')
              write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
              !
           endif
@@ -7493,7 +7498,7 @@ end subroutine map_fields_onto_grid
           if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
              !
              write(out,'(/"Vibrational transition moments: ")')
-!              write(out,'("    State    TM   State"/)')
+             !write(out,'("    State    TM   State"/)')
              write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
              !
           endif
@@ -7575,7 +7580,7 @@ end subroutine map_fields_onto_grid
                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
                 if (iobject==Nobjects) then
                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
-                elseif (iobject==Nobjects-3)
+                elseif (iobject==Nobjects-3) then
                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%quadrupole) field%matelem(ilevel,jlevel) = 0
                 endif
                 !
@@ -7645,6 +7650,27 @@ end subroutine map_fields_onto_grid
           enddo
           !
        enddo
+       !
+       !vibrational overlap for spin magnetic dipole
+        if (action%overlap) then
+          if (.not.fields_allocated) then
+            allocate(overlap_matelem(totalroots,totalroots),stat=alloc)
+            call ArrayStart('overlap',alloc,size(overlap_matelem),kind(overlap_matelem))
+          endif
+          do ilevel = 1,totalroots
+            do jlevel = 1,ilevel
+              !
+              overlap_matelem(ilevel,jlevel) = sum(contrfunc(:,ilevel)*contrfunc(:,jlevel))
+              !
+              ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+              if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
+              !
+              overlap_matelem(jlevel,ilevel) = overlap_matelem(ilevel,jlevel)
+              !
+              !
+            enddo
+          enddo
+        endif
        !
        fields_allocated = .true.
        !

@@ -1,8 +1,9 @@
 module magnetic_dipole
 
- use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Nlxly,lxly,duo_j0,fieldT,poten,three_j,jmin_global
- use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
+ use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, g_s
+ use diatom_module,only : job,Intensity,quantaT,eigen,basis,Nlxly,lxly,duo_j0,fieldT,poten,three_j,&
+                          jmin_global,overlap_matelem
+ use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
 
@@ -225,7 +226,7 @@ contains
           !
        endif
        !
-       call dm_intensity(Jval,iverbose)
+       call md_intensity(Jval,iverbose)
        !
        write(out, '(/a)') 'done'
        !
@@ -328,7 +329,7 @@ contains
  !
  ! Electric dipole moment intensities and transition moments calculations 
  !
- subroutine dm_intensity(Jval,iverbose)
+ subroutine md_intensity(Jval,iverbose)
     !
     implicit none
     !
@@ -385,8 +386,8 @@ contains
     !
     if (sym%maxdegen>2) then 
       !
-      write(out,"('dm_intensity: this procedure has not been tested for the symmetries with degeneracies higher than 2')")
-      !stop 'dm_intensity was not tested for present symmetry'
+      write(out,"('md_intensity: this procedure has not been tested for the symmetries with degeneracies higher than 2')")
+      !stop 'md_intensity was not tested for present symmetry'
       !
     endif
     !
@@ -888,8 +889,8 @@ contains
     !allocate(icoeffF(sym%Maxdegen,dimenmax), stat = info)
     !
     if (Ntransit==0) then 
-         write(out,"('dm_intensity: the transition filters are too tight: no entry')") 
-         stop 'dm_intensity: the filters are too tight' 
+         write(out,"('md_intensity: the transition filters are too tight: no entry')") 
+         stop 'md_intensity: the filters are too tight' 
     endif 
     !
     !call TimerStop('Dipole moment integration (i)')
@@ -1096,8 +1097,9 @@ contains
                   !
                 case('TM')
                   !
-                  call do_1st_half_tm(indI,indF,dimenI,dimenF,&
-                                      vecI(1:dimenI),half_linestr)
+                  stop 'TM not coded for magnetic dipole moment'
+                  !call do_1st_half_tm(indI,indF,dimenI,dimenF,&
+                  !                    vecI(1:dimenI),half_linestr)
                   !
                 end select
                 !
@@ -1303,7 +1305,7 @@ contains
     !
     call TimerStop('Intensity calculations')
     !
-  end subroutine dm_intensity
+  end subroutine md_intensity
   !
   !
   !
@@ -1362,29 +1364,29 @@ contains
         ngamma = 0
         igamma_pair(igammaI) = igammaI
         !
-        do igammaF = 1,sym%Nrepresen
-          !
-          if (igammaI/=igammaF.and.intensity%isym_pairs(igammaI)==intensity%isym_pairs(igammaF)) then 
-            !
-            igamma_pair(igammaI) = igammaF
-            !
-            ngamma = ngamma + 1 
-            !
-            if (ngamma>1) then 
-              !
-              write(out,"('dm_intensity: Assumption that selection rules come in pairs is wrong!')")
-              stop 'dm_intensity: Assumption that all selection rules work in pairs is wrong!'
-              !
-            endif   
-            !
-          endif
-          !
-        enddo
+        ! do igammaF = 1,sym%Nrepresen
+        !   !
+        !   if (igammaI/=igammaF.and.intensity%isym_pairs(igammaI)==intensity%isym_pairs(igammaF)) then 
+        !     !
+        !     igamma_pair(igammaI) = igammaF
+        !     !
+        !     ngamma = ngamma + 1 
+        !     !
+        !     if (ngamma>1) then 
+        !       !
+        !       write(out,"('md_intensity: Assumption that selection rules come in pairs is wrong!')")
+        !       stop 'md_intensity: Assumption that all selection rules work in pairs is wrong!'
+        !       !
+        !     endif   
+        !     !
+        !   endif
+        !   !
+        ! enddo
         !
         if ( nint(intensity%gns(igammaI)-intensity%gns(igamma_pair(igammaI)))/=0 ) then 
           !
-          write(out,"('dm_intensity: selection rules do not agree with Gns')")
-          stop 'dm_intensity: selection rules do not agree with Gns!'
+          write(out,"('md_intensity: selection rules do not agree with Gns')")
+          stop 'md_intensity: selection rules do not agree with Gns!'
           !
         endif   
         !
@@ -1831,7 +1833,7 @@ contains
         integer(ik)             :: icontrF,icontrI, & 
                                    ivibF,ivibI,idip,istateI,istateF,ilambdaF,ilambdaI
         integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
-        real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
+        real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI,sigmaF_,sigmaI_
         real(rk)                :: spinI_,spinF_,f_t
         type(fieldT),pointer    :: field
           !
@@ -1866,9 +1868,12 @@ contains
                   spinI   = basis(indI)%icontr(icontrI)%spin
                   ilambdaI= basis(indI)%icontr(icontrI)%ilambda
                   !
-                  if (abs(nint(omegaF - omegaI))>1.or.nint(spinI-spinF)/=0.or.nint(sigmaI-sigmaF)/=0) cycle loop_I
-                  if (abs(nint(omegaF - omegaI))==0.and.ilambdaI/=ilambdaF) cycle loop_I
-                  if (abs(nint(omegaF - omegaI))==1.and.abs(ilambdaI-ilambdaF)/=1) cycle loop_I
+                  if (abs(nint(omegaF - omegaI))>1 &
+                      .or.nint(spinI-spinF)/=0     &
+                      .or.nint(sigmaI-sigmaF)>1    &
+                      .or.abs(ilambdaI-ilambdaF)>1) cycle loop_I
+                  !if (abs(nint(omegaF - omegaI))==0.and.ilambdaI/=ilambdaF) cycle loop_I
+                  !if (abs(nint(omegaF - omegaI))==1.and.abs(ilambdaI-ilambdaF)/=1) cycle loop_I
                   !
                   iomegaI_ = int(omegaI)
                   if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
@@ -1889,7 +1894,7 @@ contains
                     ! the permutation is only needed if at least some of the quanta is not zero. 
                     ! otherwise it should be skipped to avoid the double counting.
                     if(isigmav==1.and.abs(ilambdaI)+abs(ilambdaF)==0) cycle
-            
+                    
                     ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                     ilambdaI_ = ilambdaI*(-1)**isigmav
                     ilambdaF_ = ilambdaF*(-1)**isigmav
@@ -1911,6 +1916,8 @@ contains
                     else
                       cycle
                     endif
+                    !
+                    f_t = f_t * overlap_matelem(ivibI,ivibF)
                     !
                     ! the result of the symmetry transformation:
                     if (isigmav==1) then
@@ -2051,7 +2058,7 @@ contains
                   !
                   !compute TM
                   !
-                  do idip = 1,Ndipoles
+                  do idip = 1,Nlxly
                     !
                     if (lxly(idip)%istate/=istateI.or.lxly(idip)%jstate/=istateF) cycle
                     f = lxly(idip)%matelem(ivibI,ivibF)

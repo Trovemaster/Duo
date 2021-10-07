@@ -1551,6 +1551,25 @@ contains
       ngamma = 0
       igamma_pair(igammaI) = igammaI
 
+      ! do igammaF = 1,sym%Nrepresen
+      !   !
+      !   if (igammaI/=igammaF.and.intensity%isym_pairs(igammaI)==intensity%isym_pairs(igammaF)) then 
+      !     !
+      !     igamma_pair(igammaI) = igammaF
+      !     !
+      !     ngamma = ngamma + 1 
+      !     !
+      !     if (ngamma>1) then 
+      !       !
+      !       write(out,"('qm_intensity: Assumption that selection rules come in pairs is wrong!')")
+      !       stop 'qm_intensity: Assumption that all selection rules work in pairs is wrong!'
+      !       !
+      !     endif   
+      !     !
+      !   endif
+      !   !
+      ! enddo
+
       if ( nint(intensity%gns(igammaI) &
           - intensity%gns(igamma_pair(igammaI))) /= 0 &
          ) then
