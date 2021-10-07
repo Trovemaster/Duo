@@ -25,7 +25,6 @@ $RECYCLE.BIN/
 
 # VSCode files
 *.code-workspace
-.vscode/
 .vs/
 
 # Vim files

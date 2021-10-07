@@ -1,0 +1,26 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "rm *.o *.mod duo.x",
+            "problemMatcher": "",
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "make -f makefile_LINUXgfortran_debug",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}
