@@ -844,7 +844,7 @@ contains
       case('ABSORPTION')
         write(out, &
           "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'<-',t52,'Ef',t64,'nu_if_if',8x,'S(f<-i)',10x,'A(if)',&
+          &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
           &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
           &lambda sigma  omega ')" &
         )
@@ -854,7 +854,7 @@ contains
       case('EMISSION')
         write(out, &
           "(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'->',t52,'Ef',t64,'nu_if_if',8x,'S(i->f)',10x,'A(if)',&
+          &'Ei',t44,'->',t52,'Ef',t64,'nu_if',8x,'S(i->f)',10x,'A(if)',&
           &12x,'I(i->f)',7x,'State v lambda sigma  omega -> State v &
           &lambda sigma  omega ')" &
         )
@@ -864,7 +864,7 @@ contains
       case('TM')
         write(out, &
           "(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,&
-          &'Ei',t42,'<-',t52,'Ef',t65,'nu_if_if',10x,'TM(f->i)')" &
+          &'Ei',t42,'<-',t52,'Ef',t65,'nu_if',10x,'TM(f->i)')" &
         )
 
     end select
@@ -1620,24 +1620,24 @@ contains
     integer(ik), intent(in) :: isymI, isymF
     real(rk), intent(in)    :: energyI, energyF
     integer(ik), intent(in) :: igamma_pair(sym%Nrepresen)
-    real(rk)                :: nu_if_if
+    real(rk)                :: nu_if
     logical, intent(out)    :: passed
     real(rk), dimension(4)  :: local_sym
 
     passed = .false.
     local_sym = Intensity%isym_pairs
-    nu_if_if = energyF - energyI
+    nu_if = energyF - energyI
 
     if ( &
         ! nu_ifclear stat.weight:
         intensity%gns(isymI) > small_ &
 
         ! absorption/emission go only in one direction
-        .and. nu_if_if > small_ &
+        .and. nu_if > small_ &
 
         ! spectroscopic window
-        .and. nu_if_if >= intensity%freq_window(1) &
-        .and. nu_if_if <= intensity%freq_window(2) &
+        .and. nu_if >= intensity%freq_window(1) &
+        .and. nu_if <= intensity%freq_window(2) &
 
         .and. jI >= intensity%J(1) &
         .and. jI <= intensity%J(2) &
@@ -1697,12 +1697,12 @@ contains
     integer(ik), intent(in) :: isymI, isymF
     real(rk), intent(in)    :: energyI, energyF
     integer(ik), intent(in) :: igamma_pair(sym%Nrepresen)
-    real(rk)                :: nu_if_if
+    real(rk)                :: nu_if
     logical, intent(out)    :: passed
 
     passed = .false.
 
-    nu_if_if = energyF - energyI
+    nu_if = energyF - energyI
 
     if ( &   ! nu_ifclear stat.weight:
              intensity%gns(isymI) > small_ &
@@ -1711,8 +1711,8 @@ contains
              (Jf-Ji) > -small_ &
        .and. &
              ! spectroscopic window
-             nu_if_if >=intensity%freq_window(1) &
-       .and. nu_if_if <=intensity%freq_window(2) &
+             nu_if >=intensity%freq_window(1) &
+       .and. nu_if <=intensity%freq_window(2) &
        .and. jI >= intensity%J(1) &
        .and. jI <= intensity%J(2) &
        .and. jF >= intensity%J(1) &

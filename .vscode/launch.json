@@ -20,9 +20,9 @@
             "args": [
                 "<",
                 //"debug.inp", 
-                //"O2XabQM.inp",
+                "O2_5states_QM.inp",
                 //"O2XabMD.inp",
-                "H2XMD.inp"
+                //"H2XMD.inp",
                 ">",
                 "debug.out"
             ],
