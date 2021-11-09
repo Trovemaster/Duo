@@ -31,6 +31,8 @@
 !                                                       `string' is character(len=8) and contains the symbol in the format C-14 etc
 !
 module atomic_and_nuclear_data
+use accuracy
+!
 implicit none
 private
 ! public atomic_mass, nuclear_spin, print_atomic_and_nuclear_info ! make available only what I need for DUO
@@ -38,7 +40,7 @@ private
 public element_name, element_symbol, nuclide_name, atomic_mass, atomic_mass_unc, stability_info, half_life, half_life_txt, &
        nuclear_spin, nat_iso_abundance, get_z, get_a, get_m, print_atomic_and_nuclear_info, get_name_from_mass
 !
-integer, parameter :: dp=kind(1.d0)
+integer, parameter :: dp=rk ! kind(1.d0)
 integer, parameter :: n_nuclides=673 ! number of nuclides in module
 integer, parameter :: zmax=105       ! maximum Z in list
 character(len=15)  :: Name(zmax)     ! English names of elements
@@ -197,7 +199,7 @@ data Name(105) /'Dubnium      '/, Symbol(105) /'Db'/,n_core(105) /86/,n_core2(10
 ! This is useful so that when optional argument are used the most abundant isotope is returned by default,
 ! and for radioactive ones the longest-lived one is returned by default.
 ! nuclide 0 has all values set to zero (unknown type)
-data Z(  0) /  0/, A(  0) /  0/, mass(  0) /        0_dp/, mass_unc(  0) /      0_dp/
+data Z(  0) /  0/, A(  0) /  0/, mass(  0) /        0.0_dp/, mass_unc(  0) /      0.0_dp/
 data Z(  1) /  1/, A(  1) /  1/, mass(  1) /  1.00782503223_dp/, mass_unc(  1) /0.00000000009_dp/  ! 1H
 data Z(  2) /  1/, A(  2) /  2/, mass(  2) /  2.01410177812_dp/, mass_unc(  2) /0.00000000012_dp/  ! 2H
 data Z(  3) /  1/, A(  3) /  3/, mass(  3) /  3.01604927791_dp/, mass_unc(  3) /0.00000000237_dp/  ! 3H

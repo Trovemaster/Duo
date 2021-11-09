@@ -7,7 +7,7 @@ module RWF
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
- use lapack,only : lapack_zgelss,lapack_zgesv
+ use lapack,only : lapack_zgesv,lapack_gelss
 
 
  implicit none
@@ -936,7 +936,7 @@ contains
                      !
                    enddo
                    !
-                   call lapack_zgelss(Amat,b)
+                   call lapack_gelss(Amat,b)
                    !
                    RWF2 = sum(conjg(b)*b)
                    boltz_fc = intensity%gns(isymI)*real( (2*jI + 1)*(2 * jF + 1),rk )*nu *&
@@ -1610,7 +1610,7 @@ contains
                      !
                    enddo
                    !
-                   call lapack_zgelss(Amat,b)
+                   call lapack_gelss(Amat,b)
                    !call  lapack_zgesv(Amat,b)
                    !
                    RWF2 = sum(conjg(b)*b)
@@ -3023,8 +3023,8 @@ contains
 !     .  now find what the range of new is.
 !
 !
-      newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-      newmax=idnint(min((a-al),(b+be),(a+b-c)))
+      newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+      newmax=nint(min((a-al),(b+be),(a+b-c)))
 !
 !
       summ=0
@@ -3044,7 +3044,7 @@ contains
 !
 !     convert clebsch-gordon to three_j
 !
-      iphase=idnint(a-b-ga)
+      iphase=nint(a-b-ga)
       minus = -1.0_rk
       if (mod(iphase,2).eq.0) minus = 1.0_rk
       three_j0=minus*clebsh/sqrt(2.0_rk*c+1.0_rk)

@@ -215,7 +215,7 @@ module diatom_module
       real(rk)            :: tolerance = 0.0_rk   ! tolerance for arpack diagonalization, 0 means the machine accuracy
       real(rk)            :: upper_ener = 1e9_rk  ! upper energy limit for the eigenvalues found by diagonalization with syevr
       real(rk)            :: thresh = -1e-18_rk   ! thresh of general use
-      real(rk)            :: zpe=0_rk             ! zero-point-energy
+      real(rk)            :: zpe=0.0_rk             ! zero-point-energy
       logical             :: shift_to_zpe = .true. ! 
       character(len=cl)   :: diagonalizer = 'SYEV'
       character(len=cl)   :: molecule = 'H2'
@@ -627,7 +627,7 @@ module diatom_module
               !
             case("TB","T")
               !
-              memory_limit = memory_limit*1024_rk
+              memory_limit = memory_limit*1024.0_rk
               !
             case("GB","G")
               !
@@ -635,15 +635,15 @@ module diatom_module
               !
             case("MB","M")
               !
-              memory_limit = memory_limit/1024_rk
+              memory_limit = memory_limit/1024.0_rk
               !
             case("KB","K")
               !
-              memory_limit = memory_limit/1024_rk**2
+              memory_limit = memory_limit/1024.0_rk**2
               !
             case("B")
               !
-              memory_limit = memory_limit/1024_rk**3
+              memory_limit = memory_limit/1024.0_rk**3
               !
           end select
           !
@@ -1773,6 +1773,8 @@ module diatom_module
              !
              call readi(iref) ; jref = iref
              !
+             if (nitems>2) call readi(jref)
+             !
              ! find the corresponding potential
              !
              include_state = .false.
@@ -1821,6 +1823,8 @@ module diatom_module
              iobject(6) = iobject(6) + 1
              !
              call readi(iref) ; jref = iref
+             !
+             if (nitems>2) call readi(jref)
              !
              ! find the corresponding potential
              !
@@ -4646,7 +4650,7 @@ subroutine map_fields_onto_grid(iverbose)
                allocate(spline_wk_vec_E(nterms),stat=alloc); call ArrayStart('spline_wk_vec_E',alloc,nterms,kind(spline_wk_vec))
                allocate(spline_wk_vec_F(nterms),stat=alloc); call ArrayStart('spline_wk_vec_F',alloc,nterms,kind(spline_wk_vec))
                !
-               call QUINAT(nterms, field%grid,field%value, spline_wk_vec_B, spline_wk_vec_C, &
+               call QUINAT(nterms,field%grid,field%value, spline_wk_vec_B, spline_wk_vec_C, &
                                             spline_wk_vec_D, spline_wk_vec_E, spline_wk_vec_F)
                !
                !$omp parallel do private(i) schedule(guided)
@@ -4888,7 +4892,7 @@ subroutine map_fields_onto_grid(iverbose)
           fpp  = poten(istate)%gridvalue(poten(istate)%imin+2)
           fppp = poten(istate)%gridvalue(poten(istate)%imin+3)
       
-          der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(60._rk*h) ! 6-point, error h^6
+          der1 = (-fmmm + 9.0_rk*fmm-45.0_rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(60._rk*h) ! 6-point, error h^6
           der2 = (2.0_rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(2.0_rk*90._rk*h**2) ! 7-point, error h^6
       
           !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
@@ -4916,7 +4920,7 @@ subroutine map_fields_onto_grid(iverbose)
                fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
                fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
       
-               der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
+               der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
                der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
       
                !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
@@ -5014,7 +5018,7 @@ subroutine map_fields_onto_grid(iverbose)
      !
      subroutine molpro_duo(field)
         !
-        use lapack,only : lapack_zheev     
+        use lapack,only : lapack_heev     
         !
         type(fieldT),intent(inout) :: field
         integer(ik) :: ix_lz_y,jx_lz_y,iroot,jroot,il_temp,ngrid
@@ -5041,7 +5045,7 @@ subroutine map_fields_onto_grid(iverbose)
               a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
               a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
               !
-              call lapack_zheev(a,lambda_i)
+              call lapack_heev(a,lambda_i)
               !
               ! swap to have the first root positive 
               !
@@ -5070,7 +5074,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               b0 = b
               !
-              call lapack_zheev(b,lambda_j)
+              call lapack_heev(b,lambda_j)
               !
               ! swap to have the first root positive 
               !
@@ -5531,7 +5535,7 @@ subroutine map_fields_onto_grid(iverbose)
 
      subroutine molpro_duo_old_2018(field)
         !
-        use lapack,only : lapack_zheev     
+        use lapack,only : lapack_heev     
         !
         type(fieldT),intent(inout) :: field
         integer(ik) :: ix_lz_y,jx_lz_y,iroot,jroot,il_temp,ngrid
@@ -5558,7 +5562,7 @@ subroutine map_fields_onto_grid(iverbose)
               a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
               a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
               !
-              call lapack_zheev(a,lambda_i)
+              call lapack_heev(a,lambda_i)
               !
               ! swap to have the first root positive 
               !
@@ -5587,7 +5591,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               b0 = b
               !
-              call lapack_zheev(b,lambda_j)
+              call lapack_heev(b,lambda_j)
               !
               ! swap to have the first root positive 
               !
@@ -6466,11 +6470,12 @@ end subroutine map_fields_onto_grid
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
      type(matrixT)              :: transform(2)
      type(fieldT),pointer       :: field
-     !logical                    :: passed
-     real(rk),allocatable      :: psipsi_rk(:)
+     !
+     real(ark),allocatable      :: psipsi_ark(:)
      real(rk),allocatable       :: mu_rr(:)
      !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
      !real(rk)                  :: f_rk
+     real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
      !
@@ -6537,8 +6542,8 @@ end subroutine map_fields_onto_grid
      if (iverbose>=3) write(out,'(/"Construct the J=0 matrix")')
      if (iverbose>=3) write(out,"(a)") 'Solving one-dimentional Schrodinger equations using : ' // trim(solution_method) 
      !
-     allocate(psipsi_rk(ngrid),stat=alloc)
-     call ArrayStart('psipsi_rk',alloc,size(psipsi_rk),kind(psipsi_rk))
+     allocate(psipsi_ark(ngrid),stat=alloc)
+     call ArrayStart('psipsi_ark',alloc,size(psipsi_ark),kind(psipsi_ark))
      !
      !do i = 1,ngrid
      !  grid_rk(i) = 0.7_rk+(3.0_rk-.7_rk)/real(ngrid-1,rk)*real(i-1,rk)
@@ -7119,8 +7124,10 @@ end subroutine map_fields_onto_grid
        !
        fields_allocated = .true.
        !
-       deallocate(psipsi_rk)
-       call ArrayStop('psipsi_rk')
+       if (allocated(psipsi_ark)) then 
+         deallocate(psipsi_ark)
+         call ArrayStop('psipsi_ark')
+       endif
        !
        if (present(nenerout)) nenerout = 0
        !
@@ -7299,7 +7306,9 @@ end subroutine map_fields_onto_grid
                  rng = 'V'
               endif
               !
-              call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+              call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
+              !
+              !call lapack_syev(vibmat,vibener)
               !
            endif
            !
@@ -7496,15 +7505,8 @@ end subroutine map_fields_onto_grid
           !
           if (iobject==Nobjects-2) cycle
           !
-          if ( iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
-             !
-             write(out,'(/"Vibrational transition moments: ")')
-!              write(out,'("    State    TM   State"/)')
-             write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
-             !
-          endif
-          ! 
-          if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
+          if ( action%intensity.and.(iobject==Nobjects.and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then 
+          !if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
              !
              write(out,'(/"Vibrational transition moments: ")')
 !              write(out,'("    State    TM   State"/)')
@@ -7577,11 +7579,11 @@ end subroutine map_fields_onto_grid
                 ! in the grid representation of the vibrational basis set
                 ! the matrix elements are evaluated simply by a summation of over the grid points
                 !
-                !psipsi_rk = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
+                !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
                 !
-                !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
+                !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
                 !
-                !field%matelem(ilevel,jlevel) = f_rk
+                !field%matelem(ilevel,jlevel) = f_ark
                 !
                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
                 !
@@ -7666,8 +7668,10 @@ end subroutine map_fields_onto_grid
        !deallocate(matelem_rk)
        !call ArrayStop('matelem_rk')
        !
-       deallocate(psipsi_rk)
-       call ArrayStop('psipsi_rk')
+       if (allocated(psipsi_ark)) then 
+         deallocate(psipsi_ark)
+         call ArrayStop('psipsi_ark')
+       endif
        !
        !deallocate(grid_rk)
        !call ArrayStop('grid_rk')
@@ -8375,11 +8379,193 @@ end subroutine map_fields_onto_grid
                 endif
               enddo
               !
-              ! Non-diagonal spin-spin term
+              !  Non-diagonal spin-spin term
+              !
+              loop_iss : do iss = 1,Nss
+                !
+                if ( spinspin(iss)%istate/=istate.or.spinspin(iss)%jstate/=jstate.or.&
+                   spinspin(iss)%istate==spinspin(iss)%jstate ) cycle
+                !
+                field => spinspin(iss)
+              
+                ! The selection rules are (Lefebvre-Brion and Field, Eq. (3.4.50)): 
+                ! Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<->f; Sigma+<->Sigma-;
+                ! Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1
+                !
+                if (nint(omegai-omegaj)/=0.or.nint(spini-spinj)>2 ) cycle
+                !if ( ilambda==0.and.jlambda==0.and.poten(istate)%parity%pm==poten(jstate)%parity%pm ) cycle
+                !if ( poten(istate)%parity%gu/=0.and.poten(istate)%parity%gu/=poten(jstate)%parity%gu ) cycle
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate ; ilambda_we = field%lambda  ; sigmai_we = field%sigmai ; spini_ = field%spini
+                    jstate_ = field%jstate ; jlambda_we = field%lambdaj ; sigmaj_we = field%sigmaj ; spinj_ = field%spinj
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate ; jlambda_we = field%lambda  ; sigmaj_we = field%sigmai ; spinj_ = field%spini
+                    istate_ = field%jstate ; ilambda_we = field%lambdaj ; sigmai_we = field%sigmaj ; spini_ = field%spinj
+                    !
+                  endif
+                  ! proceed only if the spins of the field equal the corresponding <i| and |j> spins of the current matrix elements. 
+                  ! otherwise skip it:
+                  if ( nint(spini_-spini)/=0.or.nint(spinj_-spinj)/=0 ) cycle
+                  !
+                  ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_.and.ilambda_we==jlambda_we.and.nint(sigmai_we-sigmaj_we)==0.and. & 
+                      nint(spini_-spinj_)==0) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
+                  ! We apply the Wigner-Eckart theorem to reconstruct all combinations of <Lamba Sigma |HSS|Lamba Sigma' > 
+                  ! connected with the reference (input) <Lamba Sigma_r |HSS|Lamba Sigma_r' > by this theorem. 
+                  ! Basically, we loop over Sigma (Sigma = -S..S).  The following 3j-symbol for the reference states will 
+                  ! be conidered:
+                  ! / Si      k  Sj     \    k  = 2
+                  ! \ -Sigmai q  Sigmaj /    q  = Sigmai - Sigmaj
+                  !
+                  ! reference q from Wigner-Eckart
+                  q_we = sigmai_we-sigmaj_we
+                  !
+                  ! We should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+                  ! This could be imortant providing that we constrain the i,j indexes to be i<=j (or i>=j).
+                  ! We also assume that the matrix elements are real!
+                  !
+                  ! First of all we can check if the input values are not unphysical and consistent with Wigner-Eckart:
+                  ! the corresponding three_j should be non-zero:
+                  three_j_ref = three_j(spini_, 2.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
+                  !
+                  if (abs(three_j_ref)<small_) then 
+                    !
+                    write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
+                          field%istate,field%jstate
+                    write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
+                    stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+                    !
+                  end if 
+                  !
+                  ! Also check the that the SO is consistent with the selection rules for SS
+                  !
+                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
+                     ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm/=poten(field%jstate)%parity%pm ).or.&
+                     ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
+                        abs(ilambda_we-jlambda_we)>2.or.abs(nint(sigmai_we-sigmaj_we))>2.or.&
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     !
+                     write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
+                                     " with SO selection rules: ')") field%istate,field%jstate
+                     write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
+                        "Delta S = 0 or Delta S = 1,2 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 2')")
+                     write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
+                                                                        spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                     stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+                     !
+                  endif
+                  !
+                  do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
+                    !
+                    ! Sigmas from Wigner-Eckart
+                    sigmai_ = real(isigma2,rk)*0.5 
+                    sigmaj_ = sigmai_ - q_we
+                    !
+                    ! three_j for current Sigmas
+                    three_j_ = three_j(spini_, 2.0_rk, spinj_, -sigmai_, q_we, sigmaj_)
+                    !
+                    ! current value of the SO-matrix element from Wigner-Eckart
+                    SO = (-1.0_rk)**(sigmai_-sigmai_we)*three_j_/three_j_ref*field%matelem(ivib,jvib)
+                    !
+                    ! We should also take into account that Lambda and Sigma can change sign
+                    ! since in the input we give only a unique combination of matrix elements, for example
+                    ! < 0 0 |  1  1 > is given, but < 0 0 | -1 -1 > is not, assuming that the program will generate the missing
+                    ! combinations.
+                    !
+                    ! In order to recover other combinations we apply the symmetry transformation
+                    ! laboratory fixed inversion which is equivalent to the sigmav operation 
+                    !                    (sigmav= 0 correspond to the unitary transformation)
+                    do isigmav = 0,1
+                      !
+                      ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                      ! avoid the double counting.
+                      if( isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 ) &
+                                                                                                                             cycle
+                      !
+                      ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                      ilambda_ = ilambda_we*(-1)**isigmav
+                      jlambda_ = jlambda_we*(-1)**isigmav
+                      sigmai_ = sigmai_*(-1.0_rk)**isigmav
+                      sigmaj_ = sigmaj_*(-1.0_rk)**isigmav
+                      !
+                      omegai_ = sigmai_+real(ilambda_)
+                      omegaj_ = sigmaj_+real(jlambda_)
+                      !
+                      ! Check So selection rules
+                      if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or.abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                      !
+                      ! proceed only if the quantum numbers of the field equal
+                      ! to the corresponding <i| and |j> quantum numbers of the basis set. otherwise skip it:
+                      if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0.or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
+                      !
+                      f_ss = SO*sc
+                      !
+                      ! the result of the symmetry transformtaion applied to the <Lambda,Sigma|HSO|Lambda',Sigma'> only
+                      if (isigmav==1) then
+                        !
+                        ! still not everything is clear here: CHECK!
+                        !
+                        itau = -ilambda_-jlambda_ +nint(spini_-sigmai_)+nint(spinj_-sigmaj_) !+nint(jval-omegai)+(jval-omegaj)
+                        !
+                        !itau = nint(spini_-sigmai_)+nint(spinj_-sigmaj_) ! +nint(jval-omegai)+(jval-omegaj)
+                        !
+                        !itau = 0
+                        !
+                        if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                        if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                        !
+                        f_ss = f_ss*(-1.0_rk)**(itau)
+                        !
+                      endif
+                      !
+                      ! double check
+                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                        write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
+                                   "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
+                        stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                      endif
+                      !
+                      ! we might end up in eilther parts of the matrix (upper or lower),
+                      ! so it is safer to be general here and
+                      ! don't restrict to lower part as we have done above
+                      !
+                      hmat(i,j) = hmat(i,j) + f_ss
+                      !
+                      !hmat(j,i) = hmat(i,j)
+                      !
+                      ! print out the internal matrix at the first grid point
+                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                          !
+                          write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
+                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                          write(printout_,'(g12.4)') f_ss/sc
+                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                         !
+                      endif
+                      !
+                      cycle loop_iss
+                      !
+                    enddo
+                  enddo
+                enddo              
+                !
+              enddo loop_iss
               !
               do isso = 1,Nsso
                 !
-                if (spinspino(isso)%istate==istate.and.spinspino(isso)%jstate==jstate.and.istate==jstate.and.&
+                if (spinspino(isso)%istate==istate.and.spinspino(isso)%jstate==jstate.and.&!istate==jstate.and.&
                     abs(nint(sigmaj-sigmai))==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai)) then
                    !
                    field => spinspino(isso)
@@ -9520,7 +9706,7 @@ end subroutine map_fields_onto_grid
                rng = 'V'
             endif
             !
-            call lapack_syevr(hsym,eigenval,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+            call lapack_syevr(hsym,eigenval,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
             !
             !
           case default
@@ -11936,7 +12122,7 @@ end subroutine map_fields_onto_grid
                 rng = 'V'
              endif
              !
-             call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+             call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
              !
           endif
           !
@@ -13384,6 +13570,40 @@ end subroutine map_fields_onto_grid
   end function  simpsonintegral_rk
 
 
+!
+! integration with Simpson rules 
+!                                      
+  function simpsonintegral_ark(npoints,f) result (si) 
+    integer(ik),intent(in) :: npoints
+    !
+    real(ark),intent(in) :: f(0:npoints)
+    !
+    real(rk) :: si
+    !
+    integer(ik) :: i
+    !
+    real(ark) ::  feven,fodd,f0,fmax,h
+      !
+      h = 1.0_ark 
+      !xmax/real(Npoints,kind=rk)  !   integration step, it is already inlcuded
+      feven=0         
+      fodd =0
+      f0   =f(0)
+      fmax =f(Npoints)
+
+     !
+     !  sum of odd and even contributions 
+     !
+     do i = 1,npoints-2,2
+        fodd   = fodd  + f(i  )
+        feven  = feven + f(i+1)
+     enddo
+     !
+     fodd   = fodd  + f(npoints-1)
+     !
+     si =  h/3.0_ark*( 4.0_rk*fodd + 2.0_ark*feven + f0 + fmax)
+
+  end function  simpsonintegral_ark
 
  !
  
@@ -13440,8 +13660,8 @@ end subroutine map_fields_onto_grid
 !     .  now find what the range of new is.
 !
 !
-      newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-      newmax=idnint(min((a-al),(b+be),(a+b-c)))
+      newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+      newmax=nint(min((a-al),(b+be),(a+b-c)))
 !
 !
       summ=0
@@ -13467,12 +13687,12 @@ end subroutine map_fields_onto_grid
 !
 !     convert clebsch-gordon to three_j
 !
-      iphase=idnint(a-b-ga)
+      iphase=nint(a-b-ga)
       minus = -1.0_rk
       if (mod(iphase,2).eq.0) minus = 1.0_rk
       three_j=minus*clebsh/term
 
-!     threej=(-1.d0)**(iphase)*clebsh/sqrt(2.0_rk*c+1.d0)
+!     threej=(-1.0_rk)**(iphase)*clebsh/sqrt(2.0_rk*c+1.0_rk)
 !
 !
    end function three_j

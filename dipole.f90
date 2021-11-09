@@ -960,7 +960,8 @@ contains
           write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
                       &10x,'TM(f->i)')")
    
-         !
+          dir = '<-'
+      !
       end select
       !
     endif
@@ -1250,17 +1251,38 @@ contains
                        !
                        linestr = tm
                        !
+                       absorption_int = 0
+                       !
                        if (linestr>=intensity%threshold%intensity) then 
                          !
                          !$omp critical
-                         write(out, "( (i4, 1x, a3, 3x),'->', (i4, 1x, a3, 3x),a1, &
-                                      &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
-                                      &f15.8)") &
-                                      !
-                                      jI,sym%label(isymI),jF,sym%label(isymF),branch, &
-                                      linestr,itransit,tm
+                         !
+                         !write(out, "( (f6.1, 1x, a3, 3x),'->', (f6.1, 1x, a3, 3x),a1, &
+                         !             &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
+                         !             &f15.8)") &
+                         !             !
+                         !             jI,sym%label(isymI),jF,sym%label(isymF),branch, &
+                         !             linestr,itransit,tm
+
+
+
+                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                                      & 3(1x, es16.8),&
+                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
+                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
+                                      0.0,tm,absorption_int,&
+                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
+                                      istateI,ivI,ilambdaI,sigmaI,omegaI
+
+
                          !$omp end critical
+
+
                        endif
+
+
                        !
                    end select
                    !
@@ -2167,8 +2189,8 @@ contains
 !     .  now find what the range of new is.
 !
 !
-      newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-      newmax=idnint(min((a-al),(b+be),(a+b-c)))
+      newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+      newmax=nint(min((a-al),(b+be),(a+b-c)))
 !
 !
       summ=0
@@ -2188,7 +2210,7 @@ contains
 !
 !     convert clebsch-gordon to three_j
 !
-      iphase=idnint(a-b-ga)
+      iphase=nint(a-b-ga)
       minus = -1.0_rk
       if (mod(iphase,2).eq.0) minus = 1.0_rk
       three_j0=minus*clebsh/sqrt(2.0_rk*c+1.0_rk)

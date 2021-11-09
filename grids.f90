@@ -1,5 +1,5 @@
     subroutine gridred(nsub,alpha,re,mes,rmin,rmax,h,r,z,add,iverbose)
-    use accuracy, only : rk, out, bohr
+    use accuracy, only : rk, ik, ark, out, bohr
     use Lobatto,   only : LobattoAbsWeights
     
     implicit none
@@ -236,6 +236,8 @@ end subroutine splint
 !*****************************************************************************************
 !*****************************************************************************************
 SUBROUTINE QUINAT(N, X, Y, B, C, D, E, F)
+
+use accuracy, only : rk, ik, ark
 ! Downloaded on 8-11-2007 from http://www.netlib.org/toms/600
 ! Modified by Lorenzo Lodi 11 Nov 2013 to make it fortran 95
 ! Note: this subroutine will NOT give the same results
@@ -308,10 +310,10 @@ SUBROUTINE QUINAT(N, X, Y, B, C, D, E, F)
 !  E(J) = S""(X(J)-0)/24    E(J+1) = 0  E(J+2) = S""(X(J)+0)/24
 !  F(J) = S""'(X(J)-0)/120  F(J+1) = 0  F(J+2) = S""'(X(J)+0)/120
 !
-INTEGER :: N
-DOUBLE PRECISION :: X(N), Y(N), B(N), C(N), D(N), E(N), F(N)
-INTEGER :: I, M
-double precision :: B1, P, PQ, PQQR, PR, P2, P3, Q, QR, Q2, Q3, R, R2, S, T, U, V
+INTEGER(ik) :: N
+real(rk) :: X(N), Y(N), B(N), C(N), D(N), E(N), F(N)
+INTEGER(ik) :: I, M
+real(rk) :: B1, P, PQ, PQQR, PR, P2, P3, Q, QR, Q2, Q3, R, R2, S, T, U, V
 
 IF (N <= 2) return
 
@@ -324,10 +326,10 @@ R = X(3) - X(2)
 Q2 = Q*Q
 R2 = R*R
 QR = Q + R
-D(1) = 0.D0
-E(1) = 0.D0
-D(2) = 0.D0
-IF (Q /= 0.D0) D(2) = 6.D0*Q*Q2/(QR*QR)
+D(1) = 0
+E(1) = 0
+D(2) = 0
+IF (Q /= 0.0_rk) D(2) = 6.0_rk*Q*Q2/(QR*QR)
 
 IF (M < 2) GO TO 40
    DO 30 I=2,M
@@ -340,26 +342,26 @@ IF (M < 2) GO TO 40
      PQ = QR
      QR = Q + R
 !     IF (Q) 20, 10, 20
-     if(Q /= 0.d0) goto 20
-     if(Q == 0.d0) goto 10
+     if(Q /= 0.0_rk) goto 20
+     if(Q == 0.0_rk) goto 10
 
-10   D(I+1) = 0.D0
-     E(I) = 0.D0
-     F(I-1) = 0.D0
+10   D(I+1) = 0
+     E(I) = 0
+     F(I-1) = 0
      GO TO 30
 20   Q3 = Q2*Q
      PR = P*R
      PQQR = PQ*QR
-     D(I+1) = 6.D0*Q3/(QR*QR)
-     D(I) = D(I) + (Q+Q)*(15.D0*PR*PR+(P+R)*Q*(20.D0*PR+7.D0*Q2)+ &
-  &   Q2*(8.D0*(P2+R2)+21.D0*PR+Q2+Q2))/(PQQR*PQQR)
-     D(I-1) = D(I-1) + 6.D0*Q3/(PQ*PQ)
-     E(I) = Q2*(P*QR+3.D0*PQ*(QR+R+R))/(PQQR*QR)
-     E(I-1) = E(I-1) + Q2*(R*PQ+3.D0*QR*(PQ+P+P))/(PQQR*PQ)
+     D(I+1) = 6.0_rk*Q3/(QR*QR)
+     D(I) = D(I) + (Q+Q)*(15.0_rk*PR*PR+(P+R)*Q*(20.0_rk*PR+7.0_ark*Q2)+ &
+  &   Q2*(8.0_rk*(P2+R2)+21.0_rk*PR+Q2+Q2))/(PQQR*PQQR)
+     D(I-1) = D(I-1) + 6._ark*Q3/(PQ*PQ)
+     E(I) = Q2*(P*QR+3.0_rk*PQ*(QR+R+R))/(PQQR*QR)
+     E(I-1) = E(I-1) + Q2*(R*PQ+3.0_rk*QR*(PQ+P+P))/(PQQR*PQ)
      F(I-1) = Q3/PQQR
 30 CONTINUE
 
-40 IF (R.NE.0.D0) D(M) = D(M) + 6.D0*R*R2/(QR*QR)
+40 IF (R.NE.0.0_rk) D(M) = D(M) + 6.0_rk*R*R2/(QR*QR)
 
 !FIRST AND SECOND ORDER DIVIDED DIFFERENCES OF THE GIVEN FUNCTION
 !VALUES, STORED IN B FROM 2 TO N AND IN C FROM 3 TO N
@@ -384,27 +386,27 @@ IF (M < 2) GO TO 40
 !SOLVE THE LINEAR SYSTEM WITH C(I+2) - C(I+1) AS RIGHT-HAND SIDE.
 
       IF (M.LT.2) GO TO 100
-      P = 0.D0
-      C(1) = 0.D0
-      E(M) = 0.D0
-      F(1) = 0.D0
-      F(M-1) = 0.D0
-      F(M) = 0.D0
+      P = 0
+      C(1) = 0
+      E(M) = 0
+      F(1) = 0
+      F(M-1) = 0
+      F(M) = 0
       C(2) = C(4) - C(3)
-      D(2) = 1.D0/D(2)
+      D(2) = 1.0_rk/D(2)
 
       IF (M.LT.3) GO TO 100
       DO 90 I=3,M
         Q = D(I-1)*E(I-1)
-        D(I) = 1.D0/(D(I)-P*F(I-2)-Q*E(I-1))
+        D(I) = 1.0_rk/(D(I)-P*F(I-2)-Q*E(I-1))
         E(I) = E(I) - Q*F(I-1)
         C(I) = C(I+2) - C(I+1) - P*C(I-2) - Q*C(I-1)
         P = D(I-1)*F(I-1)
    90 CONTINUE
 
   100 I = N - 1
-      C(N-1) = 0.D0
-      C(N) = 0.D0
+      C(N-1) = 0.0_rk
+      C(N) = 0.0_rk
       IF (N.LT.4) GO TO 120
       DO 110 M=4,N
 
@@ -422,43 +424,43 @@ IF (M < 2) GO TO 40
       Q3 = Q*Q*Q
       QR = Q + R
 !       IF (QR) 140, 130, 140
-      if(QR /=0.d0) goto 140
-      if(QR ==0.d0) goto 130
+      if(QR /=0.0_rk) goto 140
+      if(QR ==0.0_rk) goto 130
 
   130 V = 0.
       T = 0.
       GO TO 150
   140 V = C(2)/QR
       T = V
-  150 F(1) = 0.D0
-      IF (Q.NE.0.D0) F(1) = V/Q
+  150 F(1) = 0.0_rk
+      IF (Q.NE.0.0_rk) F(1) = V/Q
       DO 180 I=2,M
         P = Q
         Q = R
-        R = 0.D0
+        R = 0.0_rk
         IF (I.NE.M) R = X(I+2) - X(I+1)
         P3 = Q3
         Q3 = Q*Q*Q
         PQ = QR
         QR = Q + R
         S = T
-        T = 0.D0
-        IF (QR.NE.0.D0) T = (C(I+1)-C(I))/QR
+        T = 0.0_rk
+        IF (QR.NE.0.0_rk) T = (C(I+1)-C(I))/QR
         U = V
         V = T - S
 !         IF (PQ) 170, 160, 170
-         if(PQ /=0.d0) goto 170
-         if(PQ ==0.d0) goto 160
+         if(PQ /=0.0_rk) goto 170
+         if(PQ ==0.0_rk) goto 160
 
   160   C(I) = C(I-1)
-        D(I) = 0.D0
-        E(I) = 0.D0
-        F(I) = 0.D0
+        D(I) = 0.0_rk
+        E(I) = 0.0_rk
+        F(I) = 0.0_rk
         GO TO 180
   170   F(I) = F(I-1)
-        IF (Q.NE.0.D0) F(I) = V/Q
-        E(I) = 5.D0*S
-        D(I) = 10.D0*(C(I)-Q*S)
+        IF (Q.NE.0.0_rk) F(I) = V/Q
+        E(I) = 5.0_rk*S
+        D(I) = 10.0_rk*(C(I)-Q*S)
         C(I) = D(I)*(P-Q) + (B(I+1)-B(I)+(U-E(I))*P3-(V+E(I))*Q3)/PQ
         B(I) = (P*(B(I+1)-V*Q3)+Q*(B(I)-U*P3))/PQ - P*Q*(D(I)+E(I)*(Q-P))
   180 CONTINUE
@@ -467,16 +469,16 @@ IF (M < 2) GO TO 40
 
       P = X(2) - X(1)
       S = F(1)*P*P*P
-      E(1) = 0.D0
-      D(1) = 0.D0
-      C(1) = C(2) - 10.D0*S
+      E(1) = 0.0_rk
+      D(1) = 0.0_rk
+      C(1) = C(2) - 10.0_rk*S
       B(1) = B1 - (C(1)+S)*P
 
       Q = X(N) - X(N-1)
       T = F(N-1)*Q*Q*Q
-      E(N) = 0.D0
-      D(N) = 0.D0
-      C(N) = C(N-1) + 10.D0*T
+      E(N) = 0.0_rk
+      D(N) = 0.0_rk
+      C(N) = C(N-1) + 10.0_rk*T
       B(N) = B(N) + (C(N)-T)*Q
       RETURN
 

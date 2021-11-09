@@ -1740,7 +1740,7 @@ module functions
      !
      yinf = (DD(r,5,d1,d2)*C5 + DD(r,6,d1,d2)*C6/r + DD(r,8,d1,d2)*C8/r**3)/r**5
      !
-     z    = dtanh(c1*r - c2/r)
+     z    = tanh(c1*r - c2/r)
      !
      t1 = 0._rk
      t2 = 0._rk
@@ -1760,7 +1760,7 @@ module functions
       real(rk) :: r, d1, d2, f
       integer(ik) ::   n
       !
-      f = (1.0_rk - dexp(-d1*r/n - d2*r*r/dsqrt(dble(n))))**(n + 2)
+      f = (1.0_rk - exp(-d1*r/n - d2*r*r/sqrt(real(n,rk))))**(n + 2)
       !
       end function DD
       !
