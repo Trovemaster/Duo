@@ -22,9 +22,9 @@ module F1_hyperfine
     REAL(rk) :: J_min, J_max, MHz_to_wavenumber = 1.0E6_rk / vellgt, &
                 wavenumber_to_MHz = vellgt / 1.0E6_rk
 
-    TYPE(fieldT) :: FC_bF_field 
     TYPE(eigenT), allocatable :: eigen_all_F1(:,:)
     LOGICAL :: F1_hyperfine_gridvalue_allocated  = .false.
+    INTEGER(ik), PARAMETER :: unit_hyperfine_states = 65
     
 contains
 
@@ -40,6 +40,8 @@ contains
                                     transformation_matrix(:,:), &
                                     eigen_vector_F1(:, :)
         TYPE(quantaT), POINTER :: quanta
+        
+        open(unit=unit_hyperfine_states, file="hyperfine_states.txt")
         
         write(out, '(/A)') "Start: hyperfine energies calculation"
  
@@ -77,6 +79,10 @@ contains
         write(out, '(/A2, A)') '', 'Start: hyperfine states'
 
         ALLOCATE(eigen_all_F1(num_F1, sym%NrepresCs))
+
+        write(unit_hyperfine_states, '(A7, A22, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
+            'Number', 'Energy [cm-1]', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
+
 
         do index_F1 = 1, num_F1
             write(out, '(/A4, A, F6.1)') '', 'Eigen states of F =', F1_list(index_F1)
@@ -137,16 +143,29 @@ contains
                 eigen_all_F1(index_F1, index_represCs)%val = eigen_value_F1
                 eigen_all_F1(index_F1, index_represCs)%vect = eigen_vector_F1
 
-                write(out, '(/A8, A)') '', 'List energy levels:'
-                write(out, '(A8, A7, A22, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
-                    '', 'No.', 'Energy [cm-1]', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
+                write(out, '(/A8, A)') '', 'Calculate energy levels'
+                ! write(out, '(A8, A7, A22, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
+                !     '', 'No.', 'Energy [cm-1]', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
                 eigen_value_F1(:) = eigen_value_F1(:) - job%ZPE
                 do index_levels_F1 = 1, Nlevels_F1
                     maxlocation = MAXLOC(ABS(eigen_vector_F1(:, index_levels_F1)), DIM=1)
                     quanta => primitive_F1_basis(index_F1)%icontr(maxlocation) 
 
-                    write(out, '(A8, I7, F22.12, F7.1, F7.1, A7, F7.1, I7, I7, I7, F7.1, F7.1)') &
-                        '', &
+                    ! write(out, '(A8, I7, F22.12, F7.1, F7.1, A7, F7.1, I7, I7, I7, F7.1, F7.1)') &
+                    !     '', &
+                    !     index_levels_F1, &
+                    !     eigen_value_F1(index_levels_F1), &
+                    !     quanta%F1, &
+                    !     quanta%I1, &
+                    !     trim(parity_sign(index_represCs)), &
+                    !     quanta%Jrot, &
+                    !     quanta%istate, &
+                    !     quanta%v, &
+                    !     quanta%ilambda, &
+                    !     quanta%sigma, &
+                    !     quanta%omega
+
+                    write(unit_hyperfine_states, '(I7, F22.12, F7.1, F7.1, A7, F7.1, I7, I7, I7, F7.1, F7.1)') &
                         index_levels_F1, &
                         eigen_value_F1(index_levels_F1), &
                         quanta%F1, &
@@ -178,6 +197,8 @@ contains
         
         ! DEALLOCATE(primitive_F1_basis)       
         write(out, '(A/)') "End: hyperfine energy calculation"
+        
+        close(unit=unit_hyperfine_states)
     contains
         function parity_sign(index_represCs)
             INTEGER(ik), INTENT(IN) :: index_represCs
