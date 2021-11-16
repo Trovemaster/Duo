@@ -1555,6 +1555,7 @@ module diatom_module
 
           case("HFCC-BF")
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
+            iobject(21) = iobject(21) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1596,6 +1597,7 @@ module diatom_module
           
           case("HFCC-A")
             hfcc1(2)%num_field = hfcc1(2)%num_field + 1
+            iobject(22) = iobject(22) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1637,6 +1639,7 @@ module diatom_module
 
           case("HFCC-C")
             hfcc1(3)%num_field = hfcc1(3)%num_field + 1
+            iobject(23) = iobject(23) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1679,6 +1682,7 @@ module diatom_module
             endif
           case("HFCC-D")
             hfcc1(4)%num_field = hfcc1(4)%num_field + 1
+            iobject(24) = iobject(24) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1721,6 +1725,7 @@ module diatom_module
             endif
           case("HFCC-CI")
             hfcc1(5)%num_field = hfcc1(5)%num_field + 1
+            iobject(25) = iobject(25) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1762,6 +1767,7 @@ module diatom_module
 
           case("HFCC-EQQ0")
             hfcc1(6)%num_field = hfcc1(6)%num_field + 1
+            iobject(26) = iobject(26) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1803,6 +1809,7 @@ module diatom_module
 
           case("HFCC-EQQ2")
             hfcc1(7)%num_field = hfcc1(7)%num_field + 1
+            iobject(27) = iobject(27) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -2795,6 +2802,97 @@ module diatom_module
                    !
                enddo loop_istate_abquad
                !
+             case("HFCC-BF")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(1)%num_field
+                    if (iref == hfcc1(1)%field(i)%iref.and.jref == hfcc1(1)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:21-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-A")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(2)%num_field
+                    if (iref == hfcc1(2)%field(i)%iref.and.jref == hfcc1(2)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:22-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-C")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(3)%num_field
+                    if (iref == hfcc1(3)%field(i)%iref.and.jref == hfcc1(3)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:23-1)) + i
+                      exit
+                    endif
+                enddo
+             
+             case("HFCC-D")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(4)%num_field
+                    if (iref == hfcc1(4)%field(i)%iref.and.jref == hfcc1(4)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:24-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-CI")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(5)%num_field
+                    if (iref == hfcc1(5)%field(i)%iref.and.jref == hfcc1(5)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:25-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-EQQ0")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(6)%num_field
+                    if (iref == hfcc1(6)%field(i)%iref.and.jref == hfcc1(6)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:26-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-EQQ2")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(7)%num_field
+                    if (iref == hfcc1(7)%field(i)%iref.and.jref == hfcc1(7)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:27-1)) + i
+                      exit
+                    endif
+                enddo
+
              end select
              !
              if (.not.include_state) then
@@ -3981,6 +4079,8 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobj - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -4703,11 +4803,6 @@ subroutine map_fields_onto_grid(iverbose)
      object_loop: do iobject = 1,Nobjects
         !
         Nmax = fieldmap(iobject)%Nfields
-        if ((iobject >= 13 .and. iobject <= 20) .or. (iobject == 28)) then
-            Nmax = 0
-        else if ( iobject >=21 .and. iobject <=27 ) then
-            Nmax = hfcc1(iobject - 20)%num_field 
-        endif
         !
         ! each field type consists of Nmax terms
         !
@@ -5096,6 +5191,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)

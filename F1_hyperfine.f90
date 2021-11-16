@@ -353,7 +353,7 @@ contains
                     primitive_F1_hyperfine_matrix, Ndimen_F1, &
                     0.0_rk, intermediate_matrix, Nlevels_F1)
 
-        ! H_hfs^tau = H_indermediate * Phi           
+        ! H_hfs^tau = M_indermediate * Phi           
         CALL dgemm('N', 'N', Nlevels_F1, Nlevels_F1, Ndimen_F1, 1.0_rk, &
                     intermediate_matrix, Nlevels_F1, &
                     transformation_matrix, Ndimen_F1, &
