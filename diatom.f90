@@ -487,7 +487,7 @@ module diatom_module
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
-    integer(ik)  :: itau,lambda_,x_lz_y_
+    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
@@ -2352,12 +2352,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 10
+               !
                include_state = .false.
-               loop_istate_ab10 : do i=1,iobject(10)
+               loop_istate_ab10 : do i=1,iobject(iobject_)
                    if (iref==lambdaopq(i)%iref.and.jref==lambdaopq(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab10
                    endif
@@ -2370,12 +2372,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 11
+               !
                include_state = .false.
-               loop_istate_ab11 : do i=1,iobject(11)
+               loop_istate_ab11 : do i=1,iobject(iobject_)
                    if (iref==lambdap2q(i)%iref.and.jref==lambdap2q(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab11
                    endif
@@ -2388,12 +2392,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 12
+               !
                include_state = .false.
-               loop_istate_ab12 : do i=1,iobject(12)
+               loop_istate_ab12 : do i=1,iobject(iobject_)
                    if (iref==lambdaq(i)%iref.and.jref==lambdaq(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab12
                    endif
@@ -2404,13 +2410,15 @@ module diatom_module
                call readi(iref)
                call readi(jref)
                !
+               iobject_ = Nobjects
+               !
                include_state = .false.
                loop_istate_abdip : do i=1,idip
                    !
                    if (iref==dipoletm(i)%iref.and.jref==dipoletm(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:Nobjects-2)) + i
                      !
                      exit loop_istate_abdip
                    endif
@@ -2423,8 +2431,12 @@ module diatom_module
                !
              case("QUADRUPOLE")
                !
+               call report ("Ab initio field is crrently not working with QUADRUPOLE",.true.)
+               !
                call readi(iref)
                call readi(jref)
+               !
+               iobject_ = Nobjects-3
                !
                include_state = .false.
                loop_istate_abquad : do i=1,iquad
@@ -2432,7 +2444,7 @@ module diatom_module
                    if (iref==quadrupoletm(i)%iref.and.jref==quadrupoletm(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:Nobjects-3)) + i
                      !
                      exit loop_istate_abquad
                    endif
