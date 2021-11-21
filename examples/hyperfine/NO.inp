@@ -1,0 +1,152 @@
+atoms N-14 O-16
+
+molecule NO 
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0.5 - 100.5 
+
+solutionmethod Sinc
+
+(Defining the integration grid)
+grid
+  npoints  701  (odd)
+  range  0.6, 4.0
+  type 0  
+end
+
+
+symmetry Cs(M)
+
+
+DIAGONALIZER
+ SYEV   (SYEVR)
+ enermax 53000.0
+end
+
+
+CONTRACTION
+  vib
+  vmax      1
+END
+
+poten 1
+name "X2Pi"
+lambda 1
+mult   2
+type   EMO
+values
+    VE           0.00000000000000E+00
+    RE           0.11507863151853E+01
+    DE           0.52495307750971E+05 
+    RREF        -0.10000000000000E+01
+    PL           0.40000000000000E+01
+    PR           0.40000000000000E+01
+    NL           0.20000000000000E+01
+    NR           0.10000000000000E+02
+    B0           0.27657327621232E+01
+    B1           0.17739962868001E+00
+    B2           0.12996658564591E+00
+    B3           0.18174776803043E+01
+    B4          -0.97678608243932E+01
+    B5           0.32552617956793E+02
+    B6          -0.57640022462208E+02
+    B7           0.55246373834427E+02
+    B8          -0.21231743969255E+02
+    B9           0.00000000000000E+00
+    B10          0.00000000000000E+00
+end
+
+
+spin-orbit  1 1 
+name "<X2Pi|LSZ|X2Pi>"
+spin   0.5 0.5
+lambda  1  1 
+sigma  0.5 0.5 
+units  cm-1
+factor    1.0   (0, 1 or i)
+type polynom
+values 
+    A0           60 
+end
+
+hyperfine 
+I 1
+end
+
+hfcc-bf 1 1
+name "<X2Pi|FC|X2Pi>" (Fermi-contact)
+spin 0.5
+factor 1.0
+type polynom
+factor 1 
+values 
+    A0           0
+end
+
+hfcc-a 1 1
+name "<X2Pi|NSO|X2Pi>" (Nuclear spin-orbit)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0.1
+end
+
+hfcc-c 1 1
+name "<X2Pi|SDND_C|X2Pi>" (Electron spin - nuclear spin dipole-dipole, c)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0
+end
+
+hfcc-d 1 1
+name "<X2Pi|SDND_D|X2Pi>" (Electron spin - nuclear spin dipole-dipole, d)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0
+end
+
+hfcc-ci 1 1
+name "<X2Pi|NSR|X2Pi>" (Nuclear spin - rotation)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0
+end
+
+hfcc-eqq0 1 1
+name "<X2Pi|eQq0|X2Pi>" (Electric quadrupole eQq0)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0
+end
+
+hfcc-eqq2 1 1
+name "<X2Pi|eQq2|X2Pi>" (Electric quadrupole eQq2)
+spin 0.5
+factor 1.0
+type polynom
+values 
+    A0           0
+end
+
+
+dipole  1 1
+name "<X,2Pi|DMC|X,2Pi>"
+spin   0.5 0.5
+lambda  1  1
+factor   1   (0, 1 or i)
+type polynom
+values 
+    A0           1
+end
