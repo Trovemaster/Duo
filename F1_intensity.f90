@@ -80,6 +80,7 @@ contains
             Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen  
 
             do index_F1_ket = max(1, index_F1_bra - 1), min(num_F1, index_F1_bra + 1) ! F1 selection rule
+                if ((index_F1_bra == index_F1_ket) .and. F1_list(index_F1_bra) == 0) cycle
                 Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
 
                 ALLOCATE(primitive_F1_reduced_TDM_matrix(Ndimen_F1_bra, Ndimen_F1_ket))

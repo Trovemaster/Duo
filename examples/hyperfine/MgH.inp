@@ -1,0 +1,130 @@
+(Using ab initio curve Ab inition potential energy curves and transition dipole moment for )
+(X2sigma+ A2pi and b'2 states of MgH 2012)
+(ground state abinitio PEC are input using morphoring key word)
+
+atoms Mg-24 H-1
+
+molecule MgH
+
+(Total number of states taken into account)
+nstates 1
+
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0.5 - 3.5
+
+(Defining the integration grid)
+grid
+  npoints 401  (odd)
+  range 1.0,5.0
+  type 0   (nsub)
+end
+
+ASSIGN_V_BY_COUNT
+
+(heteronuclear atom)
+symmetry Cs(M)
+
+
+(vmax for different states X-11 A-3 B-4)
+CONTRACTION
+  vmax      5 (or 1)
+END
+
+
+DIAGONALIZER
+ SYEV   (SYEVR)
+ nroots  600
+end
+
+poten 1
+name 'X2Sigma+'
+lambda 0
+symmetry +
+mult   2
+type MLR_DS
+    values
+    V0           0.
+    RE	         1.7296850
+    AE           11104.26
+    RREF         2.73
+    P            5
+    Q            4
+    N            12
+    RHO          0.810
+    B0           1.15492604850000e+00  
+    B1           1.04962030432982e+00    
+    B2           2.63821695711573e+00   
+    B3           2.01213050303404e+00    
+    B4          -6.09116777176108e-01   
+    B5           3.70028924733247e+00  
+    B6           2.02940905897105e+01    
+    B7           1.50140767755608e+01  
+    B8          -4.38643099381244e+01  
+    B9          -8.05444477366607e+01  
+    B10         -2.47901962028713e+01  
+    B11          3.04216704187525e+01   
+    B12          1.80314080042298e+01  
+    C1           0.
+    C2           0.
+    C3           0.
+    C4           0.
+    C5           0.
+    C6	     2.775e5
+    C7           0.
+    C8	     3.454e6
+    C9           0.
+    C10	     4.614e7
+end
+
+
+spin-rot  1 1
+name "<X2Sigma+|SR|X2Sigma+>"
+spin 0.5
+lambda 0
+factor 1.0
+type polynom
+values 
+    A0          0.0263785488559555
+end
+
+hyperfine
+I 0.5
+end
+
+hfcc-bf 1 1
+name "<X2Sigma+|FC|X2Sigma+>" (Fermi-contact)
+spin 0.5
+lambda 0
+factor 1.0
+type polynom
+values 
+    A0          1.026958234331E-02
+end
+
+
+hfcc-c 1 1
+name "<X2Sigma+|SDND_C|X2Sigma+>" (Electron spin - nuclear spin dipole-dipole, c)
+spin 0.5
+lambda 0
+factor 1.0
+type polynom
+values 
+    A0          1.598439144190E-04
+end
+
+
+dipole  1 1 
+name "<X2Sigma+|DMZ|X2Sigma+>"
+spin   0.5 0.5
+lambda  0  0
+factor   1   (0, 1 or i)
+type polynom
+values 
+    A0           1 (for test)
+end
+
+
+
+
+
