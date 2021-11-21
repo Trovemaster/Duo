@@ -11,6 +11,9 @@
     use header_info, only: write_logo
     use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action !, check_and_set_atomic_data
 
+    use F1_hyperfine, only: F1_hyperfine_structrure
+    use F1_intensity, only: F1_hyperfine_intensity
+
     interface ! used for isatty
       function isatty(fd) bind(c)
         use iso_c_binding
@@ -53,6 +56,11 @@
           write(out, '(a)') 'Fitting and intensity should not be used at the same time'
           stop 'please switch-off/remove either fitting or intensity'
        endif 
+
+       if (action%hyperfine) then
+            write(out, '(a)') 'Fitting and hyperfine should not be used at the same time'
+            stop 'please switch-off/remove either fitting or hyperfine'
+       endif
        !
        ! Here we map all fields onto the same grid 
        call map_fields_onto_grid(verbose)
@@ -61,7 +69,17 @@
        call sf_fitting
      endif 
      !
+
+     if(action%hyperfine) then
+        action%save_eigen_J = .true.
+        call duo_j0
+        call F1_hyperfine_intensity
+        write(out, '(a)') '--End--'
+        stop
+     endif   
+
      if (action%intensity) then 
+        action%save_eigen_J = .true.
        !
        call map_fields_onto_grid(verbose)
        !
