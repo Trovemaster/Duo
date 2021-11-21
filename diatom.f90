@@ -24,7 +24,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 16  ! number of different terms of the Hamiltonian 
+  integer(ik),parameter   :: Nobjects = 32  ! number of different terms of the Hamiltonian 
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -54,6 +54,15 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
+  !        case (13 - 20) reserved
+  !        case (21) hfcc1(1) for Fermi contact, bF
+  !        case (22) hfcc1(2) for nuclear spin - orbit, a
+  !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
+  !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
+  !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
+  !        case (26) hfcc1(6) for electric dipole, eQq0
+  !        case (27) hfcc1(7) for electric diople, eQq2
+  !        case (28) reserved
   !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
@@ -63,7 +72,14 @@ module diatom_module
   ! Lorenzo Lodi: it is necessary to repeat the character length specification in the array contructor for Fortran2003 conformance
   character(len=wl),parameter :: CLASSNAMES(1:Nobjects)  = (/ character(len=wl):: "POTEN","SPINORBIT","L2", "L+","SPIN-SPIN",&
                                                              "SPIN-SPIN-O","BOBROT","SPIN-ROT","DIABATIC","LAMBDAOPQ", &
-                                                             "LAMBDAP2Q","LAMBDAQ", "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
+                                                             "LAMBDAP2Q","LAMBDAQ", &
+                                                             "", "", "", "", "", "", "", "", & ! reserved
+                                                             "HFCC-BF-1", "HFCC-A-1", &
+                                                             "HFCC-C-1", "HFCC-D-1", &
+                                                             "HFCC-CI-1", &
+                                                             "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
+                                                             "", & ! reserved
+                                                             "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -484,9 +500,9 @@ module diatom_module
   REAL(rk), ALLOCATABLE :: vibrational_contrfunc(:,:)  
   TYPE(quantaT), ALLOCATABLE :: vibrational_quantum_number(:)
   INTEGER(ik) :: vibrational_totalroots
-  REAL(rk) :: I1, scaling_factor
+  REAL(rk) :: I1
   INTEGER(ik), PARAMETER :: GLOBAL_NUM_HFCC_OBJECT = 7
-  TYPE(FieldListT) :: hfcc(GLOBAL_NUM_HFCC_OBJECT)
+  TYPE(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
          jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm,&
@@ -817,7 +833,7 @@ module diatom_module
                    lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupoletm(ncouples),stat=alloc)
 
           do i = 1, GLOBAL_NUM_HFCC_OBJECT
-            allocate(hfcc(i)%field(nestates), stat=alloc)
+            allocate(hfcc1(i)%field(nestates), stat=alloc)
           end do   
           !
           ! initializing the fields
@@ -1538,7 +1554,8 @@ module diatom_module
           select case (w)
 
           case("HFCC-BF")
-            hfcc(1)%num_field = hfcc(1)%num_field + 1
+            hfcc1(1)%num_field = hfcc1(1)%num_field + 1
+            iobject(21) = iobject(21) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1556,15 +1573,15 @@ module diatom_module
             enddo loop_istate_hfcc_bf
 
             ! Check if it was defined before 
-            do istate=1, hfcc(1)%num_field - 1
-              if (iref==hfcc(1)%field(istate)%iref.and.jref==hfcc(1)%field(istate)%jref) then
+            do istate=1, hfcc1(1)%num_field - 1
+              if (iref==hfcc1(1)%field(istate)%iref.and.jref==hfcc1(1)%field(istate)%jref) then
                 call report ("Fermi contact object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
-              hfcc(1)%num_field = hfcc(1)%num_field - 1
+              hfcc1(1)%num_field = hfcc1(1)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1572,14 +1589,15 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(1)%field(hfcc(1)%num_field) 
+            field => hfcc1(1)%field(hfcc1(1)%num_field) 
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-BF"
+            field%class = "HFCC-BF-1"
             if (action%fitting) call report ("Fermi-contact object cannot appear after FITTING",.true.)
           
           case("HFCC-A")
-            hfcc(2)%num_field = hfcc(2)%num_field + 1
+            hfcc1(2)%num_field = hfcc1(2)%num_field + 1
+            iobject(22) = iobject(22) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1597,15 +1615,15 @@ module diatom_module
             enddo loop_istate_hfcc_a
 
             ! Check if it was defined before 
-            do istate=1, hfcc(2)%num_field - 1
-              if (iref==hfcc(2)%field(istate)%iref.and.jref==hfcc(2)%field(istate)%jref) then
+            do istate=1, hfcc1(2)%num_field - 1
+              if (iref==hfcc1(2)%field(istate)%iref.and.jref==hfcc1(2)%field(istate)%jref) then
                 call report ("Nuclear spin -- orbit object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('The Nuclear spin -- orbit ',2i8,' is skipped')") iref,jref
-              hfcc(2)%num_field = hfcc(2)%num_field - 1
+              hfcc1(2)%num_field = hfcc1(2)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1613,14 +1631,15 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(2)%field(hfcc(2)%num_field)
+            field => hfcc1(2)%field(hfcc1(2)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-A"
+            field%class = "HFCC-A-1"
             if (action%fitting) call report ("Nuclear spin -- orbit object cannot appear after FITTING",.true.)
 
           case("HFCC-C")
-            hfcc(3)%num_field = hfcc(3)%num_field + 1
+            hfcc1(3)%num_field = hfcc1(3)%num_field + 1
+            iobject(23) = iobject(23) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1638,15 +1657,15 @@ module diatom_module
             enddo loop_istate_hfcc_c
 
             ! Check if it was defined before 
-            do istate=1, hfcc(3)%num_field - 1
-              if (iref==hfcc(3)%field(istate)%iref.and.jref==hfcc(3)%field(istate)%jref) then
+            do istate=1, hfcc1(3)%num_field - 1
+              if (iref==hfcc1(3)%field(istate)%iref.and.jref==hfcc1(3)%field(istate)%jref) then
                 call report ("Diagonal nuclear spin - electron spin dipole-dipole object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('Diagonal nuclear spin - electron spin dipole-dipole term ',2i8,' is skipped')") iref,jref
-              hfcc(3)%num_field = hfcc(3)%num_field - 1
+              hfcc1(3)%num_field = hfcc1(3)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1654,15 +1673,16 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(3)%field(hfcc(3)%num_field)
+            field => hfcc1(3)%field(hfcc1(3)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-C"
+            field%class = "HFCC-C-1"
             if (action%fitting) then
               call report ("Diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
             endif
           case("HFCC-D")
-            hfcc(4)%num_field = hfcc(4)%num_field + 1
+            hfcc1(4)%num_field = hfcc1(4)%num_field + 1
+            iobject(24) = iobject(24) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1680,15 +1700,15 @@ module diatom_module
             enddo loop_istate_hfcc_d
 
             ! Check if it was defined before 
-            do istate=1, hfcc(4)%num_field - 1
-              if (iref==hfcc(4)%field(istate)%iref.and.jref==hfcc(4)%field(istate)%jref) then
+            do istate=1, hfcc1(4)%num_field - 1
+              if (iref==hfcc1(4)%field(istate)%iref.and.jref==hfcc1(4)%field(istate)%jref) then
                 call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object  is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('The Off-diagonal nuclear spin - electron spin dipole-dipole object ',2i8,' is skipped')") iref,jref
-              hfcc(4)%num_field = hfcc(4)%num_field - 1
+              hfcc1(4)%num_field = hfcc1(4)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1696,15 +1716,16 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(4)%field(hfcc(4)%num_field)
+            field => hfcc1(4)%field(hfcc1(4)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-D"
+            field%class = "HFCC-D-1"
             if (action%fitting) then
               call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
             endif
           case("HFCC-CI")
-            hfcc(5)%num_field = hfcc(5)%num_field + 1
+            hfcc1(5)%num_field = hfcc1(5)%num_field + 1
+            iobject(25) = iobject(25) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1722,15 +1743,15 @@ module diatom_module
             enddo loop_istate_hfcc_ci
 
             ! Check if it was defined before 
-            do istate=1, hfcc(5)%num_field - 1
-              if (iref==hfcc(5)%field(istate)%iref.and.jref==hfcc(5)%field(istate)%jref) then
+            do istate=1, hfcc1(5)%num_field - 1
+              if (iref==hfcc1(5)%field(istate)%iref.and.jref==hfcc1(5)%field(istate)%jref) then
                 call report ("Nuclear spin -- rotation object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
-              hfcc(5)%num_field = hfcc(5)%num_field - 1
+              hfcc1(5)%num_field = hfcc1(5)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1738,14 +1759,15 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(5)%field(hfcc(5)%num_field)
+            field => hfcc1(5)%field(hfcc1(5)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-CI"
+            field%class = "HFCC-CI-1"
             if (action%fitting) call report ("Nuclear spin -- rotation object cannot appear after FITTING",.true.)
 
           case("HFCC-EQQ0")
-            hfcc(6)%num_field = hfcc(6)%num_field + 1
+            hfcc1(6)%num_field = hfcc1(6)%num_field + 1
+            iobject(26) = iobject(26) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1763,15 +1785,15 @@ module diatom_module
             enddo loop_istate_hfcc_eqq0
 
             ! Check if it was defined before 
-            do istate=1, hfcc(6)%num_field - 1
-              if (iref==hfcc(6)%field(istate)%iref.and.jref==hfcc(6)%field(istate)%jref) then
+            do istate=1, hfcc1(6)%num_field - 1
+              if (iref==hfcc1(6)%field(istate)%iref.and.jref==hfcc1(6)%field(istate)%jref) then
                 call report ("Diagonal nuclear electric quadrupole object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('Diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
-              hfcc(6)%num_field = hfcc(6)%num_field - 1
+              hfcc1(6)%num_field = hfcc1(6)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1779,14 +1801,15 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(6)%field(hfcc(6)%num_field)
+            field => hfcc1(6)%field(hfcc1(6)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-EQQ0"
+            field%class = "HFCC-EQQ0-1"
             if (action%fitting) call report ("Diagonal nuclear electric quadrupole object cannot appear after FITTING",.true.)
 
           case("HFCC-EQQ2")
-            hfcc(7)%num_field = hfcc(7)%num_field + 1
+            hfcc1(7)%num_field = hfcc1(7)%num_field + 1
+            iobject(27) = iobject(27) + 1
             call readi(iref); jref = iref
             include_state = .false.
 
@@ -1804,15 +1827,15 @@ module diatom_module
             enddo loop_istate_hfcc_eqq2
 
             ! Check if it was defined before 
-            do istate=1, hfcc(7)%num_field - 1
-              if (iref==hfcc(7)%field(istate)%iref.and.jref==hfcc(7)%field(istate)%jref) then
+            do istate=1, hfcc1(7)%num_field - 1
+              if (iref==hfcc1(7)%field(istate)%iref.and.jref==hfcc1(7)%field(istate)%jref) then
                 call report ("Off-diagonal nuclear electric quadrupole object is repeated",.true.)
               endif
             enddo
 
             if (.not.include_state) then
               !write(out,"('Off-diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
-              hfcc(7)%num_field = hfcc(7)%num_field - 1
+              hfcc1(7)%num_field = hfcc1(7)%num_field - 1
               do while (trim(w)/="".and.trim(w)/="END")
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1820,10 +1843,10 @@ module diatom_module
               cycle
             endif
 
-            field => hfcc(7)%field(hfcc(7)%num_field)
+            field => hfcc1(7)%field(hfcc1(7)%num_field)
 
             call set_field_refs(field, iref, jref, istate_, jstate_)
-            field%class = "HFCC-EQQ2"
+            field%class = "HFCC-EQQ2-1"
             if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
 
              !
@@ -2496,7 +2519,7 @@ module diatom_module
              !
              field%class = "QUADRUPOLE"
              !
-           case("ABINITIO")
+          case("ABINITIO")
              !
              iabi = iabi + 1
              !
@@ -2779,6 +2802,97 @@ module diatom_module
                    !
                enddo loop_istate_abquad
                !
+             case("HFCC-BF")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(1)%num_field
+                    if (iref == hfcc1(1)%field(i)%iref.and.jref == hfcc1(1)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:21-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-A")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(2)%num_field
+                    if (iref == hfcc1(2)%field(i)%iref.and.jref == hfcc1(2)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:22-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-C")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(3)%num_field
+                    if (iref == hfcc1(3)%field(i)%iref.and.jref == hfcc1(3)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:23-1)) + i
+                      exit
+                    endif
+                enddo
+             
+             case("HFCC-D")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(4)%num_field
+                    if (iref == hfcc1(4)%field(i)%iref.and.jref == hfcc1(4)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:24-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-CI")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(5)%num_field
+                    if (iref == hfcc1(5)%field(i)%iref.and.jref == hfcc1(5)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:25-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-EQQ0")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(6)%num_field
+                    if (iref == hfcc1(6)%field(i)%iref.and.jref == hfcc1(6)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:26-1)) + i
+                      exit
+                    endif
+                enddo
+
+             case("HFCC-EQQ2")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(7)%num_field
+                    if (iref == hfcc1(7)%field(i)%iref.and.jref == hfcc1(7)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:27-1)) + i
+                      exit
+                    endif
+                enddo
+
              end select
              !
              if (.not.include_state) then
@@ -3965,6 +4079,8 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobj - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -4717,6 +4833,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -5073,6 +5191,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -6849,7 +6969,6 @@ end subroutine map_fields_onto_grid
      h12 = 12.0_rk*hstep**2
      sc  = h12*scale
 
-     scaling_factor = sc
      !
      b_rot = aston/amass
      !

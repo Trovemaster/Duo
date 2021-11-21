@@ -97,7 +97,8 @@ module refinement
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
-       Nobjectmax = Nobjects - 3
+       ! Nobjectmax = Nobjects - 3
+       Nobjectmax = 13
        !
        call TimerStart('Simultaneous Fitting')
        !
