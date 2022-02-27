@@ -1014,7 +1014,7 @@ contains
     logical        :: passed,passed_
 
     real(rk),allocatable :: vecI(:), vecF(:)
-    real(rk),allocatable :: half_linestr(:),half_pecme(:)
+    real(rk),allocatable :: half_linestr(:)
     !
     integer(ik)  :: jind,nlevels
     !
@@ -1040,7 +1040,8 @@ contains
     integer(ik) :: inu,Nlambdasigmas,i,ilevel,ivib,Ntotal
     real(rk) :: J_
     real(rk) :: dnu, nu,RWF2,intens_cm_molecule,sc,scale,h12
-    complex(rk),allocatable :: Amat(:,:),B(:,:)
+    complex*16,allocatable :: Amat(:,:),B(:),C(:)
+    complex*16,parameter :: alpha_ = (1.0d0,0.0d0),beta_ = 0.d0
     !
     real(rk),allocatable :: crosssections(:)
     !
@@ -1051,7 +1052,8 @@ contains
     type(quantaT),allocatable :: icontr(:)
     integer(ik),allocatable :: Nirr(:,:),ilevel2i(:,:)
     type(matrixT) :: transform(2)
-    real(rk) :: ddot
+    complex*16 :: zdotc
+    !double precision :: ddot
     !
     call TimerStart('Intensity calculations')
     !
@@ -1234,7 +1236,7 @@ contains
     write(out,my_fmt) nlevelsG(:)
     !
     if (iverbose >= 0) then
-       write(out,"(' Total number of lower states = ',i8)") nlower
+       write(out,"(' Total number of lower states = ',i8)") nlevelsI
        write(out,"(' Total number of transitions  = ',i8)") Ntransit
     end if
     !
@@ -1316,10 +1318,9 @@ contains
        !
        allocate(icontr(Ntotal),stat=info)
        !
-       allocate(half_linestr(Ntotal),half_pecme(Ntotal),stat=info)
+       allocate(half_linestr(Ntotal),stat=info)
        !
        call ArrayStart('half_linestr',info,size(half_linestr),kind(half_linestr))
-       call ArrayStart('half_pecme',info,size(half_pecme),kind(half_pecme))
        !
        if (iverbose>=4) write(out,'(/"Contracted basis set:")')
        if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
@@ -1574,10 +1575,10 @@ contains
               enddo Ilevels_loop
               !
               !$omp parallel private(Amat,B,alloc_p) shared(crosssections) 
-              allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF,1),stat = alloc_p)
+              allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF),C(nlevelsF),stat = alloc_p)
               if (alloc_p/=0) then
-                  write (out,"(' RWF: ',i9,' trying to allocate arrays A and B')") alloc_p
-                  stop 'RWF A and B - out of memory'
+                  write (out,"(' RWF: ',i9,' trying to allocate arrays A, B, C')") alloc_p
+                  stop 'RWF A, B, C - out of memory'
               end if
               !call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
               !call ArrayStart('RWF:Amat',info,size(B),kind(B))
@@ -1589,7 +1590,7 @@ contains
                  !
                  nu = intensity%freq_window(1)+dnu*real(inu,rk)
                  !
-                 if (iverbose>=4.and.mod(inu,2)==0) write(out,"(2f8.1,1x,i2,1x,i7,1x,'nu = ',f9.2)") Jf,Ji,igammaI,inu,nu
+                 if (iverbose>=4.and.mod(inu,100)==0) write(out,"(2f8.1,1x,i2,1x,i7,1x,'nu = ',f9.2)") Jf,Ji,igammaI,inu,nu
                  !
                  do ilevelI = 1, nlevelsI
                    !
@@ -1603,10 +1604,11 @@ contains
                    !
                    Amat = 0 
                    B = 0
+                   C = 0
                    !
                    do ilevelF = 1, nlevelsF
                      !
-                     B(ilevelF,1) = cmplx(0.0_rk,dipole_mat(ilevelF,ilevelI))
+                     B(ilevelF) = cmplx(0.0_rk,dipole_mat(ilevelF,ilevelI))
                      !
                      do ilevelR = 1,nlevelsF
                        !
@@ -1629,9 +1631,14 @@ contains
                    !call lapack_gelss(Amat,b)
                    !call  lapack_zgesv(Amat,b)
                    !
-                   b = matmul(Amat,b)
+                   !C = matmul(Amat,B)
                    !
-                   RWF2 = sum(conjg(b)*b)
+                   call zgemv('N',nlevelsF,nlevelsF,alpha_,Amat,nlevelsF,B,1,beta_,C,1)
+                   !
+                   !RWF2 = sum(conjg(C)*C)
+                   !
+                   RWF2 = zdotc(nlevelsF,C,1,C,1)
+                   !
                    boltz_fc = intensity%gns(isymI)*real( (2*jI + 1)*(2 * jF + 1),rk )*nu *&
                         exp(-(energyI-intensity%ZPE) * beta) * (1.0_rk - exp(-nu * beta))/intensity%part_func
                    !
@@ -1642,7 +1649,7 @@ contains
               enddo
               !$omp enddo
               !
-              deallocate(Amat,B)
+              deallocate(Amat,B,C)
               !$omp end parallel
               !call Arraystop('RWF:Amat')
               !
@@ -1661,13 +1668,13 @@ contains
        !
        if (allocated(icontr))  deallocate(icontr)
        !
-       if (associated(transform(1)%matrix)) then 
-          deallocate(transform(1)%matrix)
-          call ArrayStop('transform')
-       endif
-       if (associated(transform(2)%matrix)) deallocate(transform(2)%matrix)
-       if (associated(transform(1)%irec)) deallocate(transform(1)%irec)
-       if (associated(transform(2)%irec)) deallocate(transform(2)%irec)
+       !if (associated(transform(1)%matrix)) then 
+       !   deallocate(transform(1)%matrix)
+       !   call ArrayStop('transform')
+       !endif
+       !if (associated(transform(2)%matrix)) deallocate(transform(2)%matrix)
+       !if (associated(transform(1)%irec)) deallocate(transform(1)%irec)
+       !if (associated(transform(2)%irec)) deallocate(transform(2)%irec)
        !
        if (allocated(Nirr)) then 
           deallocate(Nirr)
@@ -1681,9 +1688,6 @@ contains
        !
        deallocate(half_linestr)
        call ArrayStop('half_linestr')
-       !
-       deallocate(half_pecme)
-       call ArrayStop('half_pecme')
        !
     enddo
     !

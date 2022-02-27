@@ -3751,6 +3751,10 @@ module diatom_module
              !
              action%RWF = .true.
              !
+             ! we will need the vibrational basis for RWF
+             !
+             job%basis_set  = 'KEEP'
+             !
            case ('LANDE')
              !
              intensity%lande_calc= .true.
