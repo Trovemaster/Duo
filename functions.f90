@@ -65,6 +65,10 @@ module functions
       !
       fanalytical_field => poten_MLR_Douketis
       !
+    case("DELR") ! "Double-exponential-long-range"
+      !
+      fanalytical_field => poten_DELR
+      !
     case("MLR_DS_DARBY") ! "Morse/Long-Range with Douketis-damping"
       !
       fanalytical_field => poten_MLR_Douketis_Darby
@@ -647,6 +651,106 @@ module functions
     f = de*y**2+v0
     !
   end function poten_MLR_Douketis
+
+
+  ! Double-exponential-long-range, see Le Roy http://dx.doi.org/10.1063/1.1607313
+  !
+  function poten_DELR(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,r0,de,f,rref,beta_,yp,uLR,uLR0,uLR1,B,A,D_LR
+    real(rk)               :: beta(0:100),C(1:100)
+    integer(ik)            :: k,p,Nstruc,Ntot,Npot,NLR,NL,NS
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De   = parameters(3)-V0
+    D_LR = parameters(4)-V0
+    !
+    rref = parameters(5)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(6))
+    !
+    NS = parameters(7)
+    NL = parameters(8)
+    !
+    Nstruc = 8
+    !
+    if (NL>100) stop 'poten_DELR_Douketis: illegally large NL'
+    !
+    beta = 0 
+    beta(0:NL) = parameters(Nstruc+1:Nstruc+1+NL+1)
+    !
+    ! total number of parameters
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    NLR = Ntot-(Nstruc+1+NL)
+    !
+    if (NLR>100) stop 'poten_DELR_Douketis: illegally large LR expansion'
+    !
+    C = 0 
+    !
+    C(1:NLR) = parameters(Nstruc+1+NL+1:Nstruc+1+NL+NLR)
+    !
+    yp = (r**p-rref**p)/(r**p+rref**p)
+    !
+    ! double check uLR parameters
+    !
+    uLR = sum(C(1:NLR)**2)
+    !
+    if (uLR<small_) then
+      write(out,"('poten_DELR_Douketis: At least one uLR should be non-zero')")
+      stop 'poten_DELR_Douketis: At least one uLR should be non-zer'
+    endif
+    !
+    !s = -1.0_rk
+    !b = 3.97_rk
+    !c0 = 0.39_rk
+    !
+    ! For the Damping part
+    ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
+    !
+    !s = -1.0_rk
+    !b = 3.3_rk
+    !c = 0.423_rk
+    !
+    !s = -2.0_rk
+    !b = 2.50_rk
+    !c = 0.468_rk
+    !
+    ! long-range part
+    !
+    uLR  = D_LR
+    uLR0 = D_LR
+    uLR0 = 0
+    do k=1,NLR
+     !
+     ! Douketis damping function
+     !Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     !
+     uLR  = uLR  + C(k)/r**k
+     uLR0 = uLR0 + C(k)/r0**k
+     uLR1 = uLR1 + real(-k,rk)*C(k)/r0**(k+1)
+    enddo
+    !
+    beta_ = 0
+    do k=0,NL
+     beta_ = beta_ + beta(k)*yp**k
+    enddo
+    !
+    A = De + uLR0+uLR1/beta(0)
+    B = 2.0_rk*(De + uLR0)+uLR1/beta(0)
+    !
+    f = v0+A*exp(-2.0_rk*beta_*(r-r0))-B*exp(-beta_*(r-r0))+De+uLR
+    !
+  end function poten_DELR
+
+
 
 
 

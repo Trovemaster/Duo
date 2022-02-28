@@ -3,7 +3,7 @@ module RWF
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, aston
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
                           quadrupoletm,nQuadrupoles,grid,kinetic_energy_grid_points,Nestates,Nrefstates,brot,&
-                          matrixT,amass,hstep
+                          matrixT,amass,hstep,vibrational_totalroots, vibrational_contrfunc, vibrational_quantum_number
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -195,9 +195,9 @@ contains
           !
        endif
        !
-       call rwf_intensity(Jval,iverbose)
+       !call rwf_intensity(Jval,iverbose)
        !
-       !call rwf_dvr_intensity(Jval,iverbose)
+       call rwf_dvr_intensity(Jval,iverbose)
        !
        write(out, '(/a)') 'done'
        !
@@ -531,7 +531,7 @@ contains
        !
        jI = jval(indI)
        !
-       J_ = -1 ! For RichMol count
+       J_ = -1 
        !
        do igammaI=1,Nrepresen
          !
@@ -1046,11 +1046,12 @@ contains
     !
     real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:)
     !
-    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2)
+    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2),Nvib_l
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
     type(quantaT),allocatable :: icontr(:)
     integer(ik),allocatable :: Nirr(:,:),ilevel2i(:,:)
     type(matrixT) :: transform(2)
+    real(rk) :: ddot
     !
     call TimerStart('Intensity calculations')
     !
@@ -1323,6 +1324,18 @@ contains
        if (iverbose>=4) write(out,'(/"Contracted basis set:")')
        if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
        !
+       ! How many vibrational state below Nrefstates?
+       !
+       Nvib_l = 0 
+       !
+       do ilevel = 1, vibrational_totalroots
+          !
+          istate  = vibrational_quantum_number(ilevel)%istate
+          !
+          if ( istate<=Nrefstates )  Nvib_l = Nvib_l + 1
+          !
+       enddo
+       !
        ! build the bookkeeping: the object icontr will store this informtion
        !
        i = 0
@@ -1339,10 +1352,13 @@ contains
            !
            ! link the states in vibrarional and spin-rot basis components for the VIB-igrid basis
            !
+           if (poten(istate)%gridvalue(igrid)>job%vibenermax(istate)) cycle
+           !
            i = i + 1
            !
            icontr(i) = quanta_RWF(ilevel)
            icontr(i)%ivib = igrid
+           icontr(i)%v = Nvib_l + igrid
            icontr(i)%ilevel = ilevel
            !
            ! print the quantum numbers
@@ -1355,8 +1371,10 @@ contains
          enddo
        enddo
        !
+       nlevelsF = i
+       !
        ! allocate the hamiltonian matrix and an array for the energies of this size Ntotal
-       allocate(hmat(Ntotal,Ntotal),stat=info)
+       allocate(hmat(nlevelsF,nlevelsF),stat=info)
        call ArrayStart('hmat',info,size(hmat),kind(hmat))
        !
        if (iverbose>=4) call MemoryReport
@@ -1372,7 +1390,7 @@ contains
        !                        jmulti,jlambda,omegaj,spinj,v_j,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute,&
        !                        istate_,ilambda_,sigmai_,spini_,jstate_,jlambda_,sigmaj_,spinj_,isigmav,omegai_,       &
        !                        omegaj_,itau,ilxly,f_grid,f_l,f_ss) shared(hmat) schedule(guided)
-       do i = 1,Ntotal
+       do i = 1,nlevelsF
          !
          ivib = icontr(i)%ivib ! igrid
          ilevel = icontr(i)%ilevel
@@ -1395,7 +1413,7 @@ contains
          ! add the diagonal matrix element to the local spin-rotational matrix hmat
          hmat(i,i) = hmat(i,i) + erot
          !
-         do j =i,Ntotal
+         do j =i,nlevelsF
             !
             jvib = icontr(j)%ivib
             jlevel = icontr(j)%ilevel
@@ -1440,10 +1458,7 @@ contains
        allocate(ilevel2i(Ntotal,2),stat=info)
        call ArrayStart('ilevel2i',info,size(ilevel2i),kind(ilevel2i))
        !
-       call transform_hmat_to_symmety_addapted_matrices(Ntotal,icontr,hmat,Nirr,Nsym,ilevel2i,transform)
-       !
-       deallocate(hmat)
-       call ArrayStop('hmat')
+       !call transform_hmat_to_symmety_addapted_matrices(Ntotal,icontr,hmat,Nirr,Nsym,ilevel2i,transform)
        !
        ! transformaion to the symmetrised basis 
        !
@@ -1463,9 +1478,9 @@ contains
            !
            if (abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0) cycle 
            !
-           do igammaF=1,Nrepresen
+           !do igammaF=1,Nrepresen
               !
-              nlevelsF =Nsym(igammaF)
+              !nlevelsF =Nsym(igammaF)
               dimenF = Ntotal
               !
               !igammaF = igamma_pair(igammaI)
@@ -1473,7 +1488,7 @@ contains
               !parity_gu = poten(istateF)%parity%gu
               !isymF = correlate_to_Cs(igammaF,parity_gu)
               !
-              if (trim(job%symmetry) == "CS(M)".and.igammaF==igammaI) cycle
+              !if (trim(job%symmetry) == "CS(M)".and.igammaF==igammaI) cycle
               !if (isymF /= igamma_pair(isymI)) cycle
               !
               allocate(dipole_mat(dimenF,nlevelsI),stat = info)
@@ -1519,8 +1534,8 @@ contains
                 if (( intensity%J(1)+intensity%J(2)>0 )&
                     .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
                    !
-                   call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                 vecI(1:dimenI),&
+                   call do_1st_half_linestrength_DVR(jI,jF,indI,indF,dimenI,dimenF,&
+                                                 vecI(1:dimenI),icontr,&
                                                  half_linestr)
                    !
                 endif
@@ -1547,7 +1562,7 @@ contains
                    !
                    !if (.not.passed) cycle Flevels_loop
                    !
-                   !linestr = ddot(dimenF,half_linestr,1,vecF,1)
+                   !dipole_mat(ilevelF,ilevelI) = ddot(half_linestr,vibrational_contrfunc(:,ilevelF))
                    !
                    dipole_mat(ilevelF,ilevelI) = half_linestr(ilevelF)
                    !
@@ -1559,7 +1574,7 @@ contains
               enddo Ilevels_loop
               !
               !$omp parallel private(Amat,B,alloc_p) shared(crosssections) 
-              allocate(Amat(dimenF,dimenF),B(dimenF,1),stat = alloc_p)
+              allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF,1),stat = alloc_p)
               if (alloc_p/=0) then
                   write (out,"(' RWF: ',i9,' trying to allocate arrays A and B')") alloc_p
                   stop 'RWF A and B - out of memory'
@@ -1574,7 +1589,7 @@ contains
                  !
                  nu = intensity%freq_window(1)+dnu*real(inu,rk)
                  !
-                 if (iverbose>=4.and.mod(inu,2)==0) write(out,"(2f8.1,1x,2i2,1x,i7,1x,'nu = ',f9.2)") Jf,Ji,igammaF,igammaI,inu,nu
+                 if (iverbose>=4.and.mod(inu,2)==0) write(out,"(2f8.1,1x,i2,1x,i7,1x,'nu = ',f9.2)") Jf,Ji,igammaI,inu,nu
                  !
                  do ilevelI = 1, nlevelsI
                    !
@@ -1595,12 +1610,13 @@ contains
                      !
                      do ilevelR = 1,nlevelsF
                        !
-                       Amat(ilevelF,ilevelR) = -transform(isymI)%matrix(ilevelF,ilevelR)
+                       !Amat(ilevelF,ilevelR) = -transform(isymI)%matrix(ilevelF,ilevelR)/intensity%gamma**2
+                       Amat(ilevelF,ilevelR) = -hmat(ilevelF,ilevelR)/intensity%gamma**2
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + nu + energyI &
-                          + cmplx(0.0_rk,intensity%gamma,kind=rk) 
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + (nu + energyI)/intensity%gamma**2 &
+                          - cmplx(0.0_rk,1.0_rk/intensity%gamma,kind=rk) 
                          !
                        endif
                        !
@@ -1610,8 +1626,10 @@ contains
                      !
                    enddo
                    !
-                   call lapack_gelss(Amat,b)
+                   !call lapack_gelss(Amat,b)
                    !call  lapack_zgesv(Amat,b)
+                   !
+                   b = matmul(Amat,b)
                    !
                    RWF2 = sum(conjg(b)*b)
                    boltz_fc = intensity%gns(isymI)*real( (2*jI + 1)*(2 * jF + 1),rk )*nu *&
@@ -1631,11 +1649,15 @@ contains
               deallocate(dipole_mat,stat = info)
               call ArrayStop('dipole_mat')
               !
-           enddo
+           !enddo
            !
          enddo
          !
        enddo
+       !
+       !
+       deallocate(hmat)
+       call ArrayStop('hmat')
        !
        if (allocated(icontr))  deallocate(icontr)
        !
@@ -2695,6 +2717,166 @@ contains
             call TimerStop('do_1st_half_linestr')
             !
       end subroutine do_1st_half_linestrength
+      !
+
+
+      subroutine do_1st_half_linestrength_DVR(jI,jF,indI,indF,dimenI,dimenF,vector,icontr,half_ls)
+
+        real(rk),intent(in)      :: jI,jF
+        integer(ik),intent(in)   :: indI,indF,dimenI,dimenF
+        real(rk),intent(in)      :: vector(:)
+        type(quantaT),intent(in) :: icontr(dimenF)
+        real(rk),intent(out)     :: half_ls(:)
+        integer(ik)              :: icontrF,icontrI, & 
+                                    ivibF,ivibI,idip,istateI,istateF,ilambdaF,ilambdaI,vF
+        integer(ik)              :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
+        real(rk)                 :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
+        real(rk)                 :: spinI_,spinF_,f_t
+        type(fieldT),pointer     :: field
+          !
+          !dms_tmp = dipole_me
+          !
+          call TimerStart('do_1st_half_linestr')
+          !
+          half_ls    = 0
+          !
+          !loop over final state basis components
+          !
+          !omp parallel do private(irootF,icontrF,ktau,kF,tauF,cirootI,irootI,icontrI,tauI,sigmaI,sigmaF,kI, & 
+          !                   &    irow,icol,cind,f3j,ls) shared(half_ls) schedule(guided)
+          loop_F : do icontrF = 1, dimenF
+               !
+               ivibF = icontr(icontrF)%ivib
+               istateF =icontr(icontrF)%istate
+               omegaF =icontr(icontrF)%omega
+               sigmaF =icontr(icontrF)%sigma
+               spinF =icontr(icontrF)%spin
+               ilambdaF =icontr(icontrF)%ilambda
+               vF = icontr(icontrF)%v
+               !
+               ! shift to the original vibrational basis which we assume to start from the count of the lower (Nrefstate) state
+               !
+               iomegaF_ = nint(omegaF)
+               if (mod(nint(2.0_rk*omegaF+1.0_rk),2)==0 ) iomegaF_ = nint((2.0_rk*omegaF-1.0_rk)*0.5_rk)
+               !
+               loop_I : do icontrI = 1, dimenI
+                  !
+                  ivibI   = basis(indI)%icontr(icontrI)%ivib
+                  istateI = basis(indI)%icontr(icontrI)%istate
+                  omegaI  = basis(indI)%icontr(icontrI)%omega
+                  sigmaI  = basis(indI)%icontr(icontrI)%sigma
+                  spinI   = basis(indI)%icontr(icontrI)%spin
+                  ilambdaI= basis(indI)%icontr(icontrI)%ilambda
+                  !
+                  if (abs(nint(omegaF - omegaI))>1.or.nint(spinI-spinF)/=0.or.nint(sigmaI-sigmaF)/=0) cycle loop_I
+                  if (abs(nint(omegaF - omegaI))==0.and.ilambdaI/=ilambdaF) cycle loop_I
+                  if (abs(nint(omegaF - omegaI))==1.and.abs(ilambdaI-ilambdaF)/=1) cycle loop_I
+                  !
+                  iomegaI_ = int(omegaI)
+                  if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
+                  !
+                  f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  !f3j = three_j0(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  ! 
+                  ! 3j-symbol selection rule
+                  !
+                  if (abs(f3j)<intensity%threshold%coeff) cycle loop_I
+                  !
+                  !index of the corresponding vibrational contracted matrix element (cind)
+                  !compute line strength
+                  !
+                  ls = 0 
+                  !
+                  loop_idipole : do idip =1,Ndipoles
+                    !
+                    field => dipoletm(idip)
+                    !
+                    do ipermute  = 0,1
+                      !
+                      if (ipermute==0) then
+                        !
+                        istateI_ = field%istate ; ilambdaI_ = field%lambda  ; spinI_ = field%spini
+                        istateF_ = field%jstate ; ilambdaF_ = field%lambdaj ; spinF_ = field%spinj
+                        !
+                      else  ! permute
+                        !
+                        istateF_ = field%istate ; ilambdaF_ = field%lambda  ; spinF_ = field%spini
+                        istateI_ = field%jstate ; ilambdaI_ = field%lambdaj ; spinI_ = field%spinj
+                        !
+                      endif
+                      !
+                      ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                      ! otherwise it will cause a double counting:
+                      !
+                      if (ipermute==1.and.istateI_==istateF_.and.ilambdaI_==ilambdaF_.and.nint(spinI_-spinF_)==0) cycle
+                      !
+                      ! check if we at the right electronic states
+                      if( istateI/=istateI_.or.istateF/=istateF_ ) cycle
+                      !
+                      ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                      ! In order to recover other combinations we apply the symmetry transformation
+                      ! laboratory fixed inversion which is equivalent to the sigmav operation 
+                      !                    (sigmav= 0 correspond to the unitary transformation)
+                      do isigmav = 0,1
+                        !
+                        ! the permutation is only needed if at least some of the quanta is not zero. 
+                        ! otherwise it should be skipped to avoid the double counting.
+                        if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+                
+                        ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                        ilambdaI_ = ilambdaI_*(-1)**isigmav
+                        ilambdaF_ = ilambdaF_*(-1)**isigmav
+                        !
+                        ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                        if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
+                        !
+                        ! check the selection rule Delta Lambda = +/1
+                        if (abs(ilambdaI-ilambdaF)>1) cycle
+                        !
+                        ! double check
+                        !if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                        !  write(out,'("dipole_intens: reconsrtucted spini ",f8.1," or spinj ",f8.1, & 
+                        !            & " do not agree with stored values ",f8.1,x,f8.1)') &
+                        !        spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                        !  stop 'dipole_intens: wrongly reconsrtucted spini or spinj'
+                        !endif
+                        !
+                        !f_grid  = field%matelem(ivib,jvib)
+                        !
+                        f_t = field%matelem(ivibI,vF)
+                        !
+                        ! the result of the symmetry transformation:
+                        if (isigmav==1) then
+                          !
+                          itau = 0
+                          !
+                          if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
+                          if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
+                          !
+                          f_t = f_t*(-1.0_rk)**(itau)
+                          !
+                        endif
+                        !
+                        ls  =  f_t*f3j*vector(icontrI)
+                        !
+                        half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                        !
+                      enddo
+                      !
+                    enddo
+                    !
+                  enddo loop_idipole
+                  !
+               end do  loop_I
+               !
+            end do   loop_F
+            !omp end parallel do
+            !
+            call TimerStop('do_1st_half_linestr')
+            !
+      end subroutine do_1st_half_linestrength_DVR
+
+      !
 
 
       subroutine do_1st_half_tm(indI,indF,dimenI,dimenF,vector,half_tm)
