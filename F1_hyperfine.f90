@@ -5,7 +5,7 @@ module F1_hyperfine
     use symmetry
     use diatom_module, only: basis, three_j, eigen, jmax, job,&
                             vibrational_totalroots, vibrational_contrfunc, vibrational_quantum_number, &
-                            hfcc1, I1, GLOBAL_NUM_HFCC_OBJECT, &
+                            hfcc1, I1, GLOBAL_NUM_HFCC_OBJECT, poten, &
                             eigenT, basisT, quantaT, fieldT, linkT
 
     implicit none
@@ -32,7 +32,7 @@ contains
         ! Top level 
         implicit none
 
-        INTEGER(ik) :: index_F1, index_represCs
+        INTEGER(ik) :: index_F1, index_represCs, iroot
         INTEGER(ik) :: Ndimen_F1, Nlevels_F1, index_levels_F1, maxlocation
         REAL(rk), ALLOCATABLE :: eigen_value_F1(:), &
                                     parity_conserved_F1_matrix(:, :), &
@@ -41,7 +41,7 @@ contains
                                     eigen_vector_F1(:, :)
         TYPE(quantaT), POINTER :: quanta
         
-        open(unit=unit_hyperfine_states, file="hyperfine_states.txt")
+        open(unit=unit_hyperfine_states, file="hyperfine.states")
         
         write(out, '(/A)') "Start: hyperfine energies calculation"
  
@@ -77,13 +77,14 @@ contains
         CALL construct_primitive_F1_basis
 
         write(out, '(/A2, A)') '', 'Start: hyperfine states'
+        write(out, '(/A2, A, F22.12)') '', 'Zero point energy =', job%ZPE
 
         ALLOCATE(eigen_all_F1(num_F1, sym%NrepresCs))
 
-        write(unit_hyperfine_states, '(A7, A22, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
-            'Number', 'Energy [cm-1]', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
+        ! write(unit_hyperfine_states, '(A7, A22, A7, A7, A7, A7, A7, A12, A7, A7, A7, A7)') &
+        !     'Number', 'Energy [cm-1]', 'g', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
 
-
+        iroot = 0
         do index_F1 = 1, num_F1
             write(out, '(/A4, A, F6.1)') '', 'Eigen states of F =', F1_list(index_F1)
             
@@ -144,35 +145,23 @@ contains
                 eigen_all_F1(index_F1, index_represCs)%vect = eigen_vector_F1
 
                 write(out, '(/A8, A)') '', 'Calculate energy levels'
-                ! write(out, '(A8, A7, A22, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
-                !     '', 'No.', 'Energy [cm-1]', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
                 eigen_value_F1(:) = eigen_value_F1(:) - job%ZPE
                 do index_levels_F1 = 1, Nlevels_F1
                     maxlocation = MAXLOC(ABS(eigen_vector_F1(:, index_levels_F1)), DIM=1)
                     quanta => primitive_F1_basis(index_F1)%icontr(maxlocation) 
 
-                    ! write(out, '(A8, I7, F22.12, F7.1, F7.1, A7, F7.1, I7, I7, I7, F7.1, F7.1)') &
-                    !     '', &
-                    !     index_levels_F1, &
-                    !     eigen_value_F1(index_levels_F1), &
-                    !     quanta%F1, &
-                    !     quanta%I1, &
-                    !     trim(parity_sign(index_represCs)), &
-                    !     quanta%Jrot, &
-                    !     quanta%istate, &
-                    !     quanta%v, &
-                    !     quanta%ilambda, &
-                    !     quanta%sigma, &
-                    !     quanta%omega
+                    iroot = iroot + 1
+                    eigen_all_F1(index_F1, index_represCs)%quanta(index_levels_F1)%iroot = iroot
 
-                    write(unit_hyperfine_states, '(I7, F22.12, F7.1, F7.1, A7, F7.1, I7, I7, I7, F7.1, F7.1)') &
-                        index_levels_F1, &
+                    write(unit_hyperfine_states, '(I7, F22.12, I7, F7.1, F7.1, A7, F7.1, A12, I7, I7, F7.1, F7.1)') &
+                        iroot, &
                         eigen_value_F1(index_levels_F1), &
+                        int(quanta%F1 * 2.0_rk + 1.0_rk), &
                         quanta%F1, &
                         quanta%I1, &
                         trim(parity_sign(index_represCs)), &
                         quanta%Jrot, &
-                        quanta%istate, &
+                        trim(poten(quanta%istate)%name), &
                         quanta%v, &
                         quanta%ilambda, &
                         quanta%sigma, &

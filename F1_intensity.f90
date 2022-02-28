@@ -47,34 +47,37 @@ contains
 
         CALL F1_hyperfine_structrure
 
-        open(unit=unit_hyperfine_transitions, file="hyperfine_transitions.txt")
+        open(unit=unit_hyperfine_transitions, file="hyperfine.trans")
 
-        write(unit_hyperfine_transitions, FMT1) &
-            "nu", &
-            "Strength", &
-            "E", &
-            " --> ", &
-            "E", &
-            " :: ", &
-            "F", &
-            "I", &
-            "parity", &
-            "J", &
-            "state", &
-            "v", &
-            "Lambda", &
-            "Sigma", &
-            "Omega", &
-            " --> ", &
-            "F", &
-            "I", &
-            "parity", &
-            "J", &
-            "state", &
-            "v", &
-            "Lambda", &
-            "Sigma", &
-            "Omega" 
+        ! write(unit_hyperfine_transitions, "(A12, A12, A22, A22, A22)") &
+        !     "N_upper", "N_lower", "Einstein-A [s-1]", "nu [cm-1]", "S [Debye^2]"
+
+        ! write(unit_hyperfine_transitions, FMT1) &
+        !     "nu", &
+        !     "Strength", &
+        !     "E", &
+        !     " --> ", &
+        !     "E", &
+        !     " :: ", &
+        !     "F", &
+        !     "I", &
+        !     "parity", &
+        !     "J", &
+        !     "state", &
+        !     "v", &
+        !     "Lambda", &
+        !     "Sigma", &
+        !     "Omega", &
+        !     " --> ", &
+        !     "F", &
+        !     "I", &
+        !     "parity", &
+        !     "J", &
+        !     "state", &
+        !     "v", &
+        !     "Lambda", &
+        !     "Sigma", &
+        !     "Omega" 
 
         do index_F1_bra = 1, num_F1
             Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen  
@@ -89,7 +92,8 @@ contains
                         index_F1_bra, index_F1_ket)   
 
                 do index_represCs_bra = 1, sym%NrepresCs
-                    index_represCs_ket = mod(index_represCs_bra, sym%NrepresCs) + 1 ! parity selection rule
+                    ! parity selection rule
+                    index_represCs_ket = mod(index_represCs_bra, sym%NrepresCs) + 1 
 
                     Nlevels_F1_bra = eigen_all_F1(index_F1_bra, index_represCs_bra)%Nlevels
                     Nlevels_F1_ket = eigen_all_F1(index_F1_ket, index_represCs_ket)%Nlevels
@@ -147,7 +151,8 @@ contains
         subroutine construct_parity_conserved_F1_transitions_matrix
             implicit none
             INTEGER(ik) :: bra, ket, maxloc_ket, maxloc_bra
-            TYPE(quantaT), POINTER :: quanta_bra, quanta_ket           
+            TYPE(quantaT), POINTER :: quanta_bra, quanta_ket   
+            REAL(rk)  :: EinsteinA
             
             CHARACTER(LEN=120) :: FMT2 =  "(F22.12,&
                                             E22.12,&
@@ -176,42 +181,61 @@ contains
                                             F6.1)"
 
             do ket = 1, Nlevels_F1_ket                
-                maxloc_ket = MAXLOC(ABS(eigen_all_F1(index_F1_ket, index_represCs_ket)%vect(:, ket)), DIM=1) 
-                quanta_ket => primitive_F1_basis(index_F1_ket)%icontr(maxloc_ket)
+                ! maxloc_ket = MAXLOC(ABS(eigen_all_F1(index_F1_ket, index_represCs_ket)%vect(:, ket)), DIM=1) 
+                ! quanta_ket => primitive_F1_basis(index_F1_ket)%icontr(maxloc_ket)
                 do bra = 1, Nlevels_F1_bra
-                    maxloc_bra = MAXLOC(ABS(eigen_all_F1(index_F1_bra, index_represCs_bra)%vect(:, bra)), DIM=1) 
-                    quanta_bra => primitive_F1_basis(index_F1_bra)%icontr(maxloc_bra)
+                    ! maxloc_bra = MAXLOC(ABS(eigen_all_F1(index_F1_bra, index_represCs_bra)%vect(:, bra)), DIM=1) 
+                    ! quanta_bra => primitive_F1_basis(index_F1_bra)%icontr(maxloc_bra)
 
                     parity_conserved_F1_transitions_matrix(bra, ket) = &
                         eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
                             - eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket)
+                    
+                    if (parity_conserved_F1_transitions_matrix(bra, ket) < 0) cycle
 
-                    WRITE(unit_hyperfine_transitions, FMT2) &
+                    ! Einstein A coefficients: see Eq.(23) of Western 
+                    ! doi:10.1016/j.jqsrt.2016.04.010
+                    ! g_u = 2 * F'+1
+                    EinsteinA = 3.13618872E-7_rk &
+                        * parity_conserved_F1_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1_reduced_TDM_matrix(bra, ket) &
+                        / (2.0_rk * primitive_F1_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
+
+                    WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12, E22.12)") &
+                        eigen_all_F1(index_F1_bra, index_represCs_bra)%quanta(bra)%iroot, &
+                        eigen_all_F1(index_F1_ket, index_represCs_ket)%quanta(ket)%iroot, &
+                        EinsteinA, &
                         parity_conserved_F1_transitions_matrix(bra, ket), &
-                        parity_conserved_F1_reduced_TDM_matrix(bra, ket), &
-                        eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra), &
-                        " --> ", &
-                        eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket), &
-                        " :: ", &
-                        quanta_bra%F1, &
-                        quanta_bra%I1, &
-                        trim(parity_sign(index_represCs_bra)), &
-                        quanta_bra%Jrot, &
-                        quanta_bra%istate, &
-                        quanta_bra%v, &
-                        quanta_bra%ilambda, &
-                        quanta_bra%sigma, &
-                        quanta_bra%omega, &
-                        " --> ", &
-                        quanta_ket%F1, &
-                        quanta_ket%I1, &
-                        trim(parity_sign(index_represCs_ket)), &
-                        quanta_ket%Jrot, &
-                        quanta_ket%istate, &
-                        quanta_ket%v, &
-                        quanta_ket%ilambda, &
-                        quanta_ket%sigma, &
-                        quanta_ket%omega
+                        parity_conserved_F1_reduced_TDM_matrix(bra, ket)
+
+                    ! WRITE(unit_hyperfine_transitions, FMT2) &
+                    !     parity_conserved_F1_transitions_matrix(bra, ket), &
+                    !     parity_conserved_F1_reduced_TDM_matrix(bra, ket), &
+                    !     eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra), &
+                    !     " --> ", &
+                    !     eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket), &
+                    !     " :: ", &
+                    !     quanta_bra%F1, &
+                    !     quanta_bra%I1, &
+                    !     trim(parity_sign(index_represCs_bra)), &
+                    !     quanta_bra%Jrot, &
+                    !     quanta_bra%istate, &
+                    !     quanta_bra%v, &
+                    !     quanta_bra%ilambda, &
+                    !     quanta_bra%sigma, &
+                    !     quanta_bra%omega, &
+                    !     " --> ", &
+                    !     quanta_ket%F1, &
+                    !     quanta_ket%I1, &
+                    !     trim(parity_sign(index_represCs_ket)), &
+                    !     quanta_ket%Jrot, &
+                    !     quanta_ket%istate, &
+                    !     quanta_ket%v, &
+                    !     quanta_ket%ilambda, &
+                    !     quanta_ket%sigma, &
+                    !     quanta_ket%omega
                 end do    
             end do 
         end subroutine construct_parity_conserved_F1_transitions_matrix
