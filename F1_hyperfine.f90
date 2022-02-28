@@ -207,10 +207,6 @@ contains
         INTEGER(ik) :: ilevel, jlevel, index_object, index_field
 
         write(out, '(/A2, A)') '', "Start: hyperfine constants under the vibrational bases"
-        !
-        write(out,"('vibrational_contrfunc do not seem to be allocated, please check')")
-        stop 'vibrational_contrfunc do not seem to be allocated, please check'
-        !
 
         do index_object = 1, GLOBAL_NUM_HFCC_OBJECT
             do index_field = 1, hfcc1(index_object)%num_field
