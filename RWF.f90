@@ -1574,7 +1574,7 @@ contains
                 !
               enddo Ilevels_loop
               !
-              !$omp parallel private(Amat,B,alloc_p) shared(crosssections) 
+              !$omp parallel private(Amat,B,C,alloc_p) shared(crosssections) 
               allocate(Amat(nlevelsF,nlevelsF),B(nlevelsF),C(nlevelsF),stat = alloc_p)
               if (alloc_p/=0) then
                   write (out,"(' RWF: ',i9,' trying to allocate arrays A, B, C')") alloc_p
