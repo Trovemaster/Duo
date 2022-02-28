@@ -72,6 +72,7 @@
 
      if(action%hyperfine) then
         action%save_eigen_J = .true.
+        job%basis_set = 'KEEP'
         call duo_j0
         call F1_hyperfine_intensity
         write(out, '(a)') '--End--'
