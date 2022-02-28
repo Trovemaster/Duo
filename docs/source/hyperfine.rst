@@ -8,8 +8,8 @@ Duo supports cases where one of the nuclei possess nuclear spin,
 e.g., 14N16O and 24MgH.
 Nuclear electric quadrupole interaction 
 and nuclear magnetic dipole interactions
-including Fermi-contact, nuclear spin – electron spin dipole-dipole,
-nuclear spin – orbit, nuclear spin – rotation,
+including Fermi-contact, nuclear spin-electron spin dipole-dipole,
+nuclear spin-orbit, nuclear spin-rotation,
 can be involved in the calculation.
 The hyperfine calculation is turn on 
 with the following section:
@@ -20,10 +20,24 @@ with the following section:
     end
 
 where the value after the keyword ``I`` indicates the nuclear spin.
+
+
 Two output files are generated after calculation.
-The one named ``hyperfine_states.txt`` contains nuclear hyperfine resolved states.
-The energy levels are given in the unit of ``cm-1``.
-The other named  ``hyperfine_transitions.txt`` contains the corresponding transitions.
+The one named ``hyperfine.states`` contains nuclear hyperfine resolved states.
+The columns in this file are:
+1.counting number, 2.energy [cm-1], 3.total degeneracy,
+4.:math:`F`,  5.:math:`I`,
+6.parity, 7.:math:`J`, 8.state, 9.:math:`v`,
+10.:math:`\Lambda`, 11.S:math:`\Sigma`,
+12.:math:`\Omega`, respectively.
+
+The other named  ``hyperfine.trans`` contains the hyperfine transitions.
+This file has five columns which are:
+1.counting number of the upper state,
+2.counting number of the lower state,
+3.Einstein-A coefficient,
+4.transition wavenumber [cm-1],
+5.line strength.
 Line strengths in this file are calculated by
 
 :math:`S = |\langle \psi(m,\tau, F)||T^{(1)}(\mu)||\psi_(m', \tau', F') \rangle|^2`
@@ -33,7 +47,7 @@ of the hyperfine states. :math:`T^{(1)}(\mu)` is the tensor of transition
 electric dipole moment.
 Line strengths have the unit of :math:`Debye^2`.
 
-A electric dipole moment curve should be defined in a ``dipole`` section in the first place.
+An electric dipole moment curve should be defined in a ``dipole`` section in the first place.
 ::
 
     dipole  1 1
@@ -137,7 +151,7 @@ calculated by
 ``hfcc-eqq0`` and ``hfcc-eqq2``  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The nuclear electric quadrupole
-interaction curves :math:`eq_0Q(R)` and :math:`eq_2Q(R)` are defined by ``hfcc-eqq0`` and ``hfcc-eqq2`` sections.
+interaction curves :math:`eQq_0(R)` and :math:`eQq_2(R)` are defined by ``hfcc-eqq0`` and ``hfcc-eqq2`` sections.
 These terms are active when 
 the nuclear spin is not less than 1.
 ::
