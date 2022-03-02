@@ -1032,16 +1032,16 @@ contains
 
         w6j = sqrt(tri1 * tri2 * tri3 * tri4) * w6j
 
-    contains
+    contains 
         REAL(rk) function log_()   
-            log_ = faclog(t + 1.0_rk) &   
-                - faclog(t - j1 - j2 - j3) &
-                - faclog(t - j1 - J_2 - J_3) & 
-                - faclog(t - J_1 - j2 - J_3) &
-                - faclog(t - J_1 - J_2 - j3) &
-                - faclog(j1 + j2 + J_1 + J_2 - t) &
-                - faclog(j2 + j3 + J_2 + J_3 - t) &
-                - faclog(j3 + j1 + J_3 + J_1 - t)   
+        log_ = log_gamma(t + 2.0_rk) &
+            - log_gamma(t - j1 - j2 - j3 + 1.0_rk) &
+            - log_gamma(t - j1 - J_2 - J_3 + 1.0_rk) & 
+            - log_gamma(t - J_1 - j2 - J_3 + 1.0_rk) &
+            - log_gamma(t - J_1 - J_2 - j3 + 1.0_rk) &
+            - log_gamma(j1 + j2 + J_1 + J_2 - t + 1.0_rk) &
+            - log_gamma(j2 + j3 + J_2 + J_3 - t + 1.0_rk) &
+            - log_gamma(j3 + j1 + J_3 + J_1 - t + 1.0_rk)        
         end function log_
 
         function triangle_coefficient(a, b, c) result(tri)
@@ -1055,10 +1055,10 @@ contains
 
             do xa = nint(abs(a-b) * 2.0_rk), nint((a+b) * 2.0_rk), 2
                 if ( nint(c * 2.0_rk) == xa) then
-                    tri = faclog(a + b - c) &
-                        + faclog(a + c - b) &
-                        + faclog(b + c - a) &
-                        - faclog(a + b + c + 1.0_rk)
+                    tri = log_gamma(a + b - c + 1.0_rk) &
+                        + log_gamma(a + c - b + 1.0_rk) &
+                        + log_gamma(b + c - a + 1.0_rk) &
+                        - log_gamma(a + b + c + 2.0_rk)
                     tri = exp(tri)
                 end if
             end do
