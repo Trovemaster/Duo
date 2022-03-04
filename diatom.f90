@@ -588,8 +588,11 @@ module diatom_module
         call read_line(eof,iut) ; if (eof) exit
         call readu(w)
         select case(w)
-        !
-
+          !
+        case("STOP","FINISH","END")
+          !
+          exit
+          !
         case("HYPERFINE")
           ! skip if hyperfine NONE
           if (Nitems>1) then
@@ -603,9 +606,12 @@ module diatom_module
               cycle
             endif
           endif
-
+          !
+          action%save_eigen_J = .true.
           action%hyperfine = .True.
-
+          !
+          job%basis_set = 'KEEP'
+          !
           do while (trim(w)/="".and.trim(w)/="END")
             call read_line(eof,iut) ; if (eof) exit
             call readu(w)
@@ -618,20 +624,17 @@ module diatom_module
 
             call read_line(eof,iut) ; if (eof) exit
             call readu(w)
-          end do
-        
-        case("STOP","FINISH","END")
-          exit
-        !
-       case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
-         job%print_pecs_and_couplings_to_file = .true.
-        !
-       case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
-         job%print_vibrational_energies_to_file = .true.
-        !
-       case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+         end do
          !
-         job%print_rovibronic_energies_to_file = .true.
+        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
+          job%print_pecs_and_couplings_to_file = .true.
+          !
+        case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
+          job%print_vibrational_energies_to_file = .true.
+          !
+        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+          !
+          job%print_rovibronic_energies_to_file = .true.
         case("DO_NOT_ECHO_INPUT") 
           !
           job%zEchoInput = .false.
