@@ -396,6 +396,7 @@ module diatom_module
      logical             :: tqm      = .true.      ! print out quadrupole transition moments
      integer(ik)         :: Npoints = -1           ! used for cross sections grids 
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
+     integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
      !
  end type IntensityT
   !
@@ -3761,6 +3762,8 @@ module diatom_module
            case ('RWF')
              !
              action%RWF = .true.
+             !
+             if (nitems>1) call readi(intensity%N_RWF_Order) 
              !
              ! we will need the vibrational basis for RWF
              !
@@ -8075,10 +8078,11 @@ end subroutine map_fields_onto_grid
            vibmat = 0 
            !
            ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
+           !kinetic factor is  12*h**2/(2*h) = 6*h 
            !
            do igrid =1, ngrid
              if (igrid>1) then
-               vibmat(igrid,igrid-1) = -z(igrid-1)/hstep*0.5_rk
+               vibmat(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
                vibmat(igrid-1,igrid) = -vibmat(igrid,igrid-1)
              endif
            enddo
