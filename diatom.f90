@@ -397,6 +397,7 @@ module diatom_module
      integer(ik)         :: Npoints = -1           ! used for cross sections grids 
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
      integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
+     character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
      !
  end type IntensityT
   !
@@ -3940,6 +3941,12 @@ module diatom_module
              if (mod(intensity%npoints,2)==2) intensity%npoints = intensity%npoints + 1
              !
            case('GAMMA','FWHM')
+             !
+             call readf(intensity%gamma)
+             !
+           case('LORENTZIAN','GAUSSIAN')
+             !
+             intensity%RWF_type  = trim(w)
              !
              call readf(intensity%gamma)
              !

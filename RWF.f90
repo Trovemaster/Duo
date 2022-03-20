@@ -1038,7 +1038,7 @@ contains
     integer(ik) :: alloc_p
     !
     integer(ik) :: inu,Nlambdasigmas,i,ilevel,ivib,Ntotal
-    real(rk) :: J_
+    real(rk) :: J_,delta
     real(rk) :: dnu, nu,RWF2,intens_cm_molecule,sc,scale,h12
     complex*16,allocatable :: Amat(:,:),B(:),C(:)
     complex*16,parameter :: alpha_ = (1.0d0,0.0d0),beta_ = (0.0d0,0.0d0)
@@ -1580,9 +1580,17 @@ contains
            enddo Ilevels_loop
            !
            if (intensity%N_RWF_order>1) then 
-            !
-            call dgemm('N','N',nlevelsF,nlevelsF,nlevelsF,dalpha,hmat,nlevelsF,hmat,nlevelsF,dbeta,hmat_n(:,:,2),nlevelsF)
-            !
+             !
+             call dgemm('N','N',nlevelsF,nlevelsF,nlevelsF,dalpha,hmat,nlevelsF,hmat,nlevelsF,dbeta,hmat_n(:,:,2),nlevelsF)
+             !
+           endif
+           !
+           if (intensity%N_RWF_order>3) then 
+             !
+             call dgemm('N','N',nlevelsF,nlevelsF,nlevelsF,dalpha,hmat_n(:,:,2),nlevelsF,hmat,nlevelsF,dbeta,hmat_n(:,:,3),nlevelsF)
+             !
+             call dgemm('N','N',nlevelsF,nlevelsF,nlevelsF,dalpha,hmat_n(:,:,3),nlevelsF,hmat,nlevelsF,dbeta,hmat_n(:,:,4),nlevelsF)
+             !
            endif
            !
            !$omp parallel private(Amat,B,C,alloc_p) shared(crosssections) 
@@ -1593,6 +1601,10 @@ contains
            end if
            !call ArrayStart('RWF:Amat',info,size(Amat),kind(Amat))
            !call ArrayStart('RWF:Amat',info,size(B),kind(B))
+           !
+           ! Gaussuan parameter 
+           !
+           delta = log(2.0_rk)/intensity%gamma**2*0.5_rk
            !
            ! Wavenumber grid 
            !
@@ -1623,30 +1635,66 @@ contains
                   !
                   do ilevelR = 1,nlevelsF
                     !
-                    !Amat(ilevelF,ilevelR) = -transform(isymI)%matrix(ilevelF,ilevelR)/intensity%gamma**2
-                    Amat(ilevelF,ilevelR) = hmat(ilevelF,ilevelR)*cmplx(0.0_rk,-1.0_rk/intensity%gamma**2)
                     !
-                    if (ilevelF==ilevelR) then
+                    select case(trim(intensity%RWF_type)) 
                       !
-                      Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + (nu + energyI)*cmplx(0.0_rk,1.0_rk/intensity%gamma**2) &
-                       +1.0_rk/intensity%gamma
+                    case default
                       !
-                    endif
-                    !
-                    if (intensity%N_RWF_order>1) then 
+                      stop 'unknown RWF_type'
+                      !
+                    case ('GAUSSIAN')
                        !
-                       Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) - &
-                                             hmat_n(ilevelF,ilevelR,2)/intensity%gamma**3&
-                                            +hmat(ilevelF,ilevelR)*2.0_rk*(nu + energyI)/intensity%gamma**3
+                       Amat(ilevelF,ilevelR) = delta*( -hmat_n(ilevelF,ilevelR,2)+2.0_rk*hmat(ilevelF,ilevelR)*(nu + energyI) )
                        !
                        if (ilevelF==ilevelR) then
                          !
-                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) - &
-                                                (nu + energyI)**2/intensity%gamma**3
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + 1.0_rk  &
+                         - delta*(nu + energyI)**2 
                          !
                        endif
                        !
-                    endif
+                       if (intensity%N_RWF_order>3) then 
+                          !
+                          Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + delta**2* &
+                                               ( 0.5_rk*hmat_n(ilevelF,ilevelR,4) - 2.0_rk*hmat_n(ilevelF,ilevelR,3)*(nu + energyI)+&
+                                               +3.0_rk*hmat_n(ilevelF,ilevelR,2)*(nu + energyI)**2-2.0_rk*hmat(ilevelF,ilevelR)*(nu + energyI)**3 )
+                          !
+                          if (ilevelF==ilevelR) then
+                            !
+                            Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + delta**2*0.5_rk*(nu + energyI)**4 
+                            !
+                          endif
+                          !
+                       endif
+                       !
+                    case ('LORENTZIAN')
+                       !
+                       !Amat(ilevelF,ilevelR) = -transform(isymI)%matrix(ilevelF,ilevelR)/intensity%gamma**2
+                       Amat(ilevelF,ilevelR) = hmat(ilevelF,ilevelR)*cmplx(0.0_rk,-1.0_rk/intensity%gamma**2)
+                       !
+                       if (ilevelF==ilevelR) then
+                         !
+                         Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + (nu + energyI)*cmplx(0.0_rk,1.0_rk/intensity%gamma**2) &
+                          +1.0_rk/intensity%gamma
+                         !
+                       endif
+                       !
+                       if (intensity%N_RWF_order>1) then 
+                          !
+                          Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) - &
+                                                hmat_n(ilevelF,ilevelR,2)/intensity%gamma**3&
+                                               +hmat(ilevelF,ilevelR)*2.0_rk*(nu + energyI)/intensity%gamma**3
+                          !
+                          if (ilevelF==ilevelR) then
+                            !
+                            Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) - &
+                                                   (nu + energyI)**2/intensity%gamma**3
+                            !
+                          endif
+                          !
+                       endif
+                       !
+                    end select 
                     !
                   enddo
                   !
