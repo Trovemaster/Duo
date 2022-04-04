@@ -1197,7 +1197,7 @@ module me_numer
           !
         case ('QUASI-BOUND')
           !
-          stop 'QUASI-BOUND has been implemented yet'
+          stop 'QUASI-BOUND has not been implemented yet'
           !
         case default 
           !
@@ -1219,7 +1219,17 @@ module me_numer
         !
         call intin ( pot_eff, i0, eguess, phi_f, sumin, ic, pcin)
         !
-        tsum=sumin/(pcin*pcin)+sumout/(pcout*pcout)
+        tsum=0
+        !
+        if (sumin>small_) then 
+           tsum=sumin/(pcin*pcin)
+        endif
+        !
+        if (sumout>small_) then 
+           tsum=tsum+sumout/(pcout*pcout)
+        endif
+        !
+        !tsum=sumin/(pcin*pcin)+sumout/(pcout*pcout)
         !
         if (tsum > safe_max ) then  ! thrsh_upper
            ierr=2 ! 3 
@@ -1229,7 +1239,12 @@ module me_numer
         !
         yc=y(ic)/pcout
         ycm1=y(ic-1)/pcout
-        ycp1=y(ic+1)/pcin
+        !
+        ycp1 = 0
+        !
+        if (pcin>small_) then 
+          ycp1=y(ic+1)/pcin
+        endif
         !
         if (trim(boundary_condition)=='UNBOUND') exit
         !
