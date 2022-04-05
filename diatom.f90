@@ -7034,7 +7034,7 @@ end subroutine map_fields_onto_grid
      integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      integer(ik),allocatable :: vib_count(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
-     real(rk),allocatable    :: psi_vib(:),vec_t(:)
+     real(rk),allocatable    :: psi_vib(:),vec_t(:),vec0(:)
      integer(ik),allocatable :: ilambdasigmas_v_icontr(:,:)
      character(len=250),allocatable :: printout(:)
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
@@ -10547,9 +10547,10 @@ end subroutine map_fields_onto_grid
             endif
             !
             if (intensity%renorm) then
-               allocate(psi_vib(ngrid),vec_t(ngrid),stat=alloc)
+               allocate(psi_vib(ngrid),vec_t(ngrid),vec0(0:Ntotal),stat=alloc)
                call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
                call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
+               call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
                !
                write(out,"(/'  Renormalization of unbound states (listing non-converged to sin(kr) at large r)...')")
                write(out,"(6x,'|   # |    J | p | last 3 coeffs. | St vib Lambda Spin     Sigma    Omega ivib|')")
@@ -10688,6 +10689,8 @@ end subroutine map_fields_onto_grid
                       ! we first need to average the eigenfunction over other degrees of freedom
                       !
                       psi_vib = 0
+                      vec0(0) = 0 
+                      vec0(1:Ntotal) = vec(1:Ntotal)
                       !
                       if (iverbose>=4) call TimerStart('Reduced vibrational density')
                       !
@@ -10721,17 +10724,17 @@ end subroutine map_fields_onto_grid
                           !
                           k = ilambdasigmas_v_icontr(ivib,ilevel)
                           !
-                          if (k==0) cycle
+                          !if (k==0) cycle
                           !
-                          vec_t(:) = vec(k)*vibrational_contrfunc(:,ivib)
+                          vec_t(:) = vec0(k)*vibrational_contrfunc(:,ivib)
                           !
                           do jvib =1,totalroots
                              !
                              k_ = ilambdasigmas_v_icontr(jvib,ilevel)
                              !
-                             if (k_==0) cycle
+                             !if (k_==0) cycle
                              !
-                             psi_vib(:) = psi_vib(:) + vec_t(:)*vec(k_)*vibrational_contrfunc(:,jvib)
+                             psi_vib(:) = psi_vib(:) + vec_t(:)*vec0(k_)*vibrational_contrfunc(:,jvib)
                              !
                           enddo
                           !
@@ -10794,7 +10797,7 @@ end subroutine map_fields_onto_grid
                              !
                              ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
                              !
-                             vec(:) = vec(:)*amplit3
+                             vec(:) = vec(:)*sqrt(amplit3)
                              !
                              eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                              !
@@ -10875,7 +10878,7 @@ end subroutine map_fields_onto_grid
             enddo
             !
             if (allocated(psi_vib)) then 
-               deallocate(psi_vib,vec_t)
+               deallocate(psi_vib,vec_t,vec0)
                call ArrayStop('psi_vib')
             endif
             !
