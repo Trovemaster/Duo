@@ -3,7 +3,7 @@ module accuracy
   private
   public sik, ik, hik, rk, ark, out, inp, safe_max,safe_min,max_exp, pi, twopi, cl, wl
   public accuracyInitialize, print_physical_constants
-  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau
+  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau,uma
   public epsil,small_,sqrt2,sqrt3,rad,fititermax,aston,hartree,ev,my_fmt
   !
   integer, parameter :: sik         = selected_int_kind(4)       ! Small integers
