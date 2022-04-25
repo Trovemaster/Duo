@@ -32,7 +32,7 @@ contains
         ! Top level 
         implicit none
 
-        INTEGER(ik) :: index_F1, index_represCs, iroot
+        INTEGER(ik) :: index_F1, index_represCs, iroot, iF1_ID
         INTEGER(ik) :: Ndimen_F1, Nlevels_F1, index_levels_F1, maxlocation
         REAL(rk), ALLOCATABLE :: eigen_value_F1(:), &
                                     parity_conserved_F1_matrix(:, :), &
@@ -146,12 +146,16 @@ contains
 
                 write(out, '(/A8, A)') '', 'Calculate energy levels'
                 eigen_value_F1(:) = eigen_value_F1(:) - job%ZPE
+
+                iF1_ID = 0
                 do index_levels_F1 = 1, Nlevels_F1
                     maxlocation = MAXLOC(ABS(eigen_vector_F1(:, index_levels_F1)), DIM=1)
                     quanta => primitive_F1_basis(index_F1)%icontr(maxlocation) 
 
                     iroot = iroot + 1
+                    iF1_ID = iF1_ID + 1
                     eigen_all_F1(index_F1, index_represCs)%quanta(index_levels_F1)%iroot = iroot
+                    eigen_all_F1(index_F1, index_represCs)%quanta(index_levels_F1)%iF1_ID = iF1_ID
 
                     write(unit_hyperfine_states, '(I7, F22.12, I7, F7.1, F7.1, A7, F7.1, A12, I7, I7, F7.1, F7.1)') &
                         iroot, &
@@ -364,13 +368,9 @@ contains
         index_F1, index_represCs, &
         transformation_matrix, &
         eigen_value_J_in_F1)
-        ! Construct the basis tranformation matrix
-        ! (technically transition matrix), Phi, 
+        ! Construct the basis tranformation matrix, Phi, 
         ! between the primitive F1 basis set
         ! and the parity conserved F1 basis set.
-        ! We don't term Phi 'transition matrix' here
-        ! to avoid misunderstanding although it seems unnecessary.
-        ! The eigen values of H0 are obtained in the meanwhile.
 
         implicit none
 

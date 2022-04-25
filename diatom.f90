@@ -296,6 +296,7 @@ module diatom_module
     integer(ik)  :: ivib = 1   ! vibrational quantum number counting all vib-contracted states
     integer(ik)  :: ilevel = 1  ! primitive quantum
     integer(ik)  :: iroot       ! running number
+    integer(ik)  :: iF1_ID       ! running number within the same F and parity
     integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1

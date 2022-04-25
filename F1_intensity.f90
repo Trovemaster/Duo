@@ -79,10 +79,10 @@ contains
         write(out, '(/A)') "End: hyperfine transitions calculation"
     contains
         subroutine construct_parity_conserved_F1_reduced_TDM_matrix
-        ! | <psi_m^{tau,F}| T^1(mu) |psi_n^{tau',F'}> | ** 2
-        implicit none
+            ! | <psi_m^{tau,F}| T^1(mu) |psi_n^{tau',F'}> | ** 2
+            implicit none
 
-        REAL(rk), ALLOCATABLE :: intermediate_matrix(:, :)
+            REAL(rk), ALLOCATABLE :: intermediate_matrix(:, :)
             ! See Eq.(58) of DOI: 10.1021/acs.jctc.1c01244
             ! ! ^{tau,F}M^{tau', F'} = {Psi^{tau, F}}^\dagger * ^{F}M^{F'} * Psi^{tau', F'} 
             ! parity_conserved_F1_reduced_TDM_matrix = &
