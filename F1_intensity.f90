@@ -2,7 +2,7 @@ module F1_intensity
 
     use F1_hyperfine
     use accuracy
-    use diatom_module, only : Ndipoles, dipoletm
+    use diatom_module, only : Ndipoles, dipoletm, intensity, job
 
     implicit none
 
@@ -114,16 +114,40 @@ contains
         subroutine construct_parity_conserved_F1_transitions_matrix
             implicit none
             INTEGER(ik) :: bra, ket  
-            REAL(rk)  :: EinsteinA
+            REAL(rk)  :: EinsteinA, lower_energy_lower_bound, lower_energy_upper_bound, &
+                         upper_energy_lower_bound, upper_energy_upper_bound, &
+                         frequency_lower_bound, frequency_upper_bound
+
+            lower_energy_lower_bound = intensity%erange_low(1) + job%ZPE
+            lower_energy_upper_bound = intensity%erange_low(2) + job%ZPE
+            upper_energy_lower_bound = intensity%erange_upp(1) + job%ZPE
+            upper_energy_upper_bound = intensity%erange_upp(2) + job%ZPE
+            frequency_lower_bound = max(0.0, intensity%freq_window(1))
+            frequency_upper_bound = intensity%freq_window(2)
             
             do ket = 1, Nlevels_F1_ket
                 do bra = 1, Nlevels_F1_bra
+
+                    if (eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket) &
+                        < lower_energy_lower_bound) cycle
+                    if (eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket) &
+                        > lower_energy_upper_bound) cycle
+
+                    if (eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
+                        < upper_energy_lower_bound) cycle
+                    if (eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
+                        > upper_energy_upper_bound) cycle
 
                     parity_conserved_F1_transitions_matrix(bra, ket) = &
                         eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
                             - eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket)
                     
                     if (parity_conserved_F1_transitions_matrix(bra, ket) < 0) cycle
+
+                    if (parity_conserved_F1_transitions_matrix(bra, ket) &
+                        < frequency_lower_bound) cycle
+                    if (parity_conserved_F1_transitions_matrix(bra, ket) &
+                        > frequency_upper_bound) cycle
 
                     ! Einstein A coefficients: see Eq.(23) of Western 
                     ! doi:10.1016/j.jqsrt.2016.04.010
@@ -135,12 +159,11 @@ contains
                         * parity_conserved_F1_reduced_TDM_matrix(bra, ket) &
                         / (2.0_rk * primitive_F1_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
 
-                    WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12, E22.12)") &
+                    WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12)") &
                         eigen_all_F1(index_F1_bra, index_represCs_bra)%quanta(bra)%iroot, &
                         eigen_all_F1(index_F1_ket, index_represCs_ket)%quanta(ket)%iroot, &
                         EinsteinA, &
-                        parity_conserved_F1_transitions_matrix(bra, ket), &
-                        parity_conserved_F1_reduced_TDM_matrix(bra, ket)
+                        parity_conserved_F1_transitions_matrix(bra, ket)
                 end do    
             end do 
         end subroutine construct_parity_conserved_F1_transitions_matrix
