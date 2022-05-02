@@ -18,7 +18,6 @@ contains
                        Nlevels_F1_bra, Nlevels_F1_ket
         REAL(rk), ALLOCATABLE :: parity_conserved_F1_reduced_TDM_matrix(:,:), &
                                  parity_conserved_F1_transitions_matrix(:,:)
-        CALL F1_hyperfine_structrure
 
         write(out, '(/A)') "Start: hyperfine transitions calculation"
         open(unit=unit_hyperfine_transitions, file="hyperfine.trans")

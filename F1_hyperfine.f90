@@ -23,15 +23,16 @@ module F1_hyperfine
                 wavenumber_to_MHz = vellgt / 1.0E6_rk
 
     TYPE(eigenT), allocatable :: eigen_all_F1(:,:)
+    REAL(rk) :: min_eigen_value_F1
     LOGICAL :: F1_hyperfine_gridvalue_allocated  = .false.
     INTEGER(ik), PARAMETER :: unit_hyperfine_states = 65
     
 contains
 
-    subroutine F1_hyperfine_structrure
+    subroutine F1_hyperfine_structrure(iverbose)
         ! Top level 
         implicit none
-
+        integer(ik), INTENT(IN) :: iverbose
         INTEGER(ik) :: index_F1, index_represCs, iroot, iF1_ID
         INTEGER(ik) :: Ndimen_F1, Nlevels_F1, index_levels_F1, maxlocation
         REAL(rk), ALLOCATABLE :: eigen_value_F1(:), &
@@ -68,16 +69,18 @@ contains
 
         num_F1 = nint(F1_global_max - F1_global_min) + 1
         
-        CALL construct_F1_hyperfine_constant_field_matrix        
+        CALL construct_F1_hyperfine_constant_field_matrix(iverbose)      
         
 
         ALLOCATE(F1_list(num_F1))
         ALLOCATE(primitive_F1_basis(num_F1))
 
-        CALL construct_primitive_F1_basis
+        CALL construct_primitive_F1_basis(iverbose)
 
-        write(out, '(/A2, A)') '', 'Start: hyperfine states'
-        write(out, '(/A2, A, F22.12)') '', 'Zero point energy =', job%ZPE
+        if (iverbose>=4) then
+            write(out, '(/A2, A)') '', 'Start: hyperfine states'
+            write(out, '(/A2, A, F22.12)') '', 'Zero point energy =', job%ZPE
+        endif
 
         ALLOCATE(eigen_all_F1(num_F1, sym%NrepresCs))
 
@@ -85,18 +88,24 @@ contains
         !     'Number', 'Energy [cm-1]', 'g', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
 
         iroot = 0
+        min_eigen_value_F1 = 100000000_rk
         do index_F1 = 1, num_F1
-            write(out, '(/A4, A, F6.1)') '', 'Eigen states of F =', F1_list(index_F1)
-            
-            write(out, '(/A6, A)') '', 'Construct primitive hyperfine matrix'
+            if (iverbose>=4) then
+                write(out, '(/A4, A, F6.1)') '', 'Eigen states of F =', F1_list(index_F1)
+                write(out, '(/A6, A)') '', 'Construct primitive hyperfine matrix'
+            endif
+
             Ndimen_F1 = primitive_F1_basis(index_F1)%Ndimen
             ALLOCATE(primitive_F1_hyperfine_matrix(Ndimen_F1, Ndimen_F1))
             CALL construct_primitive_F1_hyperfine_matrix( &
                 index_F1, primitive_F1_hyperfine_matrix)
-            write(out, '(A6, A/)') '', '... done'
+
+            if (iverbose>=4) write(out, '(A6, A/)') '', '... done'
 
             do index_represCs = 1, sym%NrepresCs
-                write(out, '(/A6, A, A3)') '', 'Eigen states of parity', trim(parity_sign(index_represCs))
+                if (iverbose>=4) then
+                    write(out, '(/A6, A, A3)') '', 'Eigen states of parity', trim(parity_sign(index_represCs))
+                endif
 
                 Nlevels_F1 = Ndimen_F1 / sym%NrepresCs
 
@@ -109,8 +118,11 @@ contains
                 ALLOCATE(eigen_all_F1(index_F1, index_represCs)%val(Nlevels_F1))
                 ALLOCATE(eigen_all_F1(index_F1, index_represCs)%vect(Ndimen_F1, Nlevels_F1))
 
-                write(out, '(/A8, A)') &
-                '', 'Construct parity conserved hyperfine matrix'   
+                if (iverbose>=4) then
+                    write(out, '(/A8, A)') &
+                        '', 'Construct parity conserved hyperfine matrix'
+                endif
+
                 CALL construct_parity_conserved_F1_matrix( &
                     index_F1, index_represCs, primitive_F1_hyperfine_matrix, &
                     parity_conserved_F1_matrix, transformation_matrix)
@@ -118,16 +130,22 @@ contains
                 ! parity-conserved hyperfine matrix under the rovibronic basis set
                 ! and the eigenvalues of rovibronic matrix.
                 ! transformation_matrix(:, :) holds the rovibronic eigenvectors of F1
-                ! viz Phi
-                write(out, '(A8, A/)') '', '... done'
+                ! viz Phi                
+                if (iverbose>=4) write(out, '(A8, A/)') '', '... done'
 
-                write(out, '(/A8, A)') '', 'Diagonalize parity conserved hyperfine matrix'
+                if (iverbose>=4) then
+                    write(out, '(/A8, A)') &
+                        '', 'Diagonalize parity conserved hyperfine matrix'
+                endif
                 CALL lapack_syev(parity_conserved_F1_matrix, eigen_value_F1)
                 ! Now, parity_conserved_F1_matrix(:, :) is the eigenvector matrix, viz U,
                 ! under the rovibronic wavefunction.
-                write(out, '(A8, A/)') '', '... done'
+                if (iverbose>=4) write(out, '(A8, A/)') '', '... done'
                 
-                write(out, '(/A8, A)') '', "Transform wavefunction to Hund's case (a_beta) basis set"
+                if (iverbose>=4) then
+                    write(out, '(/A8, A)') &
+                         '', "Transform wavefunction to Hund's case (a_beta) basis set"
+                endif
                 ! Psi = Phi * U
                 ! eigen_vector_F1 = matmul(transformation_matrix, &
                 !                          parity_conserved_F1_matrix)
@@ -137,14 +155,16 @@ contains
                             0.0_rk, eigen_vector_F1, Ndimen_F1)
                 ! Now, eigen_vector_F1(:, :) is the eigenvector matrix
                 ! under the Hund's case(a_beta) basis set.
-                write(out, '(A8, A/)') '', '... done'
+                if (iverbose>=4) write(out, '(A8, A/)') '', '... done'
 
                 eigen_all_F1(index_F1, index_represCs)%Nlevels = Nlevels_F1
                 eigen_all_F1(index_F1, index_represCs)%Ndimen = Ndimen_F1
                 eigen_all_F1(index_F1, index_represCs)%val = eigen_value_F1
                 eigen_all_F1(index_F1, index_represCs)%vect = eigen_vector_F1
-
-                write(out, '(/A8, A)') '', 'Calculate energy levels'
+                
+                if (iverbose>=4) then
+                    write(out, '(/A8, A)') '', 'Calculate energy levels'
+                endif
                 eigen_value_F1(:) = eigen_value_F1(:) - job%ZPE
 
                 iF1_ID = 0
@@ -157,21 +177,27 @@ contains
                     eigen_all_F1(index_F1, index_represCs)%quanta(index_levels_F1)%iroot = iroot
                     eigen_all_F1(index_F1, index_represCs)%quanta(index_levels_F1)%iF1_ID = iF1_ID
 
-                    write(unit_hyperfine_states, '(I7, F22.12, I7, F7.1, F7.1, A7, F7.1, A12, I7, I7, F7.1, F7.1)') &
-                        iroot, &
-                        eigen_value_F1(index_levels_F1), &
-                        int(quanta%F1 * 2.0_rk + 1.0_rk), &
-                        quanta%F1, &
-                        quanta%I1, &
-                        trim(parity_sign(index_represCs)), &
-                        quanta%Jrot, &
-                        trim(poten(quanta%istate)%name), &
-                        quanta%v, &
-                        quanta%ilambda, &
-                        quanta%sigma, &
-                        quanta%omega
+                    min_eigen_value_F1 = min(&
+                        eigen_all_F1(index_F1, index_represCs)%val(index_levels_F1), &
+                        min_eigen_value_F1) 
+
+                    if (iverbose>=4) then
+                        write(unit_hyperfine_states, '(I7, F22.12, I7, F7.1, F7.1, A7, F7.1, A12, I7, I7, F7.1, F7.1)') &
+                            iroot, &
+                            eigen_value_F1(index_levels_F1), &
+                            int(quanta%F1 * 2.0_rk + 1.0_rk), &
+                            quanta%F1, &
+                            quanta%I1, &
+                            trim(parity_sign(index_represCs)), &
+                            quanta%Jrot, &
+                            trim(poten(quanta%istate)%name), &
+                            quanta%v, &
+                            quanta%ilambda, &
+                            quanta%sigma, &
+                            quanta%omega
+                    endif
                 enddo 
-                write(out, '(A8, A/)') '', '... done'
+                if (iverbose>=4) write(out, '(A8, A/)') '', '... done'
 
                 DEALLOCATE(eigen_vector_F1)
                 DEALLOCATE(transformation_matrix)
@@ -182,13 +208,7 @@ contains
             DEALLOCATE(primitive_F1_hyperfine_matrix)
         end do
 
-        write(out, '(A2, A/)') '', 'End: hyperfine states'
-        
-        ! DO index_F1 = 1, num_F1
-        !     DEALLOCATE (primitive_F1_basis(index_F1)%icontr)
-        ! end do
-        
-        ! DEALLOCATE(primitive_F1_basis)       
+        if (iverbose>=4) write(out, '(A2, A/)') '', 'End: hyperfine states'    
         write(out, '(A/)') "End: hyperfine energy calculation"
         
         close(unit=unit_hyperfine_states)
@@ -204,9 +224,11 @@ contains
         end function parity_sign
     end subroutine F1_hyperfine_structrure
 
-    subroutine construct_F1_hyperfine_constant_field_matrix
+    subroutine construct_F1_hyperfine_constant_field_matrix(iverbose)
         ! <state, v| hfcc(R) |state', v'>
         implicit none
+        integer(ik), INTENT(IN) :: iverbose
+
         TYPE(fieldT), POINTER :: field
         INTEGER(ik) :: ilevel, jlevel, index_object, index_field
 
@@ -217,7 +239,7 @@ contains
                 field => hfcc1(index_object)%field(index_field)
                 allocate(field%matelem(vibrational_totalroots,vibrational_totalroots),stat=alloc)
 
-                write(out, '(A4, A)') '', trim(field%name)
+                if (iverbose>=4) write(out, '(A4, A)') '', trim(field%name)
 
                 do ilevel = 1, vibrational_totalroots
                     do jlevel = 1, ilevel
@@ -232,18 +254,18 @@ contains
                     end do
                 end do
 
-                write(out, '(A4, A/)') '', '... done'
+                if (iverbose>=4) write(out, '(A4, A/)') '', '... done'
             end do
         end do
 
         write(out, '(A2, A/)') '', "End: hyperfine constants under the vibrational bases"
     end subroutine construct_F1_hyperfine_constant_field_matrix
 
-    subroutine construct_primitive_F1_basis
+    subroutine construct_primitive_F1_basis(iverbose)
         ! |state, v; Lambda; S, Sigma; J, Omega; I1; F1>
         implicit none
 
-
+        integer(ik), INTENT(IN) :: iverbose
         REAL(rk) :: F1, J
         INTEGER(ik) :: index_F1, Ndimen_F1
         INTEGER(ik) :: index_J, index_J_min, index_J_max, start_contr_F1, end_contr_F1, index_contr_F1
@@ -255,7 +277,7 @@ contains
         do index_F1 = 1, num_F1
             F1 = F1_global_min + REAL(index_F1 - 1, rk)
 
-            write(out, '(A4, A, F5.1)') '', "F = ", F1
+            if (iverbose>=4) write(out, '(A4, A, F5.1)') '', "F = ", F1
 
             F1_list(index_F1) = F1
             J_min = abs(F1 - I1)
@@ -269,7 +291,10 @@ contains
                 Ndimen_F1 = Ndimen_F1 + basis(index_J)%Ndimen
             end do
 
-            write(out, '(A4, A, I5)') '', 'Number of the contracted basis', Ndimen_F1
+            if (iverbose>=4) then
+                write(out, '(A4, A, I5)') &
+                    '', 'Number of the contracted basis', Ndimen_F1
+            endif 
 
             primitive_F1_basis(index_F1)%Ndimen = Ndimen_F1
             ALLOCATE (primitive_F1_basis(index_F1)%icontr(Ndimen_F1))
@@ -290,19 +315,22 @@ contains
             primitive_F1_basis(index_F1)%icontr(:)%index_F1 = index_F1
             primitive_F1_basis(index_F1)%icontr(:)%I1 = I1
             primitive_F1_basis(index_F1)%icontr(:)%F1 = F1
-
-            write(out, '(A6, A7, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
-                '    ', 'No.', 'F', 'I', 'state', 'v', 'Lambda', 'J', 'Omega', 'S', 'Sigma'
+            if (iverbose>=4) then
+                write(out, '(A6, A7, A7, A7, A7, A7, A7, A7, A7, A7, A7)') &
+                    '    ', 'No.', 'F', 'I', 'state', 'v', 'Lambda', 'J', 'Omega', 'S', 'Sigma'
+            endif
             do index_contr_F1 = 1, Ndimen_F1
                 contr_F1 => primitive_F1_basis(index_F1)%icontr(index_contr_F1)
-                write(out, '(A6, I7, F7.1, F7.1, I7, I7, I7, F7.1, F7.1, F7.1, F7.1)') &
-                    '    ', index_contr_F1, contr_F1%F1, contr_F1%I1, &
-                    contr_F1%istate, contr_F1%v, contr_F1%ilambda, &
-                    contr_F1%Jrot, contr_F1%omega, &
-                    contr_F1%spin, contr_F1%sigma 
+                if (iverbose>=4) then
+                    write(out, '(A6, I7, F7.1, F7.1, I7, I7, I7, F7.1, F7.1, F7.1, F7.1)') &
+                        '    ', index_contr_F1, contr_F1%F1, contr_F1%I1, &
+                        contr_F1%istate, contr_F1%v, contr_F1%ilambda, &
+                        contr_F1%Jrot, contr_F1%omega, &
+                        contr_F1%spin, contr_F1%sigma 
+                endif
             end do
 
-            write(out, '(A4, A/)') '', '... done'
+            if (iverbose>=4) write(out, '(A4, A/)') '', '... done'
         end do
        
         write(out, '(A2, A/)') '', "End: contracted Hund's case (a_beta) basis"
