@@ -16,7 +16,7 @@ module F1_fitting
 
     implicit none
         
-    include "C:\Users\Leopard\nlopt\x64-Release\include\nlopt.f"
+    include "nlopt.f"
 
     type fit_indexT
         integer(ik)  :: i
@@ -454,17 +454,6 @@ contains
         deallocate(primitive_F1_basis)   
         deallocate(calculated_F1_hyperfine_energies)
     end subroutine deallocate_intermediate_variables
-
-    subroutine myconstraint(val, n, x, grad, need_gradient, d)
-        integer need_gradient, n
-        double precision val, x(n), grad(n), d(2), a, b
-        a = d(1)
-        b = d(2)
-        if (need_gradient.ne.0) then
-           grad = 0
-        endif
-        val = (a*x(1) + b)**3 - x(2)
-    end
 
     subroutine extract_calculated_F1_hyperfine_energies
         implicit none
