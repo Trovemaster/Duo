@@ -54,7 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
-  !        case (13 - 20) reserved
+  !        case (14 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a
   !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
@@ -1743,6 +1743,7 @@ module diatom_module
              !
              field => poten(iobject(1))
              field%istate = iobject(1)
+             field%jstate = iobject(1)
              !
              call readi(field%iref)
              field%jref = field%iref
@@ -6969,7 +6970,7 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,*)
            write(out,*)
            write(out,'(A)') 'Approximate J=J_min vibrational-rotational energy levels (no couplings)'
-           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*[J(J+1)]^2'
+           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*(J(J+1))^2'
            write(out,'(A18)') 'v'
            do i=0, 3
            write(out,'(I18)',advance='no') i
@@ -8158,11 +8159,8 @@ end subroutine map_fields_onto_grid
             case (12)
               field => lambdaq(iterm)
             case (13)
-              !
-              field => nac(iterm)
-              !
               ! A special case of NAC couplings with 1st derivatives wrt r
-              !
+              field => nac(iterm)
             case (Nobjects-3)
               field => quadrupoletm(iterm)
             case (Nobjects-2)
@@ -8187,55 +8185,57 @@ end subroutine map_fields_onto_grid
               call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
             endif
             !
+            field%matelem = 0
+            !
             !$omp parallel do private(ilevel,jlevel) schedule(guided)
             do ilevel = 1,totalroots
               do jlevel = 1,ilevel
-                !
-                ! in the grid representation of the vibrational basis set
-                ! the matrix elements are evaluated simply by a summation of over the grid points
-                !
-                !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
-                !
-                !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
-                !
-                !field%matelem(ilevel,jlevel) = f_ark
-                !
-                field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
-                !
-                ! A special case of the non-diagonal integration of NAC
-                !
-                ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-                ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
-                if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
-                endif
-                !
-                field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
-                !
-                if (iobject==13) then 
-                  !
-                  vibener =  matmul(vibmat,contrfunc(1:,jlevel))
-                  field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
-                  field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-                  !
-                endif
-                !
-                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
-                !
-                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
-                !                                                                        contrfunc_rk(:,jlevel))
-                !
-                !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
-                !
-                !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
-                !
-                !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
-                !
-                !matelem_rk(ilevel,jlevel) = f_rk
-                !
-                !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
-                !
-                !
+                 !
+                 ! in the grid representation of the vibrational basis set
+                 ! the matrix elements are evaluated simply by a summation of over the grid points
+                 !
+                 !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
+                 !
+                 !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+                 !
+                 !field%matelem(ilevel,jlevel) = f_ark
+                 !
+                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
+                 !
+                 ! A special case of the non-diagonal integration of NAC
+                 !
+                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
+                 if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+                 endif
+                 !
+                 field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                 !
+                 if (iobject==13) then 
+                   !
+                   vibener =  matmul(vibmat,contrfunc(1:,jlevel))
+                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
+                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+                   !
+                 endif
+                 !
+                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
+                 !
+                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
+                 !                                                                        contrfunc_rk(:,jlevel))
+                 !
+                 !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
+                 !
+                 !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
+                 !
+                 !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
+                 !
+                 !matelem_rk(ilevel,jlevel) = f_rk
+                 !
+                 !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
+                 !
+                 !
               enddo
             enddo
             !$omp end parallel do
