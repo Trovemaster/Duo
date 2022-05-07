@@ -73,7 +73,7 @@ module diatom_module
   character(len=wl),parameter :: CLASSNAMES(1:Nobjects)  = (/ character(len=wl):: "POTEN","SPINORBIT","L2", "L+","SPIN-SPIN",&
                                                              "SPIN-SPIN-O","BOBROT","SPIN-ROT","DIABATIC","LAMBDAOPQ", &
                                                              "LAMBDAP2Q","LAMBDAQ", &
-                                                             "", "", "", "", "", "", "", "", & ! reserved
+                                                             "NAC", "", "", "", "", "", "", "", & ! reserved
                                                              "HFCC-BF-1", "HFCC-A-1", &
                                                              "HFCC-C-1", "HFCC-D-1", &
                                                              "HFCC-CI-1", &
@@ -397,6 +397,8 @@ module diatom_module
      logical             :: tqm      = .true.      ! print out quadrupole transition moments
      integer(ik)         :: Npoints = -1           ! used for cross sections grids 
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
+     integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
+     character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
      !
  end type IntensityT
   !
@@ -460,7 +462,7 @@ module diatom_module
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
-                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:)
+                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:),nac(:)
   type(fieldT),pointer :: brot(:),quadrupoletm(:)
   !
   ! Fields in the Omega representation
@@ -484,7 +486,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot,nrefstates = 1
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -536,7 +538,7 @@ module diatom_module
     type(fieldT),pointer      :: field
     logical :: eof,include_state,allgrids
     logical :: symmetry_defined=.false.
-    integer :: ic
+    integer :: ic,ierr
     !
     ! -----------------------------------------------------------
     !
@@ -589,8 +591,11 @@ module diatom_module
         call read_line(eof,iut) ; if (eof) exit
         call readu(w)
         select case(w)
-        !
-
+          !
+        case("STOP","FINISH","END")
+          !
+          exit
+          !
         case("HYPERFINE")
           ! skip if hyperfine NONE
           if (Nitems>1) then
@@ -604,9 +609,12 @@ module diatom_module
               cycle
             endif
           endif
-
+          !
+          action%save_eigen_J = .true.
           action%hyperfine = .True.
-
+          !
+          job%basis_set = 'KEEP'
+          !
           do while (trim(w)/="".and.trim(w)/="END")
             call read_line(eof,iut) ; if (eof) exit
             call readu(w)
@@ -619,20 +627,17 @@ module diatom_module
 
             call read_line(eof,iut) ; if (eof) exit
             call readu(w)
-          end do
-        
-        case("STOP","FINISH","END")
-          exit
-        !
-       case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
-         job%print_pecs_and_couplings_to_file = .true.
-        !
-       case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
-         job%print_vibrational_energies_to_file = .true.
-        !
-       case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+         end do
          !
-         job%print_rovibronic_energies_to_file = .true.
+        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
+          job%print_pecs_and_couplings_to_file = .true.
+          !
+        case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
+          job%print_vibrational_energies_to_file = .true.
+          !
+        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+          !
+          job%print_rovibronic_energies_to_file = .true.
         case("DO_NOT_ECHO_INPUT") 
           !
           job%zEchoInput = .false.
@@ -832,7 +837,7 @@ module diatom_module
           !
           allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                    bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupoletm(ncouples),stat=alloc)
+                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),stat=alloc)
 
           do i = 1, GLOBAL_NUM_HFCC_OBJECT
             allocate(hfcc1(i)%field(nestates), stat=alloc)
@@ -1550,7 +1555,7 @@ module diatom_module
        case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
-            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ",&
+            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
             "QUADRUPOLE", &
             "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2") 
           !
@@ -2187,7 +2192,14 @@ module diatom_module
              field%class = trim(CLASSNAMES(12))
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
-            
+             !
+          case("NAC")
+             !
+             call input_non_diagonal_field(Nobjects,13,iobject(13),nac,ierr)
+             !
+             field => nac(iobject(13))
+             !
+             if (ierr>0) cycle
              !
           case("QUADRUPOLE")
              !
@@ -2233,14 +2245,13 @@ module diatom_module
              call set_field_refs(field,iref,jref,istate_,jstate_)
              !
              field%class = "QUADRUPOLE"
-
-
+             !
           case("HFCC-BF")
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
             iobject(21) = iobject(21) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_bf : do istate=1, Nestates
@@ -2253,14 +2264,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_bf
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(1)%num_field - 1
               if (iref==hfcc1(1)%field(istate)%iref.and.jref==hfcc1(1)%field(istate)%jref) then
                 call report ("Fermi contact object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
               hfcc1(1)%num_field = hfcc1(1)%num_field - 1
@@ -2270,19 +2281,19 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(1)%field(hfcc1(1)%num_field) 
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-BF-1"
             if (action%fitting) call report ("Fermi-contact object cannot appear after FITTING",.true.)
-          
+            !
           case("HFCC-A")
             hfcc1(2)%num_field = hfcc1(2)%num_field + 1
             iobject(22) = iobject(22) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_a : do istate=1, Nestates
@@ -2295,14 +2306,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_a
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(2)%num_field - 1
               if (iref==hfcc1(2)%field(istate)%iref.and.jref==hfcc1(2)%field(istate)%jref) then
                 call report ("Nuclear spin -- orbit object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('The Nuclear spin -- orbit ',2i8,' is skipped')") iref,jref
               hfcc1(2)%num_field = hfcc1(2)%num_field - 1
@@ -2312,19 +2323,19 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(2)%field(hfcc1(2)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-A-1"
             if (action%fitting) call report ("Nuclear spin -- orbit object cannot appear after FITTING",.true.)
-
+            !
           case("HFCC-C")
             hfcc1(3)%num_field = hfcc1(3)%num_field + 1
             iobject(23) = iobject(23) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_c : do istate=1, Nestates
@@ -2337,14 +2348,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_c
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(3)%num_field - 1
               if (iref==hfcc1(3)%field(istate)%iref.and.jref==hfcc1(3)%field(istate)%jref) then
                 call report ("Diagonal nuclear spin - electron spin dipole-dipole object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('Diagonal nuclear spin - electron spin dipole-dipole term ',2i8,' is skipped')") iref,jref
               hfcc1(3)%num_field = hfcc1(3)%num_field - 1
@@ -2354,20 +2365,21 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(3)%field(hfcc1(3)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-C-1"
             if (action%fitting) then
               call report ("Diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
             endif
+            !
           case("HFCC-D")
             hfcc1(4)%num_field = hfcc1(4)%num_field + 1
             iobject(24) = iobject(24) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_d : do istate=1, Nestates
@@ -2380,14 +2392,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_d
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(4)%num_field - 1
               if (iref==hfcc1(4)%field(istate)%iref.and.jref==hfcc1(4)%field(istate)%jref) then
                 call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object  is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('The Off-diagonal nuclear spin - electron spin dipole-dipole object ',2i8,' is skipped')") iref,jref
               hfcc1(4)%num_field = hfcc1(4)%num_field - 1
@@ -2397,20 +2409,21 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(4)%field(hfcc1(4)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-D-1"
             if (action%fitting) then
               call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
             endif
           case("HFCC-CI")
+            !
             hfcc1(5)%num_field = hfcc1(5)%num_field + 1
             iobject(25) = iobject(25) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_ci : do istate=1, Nestates
@@ -2423,14 +2436,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_ci
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(5)%num_field - 1
               if (iref==hfcc1(5)%field(istate)%iref.and.jref==hfcc1(5)%field(istate)%jref) then
                 call report ("Nuclear spin -- rotation object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
               hfcc1(5)%num_field = hfcc1(5)%num_field - 1
@@ -2440,19 +2453,19 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(5)%field(hfcc1(5)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-CI-1"
             if (action%fitting) call report ("Nuclear spin -- rotation object cannot appear after FITTING",.true.)
-
+            !
           case("HFCC-EQQ0")
             hfcc1(6)%num_field = hfcc1(6)%num_field + 1
             iobject(26) = iobject(26) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_eqq0 : do istate=1, Nestates
@@ -2465,14 +2478,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_eqq0
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(6)%num_field - 1
               if (iref==hfcc1(6)%field(istate)%iref.and.jref==hfcc1(6)%field(istate)%jref) then
                 call report ("Diagonal nuclear electric quadrupole object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('Diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
               hfcc1(6)%num_field = hfcc1(6)%num_field - 1
@@ -2482,19 +2495,19 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(6)%field(hfcc1(6)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-EQQ0-1"
             if (action%fitting) call report ("Diagonal nuclear electric quadrupole object cannot appear after FITTING",.true.)
-
+            !
           case("HFCC-EQQ2")
             hfcc1(7)%num_field = hfcc1(7)%num_field + 1
             iobject(27) = iobject(27) + 1
             call readi(iref); jref = iref
             include_state = .false.
-
+            !
             ! find the corresponding potential
             include_state = .false.
             loop_istate_hfcc_eqq2 : do istate=1, Nestates
@@ -2507,14 +2520,14 @@ module diatom_module
                 endif
               enddo
             enddo loop_istate_hfcc_eqq2
-
+            !
             ! Check if it was defined before 
             do istate=1, hfcc1(7)%num_field - 1
               if (iref==hfcc1(7)%field(istate)%iref.and.jref==hfcc1(7)%field(istate)%jref) then
                 call report ("Off-diagonal nuclear electric quadrupole object is repeated",.true.)
               endif
             enddo
-
+            !
             if (.not.include_state) then
               !write(out,"('Off-diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
               hfcc1(7)%num_field = hfcc1(7)%num_field - 1
@@ -2524,9 +2537,9 @@ module diatom_module
               enddo
               cycle
             endif
-
+            !
             field => hfcc1(7)%field(hfcc1(7)%num_field)
-
+            !
             call set_field_refs(field, iref, jref, istate_, jstate_)
             field%class = "HFCC-EQQ2-1"
             if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
@@ -2838,7 +2851,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              case("HFCC-A")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2851,7 +2864,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              case("HFCC-C")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2864,7 +2877,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-             
+                !             
              case("HFCC-D")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2877,7 +2890,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              case("HFCC-CI")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2890,7 +2903,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              case("HFCC-EQQ0")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2903,7 +2916,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              case("HFCC-EQQ2")
                 call readi(iref) ; jref = iref
                 if (nitems>2) call readi(jref)
@@ -2916,7 +2929,7 @@ module diatom_module
                       exit
                     endif
                 enddo
-
+                !
              end select
              !
              if (.not.include_state) then
@@ -3752,6 +3765,8 @@ module diatom_module
              !
              action%RWF = .true.
              !
+             if (nitems>1) call readi(intensity%N_RWF_Order) 
+             !
              ! we will need the vibrational basis for RWF
              !
              job%basis_set  = 'KEEP'
@@ -3930,6 +3945,12 @@ module diatom_module
              !
              call readf(intensity%gamma)
              !
+           case('LORENTZIAN','GAUSSIAN')
+             !
+             intensity%RWF_type  = trim(w)
+             !
+             call readf(intensity%gamma)
+             !
            case('ENERGY')
              !
              call readu(w)
@@ -4036,6 +4057,7 @@ module diatom_module
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
+    Nnac = iobject(13)    
     nQuadrupoles = iquad
     !
     ! create a map with field distribution
@@ -4060,7 +4082,7 @@ module diatom_module
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
-    Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
+    !Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
     !
     Ntotalfields = sum(iobject(1:Nobjects-4))
     !
@@ -4107,6 +4129,8 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
           case (21, 22, 23, 24, 25, 26, 27)
             field => hfcc1(iobj - 20)%field(iterm)
           case (Nobjects-3)
@@ -4325,7 +4349,69 @@ module diatom_module
     end subroutine set_field_refs
     !
     !
+    subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
+        !
+        integer(ik),intent(in) :: iType,Nobjects
+        integer(ik),intent(inout)  :: iobject
+        integer(ik),intent(out) :: ierr
+        type(FieldT),pointer :: fields(:)
+        type(FieldT),pointer :: field
+        !
+        integer(ik) :: iref,jref,istare,jstate,istate_,jstate_
+        !
+        ierr = 0 
+        !
+        iobject = iobject + 1
+        !
+        field => fields(iobject)
+        !
+        call readi(iref) ; jref = iref
+        !
+        ! for nondiagonal terms
+        if (nitems>2) call readi(jref)
+        !
+        ! find the corresponding potential
+        !
+        include_state = .false.
+        loop_istate_nd : do istate=1,Nestates
+          do jstate=1,Nestates
+            if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+              include_state = .true.
+              istate_ = istate
+              jstate_ = jstate
+              exit loop_istate_nd
+            endif
+          enddo
+        enddo loop_istate_nd
+        !
+        ! Check if it was defined before 
+        do istate=1,iobject-1
+           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
+             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
+           endif
+        enddo
+        !
+        if (.not.include_state) then
+            !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
+            iobject = iobject - 1
+            do while (trim(w)/="".and.trim(w)/="END")
+              call read_line(eof,iut) ; if (eof) exit
+              call readu(w)
+            enddo
+            ierr = 1
+            return
+        endif
+        !
+        call set_field_refs(field,iref,jref,istate_,jstate_)
+        !
+        field%class = trim(CLASSNAMES(iType))
+        !
+        if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+        !
+    end subroutine input_non_diagonal_field    
+    !
   end subroutine ReadInput
+
 
 
 
@@ -4861,6 +4947,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
           case (21, 22, 23, 24, 25, 26, 27)
             field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
@@ -5219,6 +5307,8 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
           case (21, 22, 23, 24, 25, 26, 27)
             field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
@@ -5487,6 +5577,7 @@ subroutine map_fields_onto_grid(iverbose)
      call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
      call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
      call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
+     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
      if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
      if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
      !
@@ -6572,6 +6663,12 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal  - non-diagonal  - Lambda doubling coupling: map_fields_onto_grid'
            endif
            !
+           if ( trim(name)=="NACouplings".and.istate==jstate ) then
+              write(out,'("For N =",i3," NACouplings must be defined for the different states, not ",i2," and ",i2," ",a)') &
+                        i,istate,jstate,trim(name)
+              stop 'illegal  - diagonal  - NAcoupling: map_fields_onto_grid'
+           endif
+           !
          enddo
          !
          do istate=1,N
@@ -6914,9 +7011,9 @@ end subroutine map_fields_onto_grid
      integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
      integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
      integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
-     integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v
+     integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v,inac
      integer(ik)             :: ipermute,istate_,jstate_,nener_total
-     real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic
+     real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic,f_nac
      real(rk)                :: sc, h12,f_rot,b_rot,epot,erot
      real(rk)                :: f_t,f_grid,energy_,f_s,f_l,psipsi_t,f_sr
      real(rk)                :: three_j_ref, three_j_,q_we, sigmai_we, sigmaj_we, SO,f_s1,f_s2,f_lo,f_o2,f_o1
@@ -7633,11 +7730,6 @@ end subroutine map_fields_onto_grid
        endif
        !
        !
-       ! This is a special case of the Raman-Wave-Function for which we use Nestates for the reference 
-       ! set of states used as lower states nrefstates
-       !
-       !if (action%RWF) Nestates = nrefstates
-       !
        call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
        !
        do istate = 1,Nestates
@@ -7943,12 +8035,6 @@ end subroutine map_fields_onto_grid
          !
        endif
        !
-       ! dealocate some objects
-       !
-       deallocate(vibmat,vibener)
-       call ArrayStop('vibmat')
-       call ArrayStop('vibener')
-       !
        !deallocate(vibmat_rk)
        !call ArrayStop('vibmat_rk')
        !
@@ -7993,6 +8079,21 @@ end subroutine map_fields_onto_grid
          allocate(brot(1)%matelem(totalroots,totalroots),stat=alloc)
          call ArrayStart('brot',alloc,size(brot(1)%matelem),kind(brot(1)%matelem))
          !
+       endif
+       !
+       if (Nnac>0) then 
+           !
+           vibmat = 0 
+           !
+           ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
+           !kinetic factor is  12*h**2/(2*h) = 6*h 
+           !
+           do igrid =1, ngrid
+             if (igrid>1) then
+               vibmat(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
+               vibmat(igrid-1,igrid) = -vibmat(igrid,igrid-1)
+             endif
+           enddo
        endif
        !
        do iobject = 1,Nobjects
@@ -8042,6 +8143,12 @@ end subroutine map_fields_onto_grid
               field => lambdap2q(iterm)
             case (12)
               field => lambdaq(iterm)
+            case (13)
+              !
+              field => nac(iterm)
+              !
+              ! A special case of NAC couplings with 1st derivatives wrt r
+              !
             case (Nobjects-3)
               field => quadrupoletm(iterm)
             case (Nobjects-2)
@@ -8081,6 +8188,8 @@ end subroutine map_fields_onto_grid
                 !
                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
                 !
+                ! A special case of the non-diagonal integration of NAC
+                !
                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
                 if (iobject==Nobjects-3.or.iobject==Nobjects) then
@@ -8088,6 +8197,14 @@ end subroutine map_fields_onto_grid
                 endif
                 !
                 field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                !
+                if (iobject==13) then 
+                  !
+                  vibener =  matmul(vibmat,contrfunc(1:,jlevel))
+                  field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
+                  field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+                  !
+                endif
                 !
                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
                 !
@@ -8166,6 +8283,12 @@ end subroutine map_fields_onto_grid
          deallocate(psipsi_ark)
          call ArrayStop('psipsi_ark')
        endif
+       !
+       ! dealocate some objects
+       !
+       deallocate(vibmat,vibener)
+       call ArrayStop('vibmat')
+       call ArrayStop('vibener')
        !
        !deallocate(grid_rk)
        !call ArrayStop('grid_rk')
@@ -8869,6 +8992,18 @@ end subroutine map_fields_onto_grid
                   field => diabatic(idiab)
                   f_diabatic = field%matelem(ivib,jvib)*sc
                   hmat(i,j) = hmat(i,j) + f_diabatic
+                  exit
+                endif
+              enddo
+              !
+              ! NAC non-diagonal contribution  term
+              !
+              do iNAC = 1,Nnac
+                if (nac(iNAC)%istate==istate.and.nac(iNAC)%jstate==jstate.and.&
+                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
+                  field => nac(iNAC) 
+                  f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))*sc
+                  hmat(i,j) = hmat(i,j) + f_nac
                   exit
                 endif
               enddo
