@@ -59,7 +59,7 @@ contains
         real(rk) :: lb(num_parameters), ub(num_parameters)
         integer*8 opt
         ! double precision d1(2), d2(2)
-        real(rk) :: x(num_parameters), minf, xtol
+        real(rk) :: x(num_parameters), minf, xtol, tmp
         integer(ik) :: ires, i
 
         write(out, '(/A)') 'Start hyperfine refinement'
@@ -81,7 +81,7 @@ contains
         call nlo_set_ftol_rel(ires, opt, 1.0E-4);
         ! call nlo_set_ftol_abs(ires, opt, double tol)
         call nlo_set_stopval(ires, opt, 100);
-        call nlo_set_maxeval(ires, opt, 10);
+        call nlo_set_maxeval(ires, opt, fitting%itermax);
         ! call nlo_set_initial_step(ires, opt, dx)
         
         x = get_initial_guess()
@@ -91,9 +91,18 @@ contains
         !     write(out, '(A2, A, I3, A, F24.14)') '', 'x(', i, ') = ', x(i) 
         ! enddo
 
-        xtol = 0.01
+        xtol = 0.001
         lb = x * (1 - xtol)
         ub = x * (1 + xtol)
+
+        do i = 1, num_parameters
+            if (lb(i) > ub(i)) then
+                tmp = lb(i)
+                lb(i) = ub(i)
+                ub(i) = tmp
+            endif
+        enddo
+
         call nlo_set_lower_bounds(ires, opt, lb)
         call nlo_set_upper_bounds(ires, opt, ub)
 
