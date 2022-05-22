@@ -167,6 +167,10 @@ module functions
       !
       fanalytical_field => poten_two_coupled_EMOs
       !
+    case("TWO_COUPLED_EMOS_LORENTZ")
+      !
+      fanalytical_field => poten_two_coupled_EMOs_Lorentz
+      !
     case("TWO_COUPLED_BOBS")
       !
       fanalytical_field => poten_two_coupled_BOBs
@@ -1653,6 +1657,37 @@ module functions
     f = e(icomponent)
     !
   end function poten_two_coupled_EMOs
+
+
+  function poten_two_coupled_EMOs_Lorentz(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    a  = poten_lorentzian_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs_Lorentz
 
 
   function poten_two_coupled_BOBs(r,parameters) result(f)

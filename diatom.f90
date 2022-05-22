@@ -3823,7 +3823,7 @@ module diatom_module
              if (nitems>1) call readu(w)
              if (trim(w)=="OFF") intensity%tqm = .false.
              !
-           case('THRESH_INTES','THRESH_TM','THRESH-INTES')
+           case('THRESH_INTES','THRESH_TM','THRESH-INTES','THRESH_INTENS','THRESH-INTES')
              !
              call readf(intensity%threshold%intensity)
              !
