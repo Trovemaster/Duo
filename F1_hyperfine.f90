@@ -2,10 +2,10 @@ module F1_hyperfine
 
     use accuracy
     use lapack
-    use symmetry
+    use symmetry, only : sym
     use diatom_module, only: basis, three_j, faclog, eigen, jmax, job,&
                             vibrational_totalroots, vibrational_contrfunc, vibrational_quantum_number, &
-                            hfcc1, I1, GLOBAL_NUM_HFCC_OBJECT, poten, &
+                            hfcc1, F1_hyperfine_setup, GLOBAL_NUM_HFCC_OBJECT, poten, &
                             eigenT, basisT, quantaT, fieldT, linkT
 
     implicit none
@@ -16,7 +16,7 @@ module F1_hyperfine
     REAL(rk), ALLOCATABLE :: F1_list(:)
     
     INTEGER(ik) :: num_F1, num_primitive_F1_basis, num_represCs
-    REAL(rk) :: F1_global_min, F1_global_max
+    REAL(rk) :: F1_global_min, F1_global_max, I1
     INTEGER(ik) :: alloc
     REAL(rk) :: J_global_min = 0.5_rk, J_global_max
     REAL(rk) :: J_min, J_max, MHz_to_wavenumber = 1.0E6_rk / vellgt, &
@@ -45,6 +45,8 @@ contains
         open(unit=unit_hyperfine_states, file="hyperfine.states")
         
         write(out, '(/A)') "Start: hyperfine energies calculation"
+
+        I1 = F1_hyperfine_setup%I1
  
         J_global_max = jmax
         if (J_global_max < I1) then
@@ -88,7 +90,7 @@ contains
         !     'Number', 'Energy [cm-1]', 'g', 'F', 'I', 'parity', 'J', 'state', 'v', 'Lambda', 'Sigma', 'Omega'
 
         iroot = 0
-        min_eigen_value_F1 = 100000000_rk
+        min_eigen_value_F1 = safe_max
         do index_F1 = 1, num_F1
             if (iverbose>=4) then
                 write(out, '(/A4, A, F6.1)') '', 'Eigen states of F =', F1_list(index_F1)

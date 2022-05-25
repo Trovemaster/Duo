@@ -458,6 +458,12 @@ module diatom_module
       real(rk),pointer :: vector(:,:)=>null()         ! the Omega-vector at each grid point in the lambda-sigma space 
       integer(ik),pointer :: ilevel(:)=>null()      ! level index
   end type contract_solT
+
+  type F1_hyperfine_steup_T
+      real(rk) :: I1
+      real(rk) :: fit_bound_ratio
+      character(cl) :: fit_optimization_algorithm
+  end type F1_hyperfine_steup_T
   !
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
@@ -504,7 +510,7 @@ module diatom_module
   real(rk), allocatable :: vibrational_contrfunc(:,:)  
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
-  real(rk) :: I1
+  type(F1_hyperfine_steup_T) :: F1_hyperfine_setup
   integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 7
   type(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   !
@@ -620,7 +626,7 @@ module diatom_module
             call readu(w)
             select case(w)
             case("I")
-              call readf(I1)
+              call readf(F1_hyperfine_setup%I1)
             case default
               call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
             end select
