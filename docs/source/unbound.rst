@@ -10,7 +10,7 @@ However it is a typical problem when an electronic system contans unbound region
 where unboud solutions are possible. Moreover, some of these unbound eigenfunctions are exactly zero at 
 :math:`r= r_{\rm max}` (other side is automatically zero duo to the steep repulsive wall). 
 Duo methodology can be applied also to compute the unbound spectra, here we show how to remove the spurious unbound states from the spectra (line lists) 
-calculations and thus to produce bound a line list. The unbound wavefunctions :math:`\psi_{\lambda}(r)` can be identified based on their assymptotic properties 
+calculations and thus to produce bound a line list. The unbound wavefunctions :math:`\psi_{\lambda}(r)` can be identified based on their asymptotic properties 
 via non-zero density in the small region of :math:`\delta` at the right border :math:`r= r_{\rm max}`:
 
 :math:`\int_{r_{\rm max - \delta}}^{r_{\rm max}} |\psi_{\lambda}(r)|^2 dr > \epsilon` 
