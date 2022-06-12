@@ -300,8 +300,9 @@ module diatom_module
     integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1
-    integer(ik)  :: iomega = 1  ! countig number of omega
-    character(len=cl) :: name   ! Identifying name of the  function
+    integer(ik)  :: iomega = 1   ! countig number of omega
+    character(len=cl) :: name    ! Identifying name of the  function
+    logical :: bound = .true.    ! is this state bound or unbound 
   end type quantaT
   !
   type eigenT
@@ -399,7 +400,9 @@ module diatom_module
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
      integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
      character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
-     logical             :: renorm = .false.      ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
+     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
+     logical             :: bound = .false.        ! filter bound states
+     logical             :: unbound = .false.       ! filter and process unbound upper states only 
      !
  end type IntensityT
   !
@@ -3809,6 +3812,16 @@ module diatom_module
              intensity%renorm = .true.
              job%basis_set='KEEP'
              !
+           case('BOUND')
+             !
+             intensity%bound = .true.
+             job%basis_set='KEEP'
+             !
+           case('UNBOUND')
+             !
+             intensity%unbound = .true.
+             job%basis_set='KEEP'
+             !
            case('VIB-DIPOLE','MU')
              !
              intensity%tdm = .true.
@@ -3823,7 +3836,7 @@ module diatom_module
              if (nitems>1) call readu(w)
              if (trim(w)=="OFF") intensity%tqm = .false.
              !
-           case('THRESH_INTES','THRESH_TM','THRESH-INTES','THRESH_INTENS','THRESH-INTES')
+           case('THRESH_INTES','THRESH_TM','THRESH-INTES','THRESH_INTENS','THRESH-INTENS')
              !
              call readf(intensity%threshold%intensity)
              !
@@ -10551,13 +10564,15 @@ end subroutine map_fields_onto_grid
                !
             endif
             !
-            if (intensity%renorm) then
+            if (intensity%renorm.or.intensity%bound.or.intensity%unbound) then
                allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
                call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
                call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
                call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
-               !
                psi_vib = 0
+            endif
+            !
+            if (intensity%renorm) then
                !
                rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))
                !
@@ -10691,6 +10706,38 @@ end subroutine map_fields_onto_grid
                    !    eigen(irot,irrep)%vect(:,total_roots) = 0
                    !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
                    !endif
+
+                   if (intensity%bound.or.intensity%unbound) then
+                      !
+                      ! funding unboud states
+                      !
+                      if (iverbose>=4) call TimerStart('Find unbound states')
+                      !
+                      npoints_last = max(10,grid%npoints/50) 
+                      if (npoints_last>=grid%npoints) then
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i,' use at least 50')") grid%npoints
+                        stop 'wavefunciton unboud check error: too few grid points'
+                      endif
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= grid%npoints-npoints_last+1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                      !
+                      ! condition for the unbound state
+                      !
+                      if (sum_wv>sqrt(small_)) then 
+                         !
+                         eigen(irot,irrep)%quanta(total_roots)%bound = .false.
+                         !
+                      endif
+                      !
+                      if (iverbose>=4) call TimerStop('Find unbound states')
+                      !
+                   endif 
                    !
                    if (intensity%renorm) then
                       !
