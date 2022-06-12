@@ -30,3 +30,21 @@ Excluding  bound upper states
 
 Sometimes only the transitions to the unbound state are needed. In this case we exclude the bound states with a keyword `unbound` placed anywehere in the 
 INTENSITY section. 
+
+Example:
+::
+  
+  intensity  
+    absorption
+    unbound
+    thresh_intes 1e-50
+    temperature 3000 (K)
+    nspin 2.5  1.5
+    linelist AlCl-37_61_J160
+    J 0, 20
+    freq-window  0.0  48000.0
+    energy low 0.0 30000, upper 0.0,48000
+  end
+    
+
+
