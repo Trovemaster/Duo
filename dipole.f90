@@ -667,6 +667,10 @@ contains
            !
            call energy_filter_lower(jI,energyI,passed_)
            !
+           ! skip upper ubound states if the filter is on
+           !
+           if (intensity%bound.and..not.eigen(indI,igammaI)%quanta(ilevelI)%bound) passed = .false.
+           !
            if (.not.passed.and..not.passed_) cycle
            !
            if (trim(intensity%linelist_file)/="NONE") then
@@ -1137,6 +1141,9 @@ contains
                    omegaF   = quantaF%omega
                    !
                    call energy_filter_upper(jF,energyF,passed)
+                   !
+                   ! skipping bound states if only unbound are needed 
+                   if (intensity%unbound.and.quantaF%bound) passed = .false.
                    !
                    if (.not.passed) cycle Flevels_loop
                    !

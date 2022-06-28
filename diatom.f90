@@ -54,7 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
-  !        case (13 - 20) reserved
+  !        case (14 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a
   !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
@@ -221,6 +221,7 @@ module diatom_module
     character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
     real(rk)              :: adjust_val = 0.0_rk
+    real(rk)              :: asymptote = 0.0_rk      ! reference asymptote energy used e.g. in the renormalisation of the continuum wavefunctions to sin(kr)
     logical               :: adjust = .false.        ! Add constant adjust_val to all fields
   end type fieldT
   !
@@ -300,8 +301,9 @@ module diatom_module
     integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1
-    integer(ik)  :: iomega = 1  ! countig number of omega
-    character(len=cl) :: name   ! Identifying name of the  function
+    integer(ik)  :: iomega = 1   ! countig number of omega
+    character(len=cl) :: name    ! Identifying name of the  function
+    logical :: bound = .true.    ! is this state bound or unbound 
   end type quantaT
   !
   type eigenT
@@ -399,6 +401,9 @@ module diatom_module
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
      integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
      character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
+     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
+     logical             :: bound = .false.        ! filter bound states
+     logical             :: unbound = .false.       ! filter and process unbound upper states only 
      !
  end type IntensityT
   !
@@ -1748,6 +1753,7 @@ module diatom_module
              !
              field => poten(iobject(1))
              field%istate = iobject(1)
+             field%jstate = iobject(1)
              !
              call readi(field%iref)
              field%jref = field%iref
@@ -3256,6 +3262,10 @@ module diatom_module
               !
               field%molpro = .true.
               !
+            case("ASYMPTOTE")
+              !
+              call readf(field%asymptote)
+              !
             case("INTEGRATION")
               !
               call readu(field%integration_method)
@@ -3804,6 +3814,21 @@ module diatom_module
              if (nitems>1) call readu(w) 
              if (trim(w)=="OFF") intensity%overlap = .false.
              !
+           case('RENORM','RENORMALIZE')
+             !
+             intensity%renorm = .true.
+             job%basis_set='KEEP'
+             !
+           case('BOUND')
+             !
+             intensity%bound = .true.
+             job%basis_set='KEEP'
+             !
+           case('UNBOUND')
+             !
+             intensity%unbound = .true.
+             job%basis_set='KEEP'
+             !
            case('VIB-DIPOLE','MU')
              !
              intensity%tdm = .true.
@@ -3818,7 +3843,7 @@ module diatom_module
              if (nitems>1) call readu(w)
              if (trim(w)=="OFF") intensity%tqm = .false.
              !
-           case('THRESH_INTES','THRESH_TM','THRESH-INTES')
+           case('THRESH_INTES','THRESH_TM','THRESH-INTES','THRESH_INTENS','THRESH-INTENS')
              !
              call readf(intensity%threshold%intensity)
              !
@@ -6965,7 +6990,7 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,*)
            write(out,*)
            write(out,'(A)') 'Approximate J=J_min vibrational-rotational energy levels (no couplings)'
-           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*[J(J+1)]^2'
+           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*(J(J+1))^2'
            write(out,'(A18)') 'v'
            do i=0, 3
            write(out,'(I18)',advance='no') i
@@ -7035,7 +7060,8 @@ end subroutine map_fields_onto_grid
      integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      integer(ik),allocatable :: vib_count(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
-     !real(rk),allocatable    :: psi_vib(:)
+     real(rk),allocatable    :: psi_vib(:),vec_t(:),vec0(:)
+     integer(ik),allocatable :: ilambdasigmas_v_icontr(:,:)
      character(len=250),allocatable :: printout(:)
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
      type(matrixT)              :: transform(2)
@@ -7047,16 +7073,19 @@ end subroutine map_fields_onto_grid
      !real(rk)                  :: f_rk
      real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
-     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
+     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,k_
+     !
+     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr
+     integer(ik)                :: npoints_last,icount_max
      !
      ! Lambda-Sigma-> State-Omega contraction
      integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
      integer(ik) :: ilambdasigma,Nlambdasigmas_max
      integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
-     real(rk) :: omega_min,omega_max,spin_min
+     real(rk)    :: omega_min,omega_max,spin_min
      !
      type(contract_solT),allocatable :: contracted(:)
-     real(rk),allocatable  :: vect_i(:),vect_j(:)
+     real(rk),allocatable            :: vect_i(:),vect_j(:)
      !
      !
      ! open file for later (if option is set)
@@ -8150,11 +8179,8 @@ end subroutine map_fields_onto_grid
             case (12)
               field => lambdaq(iterm)
             case (13)
-              !
-              field => nac(iterm)
-              !
               ! A special case of NAC couplings with 1st derivatives wrt r
-              !
+              field => nac(iterm)
             case (Nobjects-3)
               field => quadrupoletm(iterm)
             case (Nobjects-2)
@@ -8179,55 +8205,57 @@ end subroutine map_fields_onto_grid
               call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
             endif
             !
+            field%matelem = 0
+            !
             !$omp parallel do private(ilevel,jlevel) schedule(guided)
             do ilevel = 1,totalroots
               do jlevel = 1,ilevel
-                !
-                ! in the grid representation of the vibrational basis set
-                ! the matrix elements are evaluated simply by a summation of over the grid points
-                !
-                !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
-                !
-                !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
-                !
-                !field%matelem(ilevel,jlevel) = f_ark
-                !
-                field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
-                !
-                ! A special case of the non-diagonal integration of NAC
-                !
-                ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-                ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
-                if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
-                endif
-                !
-                field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
-                !
-                if (iobject==13) then 
-                  !
-                  vibener =  matmul(vibmat,contrfunc(1:,jlevel))
-                  field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
-                  field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-                  !
-                endif
-                !
-                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
-                !
-                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
-                !                                                                        contrfunc_rk(:,jlevel))
-                !
-                !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
-                !
-                !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
-                !
-                !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
-                !
-                !matelem_rk(ilevel,jlevel) = f_rk
-                !
-                !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
-                !
-                !
+                 !
+                 ! in the grid representation of the vibrational basis set
+                 ! the matrix elements are evaluated simply by a summation of over the grid points
+                 !
+                 !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
+                 !
+                 !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+                 !
+                 !field%matelem(ilevel,jlevel) = f_ark
+                 !
+                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
+                 !
+                 ! A special case of the non-diagonal integration of NAC
+                 !
+                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments 
+                 if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0 
+                 endif
+                 !
+                 field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                 !
+                 if (iobject==13) then 
+                   !
+                   vibener =  matmul(vibmat,contrfunc(1:,jlevel))
+                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
+                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+                   !
+                 endif
+                 !
+                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
+                 !
+                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
+                 !                                                                        contrfunc_rk(:,jlevel))
+                 !
+                 !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
+                 !
+                 !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
+                 !
+                 !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
+                 !
+                 !matelem_rk(ilevel,jlevel) = f_rk
+                 !
+                 !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
+                 !
+                 !
               enddo
             enddo
             !$omp end parallel do
@@ -8817,6 +8845,11 @@ end subroutine map_fields_onto_grid
          allocate(icontr(Ntotal),printout(Nlambdasigmas),stat=alloc)
          printout = ''
          !
+         allocate(ilambdasigmas_v_icontr(totalroots,Nlambdasigmas),stat=alloc)
+         call ArrayStart('ilambdasigmas_v_icontr',alloc,size(ilambdasigmas_v_icontr),kind(ilambdasigmas_v_icontr))
+         !
+         ilambdasigmas_v_icontr = 0 
+         !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
          if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
          !
@@ -8845,6 +8878,8 @@ end subroutine map_fields_onto_grid
              icontr(i)%ivib = ivib
              icontr(i)%ilevel = ilevel
              icontr(i)%v = icontrvib(ivib)%v
+             !
+             ilambdasigmas_v_icontr(ivib,ilevel) = i
              !
              ! print the quantum numbers
              if (iverbose>=4) then
@@ -10536,8 +10571,22 @@ end subroutine map_fields_onto_grid
                !
             endif
             !
-            !allocate(psi_vib(ngrid),stat=alloc)
-            !call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+            if (intensity%renorm.or.intensity%bound.or.intensity%unbound) then
+               allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
+               call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+               call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
+               call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
+               psi_vib = 0
+            endif
+            !
+            if (intensity%renorm) then
+               !
+               rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))
+               !
+               write(out,"(/'  Renormalization of unbound states (listing non-converged to sin(kr) at large r)...')")
+               write(out,"(6x,'|   # |    J | p | last 3 coeffs. | St vib Lambda Spin     Sigma    Omega ivib|')")
+               !
+            endif
             !
             total_roots = 0
             !
@@ -10664,6 +10713,188 @@ end subroutine map_fields_onto_grid
                    !    eigen(irot,irrep)%vect(:,total_roots) = 0
                    !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
                    !endif
+
+                   if (intensity%bound.or.intensity%unbound) then
+                      !
+                      ! funding unboud states
+                      !
+                      if (iverbose>=4) call TimerStart('Find unbound states')
+                      !
+                      npoints_last = max(10,grid%npoints/50) 
+                      if (npoints_last>=grid%npoints) then
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i,' use at least 50')") grid%npoints
+                        stop 'wavefunciton unboud check error: too few grid points'
+                      endif
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= grid%npoints-npoints_last+1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                      !
+                      ! condition for the unbound state
+                      !
+                      if (sum_wv>sqrt(small_)) then 
+                         !
+                         eigen(irot,irrep)%quanta(total_roots)%bound = .false.
+                         !
+                      endif
+                      !
+                      if (iverbose>=4) call TimerStop('Find unbound states')
+                      !
+                   endif 
+                   !
+                   if (intensity%renorm) then
+                      !
+                      ! in order to renormalize the wavefuncitons to sin(kr) at r->infty
+                      ! we first need to average the eigenfunction over other degrees of freedom
+                      !
+                      !psi_vib = 0
+                      !vec0(0) = 0 
+                      !vec0(1:Ntotal) = vec(1:Ntotal)
+                      !
+                      if (iverbose>=4) call TimerStart('Reduced vibrational density')
+                      !
+                      !omp parallel do private(igrid,k,k_,ivib,jvib) shared(psi_vib) schedule(guided)
+                      !do igrid=1,grid%npoints
+                      !do k = 1,Ntotal
+                      !  ivib = icontr(k)%ivib
+                      !  do k_ = 1,Ntotal
+                      !     jvib = icontr(k_)%ivib
+                      !     !
+                      !     if (icontr(k)%ilevel==icontr(k_)%ilevel) then 
+                      !         !.and.&
+                      !         !icontr(k)%istate==icontr(k_)%istate.and.icontr(k)%ilambda==icontr(k_)%ilambda.and.&
+                      !         !icontr(k)%sigma==icontr(k_)%sigma) then
+                      !         !
+                      !         psi_vib(:) = psi_vib(:) + vec(k )*vibrational_contrfunc(:,ivib)*&
+                      !                                   vec(k_)*vibrational_contrfunc(:,jvib)
+                      !         !
+                      !     endif
+                      !     !
+                      !  enddo
+                      !enddo
+                      !enddo
+                      !omp end parallel do
+                      !
+                      !omp parallel do private(igrid,ilevel,ivib,k,vec_t,jvib,k_) shared(psi_vib) schedule(guided)
+                      !do igrid=1,grid%npoints
+                      !do ilevel = 1,Nlambdasigmas
+                      !  !
+                      !  do ivib =1,totalroots
+                      !    !
+                      !    k = ilambdasigmas_v_icontr(ivib,ilevel)
+                      !    !
+                      !    !if (k==0) cycle
+                      !    !
+                      !    vec_t(:) = vec0(k)*vibrational_contrfunc(:,ivib)
+                      !    !
+                      !    do jvib =1,totalroots
+                      !       !
+                      !       k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+                      !       !
+                      !       !if (k_==0) cycle
+                      !       !
+                      !       psi_vib(:) = psi_vib(:) + vec_t(:)*vec0(k_)*vibrational_contrfunc(:,jvib)
+                      !       !
+                      !    enddo
+                      !    !
+                      !  enddo
+                      !enddo
+                      !
+                      !enddo
+                      !omp end parallel do
+                      !
+                      if (iverbose>=4) call TimerStop('Reduced vibrational density')
+                      !
+                      ! is this wavefunciton unboud? Check a few last points
+                      !
+                      npoints_last = max(10,grid%npoints/50) 
+                      if (npoints_last>=grid%npoints) then
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i,' use at least 50')") grid%npoints
+                        stop 'wavefunciton unboud check error: too few grid points'
+                      endif
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= grid%npoints-npoints_last+1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                      !
+                      ! condition for the unbound state
+                      !
+                      if (sum_wv>sqrt(small_)) then 
+                         !
+                         if (iverbose>=4) call TimerStart('Find aplitudes of unbound wavefuncs')
+                         !
+                         ! energy of the unbound state aboove the asympote energy
+                         !
+                         energy_unbound_sqrsqr = sqrt(sqrt(max(eigenval(i) - poten(istate)%asymptote,0.0_rk)))
+                         !
+                         ! inspect maxima of the |wavefucntion(r)|^2 at large distances and identify unboud states
+                         !
+                         psi1 = 0
+                         psi2 = psi_vib(grid%npoints)
+                         amplit1 = 0 
+                         amplit2 = 0
+                         amplit3 = 0
+                         diff = 0
+                         !
+                         icount_max = 0
+                         !
+                         !omp parallel do private(k,psi1,psi2,amplit1,amplit2,amplit3,diff) schedule(guided)
+                         loop_gid_dens : do k=grid%npoints-2,max(3,grid%npoints/2),-1
+                            !
+                            psi1=psi2
+                            !
+                            psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_vib)
+                            !psi_vib(k+1)
+                            !
+                            if ( psi2>100.0*small_.and.psi1<psi2.and.psi2>psi_vib(k) ) then
+                               !
+                               icount_max = icount_max + 1
+                               !
+                               amplit1 = amplit2
+                               amplit2 = amplit3
+                               amplit3 = psi2
+                               !
+                               diff = abs(amplit2-amplit1)
+                               !
+                               if (icount_max>2) exit  loop_gid_dens
+                               !
+                            endif
+                         enddo loop_gid_dens
+                         !omp end parallel do
+                         !
+                         if (iverbose>=4) call TimerStop('Find aplitudes of unbound wavefuncs')
+                         !
+                         if (all((/amplit1,amplit2,amplit3/)>1000*small_)) then
+                           !
+                           ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
+                           ! and to the density states, see Le Roy J. Chem. Phys. 65, 1485 (1976)
+                           !
+                           vec(:) = vec(:)*sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
+                           !
+                           eigen(irot,irrep)%vect(:,total_roots) = vec(:)
+                           !
+                           if (diff>1e-3) then 
+                             !
+                             write(out,'(2x,i8,1x,f8.1,1x,i2,1x,3e12.5,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                                        total_roots,J_list(irot),irrep-1,amplit1,amplit2,amplit3,icontr(k)%istate,&
+                                        icontr(k)%v,icontr(k)%ilambda,&
+                                        icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
+                             !
+                           endif
+                           !
+                         endif
+                         !
+                      endif
+                      !
+                   endif
                    !
                 endif
                 !
@@ -10726,8 +10957,10 @@ end subroutine map_fields_onto_grid
               !
             enddo
             !
-            !deallocate(psi_vib)
-            !call ArrayStop('psi_vib')
+            if (allocated(psi_vib)) then 
+               deallocate(psi_vib,vec_t,vec0)
+               call ArrayStop('psi_vib')
+            endif
             !
             if (action%save_eigen_J) then
               !
@@ -10777,6 +11010,11 @@ end subroutine map_fields_onto_grid
        if (allocated(printout)) deallocate(printout)
        !
        deallocate(icontr)
+       !
+       if (allocated(ilambdasigmas_v_icontr)) then 
+          deallocate(ilambdasigmas_v_icontr)
+          call ArrayStop('ilambdasigmas_v_icontr')
+       endif
        !
      enddo loop_jval
      !
@@ -10896,7 +11134,52 @@ end subroutine map_fields_onto_grid
   end subroutine duo_j0
 
 
+  !
+  !  vibrational reduced density of a rovibronic eigenstate at the igrid point
+  
+  
+  function vibrational_reduced_density(igrid,Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_in) result (psi_vib)
+     !  
+     integer(ik),intent(in) :: igrid,Ntotal,Nvib,Nlambdasigmas,npoints_last,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas)
+     real(rk),intent(in)    :: vec(Ntotal),psi_in(grid%npoints)
+     real(rk)    :: psi_vib,vec_t
+     integer(ik) :: k,k_,ivib,jvib,ilevel
+  
+        !
+        if (igrid>grid%npoints-npoints_last) then 
+          !
+          psi_vib = psi_in(igrid)
+          return 
+          !
+        endif
+        !
+        psi_vib = 0 
+        do ilevel = 1,Nlambdasigmas
+          !
+          do ivib =1,Nvib
+            !
+            k = ilambdasigmas_v_icontr(ivib,ilevel)
+            !
+            if (k==0) cycle
+            !
+            vec_t = vec(k)*vibrational_contrfunc(igrid,ivib)
+            !
+            do jvib =1,Nvib
+               !
+               k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+               !
+               if (k_==0) cycle
+               !
+               psi_vib = psi_vib + vec_t*vec(k_)*vibrational_contrfunc(igrid,jvib)
+               !
+            enddo
+            !
+          enddo
+        enddo
     
+    end function vibrational_reduced_density
+    !
+    !
 
      subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
         !
