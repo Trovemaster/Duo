@@ -60,10 +60,13 @@
             call F1_hyperfine_intensity
             stop
         else if (action%fitting) then
-            call map_fields_onto_grid(verbose)    
-            call F1_refinement_init
-            CALL F1_refine
-            stop
+            write(out, '(a)') 'Fitting and hyperfine should not be used at the same time'
+            stop 'please switch-off/remove either fitting or hyperfine'
+        ! else if (action%fitting) then
+        !     call map_fields_onto_grid(verbose)    
+        !     call F1_refinement_init
+        !     CALL F1_refine
+        !     stop
         else
             call duo_j0
             call F1_hyperfine_structrure(verbose)

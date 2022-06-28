@@ -1,10 +1,11 @@
 module F1_fitting
-    use accuracy
+    use accuracy    
+    use nlopt_constants
     use F1_hyperfine, only : eigen_all_F1, F1_global_min, &
                              F1_hyperfine_structrure, min_eigen_value_F1, &
                              F1_list, primitive_F1_basis
     use diatom_module, only : action, job, duo_j0, fieldmap, fieldT, &
-        grid, fitting, linkT, &
+        grid, fitting, linkT, F1_hyperfine_setup, &
         poten, spinorbit, l2, lxly, spinspin, spinspino, spinrot, &
         bobrot, diabatic, lambdaopq, lambdap2q, lambdaq, &
         l_omega_obj, s_omega_obj, quadrupoletm, hfcc1, &
@@ -15,8 +16,6 @@ module F1_fitting
     ! use nlopt_enum, only : NLOPT_SUCCESS, algorithm_from_string
 
     implicit none
-        
-    include "nlopt.f"
 
     type fit_indexT
         integer(ik)  :: i
@@ -47,9 +46,7 @@ module F1_fitting
     type(fit_indexT), allocatable :: fit_index(:)
     type(object_containerT), allocatable :: objects(:, :)
 
-    ! type :: constraint_data
-    !     real(rk) :: d(2)
-    ! end type
+    integer :: optimization_algorithm
     
 contains
 
@@ -65,7 +62,7 @@ contains
         write(out, '(/A)') 'Start hyperfine refinement'
         
         ! call nlo_create(opt, NLOPT_LD_MMA, num_parameters)
-        call nlo_create(opt, NLOPT_LN_COBYLA, num_parameters)
+        call nlo_create(opt, optimization_algorithm, num_parameters)
 
 
         call nlo_set_min_objective(ires, opt, objective_function_F1_hyperfine_fit, 0)
@@ -77,7 +74,7 @@ contains
         ! d2(2) = 1.
         ! call nlo_add_inequality_constraint(ires, opt, myconstraint, d2, 1.D-8)
         
-        call nlo_set_xtol_rel(ires, opt, 1.0E-4)
+        call nlo_set_xtol_rel(ires, opt, 1.0E-7)
         call nlo_set_ftol_rel(ires, opt, 1.0E-4);
         ! call nlo_set_ftol_abs(ires, opt, double tol)
         call nlo_set_stopval(ires, opt, 100);
@@ -91,7 +88,7 @@ contains
         !     write(out, '(A2, A, I3, A, F24.14)') '', 'x(', i, ') = ', x(i) 
         ! enddo
 
-        xtol = 0.001
+        xtol = 0.00001
         lb = x * (1 - xtol)
         ub = x * (1 + xtol)
 
@@ -125,34 +122,34 @@ contains
         function nlopt_flag(ires) result(flag)
             implicit none
             integer(ik) :: ires
-            character(100):: flag
+            character(cl):: flag
 
             select case(ires)
-            case (NLOPT_SUCCESS)
-                flag = "NLOPT_SUCCESS"
-            case (NLOPT_STOPVAL_REACHED)
-                flag = "NLOPT_STOPVAL_REACHED"
-            case (NLOPT_FTOL_REACHED)
-                flag = "NLOPT_FTOL_REACHED"
-            case (NLOPT_XTOL_REACHED)
-                flag = "NLOPT_XTOL_REACHED"
-            case (NLOPT_MAXEVAL_REACHED)
-                flag = "NLOPT_MAXEVAL_REACHED"
-            case (NLOPT_MAXTIME_REACHED)
-                flag = "NLOPT_MAXTIME_REACHED ="
-            case (NLOPT_FAILURE)
-                flag = "NLOPT_FAILURE"
-            case (NLOPT_INVALID_ARGS)
-                flag = "NLOPT_INVALID_ARGS"
-            case (NLOPT_OUT_OF_MEMORY )
-                flag = "NLOPT_OUT_OF_MEMORY "
-            case (NLOPT_ROUNDOFF_LIMITED)
-                flag = "NLOPT_ROUNDOFF_LIMITED"
-            case (NLOPT_FORCED_STOP)
-                flag = "NLOPT_FORCED_STOP"
+                case (NLOPT_SUCCESS)
+                    flag = "NLOPT_SUCCESS"
+                case (NLOPT_STOPVAL_REACHED)
+                    flag = "NLOPT_STOPVAL_REACHED"
+                case (NLOPT_FTOL_REACHED)
+                    flag = "NLOPT_FTOL_REACHED"
+                case (NLOPT_XTOL_REACHED)
+                    flag = "NLOPT_XTOL_REACHED"
+                case (NLOPT_MAXEVAL_REACHED)
+                    flag = "NLOPT_MAXEVAL_REACHED"
+                case (NLOPT_MAXTIME_REACHED)
+                    flag = "NLOPT_MAXTIME_REACHED ="
+                case (NLOPT_FAILURE)
+                    flag = "NLOPT_FAILURE"
+                case (NLOPT_INVALID_ARGS)
+                    flag = "NLOPT_INVALID_ARGS"
+                case (NLOPT_OUT_OF_MEMORY )
+                    flag = "NLOPT_OUT_OF_MEMORY "
+                case (NLOPT_ROUNDOFF_LIMITED)
+                    flag = "NLOPT_ROUNDOFF_LIMITED"
+                case (NLOPT_FORCED_STOP)
+                    flag = "NLOPT_FORCED_STOP"
 
-            case default
-                flag = "Unknown NLOPT flag"
+                case default
+                    flag = "Unknown NLOPT flag"
             endselect
             
         end function nlopt_flag
@@ -189,6 +186,9 @@ contains
        
         action%save_eigen_J = .true.
         job%basis_set = 'KEEP'
+
+        optimization_algorithm = &
+            get_nlopt_algorithm(F1_hyperfine_setup%fit_optimization_algorithm) 
         
         call read_F1_hyperfine_states_fit
 
@@ -284,6 +284,22 @@ contains
                 enddo
             enddo
         enddo
+
+    contains
+        function get_nlopt_algorithm(fit_optimization_algorithm) &
+            result(algorithm)
+
+            character(cl), intent(in) :: fit_optimization_algorithm
+            integer :: algorithm
+
+            select case(trim(fit_optimization_algorithm))
+            case ("NLOPT_LN_BOBYQA")
+                algorithm = NLOPT_LN_BOBYQA
+            case default
+                algorithm = NLOPT_LN_COBYLA
+            end select
+
+        end function get_nlopt_algorithm
     
     end subroutine F1_refinement_init
 
