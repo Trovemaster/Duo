@@ -1552,7 +1552,7 @@ module refinement
                if (stadev<stadev_old) then
                  lambda = lambda/nu
                else 
-                 lambda = min(lambda*nu,10000.0)
+                 lambda = min(lambda*nu,10000.0_rk)
                endif
                !
                ! Estimate the standard errors for each parameter using 

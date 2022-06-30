@@ -516,7 +516,7 @@ module diatom_module
          jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm,&
          l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj
   !
-  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
+  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
   contains
   !
@@ -7523,7 +7523,7 @@ end subroutine map_fields_onto_grid
           contracted(iomega)%Ndimen = Ndimen
           !
           allocate(contracted(iomega)%vector(Ndimen,Ndimen),contracted(iomega)%energy(Ndimen),&
-		contracted(iomega)%ilevel(Ndimen),stat=alloc)
+                   contracted(iomega)%ilevel(Ndimen),stat=alloc)
           call ArrayStart('contracted%vector',alloc,size(contracted(iomega)%vector),kind(contracted(iomega)%vector))
           call ArrayStart('contracted%energy',alloc,size(contracted(iomega)%energy),kind(contracted(iomega)%energy))
           call ArrayStart('contracted%ilevel',alloc,size(contracted(iomega)%ilevel),kind(contracted(iomega)%ilevel))
@@ -10715,13 +10715,14 @@ end subroutine map_fields_onto_grid
                       !
                       npoints_last = max(10,grid%npoints/50) 
                       if (npoints_last>=grid%npoints) then
-                        write(out,"('wavefunciton unboud check error: too few grid points = ',i,' use at least 50')") grid%npoints
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
                         stop 'wavefunciton unboud check error: too few grid points'
                       endif
                       !
                       !$omp parallel do private(k) shared(psi_vib) schedule(guided)
                       do k= grid%npoints-npoints_last+1,grid%npoints
-                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,vec,psi_vib)
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                        vec,psi_vib)
                       enddo
                       !$omp end parallel do
                       !
@@ -10806,13 +10807,14 @@ end subroutine map_fields_onto_grid
                       !
                       npoints_last = max(10,grid%npoints/50) 
                       if (npoints_last>=grid%npoints) then
-                        write(out,"('wavefunciton unboud check error: too few grid points = ',i,' use at least 50')") grid%npoints
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
                         stop 'wavefunciton unboud check error: too few grid points'
                       endif
                       !
                       !$omp parallel do private(k) shared(psi_vib) schedule(guided)
                       do k= grid%npoints-npoints_last+1,grid%npoints
-                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,vec,psi_vib)
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                                                                 vec,psi_vib)
                       enddo
                       !$omp end parallel do
                       !
@@ -10844,7 +10846,8 @@ end subroutine map_fields_onto_grid
                             !
                             psi1=psi2
                             !
-                            psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_vib)
+                            psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                              npoints_last,vec,psi_vib)
                             !psi_vib(k+1)
                             !
                             if ( psi2>100.0*small_.and.psi1<psi2.and.psi2>psi_vib(k) ) then
@@ -11131,7 +11134,8 @@ end subroutine map_fields_onto_grid
   !  vibrational reduced density of a rovibronic eigenstate at the igrid point
   
   
-  function vibrational_reduced_density(igrid,Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_in) result (psi_vib)
+  function vibrational_reduced_density(igrid,Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_in) &
+           result (psi_vib)
      !  
      integer(ik),intent(in) :: igrid,Ntotal,Nvib,Nlambdasigmas,npoints_last,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas)
      real(rk),intent(in)    :: vec(Ntotal),psi_in(grid%npoints)
@@ -11176,11 +11180,10 @@ end subroutine map_fields_onto_grid
 
      subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
         !
+        integer(ik),intent(in)  :: ngrid
         real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
         real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
         real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
-        !
-        integer(ik),intent(in)  :: ngrid
         integer(ik)   :: jgrid,kgrid,igrid
         !
         kinmat = 0
@@ -11290,7 +11293,7 @@ end subroutine map_fields_onto_grid
      real(rk), allocatable :: omegamat(:,:),omegaenergy(:)
      real(rk), allocatable :: L_LambdaSigma(:,:)
      integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
-     real(rk),allocatable    :: vibmat(:,:)
+     real(rk),allocatable    :: vibmat(:,:),kinmat(:,:)
        !
        ngrid = grid%npoints
        !
@@ -12549,11 +12552,13 @@ end subroutine map_fields_onto_grid
        !
        allocate(vibmat(ngrid,ngrid),stat=alloc)
        call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
+       allocate(kinmat(ngrid,ngrid),stat=alloc)
+       call ArrayStart('kinmat-omega',alloc,size(kinmat),kind(kinmat))
        !
        !
        ! Kinetic energy part 
        !
-       call kinetic_energy_grid_points(ngrid,vibmat)
+       call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
        !
        ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
        do igrid =1, ngrid
@@ -12599,6 +12604,8 @@ end subroutine map_fields_onto_grid
        !
        deallocate(vibmat)
        call ArrayStop('vibmat-omega')
+       deallocate(kinmat)
+       call ArrayStop('kinmat-omega')
        !
        deallocate(L_LambdaSigma)
        call ArrayStop('L_LambdaSigma')
@@ -13136,7 +13143,7 @@ end subroutine map_fields_onto_grid
           write(out,'("    i        Energy/cm    State v"/)')
           do i = 1,totalroots
             ilevel = icontrvib(i)%ilevel
-            write(out,'(i5,f18.6," [ ",2i4,f8.1" ] ",a)') i,( contrenergy(i)-contrenergy(1))/sc,ilevel,icontrvib(i)%v,&
+            write(out,'(i5,f18.6," [ ",2i4,f8.1," ] ",a)') i,( contrenergy(i)-contrenergy(1))/sc,ilevel,icontrvib(i)%v,&
                                                    icontrvib(i)%omega,trim(poten(icontrvib(i)%istate)%name)
           enddo
        endif
@@ -13150,7 +13157,7 @@ end subroutine map_fields_onto_grid
           write(u1,'("    i        Energy/cm    State v"/)')
           do i = 1,totalroots
             ilevel = icontrvib(i)%istate
-            write(u1,'(i5,f18.6," [ ",2i4,f8.1" ] ",a)') i,(contrenergy(i))/sc,ilevel,icontrvib(i)%v,&
+            write(u1,'(i5,f18.6," [ ",2i4,f8.1," ] ",a)') i,(contrenergy(i))/sc,ilevel,icontrvib(i)%v,&
                                                    icontrvib(i)%omega,trim(poten(icontrvib(i)%istate)%name)
           enddo
           close(u1)

@@ -1040,8 +1040,8 @@ contains
     integer(ik) :: inu,Nlambdasigmas,i,ilevel,ivib,Ntotal
     real(rk) :: J_,delta
     real(rk) :: dnu, nu,RWF2,intens_cm_molecule,sc,scale,h12
-    complex*16,allocatable :: Amat(:,:),B(:),C(:)
-    complex*16,parameter :: alpha_ = (1.0d0,0.0d0),beta_ = (0.0d0,0.0d0)
+    complex(16),allocatable :: Amat(:,:),B(:),C(:)
+    complex(16),parameter :: alpha_ = (1.0d0,0.0d0),beta_ = (0.0d0,0.0d0)
     double precision,parameter :: dalpha = 1.0d0 , dbeta = 0.d0
     !
     real(rk),allocatable :: crosssections(:)
@@ -1052,7 +1052,7 @@ contains
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
     type(quantaT),allocatable :: icontr(:)
     integer(ik),allocatable :: Nirr(:,:),ilevel2i(:,:)
-    complex*16 :: zdotc
+    complex(16) :: zdotc
     !double precision :: ddot
     !
     call TimerStart('Intensity calculations')
@@ -1656,8 +1656,9 @@ contains
                        if (intensity%N_RWF_order>3) then 
                           !
                           Amat(ilevelF,ilevelR) = Amat(ilevelF,ilevelR) + delta**2* &
-                                               ( 0.5_rk*hmat_n(ilevelF,ilevelR,4) - 2.0_rk*hmat_n(ilevelF,ilevelR,3)*(nu + energyI)+&
-                                               +3.0_rk*hmat_n(ilevelF,ilevelR,2)*(nu + energyI)**2-2.0_rk*hmat(ilevelF,ilevelR)*(nu + energyI)**3 )
+                                           ( 0.5_rk*hmat_n(ilevelF,ilevelR,4) - 2.0_rk*hmat_n(ilevelF,ilevelR,3)*(nu + energyI)+&
+                                            3.0_rk*hmat_n(ilevelF,ilevelR,2)*(nu + energyI)**2-&
+                                            2.0_rk*hmat(ilevelF,ilevelR)*(nu + energyI)**3 )
                           !
                           if (ilevelF==ilevelR) then
                             !

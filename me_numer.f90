@@ -2325,7 +2325,7 @@ end subroutine polintrk
 !-----------------------------------------------------------------------
       INTEGER mxdata,mxisp,mxfsp,mxnj,mxnp,mxntp,mxprm,mxv,mxfs,mxisot,&
               mxsets,mxfreq
-      REAL*8 CCM,PI
+      double precision :: CCM,PI
 !-----------------------------------------------------------------------
 !  mxdata - maximum number of input data points
 !  mxisp  - maximum number of points for initial state potential array
@@ -2357,7 +2357,7 @@ end subroutine polintrk
       PARAMETER (CCM= 299792458d2)
       INTEGER i,ifs,MESH1,MESH2,MESH3,step,first,last,IWR,JP,TURNPT,m,&
               OTMF,NAMP,NEND,TMFTYP(mxfs)
-      REAL*8 AMP1,AMP2,AMP3,AMP4,BFCT,DER(0:mxprm-1),DI,FCFACT,&
+      REAL(rk) ::  AMP1,AMP2,AMP3,AMP4,BFCT,DER(0:mxprm-1),DI,FCFACT,&
              EFN,ELIM,ER,FCM(0:MXPRM-1),EDIFF1,EDIFF2,EDIFFi,HALF,HARG,&
              NFACT,&
              RH,RMIN,OVR,OVRCRT,PSI(NEND),S0,S1,S2,SG1,SG2,SGi,Si,&

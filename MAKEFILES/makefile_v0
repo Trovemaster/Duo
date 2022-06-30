@@ -1,4 +1,4 @@
-goal:   duo
+goal:   duo.x
 
 tarball:
 	tar cfz duo$(PLAT).tar.gz makefile *.f90
@@ -9,10 +9,10 @@ checkin:
 
 #FPATH = 
 
-EXE = j-duo-v1206.x
+PLAT = 2210_gf
 
-FOR  = ifort   # Fortran compiler 
-##FOR = gfortran  
+##FOR  = ifort   # Fortran compiler 
+FOR = gfortran
 
 # Lorenzo Lodi  ---- meaning of some flags used by the Intel fortran compiler
 #  see (e.g.) file:///opt/intel/composer_xe_2011_sp1.8.273/Documentation/en_US/compiler_f/main_for/index.htm
@@ -50,55 +50,79 @@ FOR  = ifort   # Fortran compiler
 
 #NOTE: -fpe0 will stop on floating-point exceptions. Do not use this flag because LAPACK makes use of divide by zero etc.
 #
-##FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
+####FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
 
-FFLAGS = -O3 -ipo -qopenmp -mkl=parallel # -xHost -fast
+''FFLAGS = -O3 -ip -qopenmp -mkl=parallel ##  -xHost -fast
 
 ##FFLAGS = -C -check bounds -g  -gen-interfaces -warn interfaces  -check arg_temp_created -prof-value-profiling=all -warn all
 ##FFLAGS = -O3 -ip -openmp # no optimization -- fast compilation
-##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
 
+FFLAGS = -W  -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
+
+#-Wall
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
 
-LAPACK = -mkl=parallel -static
+LAPACK = 
+
+#LAPACK = -mkl=parallel 
 #LAPACK = -mkl=parallel -static
 
 LIB     =   $(LAPACK)
 
 ###############################################################################
 
-OBJ = F1_hyperfine.o F1_intensity.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o me_numer.o RWF.o
+OBJ = atomic_and_nuclear_data.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o header_info.o Lobatto.o
+#compilation_details.o 
 
-diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o me_numer.o
-dipole.o: timer.o accuracy.o diatom.o symmetry.o
-quadrupole.o: timer.o accuracy.o diatom.o symmetry.o
-duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o F1_hyperfine.o F1_intensity.o
-functions.o: accuracy.o timer.o
-grids.o: accuracy.o Lobatto.o
-header_info.o: accuracy.o
-F1_hyperfine.o: accuracy.o diatom.o lapack.o symmetry.o
-F1_intensity.o: F1_hyperfine.o accuracy.o diatom.o
-me_numer.o : accuracy.o lapack.o timer.o
-lapack.o: accuracy.o timer.o
-Lobatto.o: accuracy.o timer.o
-refinement.o: timer.o accuracy.o diatom.o
-symmetry.o: accuracy.o
-timer.o: accuracy.o
-RWF.o: accuracy.o diatom.o timer.o symmetry.o lapack.o
+duo.x:	$(OBJ) duo.o
+	$(FOR) -o j-duo$(PLAT).x $(OBJ) $(FFLAGS) duo.o $(LIB)
 
-# clear internal suffix rules
-.SUFFIXES:
-# specify our own suffix rules
-.SUFFIXES: .f90 .o
-.f90.o:
-	$(FOR) -c -o $@ $< $(FFLAGS)
+duo.o:	duo.f90 $(OBJ) 
+	$(FOR) -c duo.f90 $(FFLAGS)
 
-duo:	$(OBJ) duo.o
-	$(FOR) -o $(EXE) $(OBJ) $(FFLAGS) duo.o $(LIB)
+grids.o:	grids.f90 accuracy.o input.o Lobatto.o
+	$(FOR) -c grids.f90 $(FFLAGS)
+
+diatom.o:	diatom.f90 accuracy.o input.o lapack.o functions.o symmetry.o atomic_and_nuclear_data.o Lobatto.o
+	$(FOR) -c diatom.f90 $(FFLAGS)
+
+refinement.o:	refinement.f90 accuracy.o input.o lapack.o diatom.o
+	$(FOR) -c refinement.f90 $(FFLAGS)
+
+functions.o:	functions.f90 accuracy.o input.o lapack.o
+	$(FOR) -c functions.f90 $(FFLAGS)
+
+dipole.o:	dipole.f90 accuracy.o input.o lapack.o diatom.o 
+	$(FOR) -c dipole.f90 $(FFLAGS)
+
+accuracy.o:  accuracy.f90
+	$(FOR) -c accuracy.f90 $(FFLAGS)
+
+symmetry.o:  symmetry.f90
+	$(FOR) -c symmetry.f90 $(FFLAGS)
+
+lapack.o:  lapack.f90 accuracy.o timer.o 
+	$(FOR) -c lapack.f90 $(FFLAGS)
+
+timer.o:  timer.f90
+	$(FOR) -c timer.f90 $(FFLAGS)
+
+input.o:  input.f90
+	$(FOR) -c input.f90 $(FFLAGS)
+
+#compilation_details.o: compilation_details.f90
+#	$(FOR) -c compilation_details.f90 $(FFLAGS)
+
+header_info.o:  accuracy.o
+	$(FOR) -c header_info.f90 $(FFLAGS)
+
+atomic_and_nuclear_data.o:  atomic_and_nuclear_data.f90
+	$(FOR) -c atomic_and_nuclear_data.f90 $(FFLAGS)
+
+Lobatto.o: Lobatto.f90 timer.o
+	$(FOR) -c Lobatto.f90 $(FFLAGS)
 
 clean:
-	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat        Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat
+	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat
 
-test:  test_duo.f90
-	$(FOR) -O0 test_duo.f90 -o duo_test.exe
