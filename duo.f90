@@ -13,7 +13,6 @@
 
     use F1_hyperfine, only: F1_hyperfine_structrure
     use F1_intensity, only: F1_hyperfine_intensity
-    use F1_fitting, only: F1_refinement_init, F1_refine
 
     interface ! used for isatty
       function isatty(fd) bind(c)
@@ -51,45 +50,32 @@
      !call check_and_set_atomic_data(verbose)
      !
 
-     if(action%hyperfine) then
-        action%save_eigen_J = .true.
-        job%basis_set = 'KEEP'
-        if (action%intensity) then            
-            call duo_j0
-            call F1_hyperfine_structrure(verbose)
-            call F1_hyperfine_intensity
-            stop
-        else if (action%fitting) then
+     if (action%fitting) then 
+       !
+       if (action%intensity) then 
+          write(out, '(a)') 'Fitting and intensity should not be used at the same time'
+          stop 'please switch-off/remove either fitting or intensity'
+       endif 
+
+       if (action%hyperfine) then
             write(out, '(a)') 'Fitting and hyperfine should not be used at the same time'
             stop 'please switch-off/remove either fitting or hyperfine'
-        ! else if (action%fitting) then
-        !     call map_fields_onto_grid(verbose)    
-        !     call F1_refinement_init
-        !     CALL F1_refine
-        !     stop
-        else
-            call duo_j0
-            call F1_hyperfine_structrure(verbose)
-        endif
+       endif
+       !
+       ! Here we map all fields onto the same grid 
+       call map_fields_onto_grid(verbose)
+       !
+       call define_jlist
+       call sf_fitting
+     endif 
+     !
+
+     if(action%hyperfine) then
+        call duo_j0
+        call F1_hyperfine_intensity
         write(out, '(a)') '--End--'
         stop
      endif   
-
-     
-     if (action%fitting) then 
-        !
-        if (action%intensity) then 
-           write(out, '(a)') 'Fitting and intensity should not be used at the same time'
-           stop 'please switch-off/remove either fitting or intensity'
-        endif 
-        !
-        ! Here we map all fields onto the same grid 
-        call map_fields_onto_grid(verbose)
-        !
-        call define_jlist
-        call sf_fitting
-      endif 
-      ! 
 
      if (action%intensity) then 
         action%save_eigen_J = .true.
