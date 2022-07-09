@@ -57,7 +57,7 @@ FOR = gfortran
 ##FFLAGS = -O3 -ip -openmp # no optimization -- fast compilation
 ##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
  
-FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O -fbacktrace -ffpe-trap=zero,overflow,underflow -g  #Debug options for gfortran
+FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2008 -Wunderflow -O -fbacktrace -ffpe-trap=zero,overflow,underflow -g  #Debug options for gfortran
 
 LAPACK = -llapack -lblas -L./
 
