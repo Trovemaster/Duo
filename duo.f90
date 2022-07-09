@@ -13,7 +13,7 @@
 
     use F1_hyperfine, only: F1_hyperfine_structrure
     use F1_intensity, only: F1_hyperfine_intensity
-    use F1_fitting, only: F1_refinement_init, F1_refine
+    !use F1_fitting, only: F1_refinement_init, F1_refine
 
     interface ! used for isatty
       function isatty(fd) bind(c)
