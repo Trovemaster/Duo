@@ -669,7 +669,11 @@ contains
            !
            ! skip upper ubound states if the filter is on
            !
-           if (intensity%bound.and..not.eigen(indI,igammaI)%quanta(ilevelI)%bound) passed = .false.
+           if (intensity%bound.and..not.eigen(indI,igammaI)%quanta(ilevelI)%bound) then 
+              passed = .false.
+              passed_ = .false.
+              cycle
+           endif
            !
            if (.not.passed.and..not.passed_) cycle
            !
