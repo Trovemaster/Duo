@@ -596,6 +596,10 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
+                  ! skip if the upper state is unbound states if the filter is on
+                  !
+                  if (intensity%bound.and..not.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                  !
                   if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
                   if (passed) then 
@@ -667,7 +671,7 @@ contains
            !
            call energy_filter_lower(jI,energyI,passed_)
            !
-           ! skip upper ubound states if the filter is on
+           ! skip upper/lower ubound states if the filter is on
            !
            if (intensity%bound.and..not.eigen(indI,igammaI)%quanta(ilevelI)%bound) then 
               passed = .false.
