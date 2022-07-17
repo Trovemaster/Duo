@@ -357,6 +357,9 @@ module diatom_module
      real(rk) :: dipole       = -1e0    ! threshold defining the output linestrength
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
+     real(rk) :: bound_density = sqrt(small_)   ! threshold defining the unbound state density 
+                                                !calculated at the edge of the box whioch must be small for bound states
+     !
   end type thresholdsT
   !
   type landeT
@@ -3859,6 +3862,10 @@ module diatom_module
              !
              call readf(intensity%threshold%coeff)
              !
+           case('THRESH_BOUND')
+             !
+             call readf(intensity%threshold%bound_density)
+             !
            case('TEMPERATURE')
              !
              call readf(intensity%temperature)
@@ -7083,6 +7090,7 @@ end subroutine map_fields_onto_grid
      integer(ik) :: ilambdasigma,Nlambdasigmas_max
      integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
      real(rk)    :: omega_min,omega_max,spin_min
+     logical     :: bound_state = .true.
      !
      type(contract_solT),allocatable :: contracted(:)
      real(rk),allocatable            :: vect_i(:),vect_j(:)
@@ -10737,13 +10745,25 @@ end subroutine map_fields_onto_grid
                       !
                       ! condition for the unbound state
                       !
-                      if (sum_wv>sqrt(small_)) then 
+                      bound_state = .true.
+                      !
+                      if (sum_wv>intensity%threshold%bound_density) then 
                          !
                          eigen(irot,irrep)%quanta(total_roots)%bound = .false.
+                         bound_state = .false.
                          !
                       endif
                       !
                       if (iverbose>=4) call TimerStop('Find unbound states')
+                      !
+                      ! exclude unbound states if required 
+                      !
+                      if ( intensity%bound.and..not.bound_state ) then 
+                         !
+                         total_roots = total_roots-1 
+                         cycle
+                         !
+                      endif
                       !
                    endif 
                    !
