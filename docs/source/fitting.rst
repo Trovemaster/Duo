@@ -169,7 +169,7 @@ should be equivalent.
 
 
 
-* ``fit_scaling``
+* ``fit_scale``
 
 This is fixed-value analogy of the linear scaling. It directly defies a scaling factor :math:`\alpha` used 
 to scale the parameter vectors increment :math:\Delta {\bf x}`, see above. It is ignored when ``linear_scaling`` is 
@@ -178,7 +178,7 @@ defined. It can be used to improve the convergence.
 Example: 
 ::
 
-   fit_scaling 0.5 
+   fit_scale 0.5 
 
 
 
