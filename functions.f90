@@ -197,12 +197,12 @@ module functions
       !
     case("NONE")
       !
-      write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
+      write(out,'(//"Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytical: Unknown function type "
       !
     case default
       !
-      write(out,'("Analytical: Unknown function type ",a)') trim(ftype)
+      write(out,'(//"Analytical: Unknown function type ",a)') trim(ftype)
       stop "Analytical: Unknown field type "
       !
     end select
