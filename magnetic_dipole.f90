@@ -12,8 +12,6 @@ module magnetic_dipole
  private
  public md_tranint
 
- real(rk),allocatable,save  :: dipole_me(:, :)
-
 
  type DmatT
       real(rk),pointer   :: mat(:,:,:) 
@@ -42,17 +40,13 @@ module magnetic_dipole
  !
  type(ElevelT),allocatable  :: Elevel(:)  
 
- !
- type(dipoleT),allocatable     :: wigner(:,:) ! Rotational component of the dipole moment matrix elements 
-
 
  !type(IntensityT),save :: intensity
 
 contains
   
- subroutine md_tranint
-
- ! compute  partition function, electric dipole transition moments, linestrength, and intensities
+  subroutine md_tranint
+  ! compute  partition function, electric dipole transition moments, linestrength, and intensities
 
     integer(ik)          :: info
 
@@ -117,12 +111,12 @@ contains
         do igamma = 1,sym%NrepresCs
           !
           do ilevel = 1,eigen(jind,igamma)%Nlevels
-              !
-              energy = eigen(jind,igamma)%val(ilevel)
-              !
-              intensity%zpe = min(intensity%zpe,energy)
-              !
-           enddo
+            !
+            energy = eigen(jind,igamma)%val(ilevel)
+            !
+            intensity%zpe = min(intensity%zpe,energy)
+            !
+          enddo
            !
         enddo
       end do
@@ -135,148 +129,148 @@ contains
     select case (trim(intensity%action))
     !
     case('ABSORPTION', 'EMISSION', 'TM')
-       !
-       ! read contraction indexes (icase,ilambda) for all J specified
-       !
-       !call read_contrind(nJ, Jval(1:nJ))
-       !
-       !if (allocated(bset_contr)) deallocate(bset_contr)
-       !allocate(bset_contr(0:njval), stat = info)
-       !if (info /= 0) stop 'read_contr_ind allocation error: bset_contr - out of memory'
-       !
-       !bset_contr(0)%Ndimen = Ntotalvib
-       !bset_contr(0)%Ntotal = Ntotalvib
-       !
-       !allocate(bset_contr(0)%icontr(Ntotalvib),stat = info)
-       !call ArrayStart('bset_contr',info,1,4)
-       !
-       !do iJ = 1,nJ
-       !  !
-       !  !bset_contr(iJ)%jval = jval(iJ)
-       !  !
-       !  Jrot = Jval(iJ)
-       !  !
-       !  ! CHECK SIZE OF ICONTR AND ALLOCATE IT???
-       !  !
-       !  Ndimen = eigen(iJ)%Ndimen
-       !  Nlevels = eigen(iJ)%Nlevels
-       !  !
-       !  !allocate(bset_contr(iJ)%icontr(Ndimen),stat = info)
-       !  !call ArrayStart('bset_contr',info,1,4)
-       !  !
-       !  !call check_point_eigenvectors('READ',iverbose,Jrot,Ntotal,bset_contr(iJ)%icontr)
-       !  bset_contr(iJ)%Nlevels = Ntotal
-       !  !
-       !enddo
-       !
-       ! find correlation between indexes for J = 0 and J > 0
-       ! We need this because the contracted matrix elements of the 
-       ! dipole moment are computed on the J=0 conatracted basis functions. 
-       ! When J/=0 the numbering (bookkeeping) of these basis set has changed and
-       ! we need to find the correlation between the bookkeepings.  
-       !
-       !call index_correlation(nJ, Jval(1:nJ))
-       !
-       ! read eigenvalues and their labeling, i.e. description;
-       ! initialize file-units for reading eigenvectors
-       !
-       call Sort_levels(iverbose,nJ, Jval(1:nJ))
-       !
-       !restore vibrational contracted matrix elements
-       !for all  dipole moment vector components
-       !
-       !call check_point_dipoles('READ',iverbose,totalroots)
-       !
-       ! Run intensity simulations 
-       !
-       beta = planck * vellgt / (boltz * intensity%temperature)
-       !
-       ! Compute part-func if not given
-       !
-       if (intensity%part_func<small_) then 
-          !
-          intensity%part_func  = 0 
-          !
-          do jind = 1,nJ
-            !
-            Jval_ = Jval(jind)
-            !
-            do igamma = 1,sym%NrepresCs
+      !
+      ! read contraction indexes (icase,ilambda) for all J specified
+      !
+      !call read_contrind(nJ, Jval(1:nJ))
+      !
+      !if (allocated(bset_contr)) deallocate(bset_contr)
+      !allocate(bset_contr(0:njval), stat = info)
+      !if (info /= 0) stop 'read_contr_ind allocation error: bset_contr - out of memory'
+      !
+      !bset_contr(0)%Ndimen = Ntotalvib
+      !bset_contr(0)%Ntotal = Ntotalvib
+      !
+      !allocate(bset_contr(0)%icontr(Ntotalvib),stat = info)
+      !call ArrayStart('bset_contr',info,1,4)
+      !
+      !do iJ = 1,nJ
+      !  !
+      !  !bset_contr(iJ)%jval = jval(iJ)
+      !  !
+      !  Jrot = Jval(iJ)
+      !  !
+      !  ! CHECK SIZE OF ICONTR AND ALLOCATE IT???
+      !  !
+      !  Ndimen = eigen(iJ)%Ndimen
+      !  Nlevels = eigen(iJ)%Nlevels
+      !  !
+      !  !allocate(bset_contr(iJ)%icontr(Ndimen),stat = info)
+      !  !call ArrayStart('bset_contr',info,1,4)
+      !  !
+      !  !call check_point_eigenvectors('READ',iverbose,Jrot,Ntotal,bset_contr(iJ)%icontr)
+      !  bset_contr(iJ)%Nlevels = Ntotal
+      !  !
+      !enddo
+      !
+      ! find correlation between indexes for J = 0 and J > 0
+      ! We need this because the contracted matrix elements of the 
+      ! dipole moment are computed on the J=0 conatracted basis functions. 
+      ! When J/=0 the numbering (bookkeeping) of these basis set has changed and
+      ! we need to find the correlation between the bookkeepings.  
+      !
+      !call index_correlation(nJ, Jval(1:nJ))
+      !
+      ! read eigenvalues and their labeling, i.e. description;
+      ! initialize file-units for reading eigenvectors
+      !
+      call Sort_levels(iverbose,nJ, Jval(1:nJ))
+      !
+      !restore vibrational contracted matrix elements
+      !for all  dipole moment vector components
+      !
+      !call check_point_dipoles('READ',iverbose,totalroots)
+      !
+      ! Run intensity simulations 
+      !
+      beta = planck * vellgt / (boltz * intensity%temperature)
+      !
+      ! Compute part-func if not given
+      !
+      if (intensity%part_func<small_) then 
+         !
+         intensity%part_func  = 0 
+         !
+         do jind = 1,nJ
+           !
+           Jval_ = Jval(jind)
+           !
+           do igamma = 1,sym%NrepresCs
+             !
+             do ilevel = 1,eigen(jind,igamma)%Nlevels
+                 !
+                 energy = eigen(jind,igamma)%val(ilevel)
+                 irrep  = eigen(jind,igamma)%quanta(ilevel)%igamma
+                 !
+                 ! for homonuclear symmetries Nrepres = 4 and the irrep can be reconstucted baed on the parity and g/u: 
+                 istate  = eigen(jind,igamma)%quanta(ilevel)%istate
+                 parity_gu = poten(istate)%parity%gu
+                 isym = correlate_to_Cs(igamma,parity_gu)
+                 !
+                 exp_en = exp(-(energy - intensity%ZPE) * beta)
+                 !
+                 intensity%part_func = intensity%part_func + intensity%gns(isym)*(2.0_rk*Jval_+1.0_rk) * exp_en
+                 !
+              enddo
               !
-              do ilevel = 1,eigen(jind,igamma)%Nlevels
-                  !
-                  energy = eigen(jind,igamma)%val(ilevel)
-                  irrep  = eigen(jind,igamma)%quanta(ilevel)%igamma
-                  !
-                  ! for homonuclear symmetries Nrepres = 4 and the irrep can be reconstucted baed on the parity and g/u: 
-                  istate  = eigen(jind,igamma)%quanta(ilevel)%istate
-                  parity_gu = poten(istate)%parity%gu
-                  isym = correlate_to_Cs(igamma,parity_gu)
-                  !
-                  exp_en = exp(-(energy - intensity%ZPE) * beta)
-                  !
-                  intensity%part_func = intensity%part_func + intensity%gns(isym)*(2.0_rk*Jval_+1.0_rk) * exp_en
-                  !
-               enddo
-               !
-            enddo
-          end do
-          !
-          if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
-          !
-       endif
-       !
-       call md_intensity(Jval,iverbose)
-       !
-       write(out, '(/a)') 'done'
-       !
+           enddo
+         end do
+         !
+         if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
+         !
+      endif
+      !
+      call md_intensity(Jval,iverbose)
+      !
+      write(out, '(/a)') 'done'
+      !
     !compute partition function
     !
     case('PARTFUNC')
-       !
-       write(out, '(/a)') 'compute partition function'
-       !
-       beta = planck * vellgt / (boltz * intensity%temperature)
-       !
-       !loop ove J values
-       !
-       q_part  = 0 
-       !
-       do jind = 1,nJ
-         !
-         Jval_ = Jval(jind)
-         !
-         do igamma = 1,sym%NrepresCs
-           !
-           do ilevel = 1,eigen(jind,igamma)%Nlevels
-               !
-               energy = eigen(jind,igamma)%val(ilevel)
-               irrep  = eigen(jind,igamma)%quanta(ilevel)%igamma
-               !
-               ! for homonuclear symmetries Nrepres = 4 and the irrep can be reconstucted baed on the parity and g/u: 
-               istate  = eigen(jind,igamma)%quanta(ilevel)%istate
-               parity_gu = poten(istate)%parity%gu
-               isym = correlate_to_Cs(igamma,parity_gu)
-               !
-               exp_en = exp(-(energy - intensity%ZPE) * beta)
-               !
-               q_part(irrep,jind) = q_part(irrep,jind) + intensity%gns(isym)*(2.0_rk*Jval_+1.0_rk) * exp_en
-               !
-            enddo
-            !
-         enddo
-       end do
-       !
-       part = sum(q_part(:,:))
-       !
-       do jind=1,nJ
-         do irrep = 1,sym%NrepresCs
-            write(out, '(i4,1x,f18.1,1x,es16.8)') irrep,Jval(jind),q_part(irrep,jind)
-         enddo
-       enddo 
-       !
-       write(out, '(es16.8)') part
-       !
+      !
+      write(out, '(/a)') 'compute partition function'
+      !
+      beta = planck * vellgt / (boltz * intensity%temperature)
+      !
+      !loop ove J values
+      !
+      q_part  = 0 
+      !
+      do jind = 1,nJ
+        !
+        Jval_ = Jval(jind)
+        !
+        do igamma = 1,sym%NrepresCs
+          !
+          do ilevel = 1,eigen(jind,igamma)%Nlevels
+             !
+             energy = eigen(jind,igamma)%val(ilevel)
+             irrep  = eigen(jind,igamma)%quanta(ilevel)%igamma
+             !
+             ! for homonuclear symmetries Nrepres = 4 and the irrep can be reconstucted baed on the parity and g/u: 
+             istate  = eigen(jind,igamma)%quanta(ilevel)%istate
+             parity_gu = poten(istate)%parity%gu
+             isym = correlate_to_Cs(igamma,parity_gu)
+             !
+             exp_en = exp(-(energy - intensity%ZPE) * beta)
+             !
+             q_part(irrep,jind) = q_part(irrep,jind) + intensity%gns(isym)*(2.0_rk*Jval_+1.0_rk) * exp_en
+             !
+          enddo
+          !
+        enddo
+      end do
+      !
+      part = sum(q_part(:,:))
+      !
+      do jind=1,nJ
+        do irrep = 1,sym%NrepresCs
+           write(out, '(i4,1x,f18.1,1x,es16.8)') irrep,Jval(jind),q_part(irrep,jind)
+        enddo
+      enddo 
+      !
+      write(out, '(es16.8)') part
+      !
     end select
     !
     call MemoryReport
@@ -326,10 +320,10 @@ contains
  end function cg
 
 
- !
- ! Electric dipole moment intensities and transition moments calculations 
- !
- subroutine md_intensity(Jval,iverbose)
+  !
+  ! Electric dipole moment intensities and transition moments calculations 
+  !
+  subroutine md_intensity(Jval,iverbose)
     !
     implicit none
     !
@@ -558,71 +552,71 @@ contains
        !
        jI = Jval(indI)
        !
-       do igammaI=1,Nrepresen
-         !
-         nlevelsI = eigen(indI,igammaI)%Nlevels
-         !
-         !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-         !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
-         do ilevelI = 1, nlevelsI
-           !
-           !energy energy and and quanta of the initial state
-           !
-           energyI = eigen(indI,igammaI)%val(ilevelI)
-           !
-           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
-           parity_gu = poten(istateI)%parity%gu
-           isymI = correlate_to_Cs(igammaI,parity_gu)
-           !
-           call energy_filter_lower(jI,energyI,passed)
-           !
-           if (.not.passed) cycle
-           !
-           nlower = nlower + 1
-           !
-           do indF = 1, nJ
+      do igammaI=1,Nrepresen
+        !
+        nlevelsI = eigen(indI,igammaI)%Nlevels
+        !
+        !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
+        !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
+        do ilevelI = 1, nlevelsI
+          !
+          !energy energy and and quanta of the initial state
+          !
+          energyI = eigen(indI,igammaI)%val(ilevelI)
+          !
+          istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+          parity_gu = poten(istateI)%parity%gu
+          isymI = correlate_to_Cs(igammaI,parity_gu)
+          !
+          call energy_filter_lower(jI,energyI,passed)
+          !
+          if (.not.passed) cycle
+          !
+          nlower = nlower + 1
+          !
+          do indF = 1, nJ
+            !
+            ! rotational quantum number 
+            !
+            jF = jval(indF)
+            !
+            do igammaF=1,Nrepresen
               !
-              ! rotational quantum number 
+              nlevelsF = eigen(indF,igammaF)%Nlevels
               !
-              jF = jval(indF)
+              !call Jgamma_filter(jI,jF,igammaI,igammaF,igamma_pair,passed)
               !
-              do igammaF=1,Nrepresen
+              !if (.not.passed) cycle
+              !
+              !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
+              !                        & schedule(guided) reduction(+:Ntransit,nlevelI)
+              do ilevelF = 1, nlevelsF
                 !
-                nlevelsF = eigen(indF,igammaF)%Nlevels
+                !energy and and quanta of the final state
                 !
-                !call Jgamma_filter(jI,jF,igammaI,igammaF,igamma_pair,passed)
+                energyF = eigen(indF,igammaF)%val(ilevelF)
                 !
-                !if (.not.passed) cycle
+                istateF  = eigen(indF,igammaF)%quanta(ilevelF)%istate
+                parity_gu = poten(istateF)%parity%gu
+                isymF = correlate_to_Cs(igammaF,parity_gu)
                 !
-                !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-                !                        & schedule(guided) reduction(+:Ntransit,nlevelI)
-                do ilevelF = 1, nlevelsF
+                call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                !
+                if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                !
+                if (passed) then 
                   !
-                  !energy and and quanta of the final state
+                  Ntransit = Ntransit + 1
                   !
-                  energyF = eigen(indF,igammaF)%val(ilevelF)
-                  !
-                  istateF  = eigen(indF,igammaF)%quanta(ilevelF)%istate
-                  parity_gu = poten(istateF)%parity%gu
-                  isymF = correlate_to_Cs(igammaF,parity_gu)
-                  !
-                  call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                  !
-                  if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                  !
-                  if (passed) then 
-                    !
-                    Ntransit = Ntransit + 1
-                    !
-                  endif 
-                  !
-                enddo
+                endif 
+                !
               enddo
-           enddo
-           !
-         enddo
-         !
-       enddo
+            enddo
+          enddo
+          !
+        enddo
+        !
+      enddo
     enddo
     !omp end parallel do
     !
@@ -640,231 +634,231 @@ contains
     call ArrayStart('intensity-vecI',info,size(vecI),kind(vecI))
     !
     do indI = 1, nJ
-       !
-       ! rotational quantum number 
-       !
-       jI = jval(indI)
-       !
-       J_ = -1 ! For RichMol count
-       !
-       do igammaI=1,Nrepresen
-         !
-         nlevelsI = eigen(indI,igammaI)%Nlevels
-         !
-         dimenI = eigen(indI,igammaI)%Ndimen
-         !
-         !
-         !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-         !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
-         do ilevelI = 1, nlevelsI
-           !
-           !energy energy and and the symmetry of the state
-           !
-           energyI = eigen(indI,igammaI)%val(ilevelI)
-           !
-           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
-           parity_gu = poten(istateI)%parity%gu
-           ! Obtain the C2v/Cs symmetry 
-           isymI = correlate_to_Cs(igammaI,parity_gu)
-           !
-           ! ignore states with zero nuclear weight 
-           if (intensity%gns(isymI)<small_) cycle 
-           !
-           iroot = iroot + 1
-           eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
-           !
-           if (trim(intensity%linelist_file)/="NONE") then
-             !
-             !dimension of the bases for the initial states
-             !
-             !energy, quanta, and gedeneracy order of the initial state
-             
-             quantaI => eigen(indI,igammaI)%quanta(ilevelI)
-             ivibI    = quantaI%ivib
-             ivI      = quantaI%v
-             sigmaI   = quantaI%sigma
-             spinI    = quantaI%spin
-             ilambdaI = quantaI%ilambda
-             omegaI   = quantaI%omega
-             iparityI = quantaI%iparity
-             statename = trim(quantaI%name)
-             !
-             ! reconstruct the +/- and e/f parities:
-             !
-             pm = "+" ; if (iparityI==1) pm = "-"
-             ef = "e" ; 
-             !
-             if ( mod( nint( 2.0*jI ),2 )==1 ) then
-               itau = mod( nint( jI-0.5 ),2 )
-             else
-               itau = mod( nint( jI ),2 )
-             endif
-             !
-             if (itau==iparityI) then 
-               ef = "e"
-             else
-               ef = "f"
-             endif
-             !
-             ! ndecimals contains the number of decimal digits to print for energy levels
-             ! we use 6 decimals for energy levels up to 100,000 cm-1, then sacrify more and more decimals 
-             ! to make larger numbers fit in 12 spaces.
-             ! The present format works for energy levels larger than -10000 cm-1 and less than 1e11 cm-1
-             ! By Lorenzo Lodi
-             ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
-             !
-             !Mikhail Semenov: Lande g-factor for the selected eigenstate
-             !
-             if (intensity%lande_calc) then
-               !
-               lande = 0
-               !
-               vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
-               !
-               !do k = 1,dimenI
-               !  !
-               !  omegaF = basis(indI)%icontr(k)%omega
-               !  sigmaF = basis(indI)%icontr(k)%sigma
-               !  ilambdaF = basis(indI)%icontr(k)%ilambda
-               !  !
-               !  if ( Ji > 0) then
-               !    !
-               !    lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
-               !    !
-               !  endif
-               !  !
-               !enddo
-               !
-               ! This version of Lande factor takes into account the non-diagonal Sigma/Sigma+/-1 terms
-               !
-               if (Ji>0) then
-                 !
-                 do k = 1,dimenI
-                   !
-                   omegaF   = basis(indI)%icontr(k)%omega
-                   sigmaF   = basis(indI)%icontr(k)%sigma
-                   ilambdaF = basis(indI)%icontr(k)%ilambda
-                   spinF    = basis(indI)%icontr(k)%spin
-                   ivF      = basis(indI)%icontr(k)%ivib
-                   !
-                   do k_ = 1,dimenI
-                     !
-                     omegaF_   = basis(indI)%icontr(k_)%omega
-                     sigmaF_   = basis(indI)%icontr(k_)%sigma
-                     ilambdaF_ = basis(indI)%icontr(k_)%ilambda
-                     spinF_    = basis(indI)%icontr(k_)%spin
-                     ivF_      = basis(indI)%icontr(k_)%ivib
-                     !
-                     if (ilambdaF/=ilambdaF_.or.nint(spinF-spinF_)/=0.or.ivF/=ivF_) cycle
-                     !
-                     if ( k==k_ ) then
-                       !
-                       ! g_e = 2.0023
-                       !
-                       lande = lande + vecI(k)*vecI(k)*( real(ilambdaF,rk)+2.0023_rk*sigmaF )*omegaF
-                       !
-                     elseif (nint(abs(sigmaF_-sigmaF))==1) then
-                       !
-                       lande = lande + vecI(k)*vecI(k_)*&
-                               sqrt( spinF*(spinF+1.0_rk)-sigmaF*(sigmaF+sigmaF_-sigmaF) )*&
-                               sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )*2.002319_rk/2.0_rk
-                       !
-                     endif
-                     !
-                   enddo
-                   !
-                 enddo
-                 !
-                 lande = lande/( Ji*(Ji + 1.0_rk) )
-                 !
-               endif
-               !
-               if (integer_spin) then 
-                 !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                           lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
-                 !
-               else
-                 !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                           !
-               endif
-               !
-             elseif ( intensity%matelem ) then
-               !
-               ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
-               !
-               if (nint(2*Ji)/=nint(2*J_)) then
-                 !
-                 J_ = Ji
-                 ID_J = 0
-                 !
-               endif
-               !
-               ID_J = ID_J + 1
-               quantaI%iJ_ID = ID_J
-               !
-               if (integer_spin) then 
-                 !
-                 write(my_fmt,'(a)') &
-                       "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
-                 write(enunit,my_fmt) & 
-                       nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
-                       ivI,(ilambdaI),nint((sigmaI)),pm,statename
-                 !
-               else
-                 !
-                 !stop 'not tested'
-                 !
-                 write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
-                 write(enunit,my_fmt) & 
-                           int(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,omegaI,&
-                           ivI,(ilambdaI),sigmaI,pm,statename
-                           !
-               endif
-               !
-             else
-               !
-               ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
-               if (integer_spin) then 
-                 !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                           pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
-                 !
-               else
-                 !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                           !
-               endif
-               !
-             endif
-             !
-           endif           
-           !
-           call energy_filter_upper(jI,energyI,passed)
-           !
-           call energy_filter_lower(jI,energyI,passed_)
-           !
-           if (.not.passed.and..not.passed_) cycle
-           !
-           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
-           parity_gu = poten(istateI)%parity%gu
-           isymI = correlate_to_Cs(igammaI,parity_gu)
-           !
-           nlevelsG(isymI) = nlevelsG(isymI) + 1
-           !
-         enddo
-       enddo
+      !
+      ! rotational quantum number 
+      !
+      jI = jval(indI)
+      !
+      J_ = -1 ! For RichMol count
+      !
+      do igammaI=1,Nrepresen
+        !
+        nlevelsI = eigen(indI,igammaI)%Nlevels
+        !
+        dimenI = eigen(indI,igammaI)%Ndimen
+        !
+        !
+        !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
+        !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
+        do ilevelI = 1, nlevelsI
+          !
+          !energy energy and and the symmetry of the state
+          !
+          energyI = eigen(indI,igammaI)%val(ilevelI)
+          !
+          istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+          parity_gu = poten(istateI)%parity%gu
+          ! Obtain the C2v/Cs symmetry 
+          isymI = correlate_to_Cs(igammaI,parity_gu)
+          !
+          ! ignore states with zero nuclear weight 
+          if (intensity%gns(isymI)<small_) cycle 
+          !
+          iroot = iroot + 1
+          eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+          !
+          if (trim(intensity%linelist_file)/="NONE") then
+            !
+            !dimension of the bases for the initial states
+            !
+            !energy, quanta, and gedeneracy order of the initial state
+            
+            quantaI => eigen(indI,igammaI)%quanta(ilevelI)
+            ivibI    = quantaI%ivib
+            ivI      = quantaI%v
+            sigmaI   = quantaI%sigma
+            spinI    = quantaI%spin
+            ilambdaI = quantaI%ilambda
+            omegaI   = quantaI%omega
+            iparityI = quantaI%iparity
+            statename = trim(quantaI%name)
+            !
+            ! reconstruct the +/- and e/f parities:
+            !
+            pm = "+" ; if (iparityI==1) pm = "-"
+            ef = "e" ; 
+            !
+            if ( mod( nint( 2.0*jI ),2 )==1 ) then
+              itau = mod( nint( jI-0.5 ),2 )
+            else
+              itau = mod( nint( jI ),2 )
+            endif
+            !
+            if (itau==iparityI) then 
+              ef = "e"
+            else
+              ef = "f"
+            endif
+            !
+            ! ndecimals contains the number of decimal digits to print for energy levels
+            ! we use 6 decimals for energy levels up to 100,000 cm-1, then sacrify more and more decimals 
+            ! to make larger numbers fit in 12 spaces.
+            ! The present format works for energy levels larger than -10000 cm-1 and less than 1e11 cm-1
+            ! By Lorenzo Lodi
+            ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+            !
+            !Mikhail Semenov: Lande g-factor for the selected eigenstate
+            !
+            if (intensity%lande_calc) then
+              !
+              lande = 0
+              !
+              vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
+              !
+              !do k = 1,dimenI
+              !  !
+              !  omegaF = basis(indI)%icontr(k)%omega
+              !  sigmaF = basis(indI)%icontr(k)%sigma
+              !  ilambdaF = basis(indI)%icontr(k)%ilambda
+              !  !
+              !  if ( Ji > 0) then
+              !    !
+              !    lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
+              !    !
+              !  endif
+              !  !
+              !enddo
+              !
+              ! This version of Lande factor takes into account the non-diagonal Sigma/Sigma+/-1 terms
+              !
+              if (Ji>0) then
+                !
+                do k = 1,dimenI
+                  !
+                  omegaF   = basis(indI)%icontr(k)%omega
+                  sigmaF   = basis(indI)%icontr(k)%sigma
+                  ilambdaF = basis(indI)%icontr(k)%ilambda
+                  spinF    = basis(indI)%icontr(k)%spin
+                  ivF      = basis(indI)%icontr(k)%ivib
+                  !
+                  do k_ = 1,dimenI
+                    !
+                    omegaF_   = basis(indI)%icontr(k_)%omega
+                    sigmaF_   = basis(indI)%icontr(k_)%sigma
+                    ilambdaF_ = basis(indI)%icontr(k_)%ilambda
+                    spinF_    = basis(indI)%icontr(k_)%spin
+                    ivF_      = basis(indI)%icontr(k_)%ivib
+                    !
+                    if (ilambdaF/=ilambdaF_.or.nint(spinF-spinF_)/=0.or.ivF/=ivF_) cycle
+                    !
+                    if ( k==k_ ) then
+                      !
+                      ! g_e = 2.0023
+                      !
+                      lande = lande + vecI(k)*vecI(k)*( real(ilambdaF,rk)+2.0023_rk*sigmaF )*omegaF
+                      !
+                    elseif (nint(abs(sigmaF_-sigmaF))==1) then
+                      !
+                      lande = lande + vecI(k)*vecI(k_)*&
+                              sqrt( spinF*(spinF+1.0_rk)-sigmaF*(sigmaF+sigmaF_-sigmaF) )*&
+                              sqrt( Ji*(Ji+1.0_rk)-omegaF*(omegaF+omegaF_-omegaF) )*2.002319_rk/2.0_rk
+                      !
+                    endif
+                    !
+                  enddo
+                  !
+                enddo
+                !
+                lande = lande/( Ji*(Ji + 1.0_rk) )
+                !
+              endif
+              !
+              if (integer_spin) then 
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                          lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                !
+              else
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                          lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                          !
+              endif
+              !
+            elseif ( intensity%matelem ) then
+              !
+              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+              !
+              if (nint(2*Ji)/=nint(2*J_)) then
+                !
+                J_ = Ji
+                ID_J = 0
+                !
+              endif
+              !
+              ID_J = ID_J + 1
+              quantaI%iJ_ID = ID_J
+              !
+              if (integer_spin) then 
+                !
+                write(my_fmt,'(a)') &
+                      "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
+                write(enunit,my_fmt) & 
+                      nint(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,'tau:',iparityI,'j:',nint(J_),'c',1.000_rk,nint((omegaI)),&
+                      ivI,(ilambdaI),nint((sigmaI)),pm,statename
+                !
+              else
+                !
+                !stop 'not tested'
+                !
+                write(my_fmt,'(A,i0,a)') "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
+                write(enunit,my_fmt) & 
+                          int(J_),ID_J,iparityI+1,1,energyI-intensity%ZPE,omegaI,&
+                          ivI,(ilambdaI),sigmaI,pm,statename
+                          !
+              endif
+              !
+            else
+              !
+              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+              if (integer_spin) then 
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                          pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                !
+              else
+                !
+                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                write(enunit,my_fmt) & 
+                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                          pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                          !
+              endif
+              !
+            endif
+            !
+          endif           
+          !
+          call energy_filter_upper(jI,energyI,passed)
+          !
+          call energy_filter_lower(jI,energyI,passed_)
+          !
+          if (.not.passed.and..not.passed_) cycle
+          !
+          istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+          parity_gu = poten(istateI)%parity%gu
+          isymI = correlate_to_Cs(igammaI,parity_gu)
+          !
+          nlevelsG(isymI) = nlevelsG(isymI) + 1
+          !
+        enddo
+      enddo
     enddo
     !
     deallocate(vecI)
@@ -945,10 +939,20 @@ contains
     select case (trim(intensity%action))
       !
       case('ABSORPTION')
-        !
-        write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
-                    &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
+        write(out, &
+          ! Fixed width output
+          ! "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
+          ! &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
+          ! &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
+          ! &lambda sigma  omega ')" &
+          !
+          ! CSV output
+          "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
+          & E_i, Ef, nu_if,&
+          & S_fi, A_if, I_fi,&
+          & state_f, v_f, lambda_f, sigma_f, omega_f,&
+          & state_i, v_i, lambda_i, sigma_i, omega_i')"&
+        )
         dir = '<-'
         !
       case('EMISSION')
@@ -1088,11 +1092,11 @@ contains
                   !
                   if (( intensity%J(1)+intensity%J(2)>0 )&
                       .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
-                     !
-                     call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                   vecI(1:dimenI),&
-                                                   half_linestr)
-                     !
+                    !
+                    call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
+                                                  vecI(1:dimenI),&
+                                                  half_linestr)
+                    !
                   endif 
                   !
                 case('TM')
@@ -1116,151 +1120,167 @@ contains
                 !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm) schedule(static) &
                 !$omp                                                                             & reduction(+:itransit)
                 Flevels_loop: do ilevelF = 1,nlevelsF
-                   !
-                   !energy and and quanta of the final state
-                   !
-                   energyF = eigen(indF,igammaF)%val(ilevelF)
-                   !
-                   !dimension of the bases for the final state
-                   !
-                   dimenF = eigen(indF,igammaF)%Ndimen
-                   !
-                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
-                   !
-                   istateF  = quantaF%istate
-                   ivibF    = quantaF%ivib
-                   ivF      = quantaF%v
-                   sigmaF   = quantaF%sigma
-                   spinF    = quantaF%spin
-                   ilambdaF = quantaF%ilambda
-                   omegaF   = quantaF%omega
-                   !
-                   call energy_filter_upper(jF,energyF,passed)
-                   !
-                   if (.not.passed) cycle Flevels_loop
-                   !
-                   parity_gu = poten(istateF)%parity%gu
-                   isymF = correlate_to_Cs(igammaF,parity_gu)
-                   !
-                   !call TimerStart('Intens_Filter-3')
-                   !
-                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                   if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
-                   !
-                   !call TimerStop('Intens_Filter-3')
-                   !
-                   if (.not.passed) cycle Flevels_loop
-                   !
-                   ! Which PQR branch this transition belong to ->
-                   ! 
-                   branch = PQR_branch(jI,jF)
-                   !
-                   nu_if = energyF - energyI 
-                   !
-                   ! no zero-frequency transitions should be produced 
-                   if ( nu_if < small_) cycle
-                   !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if 
-                   !
-                   ! Count the processed transitions 
-                   !
-                   itransit = itransit + 1
-                   !
-                   vecF(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
-                   !
-                   select case (trim(intensity%action))
-                     !
-                     case default
-                       !
-                       stop 'only ABSORPTION and TM are properly coded up to now'
-                       !
-                     case('ABSORPTION','EMISSION')
-                       !
-                       linestr = ddot(dimenF,half_linestr,1,vecF,1)
-                       !
-                       linestr2 = linestr**2
-                       !
-                       ! calculate the intensity 
-                       !
-                       A_einst = A_coef_s_1*(2.0_rk*jI+1.0_rk)*linestr2*abs(nu_if)**3
-                       !
-                       linestr2 = linestr2 * intensity%gns(isymI) * ( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk )
-                       !
-                       if (trim(intensity%action)=='ABSORPTION') then 
-                         !
-                         boltz_fc = exp( -(energyI-intensity%ZPE)*beta )*(1.0_rk - exp( -abs(nu_if)*beta) ) &
-                                    / ( intensity%part_func*nu_if**2 )
-                         !
-                         ! intensity in cm/mol
-                         !
-                         absorption_int = 1.0_rk/(8.0_rk*pi*vellgt)*intensity%gns(isymF)*(2.0_rk*jF+1.0_rk)*A_einst*boltz_fc
-                         !
-                       else
-                         !
-                         ! emissivity in Ergs/mol/Sr
-                         !
-                         boltz_fc=exp( -(energyF-intensity%ZPE)*beta )
-                         !
-                         absorption_int = emcoef*A_einst*boltz_fc*intensity%gns(isymI)*(2.0_rk*jF+1.0_rk)*nu_if & 
-                                        &      /intensity%part_func
-                         !
-                       endif
-                       !
-                       !
-                       if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then 
-                         !
-                         !$omp critical
-                         write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
-                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                                      & 3(1x, es16.8),&
-                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
-                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
-                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
-                                      linestr2,A_einst,absorption_int,&
-                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
-                                      istateI,ivI,ilambdaI,sigmaI,omegaI
-                                      !
-                         !
-                         ! generate the line list (Transition file)
-                         !
-                         if (trim(intensity%linelist_file)/="NONE") then
-                           !
-                           if ( intensity%matelem ) then 
-                             !
-                             write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
-                                               quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
-                             !
-                           else
-                             !
-                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
-                                       quantaF%iroot,quantaI%iroot,A_einst,nu_if
-                           endif 
-                           !
-                         endif
-                         !
-                         !$omp end critical
-                         !
-                       endif
-                       !
-                     case('TM')
-                       !
-                       tm = dot_product( half_linestr(1:dimenF),vecF(1:dimenF) )
-                       !
-                       linestr = tm
-                       !
-                       if (linestr>=intensity%threshold%intensity) then 
-                         !
-                         !$omp critical
-                         write(out, "( (i4, 1x, a3, 3x),'->', (i4, 1x, a3, 3x),a1, &
-                                      &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
-                                      &f15.8)") &
-                                      !
-                                      jI,sym%label(isymI),jF,sym%label(isymF),branch, &
-                                      linestr,itransit,tm
-                         !$omp end critical
-                       endif
-                       !
-                   end select
-                   !
+                  !
+                  !energy and and quanta of the final state
+                  !
+                  energyF = eigen(indF,igammaF)%val(ilevelF)
+                  !
+                  !dimension of the bases for the final state
+                  !
+                  dimenF = eigen(indF,igammaF)%Ndimen
+                  !
+                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                  !
+                  istateF  = quantaF%istate
+                  ivibF    = quantaF%ivib
+                  ivF      = quantaF%v
+                  sigmaF   = quantaF%sigma
+                  spinF    = quantaF%spin
+                  ilambdaF = quantaF%ilambda
+                  omegaF   = quantaF%omega
+                  !
+                  call energy_filter_upper(jF,energyF,passed)
+                  !
+                  if (.not.passed) cycle Flevels_loop
+                  !
+                  parity_gu = poten(istateF)%parity%gu
+                  isymF = correlate_to_Cs(igammaF,parity_gu)
+                  !
+                  !call TimerStart('Intens_Filter-3')
+                  !
+                  call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  !
+                  !call TimerStop('Intens_Filter-3')
+                  !
+                  if (.not.passed) cycle Flevels_loop
+                  !
+                  ! Which PQR branch this transition belong to ->
+                  ! 
+                  branch = PQR_branch(jI,jF)
+                  !
+                  nu_if = energyF - energyI 
+                  !
+                  ! no zero-frequency transitions should be produced 
+                  if ( nu_if < small_) cycle
+                  !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if 
+                  !
+                  ! Count the processed transitions 
+                  !
+                  itransit = itransit + 1
+                  !
+                  vecF(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
+                  !
+                  select case (trim(intensity%action))
+                    !
+                    case default
+                      !
+                      stop 'only ABSORPTION and TM are properly coded up to now'
+                      !
+                    case('ABSORPTION','EMISSION')
+                      !
+                      linestr = ddot(dimenF,half_linestr,1,vecF,1)
+                      !
+                      linestr2 = linestr**2
+                      !
+                      ! calculate the intensity 
+                      !
+                      A_einst = A_coef_s_1*(2.0_rk*jI+1.0_rk)*linestr2*abs(nu_if)**3
+                      !
+                      linestr2 = linestr2 * intensity%gns(isymI) * ( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk )
+                      !
+                      if (trim(intensity%action)=='ABSORPTION') then 
+                        !
+                        boltz_fc = exp( -(energyI-intensity%ZPE)*beta )*(1.0_rk - exp( -abs(nu_if)*beta) ) &
+                                   / ( intensity%part_func*nu_if**2 )
+                        !
+                        ! intensity in cm/mol
+                        !
+                        absorption_int = 1.0_rk/(8.0_rk*pi*vellgt)*intensity%gns(isymF)*(2.0_rk*jF+1.0_rk)*A_einst*boltz_fc
+                        !
+                      else
+                        !
+                        ! emissivity in Ergs/mol/Sr
+                        !
+                        boltz_fc=exp( -(energyF-intensity%ZPE)*beta )
+                        !
+                        absorption_int = emcoef*A_einst*boltz_fc*intensity%gns(isymI)*(2.0_rk*jF+1.0_rk)*nu_if & 
+                                       &      /intensity%part_func
+                        !
+                      endif
+                      !
+                      !
+                      if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then 
+                        !
+                        !$omp critical
+                        write(out, &
+                        ! Fixed width output
+                        ! "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
+                        ! &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                        ! & 3(1x, es16.8),&
+                        ! & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
+                        ! &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
+                        ! jF, sym%label(indSymF), dir, &
+                        ! jI, sym%label(indSymI), branch, &
+                        ! energyF - Intensity%ZPE, dir, &
+                        ! energyI - Intensity%ZPE, nu_if, &
+                        ! linestr2, A_einst, absorption_int, &
+                        ! istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
+                        ! istateI, vI, ilambdaI, sigmaI, omegaI
+                        !
+                        ! CSV output
+                        "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
+                        &f11.4,',',f11.4,',',f11.4,',',&
+                        &es16.8,',',es16.8,',',es16.8,',',&
+                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
+                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
+                        dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
+                        energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                        linestr2, A_einst, absorption_int, &
+                        istateF, ivF, ilambdaF, sigmaF, omegaF, &
+                        istateI, ivI, ilambdaI, sigmaI, omegaI
+                        !
+                        ! generate the line list (Transition file)
+                        !
+                        if (trim(intensity%linelist_file)/="NONE") then
+                          !
+                          if ( intensity%matelem ) then 
+                            !
+                            write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
+                                              quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
+                            !
+                          else
+                            !
+                            write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                      quantaF%iroot,quantaI%iroot,A_einst,nu_if
+                          endif 
+                          !
+                        endif
+                        !
+                        !$omp end critical
+                        !
+                      endif
+                      !
+                    case('TM')
+                      !
+                      tm = dot_product( half_linestr(1:dimenF),vecF(1:dimenF) )
+                      !
+                      linestr = tm
+                      !
+                      if (linestr>=intensity%threshold%intensity) then 
+                        !
+                        !$omp critical
+                        write(out, "( (i4, 1x, a3, 3x),'->', (i4, 1x, a3, 3x),a1, &
+                                     &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
+                                     &f15.8)") &
+                                     !
+                                     jI,sym%label(isymI),jF,sym%label(isymF),branch, &
+                                     linestr,itransit,tm
+                        !$omp end critical
+                      endif
+                      !
+                  end select
+                  !
                 end do Flevels_loop
                 !$omp enddo
                 !
@@ -1348,7 +1368,7 @@ contains
      subroutine find_igamma_pair(igamma_pair)
       !
       integer(ik),intent(out) :: igamma_pair(:)
-      integer(ik)     :: igammaI,igammaF,ngamma
+      integer(ik)     :: igammaI,ngamma
       !
       if (trim(intensity%action)=='TM') then 
         !

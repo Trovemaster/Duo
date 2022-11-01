@@ -26,6 +26,7 @@ $RECYCLE.BIN/
 # VSCode files
 *.code-workspace
 .vs/
+*.json
 
 # Vim files
 *.swp
@@ -41,6 +42,9 @@ $RECYCLE.BIN/
 
 # Directories
 /Duo.und/
+
+# Environment files
+venv/
 
 # =========================
 # Operating System Files
