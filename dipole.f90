@@ -596,6 +596,10 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
+                  ! skip if the upper state is unbound states if the filter is on
+                  !
+                  if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                  !
                   if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
                   if (passed) then 
@@ -658,15 +662,23 @@ contains
            ! ignore states with zero nuclear weight 
            if (intensity%gns(isymI)<small_) cycle 
            !
+           ! apply the energy filters
+           !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+           !
+           call energy_filter_upper(jI,energyI,passed)
+           !
+           call energy_filter_lower(jI,energyI,passed_)
+           !
+           if (.not.passed.and..not.passed_) cycle
            !
            if (trim(intensity%linelist_file)/="NONE") then
              !
              !dimension of the bases for the initial states
              !
              !energy, quanta, and gedeneracy order of the initial state
-             
+             !
              quantaI => eigen(indI,igammaI)%quanta(ilevelI)
              ivibI    = quantaI%ivib
              ivI      = quantaI%v
@@ -700,6 +712,8 @@ contains
              ! The present format works for energy levels larger than -10000 cm-1 and less than 1e11 cm-1
              ! By Lorenzo Lodi
              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+             !
+             if ( nint(intensity%J(1)-Ji)==0.and.( nint(2.0_rk*intensity%J(1))>1) ) cycle
              !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate
              !
@@ -839,12 +853,6 @@ contains
              !
            endif           
            !
-           call energy_filter_upper(jI,energyI,passed)
-           !
-           call energy_filter_lower(jI,energyI,passed_)
-           !
-           if (.not.passed.and..not.passed_) cycle
-           !
            istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
            parity_gu = poten(istateI)%parity%gu
            isymI = correlate_to_Cs(igammaI,parity_gu)
@@ -925,34 +933,42 @@ contains
     !
     if (iverbose>=5) call MemoryReport
     !
-    write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
-                          &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
-    !
-    ! Prepare the table header
-    !
-    select case (trim(intensity%action))
+    if (trim(intensity%linelist_file)/="NONE") then 
+       write(out,"(/'This is a line list poduction only, intensity print-out is swtitched off')")
+       write(out,"('For intensities remove the keyword LINELIST from INTENSITY'/)")
+    else 
       !
-      case('ABSORPTION')
+      write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
+                            &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
+      !
+      ! Prepare the table header
+      !
+      select case (trim(intensity%action))
         !
-        write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
-                    &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
-        dir = '<-'
-        !
-      case('EMISSION')
-        !
-        write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
-                    &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
-                    &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
-        dir = '->'
-        !
-      case('TM')
-        !
-        write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
-                    &10x,'TM(f->i)')")
-
-       !
-    end select
+        case('ABSORPTION')
+          !
+          write(out,"(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'<-',t52,'Ef',t64,'nu_if',&
+                      &8x,'S(f<-i)',10x,'A(if)',12x,'I(f<-i)', &
+                      &7x,'State v lambda sigma  omega <- State v lambda sigma  omega ')")
+          dir = '<-'
+          !
+        case('EMISSION')
+          !
+          write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
+                      &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
+                      &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
+          dir = '->'
+          !
+        case('TM')
+          !
+          write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
+                      &10x,'TM(f->i)')")
+   
+          dir = '<-'
+      !
+      end select
+      !
+    endif
     !
     deallocate(vecF)
     !
@@ -975,6 +991,8 @@ contains
     do indI = 1, nJ
        !
        jI = jval(indI)
+       !
+       if (trim(intensity%linelist_file)/="NONE".and.iverbose>=4) write(out,"('J = ',f9.1)") jI
        !
        do igammaI=1,Nrepresen
          !
@@ -1124,6 +1142,9 @@ contains
                    !
                    call energy_filter_upper(jF,energyF,passed)
                    !
+                   ! skipping bound states if only unbound are needed 
+                   if (intensity%unbound.and.quantaF%bound) passed = .false.
+                   !
                    if (.not.passed) cycle Flevels_loop
                    !
                    parity_gu = poten(istateF)%parity%gu
@@ -1196,16 +1217,6 @@ contains
                        if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then 
                          !
                          !$omp critical
-                         write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
-                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                                      & 3(1x, es16.8),&
-                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
-                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
-                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
-                                      linestr2,A_einst,absorption_int,&
-                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
-                                      istateI,ivI,ilambdaI,sigmaI,omegaI
-                                      !
                          !
                          ! generate the line list (Transition file)
                          !
@@ -1220,7 +1231,20 @@ contains
                              !
                              write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
                                        quantaF%iroot,quantaI%iroot,A_einst,nu_if
-                           endif 
+                           endif
+                           !
+                         else
+                           !
+                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                                      & 3(1x, es16.8),&
+                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
+                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
+                                      linestr2,A_einst,absorption_int,&
+                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
+                                      istateI,ivI,ilambdaI,sigmaI,omegaI
+                                      !
                            !
                          endif
                          !
@@ -1234,17 +1258,38 @@ contains
                        !
                        linestr = tm
                        !
+                       absorption_int = 0
+                       !
                        if (linestr>=intensity%threshold%intensity) then 
                          !
                          !$omp critical
-                         write(out, "( (i4, 1x, a3, 3x),'->', (i4, 1x, a3, 3x),a1, &
-                                      &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
-                                      &f15.8)") &
-                                      !
-                                      jI,sym%label(isymI),jF,sym%label(isymF),branch, &
-                                      linestr,itransit,tm
+                         !
+                         !write(out, "( (f6.1, 1x, a3, 3x),'->', (f6.1, 1x, a3, 3x),a1, &
+                         !             &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
+                         !             &f15.8)") &
+                         !             !
+                         !             jI,sym%label(isymI),jF,sym%label(isymF),branch, &
+                         !             linestr,itransit,tm
+
+
+
+                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                                      & 3(1x, es16.8),&
+                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
+                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
+                                      0.0,tm,absorption_int,&
+                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
+                                      istateI,ivI,ilambdaI,sigmaI,omegaI
+
+
                          !$omp end critical
+
+
                        endif
+
+
                        !
                    end select
                    !
@@ -2153,8 +2198,8 @@ contains
 !     .  now find what the range of new is.
 !
 !
-      newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-      newmax=idnint(min((a-al),(b+be),(a+b-c)))
+      newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+      newmax=nint(min((a-al),(b+be),(a+b-c)))
 !
 !
       summ=0
@@ -2174,7 +2219,7 @@ contains
 !
 !     convert clebsch-gordon to three_j
 !
-      iphase=idnint(a-b-ga)
+      iphase=nint(a-b-ga)
       minus = -1.0_rk
       if (mod(iphase,2).eq.0) minus = 1.0_rk
       three_j0=minus*clebsh/sqrt(2.0_rk*c+1.0_rk)

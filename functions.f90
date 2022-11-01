@@ -53,6 +53,10 @@ module functions
       !
       fanalytical_field => poten_EMO
       !
+    case("EMO-BOB") ! "Expanded MorseOscillator with BOB correction"
+      !
+      fanalytical_field => poten_EMO_BOB
+      !
     case("MLR") ! "Morse/Long-Range"
       !
       fanalytical_field => poten_MLR
@@ -60,6 +64,10 @@ module functions
     case("MLR_DS") ! "Morse/Long-Range with Douketis-damping"
       !
       fanalytical_field => poten_MLR_Douketis
+      !
+    case("DELR") ! "Double-exponential-long-range"
+      !
+      fanalytical_field => poten_DELR
       !
     case("MLR_DS_DARBY") ! "Morse/Long-Range with Douketis-damping"
       !
@@ -159,6 +167,10 @@ module functions
       !
       fanalytical_field => poten_two_coupled_EMOs
       !
+    case("TWO_COUPLED_EMOS_LORENTZ")
+      !
+      fanalytical_field => poten_two_coupled_EMOs_Lorentz
+      !
     case("TWO_COUPLED_BOBS")
       !
       fanalytical_field => poten_two_coupled_BOBs
@@ -185,12 +197,12 @@ module functions
       !
     case("NONE")
       !
-      write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
+      write(out,'(//"Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytical: Unknown function type "
       !
     case default
       !
-      write(out,'("Analytical: Unknown function type ",a)') trim(ftype)
+      write(out,'(//"Analytical: Unknown function type ",a)') trim(ftype)
       stop "Analytical: Unknown field type "
       !
     end select
@@ -373,6 +385,79 @@ module functions
     !
   end function poten_EMO
   !
+  
+
+
+  function poten_EMO_BOB(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,rref,z,phi, ma, mb, yp, yq, u, uinf
+    integer(ik)            :: k,N,p, NUa, NUb, q
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    rref = parameters(4)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    if (r<=rref) then 
+      p = nint(parameters(5))
+      N = parameters(7)
+    else
+      p = nint(parameters(6))
+      N = parameters(8)
+    endif 
+    !
+    NUa = nint(parameters(16+N))
+    NUb = nint(parameters(17+N))
+    !
+    if (size(parameters)/=8+max(parameters(7),parameters(8))+1+12+NUa+NUb) then 
+      write(out,"('poten_EMO: Illegal number of parameters in EMO, check NS and NL, must be max(NS,NL)+9')")
+      stop 'poten_EMO: Illegal number of parameters, check NS and NL'
+    endif 
+    !
+    z = (r**p-rref**p)/(r**p+rref**p)
+    !
+    phi = 0
+    do k=0,N
+     phi = phi + parameters(k+9)*z**k
+    enddo
+    !
+    y  = 1.0_rk-exp(-phi*(r-r0))
+    !
+    ma = 1.0_rk - parameters(10+N)/parameters(11+N)
+    mb = 1.0_rk - parameters(12+N)/parameters(13+N)
+    !
+    p = nint(parameters(14+N))
+    q = nint(parameters(15+N))
+    !
+    !
+    yp = (r**p-r0**p)/(r**p+r0**p)
+    yq = (r**q-r0**q)/(r**q+r0**q)
+    !
+    u = 0
+    do k=0,NUa
+     u = u + ma*parameters(k+18+N)*yq**k
+    enddo
+    do k=0,NUb
+     u = u + mb*parameters(k+20+NUa+N)*yq**k
+    enddo
+    !
+    uinf = parameters(19+NUa+N)*ma + parameters(21+NUa+NUb+N)*mb
+    !
+    f = de*y**2+v0+ ( (1.0_rk-yp)*u + uinf*yp )
+    !
+  end function poten_EMO_BOB
+
+
+  
+  
+  
+  !
   ! Morse/Long-Range, see Le Roy manuals
   !
   function poten_MLR(r,parameters) result(f)
@@ -529,12 +614,10 @@ module functions
     s = -1.0_rk
     b = 3.3_rk
     c = 0.423_rk
-
+    !
     !s = -2.0_rk
     !b = 2.50_rk
     !c = 0.468_rk
-
-
     !
     ! long-range part
     !
@@ -548,7 +631,6 @@ module functions
      !
     enddo
     !
-    !
     ! at R=Re
     uLR0 = 0
     do k=1,M
@@ -558,8 +640,6 @@ module functions
      uLR0 = uLR0 + Damp*parameters(k+Npot+Nstruc)/r0**k
      !
     enddo
-
-
     !
     betaN = 0
     do k=0,N
@@ -575,6 +655,106 @@ module functions
     f = de*y**2+v0
     !
   end function poten_MLR_Douketis
+
+
+  ! Double-exponential-long-range, see Le Roy http://dx.doi.org/10.1063/1.1607313
+  !
+  function poten_DELR(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,r0,de,f,rref,beta_,yp,uLR,uLR0,uLR1,B,A,D_LR
+    real(rk)               :: beta(0:100),C(1:100)
+    integer(ik)            :: k,p,Nstruc,Ntot,Npot,NLR,NL,NS
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De   = parameters(3)-V0
+    D_LR = parameters(4)-V0
+    !
+    rref = parameters(5)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(6))
+    !
+    NS = parameters(7)
+    NL = parameters(8)
+    !
+    Nstruc = 8
+    !
+    if (NL>100) stop 'poten_DELR_Douketis: illegally large NL'
+    !
+    beta = 0 
+    beta(0:NL) = parameters(Nstruc+1:Nstruc+1+NL+1)
+    !
+    ! total number of parameters
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    NLR = Ntot-(Nstruc+1+NL)
+    !
+    if (NLR>100) stop 'poten_DELR_Douketis: illegally large LR expansion'
+    !
+    C = 0 
+    !
+    C(1:NLR) = parameters(Nstruc+1+NL+1:Nstruc+1+NL+NLR)
+    !
+    yp = (r**p-rref**p)/(r**p+rref**p)
+    !
+    ! double check uLR parameters
+    !
+    uLR = sum(C(1:NLR)**2)
+    !
+    if (uLR<small_) then
+      write(out,"('poten_DELR_Douketis: At least one uLR should be non-zero')")
+      stop 'poten_DELR_Douketis: At least one uLR should be non-zer'
+    endif
+    !
+    !s = -1.0_rk
+    !b = 3.97_rk
+    !c0 = 0.39_rk
+    !
+    ! For the Damping part
+    ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
+    !
+    !s = -1.0_rk
+    !b = 3.3_rk
+    !c = 0.423_rk
+    !
+    !s = -2.0_rk
+    !b = 2.50_rk
+    !c = 0.468_rk
+    !
+    ! long-range part
+    !
+    uLR  = D_LR
+    uLR0 = D_LR
+    uLR0 = 0
+    do k=1,NLR
+     !
+     ! Douketis damping function
+     !Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     !
+     uLR  = uLR  + C(k)/r**k
+     uLR0 = uLR0 + C(k)/r0**k
+     uLR1 = uLR1 + real(-k,rk)*C(k)/r0**(k+1)
+    enddo
+    !
+    beta_ = 0
+    do k=0,NL
+     beta_ = beta_ + beta(k)*yp**k
+    enddo
+    !
+    A = De + uLR0+uLR1/beta(0)
+    B = 2.0_rk*(De + uLR0)+uLR1/beta(0)
+    !
+    f = v0+A*exp(-2.0_rk*beta_*(r-r0))-B*exp(-beta_*(r-r0))+De+uLR
+    !
+  end function poten_DELR
+
+
 
 
 
@@ -637,12 +817,10 @@ module functions
     s = -1.0_rk
     b = 3.3_rk
     c = 0.423_rk
-
+    !
     !s = -2.0_rk
     !b = 2.50_rk
     !c = 0.468_rk
-
-
     !
     ! long-range part
     !
@@ -655,7 +833,6 @@ module functions
      uLR = uLR + Damp*parameters(1+k+Npot+Nstruc)/r**k
      !
     enddo
-    !
     !
     ! at R=Re
     uLR0 = 0
@@ -1482,6 +1659,37 @@ module functions
   end function poten_two_coupled_EMOs
 
 
+  function poten_two_coupled_EMOs_Lorentz(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    a  = poten_lorentzian_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs_Lorentz
+
+
   function poten_two_coupled_BOBs(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -1671,7 +1879,7 @@ module functions
      !
      yinf = (DD(r,5,d1,d2)*C5 + DD(r,6,d1,d2)*C6/r + DD(r,8,d1,d2)*C8/r**3)/r**5
      !
-     z    = dtanh(c1*r - c2/r)
+     z    = tanh(c1*r - c2/r)
      !
      t1 = 0._rk
      t2 = 0._rk
@@ -1691,7 +1899,7 @@ module functions
       real(rk) :: r, d1, d2, f
       integer(ik) ::   n
       !
-      f = (1.0_rk - dexp(-d1*r/n - d2*r*r/dsqrt(dble(n))))**(n + 2)
+      f = (1.0_rk - exp(-d1*r/n - d2*r*r/sqrt(real(n,rk))))**(n + 2)
       !
       end function DD
       !

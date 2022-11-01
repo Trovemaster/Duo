@@ -95,12 +95,13 @@ Example:
     fit_factor 1e2
 
 
-* ``lock``   
+* ``Lock``,``Thresh_Assign``
 
 
-``Lock`` denotes the threshold (cm\ :sup:`-1`) for which the quantum numbers are locked. 
-The quantum numbers defining ``state``, :math:`v`, :math:`|\lambda|`, :math:`|\sigma|` and :math:`|\Omega|` 
-will be used to identify and lock the energy value in place of the row number within the :math:`J`/parity block. 
+``Lock`` or ``Thresh_Assign``  denotes the threshold (cm\ :sup:`-1`) for which the quantum numbers are used to match to the experimental 
+value and to lock during the refinement. The quantum numbers defining ``state``, :math:`v`, :math:`|\lambda|`, :math:`|\sigma|` and :math:`|\Omega|` 
+will be used to identify, match and lock the energy value in place of the running number within the :math:`J`/parity block. 
+When ``Lock`` is zero or not present, this feature is switched off and the running number is used to match the experimental and calculated values.  
 When negative, the match is reconstructed based solely on the closest value within the lock-threshold given. 
 If the match within the lock-region is not found, the row :math:`J`/parity number is used to match the theoretical 
 and experimental energies. For example to match and lock to the calculated energy to the `experimental` one based 
@@ -146,7 +147,7 @@ When the ``linear_search`` (Damped Gauss-Newton) keyword is given and the associ
 Duo will attempt a linear search of the scaling factor :math:`\alpha` for the 
 correction parameter vector :math:`{\bf x}`:
  
-:math:` {\bf x}_{i+1}  = {\bf x}_{i} + \alpha \Delta {\bf x} `,  
+:math:`{\bf x}_{i+1}  = {\bf x}_{i} + \alpha \Delta {\bf x}`,  
 
 
 where :math:`{\bf x}_{i}` is the paramor vector for the iteration :math:`i`, :math:`0 \le \alpha \le 1`, 
@@ -168,7 +169,7 @@ should be equivalent.
 
 
 
-* ``fit_scaling``
+* ``fit_scale``
 
 This is fixed-value analogy of the linear scaling. It directly defies a scaling factor :math:`\alpha` used 
 to scale the parameter vectors increment :math:\Delta {\bf x}`, see above. It is ignored when ``linear_scaling`` is 
@@ -177,7 +178,7 @@ defined. It can be used to improve the convergence.
 Example: 
 ::
 
-   fit_scaling 0.5 
+   fit_scale 0.5 
 
 
 

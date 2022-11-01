@@ -24,7 +24,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 16  ! number of different terms of the Hamiltonian 
+  integer(ik),parameter   :: Nobjects = 32  ! number of different terms of the Hamiltonian 
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -54,6 +54,15 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
+  !        case (14 - 20) reserved
+  !        case (21) hfcc1(1) for Fermi contact, bF
+  !        case (22) hfcc1(2) for nuclear spin - orbit, a
+  !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
+  !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
+  !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
+  !        case (26) hfcc1(6) for electric dipole, eQq0
+  !        case (27) hfcc1(7) for electric diople, eQq2
+  !        case (28) reserved
   !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
@@ -63,7 +72,14 @@ module diatom_module
   ! Lorenzo Lodi: it is necessary to repeat the character length specification in the array contructor for Fortran2003 conformance
   character(len=wl),parameter :: CLASSNAMES(1:Nobjects)  = (/ character(len=wl):: "POTEN","SPINORBIT","L2", "L+","SPIN-SPIN",&
                                                              "SPIN-SPIN-O","BOBROT","SPIN-ROT","DIABATIC","LAMBDAOPQ", &
-                                                             "LAMBDAP2Q","LAMBDAQ", "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
+                                                             "LAMBDAP2Q","LAMBDAQ", &
+                                                             "NAC", "", "", "", "", "", "", "", & ! reserved
+                                                             "HFCC-BF-1", "HFCC-A-1", &
+                                                             "HFCC-C-1", "HFCC-D-1", &
+                                                             "HFCC-CI-1", &
+                                                             "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
+                                                             "", & ! reserved
+                                                             "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -205,9 +221,16 @@ module diatom_module
     character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
     real(rk)              :: adjust_val = 0.0_rk
+    real(rk)              :: asymptote = 0.0_rk      ! reference asymptote energy used e.g. in the renormalisation of the continuum wavefunctions to sin(kr)
     logical               :: adjust = .false.        ! Add constant adjust_val to all fields
   end type fieldT
   !
+  type FieldListT
+    TYPE(fieldT), POINTER :: field(:)
+    INTEGER :: num_field = 0
+    PROCEDURE(), POINTER, NOPASS :: hfcc_matrix_element => NULL()
+  end type FieldListT
+
   type jobT
       logical             :: select_gamma(4) ! the diagonalization will be done only for selected gamma's
       integer(ik)         :: nroots(4)=1e9_rk ! number of the roots to be found in variational diagonalization with syevr
@@ -215,7 +238,7 @@ module diatom_module
       real(rk)            :: tolerance = 0.0_rk   ! tolerance for arpack diagonalization, 0 means the machine accuracy
       real(rk)            :: upper_ener = 1e9_rk  ! upper energy limit for the eigenvalues found by diagonalization with syevr
       real(rk)            :: thresh = -1e-18_rk   ! thresh of general use
-      real(rk)            :: zpe=0_rk             ! zero-point-energy
+      real(rk)            :: zpe=0.0_rk             ! zero-point-energy
       logical             :: shift_to_zpe = .true. ! 
       character(len=cl)   :: diagonalizer = 'SYEV'
       character(len=cl)   :: molecule = 'H2'
@@ -232,6 +255,7 @@ module diatom_module
       integer(ik)         :: nJ = 1        ! Number of J values processed 
       character(len=cl)   :: IO_eigen = 'NONE'   ! we can either SAVE to or READ from the eigenfunctions from an external file
       character(len=cl)   :: IO_dipole = 'NONE'  ! we can either SAVE to or READ from an external file the dipole moment 
+      character(len=cl)   :: basis_set = 'NONE'   ! we can keep the vibrational basis functions for further usage 
       !                                                matrix elements on the contr. basis 
       type(eigenfileT)    :: eigenfile
       character(len=cl)   :: symmetry = 'CS(M)'    ! molecular symmetry
@@ -258,6 +282,9 @@ module diatom_module
   end type gridT
 
   type quantaT
+    real(rk) :: I1 ! nuclear spin 1
+    real(rk) :: F1  ! \hat{F1} = \hat{I1} + \hat{J}
+    INTEGER(ik) :: index_F1 ! index of the F1 in F1_list
     real(rk)     :: Jrot       ! J - real
     integer(ik)  :: irot       ! index of the J value in J_list
     integer(ik)  :: istate     ! e-state
@@ -270,11 +297,13 @@ module diatom_module
     integer(ik)  :: ivib = 1   ! vibrational quantum number counting all vib-contracted states
     integer(ik)  :: ilevel = 1  ! primitive quantum
     integer(ik)  :: iroot       ! running number
+    integer(ik)  :: iF1_ID       ! running number within the same F and parity
     integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1
-    integer(ik)  :: iomega = 1  ! countig number of omega
-    character(len=cl) :: name   ! Identifying name of the  function
+    integer(ik)  :: iomega = 1   ! countig number of omega
+    character(len=cl) :: name    ! Identifying name of the  function
+    logical :: bound = .true.    ! is this state bound or unbound 
   end type quantaT
   !
   type eigenT
@@ -301,6 +330,8 @@ module diatom_module
      logical :: quadrupole    = .false.
      logical :: RWF           = .false.
      logical :: overlap       = .false.
+     logical :: hyperfine     = .false.
+     logical :: save_eigen_J  = .false.
      !
   end type actionT
   !
@@ -329,6 +360,9 @@ module diatom_module
      real(rk) :: quadrupole   = -1e0    ! threshold defining the output linestrength
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
+     real(rk) :: bound_density = sqrt(small_)   ! threshold defining the unbound state density 
+                                                !calculated at the edge of the box whioch must be small for bound states
+     !
   end type thresholdsT
   !
   type landeT
@@ -371,6 +405,11 @@ module diatom_module
      logical             :: tqm      = .true.      ! print out quadrupole transition moments
      integer(ik)         :: Npoints = -1           ! used for cross sections grids 
      real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
+     integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF 
+     character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
+     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
+     logical             :: bound = .false.        ! filter bound states
+     logical             :: unbound = .false.       ! filter and process unbound upper states only 
      !
  end type IntensityT
   !
@@ -430,11 +469,17 @@ module diatom_module
       real(rk),pointer :: vector(:,:)=>null()         ! the Omega-vector at each grid point in the lambda-sigma space 
       integer(ik),pointer :: ilevel(:)=>null()      ! level index
   end type contract_solT
+
+  type F1_hyperfine_steup_T
+      real(rk) :: I1
+      real(rk) :: fit_bound_ratio
+      character(cl) :: fit_optimization_algorithm
+  end type F1_hyperfine_steup_T
   !
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
-                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:)
+                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:),nac(:)
   type(fieldT),pointer :: brot(:),quadrupoletm(:)
   !
   ! Fields in the Omega representation
@@ -458,7 +503,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,vmax,nQuadrupoles,NBrot,nrefstates = 1
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
   real(rk)      :: jmin_global
@@ -472,6 +517,13 @@ module diatom_module
   logical :: gridvalue_allocated  = .false.
   logical :: fields_allocated  = .false.
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed 
+
+  real(rk), allocatable :: vibrational_contrfunc(:,:)  
+  type(quantaT), allocatable :: vibrational_quantum_number(:)
+  integer(ik) :: vibrational_totalroots
+  type(F1_hyperfine_steup_T) :: F1_hyperfine_setup
+  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 7
+  type(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   !
   real(rk),allocatable :: overlap_matelem(:,:)
   !
@@ -480,7 +532,7 @@ module diatom_module
          l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
          overlap_matelem
   !
-  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated
+  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
   contains
   !
@@ -493,7 +545,7 @@ module diatom_module
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
-    integer(ik)  :: itau,lambda_,x_lz_y_
+    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
@@ -506,7 +558,7 @@ module diatom_module
     type(fieldT),pointer      :: field
     logical :: eof,include_state,allgrids
     logical :: symmetry_defined=.false.
-    integer :: ic
+    integer :: ic,ierr
     !
     ! -----------------------------------------------------------
     !
@@ -559,19 +611,53 @@ module diatom_module
         call read_line(eof,iut) ; if (eof) exit
         call readu(w)
         select case(w)
-        !
+          !
         case("STOP","FINISH","END")
+          !
           exit
-        !
-       case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
-         job%print_pecs_and_couplings_to_file = .true.
-        !
-       case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
-         job%print_vibrational_energies_to_file = .true.
-        !
-       case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+          !
+        case("HYPERFINE")
+          ! skip if hyperfine NONE
+          if (Nitems>1) then
+            call readu(w)
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
+              action%hyperfine = .false.
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+          endif
+          !
+          action%save_eigen_J = .true.
+          action%hyperfine = .True.
+          !
+          job%basis_set = 'KEEP'
+          !
+          do while (trim(w)/="".and.trim(w)/="END")
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+            select case(w)
+            case("I")
+              call readf(F1_hyperfine_setup%I1)
+            case default
+              call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
+            end select
+
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+         end do
          !
-         job%print_rovibronic_energies_to_file = .true.
+        case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
+          job%print_pecs_and_couplings_to_file = .true.
+          !
+        case("PRINT_VIBRATIONAL_ENERGIES_TO_FILE")
+          job%print_vibrational_energies_to_file = .true.
+          !
+        case("PRINT_ROVIBRONIC_ENERGIES_TO_FILE")
+          !
+          job%print_rovibronic_energies_to_file = .true.
         case("DO_NOT_ECHO_INPUT") 
           !
           job%zEchoInput = .false.
@@ -633,7 +719,7 @@ module diatom_module
               !
             case("TB","T")
               !
-              memory_limit = memory_limit*1024_rk
+              memory_limit = memory_limit*1024.0_rk
               !
             case("GB","G")
               !
@@ -641,15 +727,15 @@ module diatom_module
               !
             case("MB","M")
               !
-              memory_limit = memory_limit/1024_rk
+              memory_limit = memory_limit/1024.0_rk
               !
             case("KB","K")
               !
-              memory_limit = memory_limit/1024_rk**2
+              memory_limit = memory_limit/1024.0_rk**2
               !
             case("B")
               !
-              memory_limit = memory_limit/1024_rk**3
+              memory_limit = memory_limit/1024.0_rk**3
               !
           end select
           !
@@ -771,7 +857,11 @@ module diatom_module
           !
           allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                    bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),quadrupoletm(ncouples),stat=alloc)
+                   lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),stat=alloc)
+
+          do i = 1, GLOBAL_NUM_HFCC_OBJECT
+            allocate(hfcc1(i)%field(nestates), stat=alloc)
+          end do   
           !
           ! initializing the fields
           !
@@ -919,15 +1009,21 @@ module diatom_module
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
              endif 
              !
-             !job%eigenfile%dscr       = 'eigen_descr'
-             !job%eigenfile%primitives = 'eigen_quanta'
-             !job%eigenfile%vectors    = 'eigen_vectors'
-             !
            case('VECTOR-FILENAME','VECTOR','FILENAME')
              !
              call reada(w)
              !
              job%eigenfile%vectors = trim(w)
+             !
+           case('BASIS_SET','BASIS-SET') 
+             !
+             call readu(w)
+             !
+             if (all(trim(w)/=(/'KEEP','NONE'/))) then 
+               call report('ReadInput: illegal key in CHECK_POINT /= KEEP or NONE '//trim(w),.true.)
+             endif 
+             !
+             job%basis_set  = trim(w)
              !
            case('TM','DIPOLE')
              !
@@ -1479,8 +1575,9 @@ module diatom_module
        case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
-            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ",&
-            "QUADRUPOLE") 
+            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
+            "QUADRUPOLE", &
+            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2") 
           !
           ibraket = 0
           !
@@ -1665,6 +1762,7 @@ module diatom_module
              !
              field => poten(iobject(1))
              field%istate = iobject(1)
+             field%jstate = iobject(1)
              !
              call readi(field%iref)
              field%jref = field%iref
@@ -1779,6 +1877,8 @@ module diatom_module
              !
              call readi(iref) ; jref = iref
              !
+             if (nitems>2) call readi(jref)
+             !
              ! find the corresponding potential
              !
              include_state = .false.
@@ -1827,6 +1927,8 @@ module diatom_module
              iobject(6) = iobject(6) + 1
              !
              call readi(iref) ; jref = iref
+             !
+             if (nitems>2) call readi(jref)
              !
              ! find the corresponding potential
              !
@@ -2111,7 +2213,14 @@ module diatom_module
              field%class = trim(CLASSNAMES(12))
              !
              if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
-             
+             !
+          case("NAC")
+             !
+             call input_non_diagonal_field(Nobjects,13,iobject(13),nac,ierr)
+             !
+             field => nac(iobject(13))
+             !
+             if (ierr>0) cycle
              !
           case("QUADRUPOLE")
              !
@@ -2158,7 +2267,305 @@ module diatom_module
              !
              field%class = "QUADRUPOLE"
              !
-           case("ABINITIO")
+          case("HFCC-BF")
+            hfcc1(1)%num_field = hfcc1(1)%num_field + 1
+            iobject(21) = iobject(21) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_bf : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_bf
+                endif
+              enddo
+            enddo loop_istate_hfcc_bf
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(1)%num_field - 1
+              if (iref==hfcc1(1)%field(istate)%iref.and.jref==hfcc1(1)%field(istate)%jref) then
+                call report ("Fermi contact object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
+              hfcc1(1)%num_field = hfcc1(1)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(1)%field(hfcc1(1)%num_field) 
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-BF-1"
+            if (action%fitting) call report ("Fermi-contact object cannot appear after FITTING",.true.)
+            !
+          case("HFCC-A")
+            hfcc1(2)%num_field = hfcc1(2)%num_field + 1
+            iobject(22) = iobject(22) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_a : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_a
+                endif
+              enddo
+            enddo loop_istate_hfcc_a
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(2)%num_field - 1
+              if (iref==hfcc1(2)%field(istate)%iref.and.jref==hfcc1(2)%field(istate)%jref) then
+                call report ("Nuclear spin -- orbit object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('The Nuclear spin -- orbit ',2i8,' is skipped')") iref,jref
+              hfcc1(2)%num_field = hfcc1(2)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(2)%field(hfcc1(2)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-A-1"
+            if (action%fitting) call report ("Nuclear spin -- orbit object cannot appear after FITTING",.true.)
+            !
+          case("HFCC-C")
+            hfcc1(3)%num_field = hfcc1(3)%num_field + 1
+            iobject(23) = iobject(23) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_c : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_c
+                endif
+              enddo
+            enddo loop_istate_hfcc_c
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(3)%num_field - 1
+              if (iref==hfcc1(3)%field(istate)%iref.and.jref==hfcc1(3)%field(istate)%jref) then
+                call report ("Diagonal nuclear spin - electron spin dipole-dipole object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('Diagonal nuclear spin - electron spin dipole-dipole term ',2i8,' is skipped')") iref,jref
+              hfcc1(3)%num_field = hfcc1(3)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(3)%field(hfcc1(3)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-C-1"
+            if (action%fitting) then
+              call report ("Diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
+            endif
+            !
+          case("HFCC-D")
+            hfcc1(4)%num_field = hfcc1(4)%num_field + 1
+            iobject(24) = iobject(24) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_d : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_d
+                endif
+              enddo
+            enddo loop_istate_hfcc_d
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(4)%num_field - 1
+              if (iref==hfcc1(4)%field(istate)%iref.and.jref==hfcc1(4)%field(istate)%jref) then
+                call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object  is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('The Off-diagonal nuclear spin - electron spin dipole-dipole object ',2i8,' is skipped')") iref,jref
+              hfcc1(4)%num_field = hfcc1(4)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(4)%field(hfcc1(4)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-D-1"
+            if (action%fitting) then
+              call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
+            endif
+          case("HFCC-CI")
+            !
+            hfcc1(5)%num_field = hfcc1(5)%num_field + 1
+            iobject(25) = iobject(25) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_ci : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_ci
+                endif
+              enddo
+            enddo loop_istate_hfcc_ci
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(5)%num_field - 1
+              if (iref==hfcc1(5)%field(istate)%iref.and.jref==hfcc1(5)%field(istate)%jref) then
+                call report ("Nuclear spin -- rotation object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
+              hfcc1(5)%num_field = hfcc1(5)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(5)%field(hfcc1(5)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-CI-1"
+            if (action%fitting) call report ("Nuclear spin -- rotation object cannot appear after FITTING",.true.)
+            !
+          case("HFCC-EQQ0")
+            hfcc1(6)%num_field = hfcc1(6)%num_field + 1
+            iobject(26) = iobject(26) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_eqq0 : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_eqq0
+                endif
+              enddo
+            enddo loop_istate_hfcc_eqq0
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(6)%num_field - 1
+              if (iref==hfcc1(6)%field(istate)%iref.and.jref==hfcc1(6)%field(istate)%jref) then
+                call report ("Diagonal nuclear electric quadrupole object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('Diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
+              hfcc1(6)%num_field = hfcc1(6)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(6)%field(hfcc1(6)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-EQQ0-1"
+            if (action%fitting) call report ("Diagonal nuclear electric quadrupole object cannot appear after FITTING",.true.)
+            !
+          case("HFCC-EQQ2")
+            hfcc1(7)%num_field = hfcc1(7)%num_field + 1
+            iobject(27) = iobject(27) + 1
+            call readi(iref); jref = iref
+            include_state = .false.
+            !
+            ! find the corresponding potential
+            include_state = .false.
+            loop_istate_hfcc_eqq2 : do istate=1, Nestates
+              do jstate=1, Nestates
+                if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+                  include_state = .true.
+                  istate_ = istate
+                  jstate_ = jstate
+                  exit loop_istate_hfcc_eqq2
+                endif
+              enddo
+            enddo loop_istate_hfcc_eqq2
+            !
+            ! Check if it was defined before 
+            do istate=1, hfcc1(7)%num_field - 1
+              if (iref==hfcc1(7)%field(istate)%iref.and.jref==hfcc1(7)%field(istate)%jref) then
+                call report ("Off-diagonal nuclear electric quadrupole object is repeated",.true.)
+              endif
+            enddo
+            !
+            if (.not.include_state) then
+              !write(out,"('Off-diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
+              hfcc1(7)%num_field = hfcc1(7)%num_field - 1
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+            !
+            field => hfcc1(7)%field(hfcc1(7)%num_field)
+            !
+            call set_field_refs(field, iref, jref, istate_, jstate_)
+            field%class = "HFCC-EQQ2-1"
+            if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
+             !
+          case("ABINITIO")
              !
              iabi = iabi + 1
              !
@@ -2354,12 +2761,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 10
+               !
                include_state = .false.
-               loop_istate_ab10 : do i=1,iobject(10)
+               loop_istate_ab10 : do i=1,iobject(iobject_)
                    if (iref==lambdaopq(i)%iref.and.jref==lambdaopq(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab10
                    endif
@@ -2372,12 +2781,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 11
+               !
                include_state = .false.
-               loop_istate_ab11 : do i=1,iobject(11)
+               loop_istate_ab11 : do i=1,iobject(iobject_)
                    if (iref==lambdap2q(i)%iref.and.jref==lambdap2q(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab11
                    endif
@@ -2390,12 +2801,14 @@ module diatom_module
                call readi(iref) ; jref = iref
                if (nitems>2) call readi(jref)
                !
+               iobject_ = 12
+               !
                include_state = .false.
-               loop_istate_ab12 : do i=1,iobject(12)
+               loop_istate_ab12 : do i=1,iobject(iobject_)
                    if (iref==lambdaq(i)%iref.and.jref==lambdaq(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:iobject_-1)) + i
                      !
                      exit loop_istate_ab12
                    endif
@@ -2406,13 +2819,15 @@ module diatom_module
                call readi(iref)
                call readi(jref)
                !
+               iobject_ = Nobjects
+               !
                include_state = .false.
                loop_istate_abdip : do i=1,idip
                    !
                    if (iref==dipoletm(i)%iref.and.jref==dipoletm(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:Nobjects-2)) + i
                      !
                      exit loop_istate_abdip
                    endif
@@ -2425,8 +2840,12 @@ module diatom_module
                !
              case("QUADRUPOLE")
                !
+               call report ("Ab initio field is crrently not working with QUADRUPOLE",.true.)
+               !
                call readi(iref)
                call readi(jref)
+               !
+               iobject_ = Nobjects-3
                !
                include_state = .false.
                loop_istate_abquad : do i=1,iquad
@@ -2434,13 +2853,104 @@ module diatom_module
                    if (iref==quadrupoletm(i)%iref.and.jref==quadrupoletm(i)%jref) then
                      include_state = .true.
                      !
-                     iabi_ = sum(iobject(1:Nobjects-4)) + i
+                     iabi_ = sum(iobject(1:Nobjects-3)) + i
                      !
                      exit loop_istate_abquad
                    endif
                    !
                enddo loop_istate_abquad
                !
+             case("HFCC-BF")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(1)%num_field
+                    if (iref == hfcc1(1)%field(i)%iref.and.jref == hfcc1(1)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:21-1)) + i
+                      exit
+                    endif
+                enddo
+                !
+             case("HFCC-A")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(2)%num_field
+                    if (iref == hfcc1(2)%field(i)%iref.and.jref == hfcc1(2)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:22-1)) + i
+                      exit
+                    endif
+                enddo
+                !
+             case("HFCC-C")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(3)%num_field
+                    if (iref == hfcc1(3)%field(i)%iref.and.jref == hfcc1(3)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:23-1)) + i
+                      exit
+                    endif
+                enddo
+                !             
+             case("HFCC-D")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(4)%num_field
+                    if (iref == hfcc1(4)%field(i)%iref.and.jref == hfcc1(4)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:24-1)) + i
+                      exit
+                    endif
+                enddo
+                !
+             case("HFCC-CI")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(5)%num_field
+                    if (iref == hfcc1(5)%field(i)%iref.and.jref == hfcc1(5)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:25-1)) + i
+                      exit
+                    endif
+                enddo
+                !
+             case("HFCC-EQQ0")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(6)%num_field
+                    if (iref == hfcc1(6)%field(i)%iref.and.jref == hfcc1(6)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:26-1)) + i
+                      exit
+                    endif
+                enddo
+                !
+             case("HFCC-EQQ2")
+                call readi(iref) ; jref = iref
+                if (nitems>2) call readi(jref)
+                !
+                include_state = .false.
+                do i = 1, hfcc1(7)%num_field
+                    if (iref == hfcc1(7)%field(i)%iref.and.jref == hfcc1(7)%field(i)%jref) then
+                      include_state = .true.
+                      iabi_ = sum(iobject(1:27-1)) + i
+                      exit
+                    endif
+                enddo
+                !
              end select
              !
              if (.not.include_state) then
@@ -2716,7 +3226,7 @@ module diatom_module
               !              e.g for shifting PECs when there is a known error
               !
               call readf(field%adjust_val)
-
+              !
               if (nitems>2) then
                 call readu(w)
                 !
@@ -2760,6 +3270,10 @@ module diatom_module
             case("MOLPRO")
               !
               field%molpro = .true.
+              !
+            case("ASYMPTOTE")
+              !
+              call readf(field%asymptote)
               !
             case("INTEGRATION")
               !
@@ -3276,6 +3790,12 @@ module diatom_module
              !
              action%RWF = .true.
              !
+             if (nitems>1) call readi(intensity%N_RWF_Order) 
+             !
+             ! we will need the vibrational basis for RWF
+             !
+             job%basis_set  = 'KEEP'
+             !
            case ('LANDE')
              !
              intensity%lande_calc= .true.
@@ -3307,6 +3827,21 @@ module diatom_module
              if (nitems>1) call readu(w) 
              if (trim(w)=="OFF") intensity%overlap = .false.
              !
+           case('RENORM','RENORMALIZE')
+             !
+             intensity%renorm = .true.
+             job%basis_set='KEEP'
+             !
+           case('BOUND')
+             !
+             intensity%bound = .true.
+             job%basis_set='KEEP'
+             !
+           case('UNBOUND')
+             !
+             intensity%unbound = .true.
+             job%basis_set='KEEP'
+             !
            case('VIB-DIPOLE','MU')
              !
              intensity%tdm = .true.
@@ -3321,7 +3856,7 @@ module diatom_module
              if (nitems>1) call readu(w)
              if (trim(w)=="OFF") intensity%tqm = .false.
              !
-           case('THRESH_INTES','THRESH_TM','THRESH-INTES')
+           case('THRESH_INTES','THRESH_TM','THRESH-INTES','THRESH_INTENS','THRESH-INTENS')
              !
              call readf(intensity%threshold%intensity)
              !
@@ -3340,6 +3875,10 @@ module diatom_module
            case('THRESH_COEFF','THRESH_COEFFICIENTS')
              !
              call readf(intensity%threshold%coeff)
+             !
+           case('THRESH_BOUND')
+             !
+             call readf(intensity%threshold%bound_density)
              !
            case('TEMPERATURE')
              !
@@ -3458,6 +3997,12 @@ module diatom_module
              !
              call readf(intensity%gamma)
              !
+           case('LORENTZIAN','GAUSSIAN')
+             !
+             intensity%RWF_type  = trim(w)
+             !
+             call readf(intensity%gamma)
+             !
            case('ENERGY')
              !
              call readu(w)
@@ -3564,6 +4109,7 @@ module diatom_module
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
+    Nnac = iobject(13)    
     nQuadrupoles = iquad
     !
     ! create a map with field distribution
@@ -3588,7 +4134,7 @@ module diatom_module
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
-    Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
+    !Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
     !
     Ntotalfields = sum(iobject(1:Nobjects-4))
     !
@@ -3635,6 +4181,10 @@ module diatom_module
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobj - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -3851,7 +4401,69 @@ module diatom_module
     end subroutine set_field_refs
     !
     !
+    subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
+        !
+        integer(ik),intent(in) :: iType,Nobjects
+        integer(ik),intent(inout)  :: iobject
+        integer(ik),intent(out) :: ierr
+        type(FieldT),pointer :: fields(:)
+        type(FieldT),pointer :: field
+        !
+        integer(ik) :: iref,jref,istare,jstate,istate_,jstate_
+        !
+        ierr = 0 
+        !
+        iobject = iobject + 1
+        !
+        field => fields(iobject)
+        !
+        call readi(iref) ; jref = iref
+        !
+        ! for nondiagonal terms
+        if (nitems>2) call readi(jref)
+        !
+        ! find the corresponding potential
+        !
+        include_state = .false.
+        loop_istate_nd : do istate=1,Nestates
+          do jstate=1,Nestates
+            if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
+              include_state = .true.
+              istate_ = istate
+              jstate_ = jstate
+              exit loop_istate_nd
+            endif
+          enddo
+        enddo loop_istate_nd
+        !
+        ! Check if it was defined before 
+        do istate=1,iobject-1
+           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
+             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
+           endif
+        enddo
+        !
+        if (.not.include_state) then
+            !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
+            iobject = iobject - 1
+            do while (trim(w)/="".and.trim(w)/="END")
+              call read_line(eof,iut) ; if (eof) exit
+              call readu(w)
+            enddo
+            ierr = 1
+            return
+        endif
+        !
+        call set_field_refs(field,iref,jref,istate_,jstate_)
+        !
+        field%class = trim(CLASSNAMES(iType))
+        !
+        if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+        !
+    end subroutine input_non_diagonal_field    
+    !
   end subroutine ReadInput
+
 
 
 
@@ -4387,6 +4999,10 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -4648,7 +5264,7 @@ subroutine map_fields_onto_grid(iverbose)
                allocate(spline_wk_vec_E(nterms),stat=alloc); call ArrayStart('spline_wk_vec_E',alloc,nterms,kind(spline_wk_vec))
                allocate(spline_wk_vec_F(nterms),stat=alloc); call ArrayStart('spline_wk_vec_F',alloc,nterms,kind(spline_wk_vec))
                !
-               call QUINAT(nterms, field%grid,field%value, spline_wk_vec_B, spline_wk_vec_C, &
+               call QUINAT(nterms,field%grid,field%value, spline_wk_vec_B, spline_wk_vec_C, &
                                             spline_wk_vec_D, spline_wk_vec_E, spline_wk_vec_F)
                !
                !$omp parallel do private(i) schedule(guided)
@@ -4743,6 +5359,10 @@ subroutine map_fields_onto_grid(iverbose)
             field => lambdap2q(iterm)
           case (12)
             field => lambdaq(iterm)
+          case (13)
+            field => nac(iterm)
+          case (21, 22, 23, 24, 25, 26, 27)
+            field => hfcc1(iobject - 20)%field(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)
@@ -4776,7 +5396,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             if (check_ai<small_) then 
               !
-              write(out,"('Error: Corresponding ab initio field is undefined when using MORPHING for ',a)") trim(field%name)
+              write(out,"('Error: Corresponding ab initio field is undefined or zero when using MORPHING ',a)") trim(field%name)
               stop 'ab initio field is undefined while using MORPHING'
               !
             endif
@@ -4890,7 +5510,7 @@ subroutine map_fields_onto_grid(iverbose)
           fpp  = poten(istate)%gridvalue(poten(istate)%imin+2)
           fppp = poten(istate)%gridvalue(poten(istate)%imin+3)
       
-          der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(60._rk*h) ! 6-point, error h^6
+          der1 = (-fmmm + 9.0_rk*fmm-45.0_rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(60._rk*h) ! 6-point, error h^6
           der2 = (2.0_rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(2.0_rk*90._rk*h**2) ! 7-point, error h^6
       
           !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
@@ -4918,7 +5538,7 @@ subroutine map_fields_onto_grid(iverbose)
                fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
                fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
       
-               der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
+               der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
                der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
       
                !  der1 = (fmm-8._rk*fm+8._rk*fp-fpp) /(6._rk*h)                          ! 4-point, error h^4
@@ -5009,6 +5629,7 @@ subroutine map_fields_onto_grid(iverbose)
      call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
      call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
      call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
+     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
      if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
      if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
      !
@@ -5016,7 +5637,7 @@ subroutine map_fields_onto_grid(iverbose)
      !
      subroutine molpro_duo(field)
         !
-        use lapack,only : lapack_zheev     
+        use lapack,only : lapack_heev     
         !
         type(fieldT),intent(inout) :: field
         integer(ik) :: ix_lz_y,jx_lz_y,iroot,jroot,il_temp,ngrid
@@ -5043,7 +5664,7 @@ subroutine map_fields_onto_grid(iverbose)
               a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
               a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
               !
-              call lapack_zheev(a,lambda_i)
+              call lapack_heev(a,lambda_i)
               !
               ! swap to have the first root positive 
               !
@@ -5072,7 +5693,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               b0 = b
               !
-              call lapack_zheev(b,lambda_j)
+              call lapack_heev(b,lambda_j)
               !
               ! swap to have the first root positive 
               !
@@ -5533,7 +6154,7 @@ subroutine map_fields_onto_grid(iverbose)
 
      subroutine molpro_duo_old_2018(field)
         !
-        use lapack,only : lapack_zheev     
+        use lapack,only : lapack_heev     
         !
         type(fieldT),intent(inout) :: field
         integer(ik) :: ix_lz_y,jx_lz_y,iroot,jroot,il_temp,ngrid
@@ -5560,7 +6181,7 @@ subroutine map_fields_onto_grid(iverbose)
               a(1,2) = cmplx(0.0_rk,ix_lz_y , kind=rk)
               a(2,1) = cmplx(0.0_rk,-ix_lz_y, kind=rk)
               !
-              call lapack_zheev(a,lambda_i)
+              call lapack_heev(a,lambda_i)
               !
               ! swap to have the first root positive 
               !
@@ -5589,7 +6210,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               b0 = b
               !
-              call lapack_zheev(b,lambda_j)
+              call lapack_heev(b,lambda_j)
               !
               ! swap to have the first root positive 
               !
@@ -6094,6 +6715,12 @@ subroutine map_fields_onto_grid(iverbose)
               stop 'illegal  - non-diagonal  - Lambda doubling coupling: map_fields_onto_grid'
            endif
            !
+           if ( trim(name)=="NACouplings".and.istate==jstate ) then
+              write(out,'("For N =",i3," NACouplings must be defined for the different states, not ",i2," and ",i2," ",a)') &
+                        i,istate,jstate,trim(name)
+              stop 'illegal  - diagonal  - NAcoupling: map_fields_onto_grid'
+           endif
+           !
          enddo
          !
          do istate=1,N
@@ -6384,7 +7011,7 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,*)
            write(out,*)
            write(out,'(A)') 'Approximate J=J_min vibrational-rotational energy levels (no couplings)'
-           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*[J(J+1)]^2'
+           write(out,'(A)') ' given by E(v, J) = E(v, J=0) B0*J*(J+1)- ae*(v+0.5)*J*(J+1) - De*(J(J+1))^2'
            write(out,'(A18)') 'v'
            do i=0, 3
            write(out,'(I18)',advance='no') i
@@ -6436,9 +7063,9 @@ end subroutine map_fields_onto_grid
      integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
      integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
      integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
-     integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v
+     integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v,inac
      integer(ik)             :: ipermute,istate_,jstate_,nener_total
-     real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic
+     real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic,f_nac
      real(rk)                :: sc, h12,f_rot,b_rot,epot,erot
      real(rk)                :: f_t,f_grid,energy_,f_s,f_l,psipsi_t,f_sr
      real(rk)                :: three_j_ref, three_j_,q_we, sigmai_we, sigmaj_we, SO,f_s1,f_s2,f_lo,f_o2,f_o1
@@ -6454,27 +7081,33 @@ end subroutine map_fields_onto_grid
      integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
      integer(ik),allocatable :: vib_count(:)
      type(quantaT),allocatable :: icontrvib(:),icontr(:)
-     !real(rk),allocatable    :: psi_vib(:)
+     real(rk),allocatable    :: psi_vib(:),vec_t(:),vec0(:)
+     integer(ik),allocatable :: ilambdasigmas_v_icontr(:,:)
      character(len=250),allocatable :: printout(:)
      double precision,parameter :: alpha = 1.0d0,beta=0.0d0
      type(matrixT)              :: transform(2)
      type(fieldT),pointer       :: field
-     !logical                    :: passed
-     real(rk),allocatable      :: psipsi_rk(:)
+     !
+     real(ark),allocatable      :: psipsi_ark(:)
      real(rk),allocatable       :: mu_rr(:)
      !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
      !real(rk)                  :: f_rk
+     real(ark)                  :: f_ark
      character(len=cl)          :: filename,ioname
-     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
+     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,k_
+     !
+     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr
+     integer(ik)                :: npoints_last,icount_max
      !
      ! Lambda-Sigma-> State-Omega contraction
      integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
      integer(ik) :: ilambdasigma,Nlambdasigmas_max
      integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
-     real(rk) :: omega_min,omega_max,spin_min
+     real(rk)    :: omega_min,omega_max,spin_min
+     logical     :: bound_state = .true.
      !
      type(contract_solT),allocatable :: contracted(:)
-     real(rk),allocatable  :: vect_i(:),vect_j(:)
+     real(rk),allocatable            :: vect_i(:),vect_j(:)
      !
      !
      ! open file for later (if option is set)
@@ -6518,6 +7151,7 @@ end subroutine map_fields_onto_grid
      !
      h12 = 12.0_rk*hstep**2
      sc  = h12*scale
+
      !
      b_rot = aston/amass
      !
@@ -6530,8 +7164,8 @@ end subroutine map_fields_onto_grid
      if (iverbose>=3) write(out,'(/"Construct the J=0 matrix")')
      if (iverbose>=3) write(out,"(a)") 'Solving one-dimentional Schrodinger equations using : ' // trim(solution_method) 
      !
-     allocate(psipsi_rk(ngrid),stat=alloc)
-     call ArrayStart('psipsi_rk',alloc,size(psipsi_rk),kind(psipsi_rk))
+     allocate(psipsi_ark(ngrid),stat=alloc)
+     call ArrayStart('psipsi_ark',alloc,size(psipsi_ark),kind(psipsi_ark))
      !
      !do i = 1,ngrid
      !  grid_rk(i) = 0.7_rk+(3.0_rk-.7_rk)/real(ngrid-1,rk)*real(i-1,rk)
@@ -6918,7 +7552,7 @@ end subroutine map_fields_onto_grid
           contracted(iomega)%Ndimen = Ndimen
           !
           allocate(contracted(iomega)%vector(Ndimen,Ndimen),contracted(iomega)%energy(Ndimen),&
-		contracted(iomega)%ilevel(Ndimen),stat=alloc)
+                   contracted(iomega)%ilevel(Ndimen),stat=alloc)
           call ArrayStart('contracted%vector',alloc,size(contracted(iomega)%vector),kind(contracted(iomega)%vector))
           call ArrayStart('contracted%energy',alloc,size(contracted(iomega)%energy),kind(contracted(iomega)%energy))
           call ArrayStart('contracted%ilevel',alloc,size(contracted(iomega)%ilevel),kind(contracted(iomega)%ilevel))
@@ -7112,8 +7746,10 @@ end subroutine map_fields_onto_grid
        !
        fields_allocated = .true.
        !
-       deallocate(psipsi_rk)
-       call ArrayStop('psipsi_rk')
+       if (allocated(psipsi_ark)) then 
+         deallocate(psipsi_ark)
+         call ArrayStop('psipsi_ark')
+       endif
        !
        if (present(nenerout)) nenerout = 0
        !
@@ -7126,6 +7762,7 @@ end subroutine map_fields_onto_grid
        allocate(icontrvib(ngrid*Nestates),stat=alloc)
        allocate(contrfunc(ngrid,ngrid*Nestates),stat=alloc)
        call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
+       call ArrayStart('icontrvib',alloc,ngrid*Nestates*(14+6*2),ik)
        !
        allocate(vibmat(ngrid,ngrid),vibener(ngrid),contrenergy(ngrid*Nestates),vec(ngrid),stat=alloc)
        call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
@@ -7149,11 +7786,6 @@ end subroutine map_fields_onto_grid
          call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
        endif
        !
-       !
-       ! This is a special case of the Raman-Wave-Function for which we use Nestates for the reference 
-       ! set of states used as lower states nrefstates
-       !
-       !if (action%RWF) Nestates = nrefstates
        !
        call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
        !
@@ -7227,8 +7859,10 @@ end subroutine map_fields_onto_grid
            !
            !iverbose
            !
+           nroots = min(nroots,ngrid-2)
+           !
            call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
-                           job%vibenermax(istate),iverbose,vibener,vibmat)
+                           job%vibenermax(istate),iverbose,vibener(1:nroots+1),vibmat)
            deallocate(mu_rr)
            call ArrayStop('mu_rr')
            !
@@ -7249,7 +7883,7 @@ end subroutine map_fields_onto_grid
            !
            vibmat = 0
            do i=1,nroots
-             vibmat(i,i) = 1.0_ark
+             vibmat(i,i) = 1.0_ark !/sqrt(hstep)
            enddo
            !
            if (istate==1) zpe = minval(vibener(:))
@@ -7290,7 +7924,9 @@ end subroutine map_fields_onto_grid
                  rng = 'V'
               endif
               !
-              call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+              call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
+              !
+              !call lapack_syev(vibmat,vibener)
               !
            endif
            !
@@ -7336,7 +7972,12 @@ end subroutine map_fields_onto_grid
          !
          energy_ = contrenergy(ilevel)
          !
+         ! skip sorting for DVR-raw representaions 
+         if (icontrvib(ilevel)%istate>Nrefstates) cycle
+         !
          do jlevel=ilevel+1,totalroots
+           !
+           if (icontrvib(jlevel)%istate>Nrefstates) cycle
            !
            if ( energy_>contrenergy(jlevel) ) then
              !
@@ -7451,12 +8092,6 @@ end subroutine map_fields_onto_grid
          !
        endif
        !
-       ! dealocate some objects
-       !
-       deallocate(vibmat,vibener)
-       call ArrayStop('vibmat')
-       call ArrayStop('vibener')
-       !
        !deallocate(vibmat_rk)
        !call ArrayStop('vibmat_rk')
        !
@@ -7465,6 +8100,26 @@ end subroutine map_fields_onto_grid
        !
        deallocate(vec)
        call ArrayStop('vec')
+       !
+       ! save contrfunc(:, :) 
+       vibrational_totalroots = totalroots
+       !
+       ! keep vibrational basis functions for other applicaitons 
+       if (trim(job%basis_set)=='KEEP') then 
+         !
+         if (.not.allocated(vibrational_contrfunc)) then 
+            !
+            allocate(vibrational_quantum_number(ngrid*Nestates),stat=alloc)
+            allocate(vibrational_contrfunc(ngrid,ngrid*Nestates),stat=alloc)
+            call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
+            call ArrayStart('vibrational_quantum_number',alloc,ngrid*Nestates*(14+6*2),ik)
+            !
+         endif
+         !
+         vibrational_contrfunc = contrfunc(:, 1:totalroots)
+         vibrational_quantum_number = icontrvib(1:totalroots)
+         !
+       endif
        !
        if (iverbose>=4) call TimerStop('Solve vibrational part')
        !
@@ -7483,19 +8138,26 @@ end subroutine map_fields_onto_grid
          !
        endif
        !
+       if (Nnac>0) then 
+           !
+           vibmat = 0 
+           !
+           ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
+           !kinetic factor is  12*h**2/(2*h) = 6*h 
+           !
+           do igrid =1, ngrid
+             if (igrid>1) then
+               vibmat(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
+               vibmat(igrid-1,igrid) = -vibmat(igrid,igrid-1)
+             endif
+           enddo
+       endif
+       !
        do iobject = 1,Nobjects
           !
           if (iobject==Nobjects-2) cycle
           !
-          if ( iobject==Nobjects.and.iverbose>=3.and.action%intensity.and.intensity%tdm) then 
-             !
-             write(out,'(/"Vibrational transition moments: ")')
-             !write(out,'("    State    TM   State"/)')
-             write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
-             !
-          endif
-          ! 
-          if ( iobject==Nobjects-3.and.iverbose>=3.and.action%intensity.and.intensity%tqm) then 
+          if ( action%intensity.and.(iobject==Nobjects.and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then
              !
              write(out,'(/"Vibrational transition moments: ")')
              !write(out,'("    State    TM   State"/)')
@@ -7537,6 +8199,9 @@ end subroutine map_fields_onto_grid
               field => lambdap2q(iterm)
             case (12)
               field => lambdaq(iterm)
+            case (13)
+              ! A special case of NAC couplings with 1st derivatives wrt r
+              field => nac(iterm)
             case (Nobjects-3)
               field => quadrupoletm(iterm)
             case (Nobjects-2)
@@ -7561,6 +8226,8 @@ end subroutine map_fields_onto_grid
               call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
             endif
             !
+            field%matelem = 0
+            !
             !$omp parallel do private(ilevel,jlevel) schedule(guided)
             do ilevel = 1,totalroots
               do jlevel = 1,ilevel
@@ -7568,11 +8235,11 @@ end subroutine map_fields_onto_grid
                 ! in the grid representation of the vibrational basis set
                 ! the matrix elements are evaluated simply by a summation of over the grid points
                 !
-                !psipsi_rk = contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel)
+                !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
                 !
-                !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
+                !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
                 !
-                !field%matelem(ilevel,jlevel) = f_rk
+                !field%matelem(ilevel,jlevel) = f_ark
                 !
                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
                 !
@@ -7585,6 +8252,14 @@ end subroutine map_fields_onto_grid
                 endif
                 !
                 field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                !
+                if (iobject==13) then 
+                    !
+                    vibener =  matmul(vibmat,contrfunc(1:,jlevel))
+                    field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
+                    field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+                    !
+                  endif
                 !
                 !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
                 !
@@ -7680,8 +8355,16 @@ end subroutine map_fields_onto_grid
        !deallocate(matelem_rk)
        !call ArrayStop('matelem_rk')
        !
-       deallocate(psipsi_rk)
-       call ArrayStop('psipsi_rk')
+       if (allocated(psipsi_ark)) then 
+         deallocate(psipsi_ark)
+         call ArrayStop('psipsi_ark')
+       endif
+       !
+       ! dealocate some objects
+       !
+       deallocate(vibmat,vibener)
+       call ArrayStop('vibmat')
+       call ArrayStop('vibener')
        !
        !deallocate(grid_rk)
        !call ArrayStop('grid_rk')
@@ -7696,7 +8379,7 @@ end subroutine map_fields_onto_grid
      !
      ! First we start a loop over J - the total angular momentum quantum number
      !
-     if (action%intensity) then
+     if (action%save_eigen_J) then
        ! 
        allocate(eigen(nJ,sym%NrepresCs),basis(nJ),stat=alloc)
        if (alloc/=0) stop 'problem allocating eigen'
@@ -8204,6 +8887,11 @@ end subroutine map_fields_onto_grid
          allocate(icontr(Ntotal),printout(Nlambdasigmas),stat=alloc)
          printout = ''
          !
+         allocate(ilambdasigmas_v_icontr(totalroots,Nlambdasigmas),stat=alloc)
+         call ArrayStart('ilambdasigmas_v_icontr',alloc,size(ilambdasigmas_v_icontr),kind(ilambdasigmas_v_icontr))
+         !
+         ilambdasigmas_v_icontr = 0 
+         !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
          if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
          !
@@ -8232,6 +8920,8 @@ end subroutine map_fields_onto_grid
              icontr(i)%ivib = ivib
              icontr(i)%ilevel = ilevel
              icontr(i)%v = icontrvib(ivib)%v
+             !
+             ilambdasigmas_v_icontr(ivib,ilevel) = i
              !
              ! print the quantum numbers
              if (iverbose>=4) then
@@ -8275,6 +8965,8 @@ end subroutine map_fields_onto_grid
            ! the diagonal contribution is the energy from the contracted vibrational solution
            !
            hmat(i,i) = contrenergy(ivib)
+           !
+           if (trim(poten(istate)%integration_method)=="NUMEROV") cycle
            !
            do j =i,Ntotal
               !
@@ -8320,7 +9012,9 @@ end subroutine map_fields_onto_grid
               !
               if (action%RWF) then
                 if (istate>Nrefstates.or.jstate>Nrefstates) cycle
-              endif 
+              endif
+              !
+              if (trim(poten(jstate)%integration_method)=="NUMEROV") cycle
               !
               ! diagonal elements
               !
@@ -8385,11 +9079,205 @@ end subroutine map_fields_onto_grid
                 endif
               enddo
               !
-              ! Non-diagonal spin-spin term
+              ! NAC non-diagonal contribution  term
+              !
+              do iNAC = 1,Nnac
+                if (nac(iNAC)%istate==istate.and.nac(iNAC)%jstate==jstate.and.&
+                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
+                  field => nac(iNAC) 
+                  f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))*sc
+                  hmat(i,j) = hmat(i,j) + f_nac
+                  exit
+                endif
+              enddo
+              !
+              !  Non-diagonal spin-spin term
+              !
+              loop_iss : do iss = 1,Nss
+                !
+                if ( spinspin(iss)%istate/=istate.or.spinspin(iss)%jstate/=jstate.or.&
+                   spinspin(iss)%istate==spinspin(iss)%jstate ) cycle
+                !
+                field => spinspin(iss)
+              
+                ! The selection rules are (Lefebvre-Brion and Field, Eq. (3.4.50)): 
+                ! Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<->f; Sigma+<->Sigma-;
+                ! Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1
+                !
+                if (nint(omegai-omegaj)/=0.or.nint(spini-spinj)>2 ) cycle
+                !if ( ilambda==0.and.jlambda==0.and.poten(istate)%parity%pm==poten(jstate)%parity%pm ) cycle
+                !if ( poten(istate)%parity%gu/=0.and.poten(istate)%parity%gu/=poten(jstate)%parity%gu ) cycle
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate ; ilambda_we = field%lambda  ; sigmai_we = field%sigmai ; spini_ = field%spini
+                    jstate_ = field%jstate ; jlambda_we = field%lambdaj ; sigmaj_we = field%sigmaj ; spinj_ = field%spinj
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate ; jlambda_we = field%lambda  ; sigmaj_we = field%sigmai ; spinj_ = field%spini
+                    istate_ = field%jstate ; ilambda_we = field%lambdaj ; sigmai_we = field%sigmaj ; spini_ = field%spinj
+                    !
+                  endif
+                  ! proceed only if the spins of the field equal the corresponding <i| and |j> spins of the current matrix elements. 
+                  ! otherwise skip it:
+                  if ( nint(spini_-spini)/=0.or.nint(spinj_-spinj)/=0 ) cycle
+                  !
+                  ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_.and.ilambda_we==jlambda_we.and.nint(sigmai_we-sigmaj_we)==0.and. & 
+                      nint(spini_-spinj_)==0) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
+                  ! We apply the Wigner-Eckart theorem to reconstruct all combinations of <Lamba Sigma |HSS|Lamba Sigma' > 
+                  ! connected with the reference (input) <Lamba Sigma_r |HSS|Lamba Sigma_r' > by this theorem. 
+                  ! Basically, we loop over Sigma (Sigma = -S..S).  The following 3j-symbol for the reference states will 
+                  ! be conidered:
+                  ! / Si      k  Sj     \    k  = 2
+                  ! \ -Sigmai q  Sigmaj /    q  = Sigmai - Sigmaj
+                  !
+                  ! reference q from Wigner-Eckart
+                  q_we = sigmai_we-sigmaj_we
+                  !
+                  ! We should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+                  ! This could be imortant providing that we constrain the i,j indexes to be i<=j (or i>=j).
+                  ! We also assume that the matrix elements are real!
+                  !
+                  ! First of all we can check if the input values are not unphysical and consistent with Wigner-Eckart:
+                  ! the corresponding three_j should be non-zero:
+                  three_j_ref = three_j(spini_, 2.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
+                  !
+                  if (abs(three_j_ref)<small_) then 
+                    !
+                    write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
+                          field%istate,field%jstate
+                    write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
+                    stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+                    !
+                  end if 
+                  !
+                  ! Also check the that the SO is consistent with the selection rules for SS
+                  !
+                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
+                     ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm/=poten(field%jstate)%parity%pm ).or.&
+                     ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
+                        abs(ilambda_we-jlambda_we)>2.or.abs(nint(sigmai_we-sigmaj_we))>2.or.&
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     !
+                     write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
+                                     " with SO selection rules: ')") field%istate,field%jstate
+                     write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
+                        "Delta S = 0 or Delta S = 1,2 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 2')")
+                     write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
+                                                                        spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                     stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+                     !
+                  endif
+                  !
+                  do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
+                    !
+                    ! Sigmas from Wigner-Eckart
+                    sigmai_ = real(isigma2,rk)*0.5 
+                    sigmaj_ = sigmai_ - q_we
+                    !
+                    ! three_j for current Sigmas
+                    three_j_ = three_j(spini_, 2.0_rk, spinj_, -sigmai_, q_we, sigmaj_)
+                    !
+                    ! current value of the SO-matrix element from Wigner-Eckart
+                    SO = (-1.0_rk)**(sigmai_-sigmai_we)*three_j_/three_j_ref*field%matelem(ivib,jvib)
+                    !
+                    ! We should also take into account that Lambda and Sigma can change sign
+                    ! since in the input we give only a unique combination of matrix elements, for example
+                    ! < 0 0 |  1  1 > is given, but < 0 0 | -1 -1 > is not, assuming that the program will generate the missing
+                    ! combinations.
+                    !
+                    ! In order to recover other combinations we apply the symmetry transformation
+                    ! laboratory fixed inversion which is equivalent to the sigmav operation 
+                    !                    (sigmav= 0 correspond to the unitary transformation)
+                    do isigmav = 0,1
+                      !
+                      ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                      ! avoid the double counting.
+                      if( isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 ) &
+                                                                                                                             cycle
+                      !
+                      ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                      ilambda_ = ilambda_we*(-1)**isigmav
+                      jlambda_ = jlambda_we*(-1)**isigmav
+                      sigmai_ = sigmai_*(-1.0_rk)**isigmav
+                      sigmaj_ = sigmaj_*(-1.0_rk)**isigmav
+                      !
+                      omegai_ = sigmai_+real(ilambda_)
+                      omegaj_ = sigmaj_+real(jlambda_)
+                      !
+                      ! Check So selection rules
+                      if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or.abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                      !
+                      ! proceed only if the quantum numbers of the field equal
+                      ! to the corresponding <i| and |j> quantum numbers of the basis set. otherwise skip it:
+                      if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0.or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
+                      !
+                      f_ss = SO*sc
+                      !
+                      ! the result of the symmetry transformtaion applied to the <Lambda,Sigma|HSO|Lambda',Sigma'> only
+                      if (isigmav==1) then
+                        !
+                        ! still not everything is clear here: CHECK!
+                        !
+                        itau = -ilambda_-jlambda_ +nint(spini_-sigmai_)+nint(spinj_-sigmaj_) !+nint(jval-omegai)+(jval-omegaj)
+                        !
+                        !itau = nint(spini_-sigmai_)+nint(spinj_-sigmaj_) ! +nint(jval-omegai)+(jval-omegaj)
+                        !
+                        !itau = 0
+                        !
+                        if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                        if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                        !
+                        f_ss = f_ss*(-1.0_rk)**(itau)
+                        !
+                      endif
+                      !
+                      ! double check
+                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                        write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
+                                   "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
+                        stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                      endif
+                      !
+                      ! we might end up in eilther parts of the matrix (upper or lower),
+                      ! so it is safer to be general here and
+                      ! don't restrict to lower part as we have done above
+                      !
+                      hmat(i,j) = hmat(i,j) + f_ss
+                      !
+                      !hmat(j,i) = hmat(i,j)
+                      !
+                      ! print out the internal matrix at the first grid point
+                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                          !
+                          write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
+                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                          write(printout_,'(g12.4)') f_ss/sc
+                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                         !
+                      endif
+                      !
+                      cycle loop_iss
+                      !
+                    enddo
+                  enddo
+                enddo              
+                !
+              enddo loop_iss
               !
               do isso = 1,Nsso
                 !
-                if (spinspino(isso)%istate==istate.and.spinspino(isso)%jstate==jstate.and.istate==jstate.and.&
+                if (spinspino(isso)%istate==istate.and.spinspino(isso)%jstate==jstate.and.&!istate==jstate.and.&
                     abs(nint(sigmaj-sigmai))==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai)) then
                    !
                    field => spinspino(isso)
@@ -9522,7 +10410,7 @@ end subroutine map_fields_onto_grid
                rng = 'V'
             endif
             !
-            call lapack_syevr(hsym,eigenval,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+            call lapack_syevr(hsym,eigenval,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
             !
             !
           case default
@@ -9680,7 +10568,7 @@ end subroutine map_fields_onto_grid
           !
           if (iverbose>=4) call TimerStop('Assignment')
           !
-          if (action%intensity.or.job%IO_eigen=='SAVE') then
+          if (action%save_eigen_J.or.job%IO_eigen=='SAVE') then
             !
             ! total number of levels for given J,gamma selected for the intensity calculations
             total_roots = 0
@@ -9697,7 +10585,7 @@ end subroutine map_fields_onto_grid
             !
             total_roots = max(total_roots,1)
             !
-            if (action%intensity) then 
+            if (action%save_eigen_J) then 
                !
                allocate(eigen(irot,irrep)%vect(Ntotal,total_roots),eigen(irot,irrep)%val(total_roots), & 
                                   eigen(irot,irrep)%quanta(total_roots),stat=alloc)
@@ -9725,8 +10613,22 @@ end subroutine map_fields_onto_grid
                !
             endif
             !
-            !allocate(psi_vib(ngrid),stat=alloc)
-            !call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+            if (intensity%renorm.or.intensity%bound.or.intensity%unbound) then
+               allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
+               call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+               call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
+               call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
+               psi_vib = 0
+            endif
+            !
+            if (intensity%renorm) then
+               !
+               rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))
+               !
+               write(out,"(/'  Renormalization of unbound states (listing non-converged to sin(kr) at large r)...')")
+               write(out,"(6x,'|   # |    J | p | last 3 coeffs. | St vib Lambda Spin     Sigma    Omega ivib|')")
+               !
+            endif
             !
             total_roots = 0
             !
@@ -9830,7 +10732,7 @@ end subroutine map_fields_onto_grid
                   !
                 endif
                 !
-                if (action%intensity) then 
+                if (action%save_eigen_J) then 
                    !
                    eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                    eigen(irot,irrep)%val(total_roots) = eigenval(i)
@@ -9853,6 +10755,203 @@ end subroutine map_fields_onto_grid
                    !    eigen(irot,irrep)%vect(:,total_roots) = 0
                    !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
                    !endif
+
+                   if (intensity%bound.or.intensity%unbound) then
+                      !
+                      ! funding unboud states
+                      !
+                      if (iverbose>=4) call TimerStart('Find unbound states')
+                      !
+                      npoints_last = max(10,grid%npoints/50) 
+                      if (npoints_last>=grid%npoints) then
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
+                        stop 'wavefunciton unboud check error: too few grid points'
+                      endif
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= grid%npoints-npoints_last+1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                        vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                      !
+                      ! condition for the unbound state
+                      !
+                      bound_state = .true.
+                      !
+                      if (sum_wv>intensity%threshold%bound_density) then 
+                         !
+                         eigen(irot,irrep)%quanta(total_roots)%bound = .false.
+                         bound_state = .false.
+                         !
+                      endif
+                      !
+                      if (iverbose>=4) call TimerStop('Find unbound states')
+                      !
+                      ! exclude unbound states if required 
+                      !
+                      if ( intensity%bound.and..not.bound_state ) then 
+                         !
+                         total_roots = total_roots-1 
+                         cycle
+                         !
+                      endif
+                      !
+                   endif 
+                   !
+                   if (intensity%renorm) then
+                      !
+                      ! in order to renormalize the wavefuncitons to sin(kr) at r->infty
+                      ! we first need to average the eigenfunction over other degrees of freedom
+                      !
+                      !psi_vib = 0
+                      !vec0(0) = 0 
+                      !vec0(1:Ntotal) = vec(1:Ntotal)
+                      !
+                      if (iverbose>=4) call TimerStart('Reduced vibrational density')
+                      !
+                      !omp parallel do private(igrid,k,k_,ivib,jvib) shared(psi_vib) schedule(guided)
+                      !do igrid=1,grid%npoints
+                      !do k = 1,Ntotal
+                      !  ivib = icontr(k)%ivib
+                      !  do k_ = 1,Ntotal
+                      !     jvib = icontr(k_)%ivib
+                      !     !
+                      !     if (icontr(k)%ilevel==icontr(k_)%ilevel) then 
+                      !         !.and.&
+                      !         !icontr(k)%istate==icontr(k_)%istate.and.icontr(k)%ilambda==icontr(k_)%ilambda.and.&
+                      !         !icontr(k)%sigma==icontr(k_)%sigma) then
+                      !         !
+                      !         psi_vib(:) = psi_vib(:) + vec(k )*vibrational_contrfunc(:,ivib)*&
+                      !                                   vec(k_)*vibrational_contrfunc(:,jvib)
+                      !         !
+                      !     endif
+                      !     !
+                      !  enddo
+                      !enddo
+                      !enddo
+                      !omp end parallel do
+                      !
+                      !omp parallel do private(igrid,ilevel,ivib,k,vec_t,jvib,k_) shared(psi_vib) schedule(guided)
+                      !do igrid=1,grid%npoints
+                      !do ilevel = 1,Nlambdasigmas
+                      !  !
+                      !  do ivib =1,totalroots
+                      !    !
+                      !    k = ilambdasigmas_v_icontr(ivib,ilevel)
+                      !    !
+                      !    !if (k==0) cycle
+                      !    !
+                      !    vec_t(:) = vec0(k)*vibrational_contrfunc(:,ivib)
+                      !    !
+                      !    do jvib =1,totalroots
+                      !       !
+                      !       k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+                      !       !
+                      !       !if (k_==0) cycle
+                      !       !
+                      !       psi_vib(:) = psi_vib(:) + vec_t(:)*vec0(k_)*vibrational_contrfunc(:,jvib)
+                      !       !
+                      !    enddo
+                      !    !
+                      !  enddo
+                      !enddo
+                      !
+                      !enddo
+                      !omp end parallel do
+                      !
+                      if (iverbose>=4) call TimerStop('Reduced vibrational density')
+                      !
+                      ! is this wavefunciton unboud? Check a few last points
+                      !
+                      npoints_last = max(10,grid%npoints/50) 
+                      if (npoints_last>=grid%npoints) then
+                        write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
+                        stop 'wavefunciton unboud check error: too few grid points'
+                      endif
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= grid%npoints-npoints_last+1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                                                                 vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                      !
+                      ! condition for the unbound state
+                      !
+                      if (sum_wv>sqrt(small_)) then 
+                         !
+                         if (iverbose>=4) call TimerStart('Find aplitudes of unbound wavefuncs')
+                         !
+                         ! energy of the unbound state aboove the asympote energy
+                         !
+                         energy_unbound_sqrsqr = sqrt(sqrt(max(eigenval(i) - poten(istate)%asymptote,0.0_rk)))
+                         !
+                         ! inspect maxima of the |wavefucntion(r)|^2 at large distances and identify unboud states
+                         !
+                         psi1 = 0
+                         psi2 = psi_vib(grid%npoints)
+                         amplit1 = 0 
+                         amplit2 = 0
+                         amplit3 = 0
+                         diff = 0
+                         !
+                         icount_max = 0
+                         !
+                         !omp parallel do private(k,psi1,psi2,amplit1,amplit2,amplit3,diff) schedule(guided)
+                         loop_gid_dens : do k=grid%npoints-2,max(3,grid%npoints/2),-1
+                            !
+                            psi1=psi2
+                            !
+                            psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                              npoints_last,vec,psi_vib)
+                            !psi_vib(k+1)
+                            !
+                            if ( psi2>100.0*small_.and.psi1<psi2.and.psi2>psi_vib(k) ) then
+                               !
+                               icount_max = icount_max + 1
+                               !
+                               amplit1 = amplit2
+                               amplit2 = amplit3
+                               amplit3 = psi2
+                               !
+                               diff = abs(amplit2-amplit1)
+                               !
+                               if (icount_max>2) exit  loop_gid_dens
+                               !
+                            endif
+                         enddo loop_gid_dens
+                         !omp end parallel do
+                         !
+                         if (iverbose>=4) call TimerStop('Find aplitudes of unbound wavefuncs')
+                         !
+                         if (all((/amplit1,amplit2,amplit3/)>1000*small_)) then
+                           !
+                           ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
+                           ! and to the density states, see Le Roy J. Chem. Phys. 65, 1485 (1976)
+                           !
+                           vec(:) = vec(:)*sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
+                           !
+                           eigen(irot,irrep)%vect(:,total_roots) = vec(:)
+                           !
+                           if (diff>1e-3) then 
+                             !
+                             write(out,'(2x,i8,1x,f8.1,1x,i2,1x,3e12.5,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                                        total_roots,J_list(irot),irrep-1,amplit1,amplit2,amplit3,icontr(k)%istate,&
+                                        icontr(k)%v,icontr(k)%ilambda,&
+                                        icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
+                             !
+                           endif
+                           !
+                         endif
+                         !
+                      endif
+                      !
+                   endif
                    !
                 endif
                 !
@@ -9915,10 +11014,12 @@ end subroutine map_fields_onto_grid
               !
             enddo
             !
-            !deallocate(psi_vib)
-            !call ArrayStop('psi_vib')
+            if (allocated(psi_vib)) then 
+               deallocate(psi_vib,vec_t,vec0)
+               call ArrayStop('psi_vib')
+            endif
             !
-            if (action%intensity) then
+            if (action%save_eigen_J) then
               !
               eigen(irot,irrep)%Nlevels = total_roots
               !
@@ -9967,6 +11068,11 @@ end subroutine map_fields_onto_grid
        !
        deallocate(icontr)
        !
+       if (allocated(ilambdasigmas_v_icontr)) then 
+          deallocate(ilambdasigmas_v_icontr)
+          call ArrayStop('ilambdasigmas_v_icontr')
+       endif
+       !
      enddo loop_jval
      !
      if (job%IO_eigen=='SAVE') then 
@@ -9985,8 +11091,10 @@ end subroutine map_fields_onto_grid
        call ArrayStop('contrenergy')
      endif
      !
-     deallocate(icontrvib)
-     !call ArrayStop('icontrvib')
+     if (allocated(icontrvib)) then 
+       deallocate(icontrvib)
+       call ArrayStop('icontrvib')
+     endif
      !
      deallocate(J_list)
      !
@@ -10083,15 +11191,60 @@ end subroutine map_fields_onto_grid
   end subroutine duo_j0
 
 
+  !
+  !  vibrational reduced density of a rovibronic eigenstate at the igrid point
+  
+  
+  function vibrational_reduced_density(igrid,Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,vec,psi_in) &
+           result (psi_vib)
+     !  
+     integer(ik),intent(in) :: igrid,Ntotal,Nvib,Nlambdasigmas,npoints_last,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas)
+     real(rk),intent(in)    :: vec(Ntotal),psi_in(grid%npoints)
+     real(rk)    :: psi_vib,vec_t
+     integer(ik) :: k,k_,ivib,jvib,ilevel
+  
+        !
+        if (igrid>grid%npoints-npoints_last) then 
+          !
+          psi_vib = psi_in(igrid)
+          return 
+          !
+        endif
+        !
+        psi_vib = 0 
+        do ilevel = 1,Nlambdasigmas
+          !
+          do ivib =1,Nvib
+            !
+            k = ilambdasigmas_v_icontr(ivib,ilevel)
+            !
+            if (k==0) cycle
+            !
+            vec_t = vec(k)*vibrational_contrfunc(igrid,ivib)
+            !
+            do jvib =1,Nvib
+               !
+               k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+               !
+               if (k_==0) cycle
+               !
+               psi_vib = psi_vib + vec_t*vec(k_)*vibrational_contrfunc(igrid,jvib)
+               !
+            enddo
+            !
+          enddo
+        enddo
     
+    end function vibrational_reduced_density
+    !
+    !
 
      subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
         !
+        integer(ik),intent(in)  :: ngrid
         real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
         real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
         real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
-        !
-        integer(ik),intent(in)  :: ngrid
         integer(ik)   :: jgrid,kgrid,igrid
         !
         kinmat = 0
@@ -10201,7 +11354,7 @@ end subroutine map_fields_onto_grid
      real(rk), allocatable :: omegamat(:,:),omegaenergy(:)
      real(rk), allocatable :: L_LambdaSigma(:,:)
      integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
-     real(rk),allocatable    :: vibmat(:,:)
+     real(rk),allocatable    :: vibmat(:,:),kinmat(:,:)
        !
        ngrid = grid%npoints
        !
@@ -11460,11 +12613,13 @@ end subroutine map_fields_onto_grid
        !
        allocate(vibmat(ngrid,ngrid),stat=alloc)
        call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
+       allocate(kinmat(ngrid,ngrid),stat=alloc)
+       call ArrayStart('kinmat-omega',alloc,size(kinmat),kind(kinmat))
        !
        !
        ! Kinetic energy part 
        !
-       call kinetic_energy_grid_points(ngrid,vibmat)
+       call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
        !
        ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
        do igrid =1, ngrid
@@ -11510,6 +12665,8 @@ end subroutine map_fields_onto_grid
        !
        deallocate(vibmat)
        call ArrayStop('vibmat-omega')
+       deallocate(kinmat)
+       call ArrayStop('kinmat-omega')
        !
        deallocate(L_LambdaSigma)
        call ArrayStop('L_LambdaSigma')
@@ -11938,7 +13095,7 @@ end subroutine map_fields_onto_grid
                 rng = 'V'
              endif
              !
-             call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=vrange,irange=irange)
+             call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots,vrange=real(vrange,kind=8),irange=irange)
              !
           endif
           !
@@ -12047,7 +13204,7 @@ end subroutine map_fields_onto_grid
           write(out,'("    i        Energy/cm    State v"/)')
           do i = 1,totalroots
             ilevel = icontrvib(i)%ilevel
-            write(out,'(i5,f18.6," [ ",2i4,f8.1" ] ",a)') i,( contrenergy(i)-contrenergy(1))/sc,ilevel,icontrvib(i)%v,&
+            write(out,'(i5,f18.6," [ ",2i4,f8.1," ] ",a)') i,( contrenergy(i)-contrenergy(1))/sc,ilevel,icontrvib(i)%v,&
                                                    icontrvib(i)%omega,trim(poten(icontrvib(i)%istate)%name)
           enddo
        endif
@@ -12061,7 +13218,7 @@ end subroutine map_fields_onto_grid
           write(u1,'("    i        Energy/cm    State v"/)')
           do i = 1,totalroots
             ilevel = icontrvib(i)%istate
-            write(u1,'(i5,f18.6," [ ",2i4,f8.1" ] ",a)') i,(contrenergy(i))/sc,ilevel,icontrvib(i)%v,&
+            write(u1,'(i5,f18.6," [ ",2i4,f8.1," ] ",a)') i,(contrenergy(i))/sc,ilevel,icontrvib(i)%v,&
                                                    icontrvib(i)%omega,trim(poten(icontrvib(i)%istate)%name)
           enddo
           close(u1)
@@ -13386,6 +14543,40 @@ end subroutine map_fields_onto_grid
   end function  simpsonintegral_rk
 
 
+!
+! integration with Simpson rules 
+!                                      
+  function simpsonintegral_ark(npoints,f) result (si) 
+    integer(ik),intent(in) :: npoints
+    !
+    real(ark),intent(in) :: f(0:npoints)
+    !
+    real(rk) :: si
+    !
+    integer(ik) :: i
+    !
+    real(ark) ::  feven,fodd,f0,fmax,h
+      !
+      h = 1.0_ark 
+      !xmax/real(Npoints,kind=rk)  !   integration step, it is already inlcuded
+      feven=0         
+      fodd =0
+      f0   =f(0)
+      fmax =f(Npoints)
+
+     !
+     !  sum of odd and even contributions 
+     !
+     do i = 1,npoints-2,2
+        fodd   = fodd  + f(i  )
+        feven  = feven + f(i+1)
+     enddo
+     !
+     fodd   = fodd  + f(npoints-1)
+     !
+     si =  h/3.0_ark*( 4.0_rk*fodd + 2.0_ark*feven + f0 + fmax)
+
+  end function  simpsonintegral_ark
 
  !
  
@@ -13442,8 +14633,8 @@ end subroutine map_fields_onto_grid
 !     .  now find what the range of new is.
 !
 !
-      newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-      newmax=idnint(min((a-al),(b+be),(a+b-c)))
+      newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+      newmax=nint(min((a-al),(b+be),(a+b-c)))
 !
 !
       summ=0
@@ -13469,12 +14660,12 @@ end subroutine map_fields_onto_grid
 !
 !     convert clebsch-gordon to three_j
 !
-      iphase=idnint(a-b-ga)
+      iphase=nint(a-b-ga)
       minus = -1.0_rk
       if (mod(iphase,2).eq.0) minus = 1.0_rk
       three_j=minus*clebsh/term
 
-!     threej=(-1.d0)**(iphase)*clebsh/sqrt(2.0_rk*c+1.d0)
+!     threej=(-1.0_rk)**(iphase)*clebsh/sqrt(2.0_rk*c+1.0_rk)
 !
 !
    end function three_j

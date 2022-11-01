@@ -16,8 +16,11 @@ Welcome to Duo's documentation!
    functions
    fitting
    eigenfunc
+   unbound
    keywords
+   hyperfine
    license
+
 
  
 Indices and tables

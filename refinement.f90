@@ -4,9 +4,10 @@ module refinement
   use timer
   !use functions,only : define_analytical_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
-                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,Nlambdap2q,Nlambdaq,&
+                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
+                           Nlambdap2q,Nlambdaq,Nnac,&
                            grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
-                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax,&
+                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,linkT,vmax,&
                            l_omega_obj,s_omega_obj
   !
   implicit none
@@ -15,7 +16,7 @@ module refinement
    !
    real(rk)    :: stab_best=1e-12  ! best standard error and stability 
    integer(ik) :: maxiter_as = 3                  ! maximal number of iterations to find a match for assignement
-   integer(ik) :: Nobjectmax = 9
+   integer(ik) :: Nobjectmax = 14
    integer(ik) :: vmax_ = 100                     ! if vmax in input is undefined vmax_ will be used to predife size
    !                                              !  of the matrix with energies 
    !
@@ -97,7 +98,8 @@ module refinement
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
-       Nobjectmax = Nobjects - 3
+       ! Nobjectmax = Nobjects - 3
+       Nobjectmax = 14
        !
        call TimerStart('Simultaneous Fitting')
        !
@@ -384,6 +386,8 @@ module refinement
             case (12)
               objects(iobject,ifield)%field => lambdaq(ifield)
             case (13)
+              objects(iobject,ifield)%field => nac(ifield)
+            case (14)
               objects(iobject,ifield)%field => quadrupoletm(ifield)
             end select
             !
@@ -1548,7 +1552,7 @@ module refinement
                if (stadev<stadev_old) then
                  lambda = lambda/nu
                else 
-                 lambda = min(lambda*nu,10000.0)
+                 lambda = min(lambda*nu,10000.0_rk)
                endif
                !
                ! Estimate the standard errors for each parameter using 

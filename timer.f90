@@ -24,7 +24,7 @@ module timer
   public TimerStart, TimerStop, TimerReport, IOStart, IOStop , ArrayStart, ArrayStop, ArrayMinus, &
          MemoryReport,memory_limit,maxmemory,memory_now
   !
-  integer, parameter :: trk        = selected_real_kind(12)
+  integer, parameter :: trk        = rk ! selected_real_kind(12)
   integer, parameter :: table_size = 2000 ! Max number of entries to track
   integer, parameter :: tarray_size = 10000 ! Max number of entries to track
   integer, parameter :: name_len   =   40 ! Max length of timer name
@@ -590,7 +590,7 @@ module timer
       !
       maxmemory = max(memory_now,maxmemory)
       !
-      if (memory_now>memory_limit*1000_rk) then
+      if (memory_now>memory_limit*1000.0_rk) then
         !
         write(out,"('Warning: High memory usage!')")
         write(out,"(A, F16.3, A)") 'Memory usage exceeded the limit of ', memory_limit, ' GB'

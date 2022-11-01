@@ -324,8 +324,7 @@ module me_numer
             !
             ! Reporting the quality of the matrix elemenst 
             !
-            !if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
-            if (verbose>=3) then 
+            if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
               if (vl/=vr) then 
                write(out,"('<',i4,'|H|',i4,'> = ',e16.2,'<-',8x,'0.0',5x,'; <',i4,'|',i4,'> = ',e16.2,'<-',8x,'0.0')") & 
                                 vl,vr,h_t,vl,vr,psipsi_t
@@ -444,6 +443,11 @@ module me_numer
    ! and value 
    !
    potmin = pot_eff(imin)
+   !
+   if(trim(boundary_condition)=='UNBOUND') then 
+     potmin = pot_eff(npoints)
+     imin = npoints
+   endif
    !
    if (imin<0.or.imin>npoints) then 
        write(out,"('numerov: pot_eff has no minimum',i8)") 
@@ -1179,6 +1183,12 @@ module me_numer
           !
           phi_f(istart-1)  = S0
           phi_f(istart)  = SI
+          !
+          if (i0(npoints)*eguess-pot_eff(npoints)<-small_) then 
+            write(out,"('Error-Numerov: wrong usage of unbound integration for bound state ')")
+            stop 'Error-Numerov: wrong usage of unbound integration for bound state '
+          endif
+          !
           k_coeff  = sqrt(i0(npoints)*eguess-pot_eff(npoints))
           !k_coeff  = sqrt(i0(npoints))*sqrt(eguess-pot_eff(imin)/i0(imin))
           !
@@ -1187,7 +1197,7 @@ module me_numer
           !
         case ('QUASI-BOUND')
           !
-          stop 'QUASI-BOUND has been implemented yet'
+          stop 'QUASI-BOUND has not been implemented yet'
           !
         case default 
           !
@@ -1209,7 +1219,17 @@ module me_numer
         !
         call intin ( pot_eff, i0, eguess, phi_f, sumin, ic, pcin)
         !
-        tsum=sumin/(pcin*pcin)+sumout/(pcout*pcout)
+        tsum=0
+        !
+        if (sumin>small_) then 
+           tsum=sumin/(pcin*pcin)
+        endif
+        !
+        if (sumout>small_) then 
+           tsum=tsum+sumout/(pcout*pcout)
+        endif
+        !
+        !tsum=sumin/(pcin*pcin)+sumout/(pcout*pcout)
         !
         if (tsum > safe_max ) then  ! thrsh_upper
            ierr=2 ! 3 
@@ -1219,7 +1239,12 @@ module me_numer
         !
         yc=y(ic)/pcout
         ycm1=y(ic-1)/pcout
-        ycp1=y(ic+1)/pcin
+        !
+        ycp1 = 0
+        !
+        if (pcin>small_) then 
+          ycp1=y(ic+1)/pcin
+        endif
         !
         if (trim(boundary_condition)=='UNBOUND') exit
         !
@@ -2300,7 +2325,7 @@ SUBROUTINE OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
 !-----------------------------------------------------------------------
       INTEGER :: mxdata,mxisp,mxfsp,mxnj,mxnp,mxntp,mxprm,mxv,mxfs,mxisot,&
               mxsets,mxfreq
-      REAL*8 :: CCM,PI
+      double precision :: CCM,PI
 !-----------------------------------------------------------------------
 !  mxdata - maximum number of input data points
 !  mxisp  - maximum number of points for initial state potential array
@@ -2332,7 +2357,7 @@ SUBROUTINE OVRLAP(BFCT,DER,EFN,OVR,OVRCRT,PSI,RH,RMIN,TMFPRM,VJ,&
       PARAMETER (CCM= 299792458d2)
       INTEGER i,ifs,MESH1,MESH2,MESH3,step,first,last,IWR,JP,TURNPT,m,&
               OTMF,NAMP,NEND,TMFTYP(mxfs)
-      REAL*8 AMP1,AMP2,AMP3,AMP4,BFCT,DER(0:mxprm-1),DI,FCFACT,&
+      REAL(rk) ::  AMP1,AMP2,AMP3,AMP4,BFCT,DER(0:mxprm-1),DI,FCFACT,&
              EFN,ELIM,ER,FCM(0:MXPRM-1),EDIFF1,EDIFF2,EDIFFi,HALF,HARG,&
              NFACT,&
              RH,RMIN,OVR,OVRCRT,PSI(NEND),S0,S1,S2,SG1,SG2,SGi,Si,&

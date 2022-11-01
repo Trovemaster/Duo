@@ -3,7 +3,7 @@ module accuracy
   private
   public sik, ik, hik, rk, ark, out, inp, safe_max,safe_min,max_exp, pi, twopi, cl, wl
   public accuracyInitialize, print_physical_constants
-  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau,g_s
+  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau,uma, g_s
   public epsil,small_,sqrt2,sqrt3,rad,fititermax,aston,hartree,ev,my_fmt
   !
   integer, parameter :: sik         = selected_int_kind(4)       ! Small integers
@@ -13,9 +13,9 @@ module accuracy
   integer, parameter :: hik         = selected_int_kind(8)       ! "Pointer" integers - sufficient to store
                                                                  ! memory address
   integer, parameter :: drk         = selected_real_kind(12,25)  ! double    precision floating-point numbers 
-  integer, parameter :: rk          = selected_real_kind(12,25)  ! single    precision floating-point numbers
-  integer, parameter :: ark         = selected_real_kind(12,25)  ! quadruple precision floating-point numbers
-!  integer, parameter :: ark         = selected_real_kind(12,25)  ! double precision floating-point numbers
+  integer, parameter :: rk          = selected_real_kind(12,25)  ! single/double/quadruple  precision floating-point numbers
+  integer, parameter :: ark         = selected_real_kind(25,32)  ! quadruple precision floating-point numbers
+!  integer, parameter :: ark         = selected_real_kind(25,32)  ! double precision floating-point numbers
   integer, parameter :: inp         = 5                          ! Output I/O channel
   integer, parameter :: out         = 6                          ! Output I/O channel
   integer, parameter :: nfilelegendre = 101                      ! Damp-output channel for eigenfunction 

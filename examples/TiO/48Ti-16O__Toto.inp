@@ -1,0 +1,1116 @@
+mem 8.0 gb
+
+(masses 47.9479463 15.999415)
+atoms Ti-48 O-16
+molecule TiO
+
+(Total number of states taken into account)
+nstates 16
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 1.0 0.0 2.0 - 5.0 
+
+
+(Defining the integration grid)
+grid
+  npoints 301
+   range   1.2 2.8
+   type 0   (nsub = 4 used by Stolyarov re 1.8)
+end
+
+SolutionMethod Sinc
+
+assign_v_by_count 
+
+DIAGONALIZER
+ SYEVR 
+ enermax 50000   (uplimit  32000.0 nroots 100)
+end
+
+
+CONTRACTION
+  vib
+  vmax  30
+END
+
+
+symmetry Cs(M)
+
+
+ 
+poten 1
+name 'X3Delta'
+lambda 2
+mult   3
+type EMO
+units cm-1
+values
+V0           0.0
+RE	1.62027859	  
+DE            55410.	
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          4.
+B0	1.8079342	  
+B1	0.16636	  
+B2	-0.5945	  
+B3	0.671	  
+B4	0.00	  
+end 
+ 
+poten 2
+name 'E3Pi'
+lambda 1
+mult   3
+type EMO
+units  cm-1
+values
+V0	11865.7627	  
+RE	1.649087	  
+DE           55410.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.865071	  
+B1      0.
+B2      0.
+B3           0.
+end 
+ 
+poten 3
+name 'D3Sigma-'
+lambda 0
+symmetry -
+mult   3
+type EMO
+units  cm-1
+values
+V0	122534.4		
+RE	1.65416
+DE           5541000.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.9422
+B1           0.0
+B2           0.0
+B3           0.0
+end 
+ 
+poten 4
+name "A3Phi"
+lambda 3
+mult   3
+type EMO
+units  cm-1
+values
+V0	14166.936	  
+RE	1.6645024	  
+DE          55410.	
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          4.
+B0	1.801451	  
+B1	0.1556	  
+B2	1.049	  
+B3	-3.14	  
+B4	    0		
+end 
+ 
+poten 5
+name "B3Pi"
+lambda 1
+mult   3
+type EMO
+units  cm-1
+values
+V0	16211.072	  
+RE	1.663110	  
+DE           55410.	
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.861743	  
+B1	0.	  
+B2	0.	  
+B3          0.0
+end 
+ 
+poten 6
+name "C3Delta"
+lambda 2
+mult   3
+type EMO
+units  cm-1
+values
+V0	19424.778	  
+RE	1.6939131	  
+DE           55410.		
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          4.
+B0	1.860222	  
+B1	0.2867	  
+B2	1.959	  
+B3	-19.73	  
+B4           36.0	
+end 
+ 
+poten 7
+name 'a1delta'
+lambda 2
+mult   1
+type EMO
+units  cm-1
+values
+V0	3336.375	  
+RE	1.6166406	  
+DE           55410.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.881697	  
+B1	0.2971	  
+B2	-0.1060	  
+B3          0.		
+end 
+ 
+poten 8
+name 'd1Sigma+'
+lambda 0
+symmetry +
+mult   1
+type EMO
+units  cm-1
+values
+V0	5552.3683	  
+RE	1.5995563	  
+DE           55410.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+A0	1.9321446	  
+B1	0.20092	  
+B2	-0.0052	  
+B3      0.
+end 
+ 
+poten 9
+name 'b1Pi'
+lambda 1
+mult   1
+type EMO
+units  cm-1
+values
+V0	14657.058	  
+RE	1.654616	  
+DE           55410.	
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.921715	  
+B1	0.4932	  
+B2	0.037	  
+B3	     0.	
+end 
+ 
+poten 10
+name 'c1Phi'
+lambda 3
+mult   1
+type EMO
+units  cm-1
+values
+V0	21225.116	  
+RE	1.636462	  
+DE           55410.	
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	2.09922	  
+B1	0.4192	  
+B2	2.03	  
+B3	-2.1	  
+end 
+ 
+poten 11
+name 'f1Delta'
+lambda 2
+mult   1
+type EMO
+units  cm-1
+values
+V0	22479.995	 fit 
+RE	1.6699869	 fit 
+DE           55410.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	2.031607	 fit 
+B1	0.4109	 fit 
+B2	6.066	 fit 
+B3           0.
+end 
+ 
+poten 12
+name 'g1Gamma'
+lambda 4
+mult   1
+type EMO
+units  cm-1
+values
+V0	122534.4		
+RE	1.65416
+DE           55410000.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.9422
+B1           0.0
+B2           0.0
+B3           0.0
+end 
+ 
+poten 13
+name 'h1Sigma+'
+lambda 0
+symmetry +
+mult   1
+type EMO
+units  cm-1
+values
+V0	122534.4		
+RE	1.65416
+DE           55410000.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.9422
+B1           0.0
+B2           0.0
+B3           0.0
+end 
+ 
+poten 14
+name 'i_1Pi'
+lambda 1
+mult   1
+type EMO
+units  cm-1
+values
+V0	122534.4		
+RE	1.65416
+DE           5541000.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.9422
+B1           0.0
+B2           0.0
+B3           0.0
+end 
+ 
+poten 15
+name 'F3Sigma+'
+lambda 0
+symmetry +
+mult   3
+type EMO
+units  cm-1
+values
+V0	122534.4		
+RE	1.65416
+DE           5541000.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	1.9422
+B1           0.0
+B2           0.0
+B3           0.0
+end 
+ 
+poten 16
+name 'e1sigma+'
+lambda 0
+symmetry +
+mult   1
+type EMO
+units  cm-1
+values
+V0	29930.01	  
+RE	1.69074	  
+DE           55410.
+RREF        -1.
+PL          2.
+PR          2.
+NL          1.
+NR          3.
+B0	2.27725	  
+B1           0.
+B2           0.
+B3           0.
+end 
+ 
+spin-orbit-x 1 1
+name "X-X SO term"  
+spin 1.0 1.0
+lambda 2 2
+sigma 1.0 1.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  2i 2i
+values
+f	101.2157	  
+end 
+ 
+spin-orbit-x 2 2
+name "E-E SO term"  
+spin 1.0 1.0
+lambda 1 1
+sigma 1.0 1.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  i i
+values
+f	86.6157	  
+end 
+ 
+spin-orbit-x 4 4
+name "A-A SO term"  
+spin 1.0 1.0
+lambda 3 3
+sigma 1.0 1.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  3i 3i
+values
+f	173.320	  
+end 
+ 
+spin-orbit-x 5 5
+name "B-B spin-orbit term"  
+spin 1.0 1.0
+lambda 1 1
+sigma 1.0 1.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  i i
+values
+f	20.485	  
+end 
+ 
+spin-orbit-x 6 6
+name "C-C dipole term"  
+spin 1.0 1.0
+lambda 2 2
+sigma 1.0 1.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  2i 2i
+values
+SO0	98.7131	  
+end 
+ 
+spin-orbit-x 1 2
+name "X-E SO term"  
+spin 1.0 1.0
+lambda 2 1
+sigma 0.0 1.0 
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y> 2i i 
+values
+r0	40.7
+end 
+ 
+spin-orbit-x 1 4
+name "X-A SO term"  
+spin 1.0 1.0
+lambda 2 3
+sigma 0.0 1.0
+units angstrom cm-1
+type atan_so
+factor i
+<x|Lz|y>  2i 3i
+values
+r0	0.	
+SO0	1.0
+SOinf	1.0
+k	0.
+f	11.225	  
+end 
+ 
+spin-orbit-x 1 7
+name "X-a SO term"  
+spin 1.0 0.0
+lambda 2 2
+sigma 0.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  2i 2i
+values
+SO0	118.0
+end 
+ 
+spin-orbit-x 2 7
+name "E-a SO term"  
+spin 1.0 0.0
+lambda 1 2
+sigma 1.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  i 2i
+values
+SO0	42.0
+end 
+ 
+spin-orbit-x 2 8
+name "E-d SO term"  
+spin 1.0 0.0
+lambda 1 0
+sigma -1.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  i 0
+values
+SO0	25.3
+end 
+ 
+spin-orbit-x 2 9
+name "E-b SO term"  
+spin 1.0 0.0
+lambda 1 1
+sigma 0.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  i i
+values
+SO0	71.9		
+end 
+ 
+spin-orbit-x 4 7
+name "A-a SO term"  
+spin 1.0 0.0
+lambda 3 2
+sigma 1.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  3i 2i
+values
+SO0	17.2	
+end 
+ 
+spin-orbit-x 4	10 
+name "A-C SO term"  
+spin 1.0 0.0
+lambda 3 3
+sigma 0.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  3i 3i
+values
+SO0	65.5	
+end 
+ 
+spin-orbit-x 6 7
+name "C-a SO term"  
+spin 1.0 0.0
+lambda 2 2
+sigma 0.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  2i 2i
+values
+SO0	17.8
+end 
+ 
+spin-orbit-x 6 10
+name "C-c SO term"  
+spin 1.0 0.0
+lambda 2 3
+sigma 1.0 0.0
+units angstrom cm-1
+type polynomial
+factor i
+<x|Lz|y>  2i 3i
+values
+SO0	79.14	  
+end 
+ 
+Lx 1 2 
+name "X-E off-diag Lx term"   
+spin 1.0 1.0
+lambda 2 1
+units angstrom 
+type polynomial
+factor i
+<x|Lz|y>  2i i 
+values
+Lxinf	0.88
+end 
+ 
+Lx 1 4 
+name "X-A off-diag Lx term"   
+spin 1.0 1.0
+lambda 2 3
+units angstrom 
+type polynomial
+factor i
+<x|Lz|y>  2i 3i 
+values
+Lxinf	0.08
+end 
+ 
+Lx 7 9
+name "a-b off-diag Lx term"   
+spin 0.0 0.0
+lambda 2 1
+units angstrom 
+type polynomial
+factor i
+<x|Lz|y>  2i i 
+values
+Lx0	0.90
+end 
+ 
+Lx 7 10 
+name "a-c off-diag Lx term"   
+spin 0.0 0.0
+lambda 2 3
+units angstrom 
+type polynomial
+factor i
+<x|Lz|y>  2i 3i 
+values
+Lx0	0.22
+end 
+ 
+Lx 8 9  
+name "b-d off-diag Lx term"   
+spin 0.0 0.0
+lambda 0 1
+units angstrom 
+type polynomial
+factor i
+<x|Lz|y>  0 i 
+values
+Lx0	0.40
+end 
+ 
+spin-spin 1 1
+name "X state SS term"
+spin 1.0 1.0
+lambda 2 2
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.24468	  
+end 
+ 
+spin-spin 2 2 
+name "E state SS term"
+spin 1.0 1.0
+lambda 1 1 
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	0.3156	  
+end 
+ 
+spin-spin 6 6
+name "C state SS term"
+spin 1.0 1.0
+lambda 2 2
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.2646	  
+end 
+ 
+spin-spin 4 4
+name "X state SS term"
+spin 1.0 1.0
+lambda 3 3
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.5471	  
+end 
+ 
+spin-spin 5 5 
+name "E state SS term"
+spin 1.0 1.0
+lambda 1 1 
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.569	  
+end 
+ 
+spin-rot 1 1
+name "X state SS term"
+spin 1.0 1.0
+lambda 2 2
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.000149	  
+end 
+ 
+spin-rot 2 2 
+name "E state SS term"
+spin 1.0 1.0
+lambda 1 1 
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	0.0134	  
+end 
+ 
+spin-rot 6 6 
+name "C state Sr term"
+spin 1.0 1.0
+lambda 2 2
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	-0.04454	  
+end 
+ 
+spin-rot 4 4
+name "X state SS term"
+spin 1.0 1.0
+lambda 3 3
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	0.02035	  
+end 
+ 
+spin-rot 5 5 
+name "E state SS term"
+spin 1.0 1.0
+lambda 1 1 
+units angstrom cm-1
+type polynomial
+factor 1.0 (0, 1 or i)
+values
+A0	0.02052	  
+end 
+ 
+lambda-opq 2 2
+name "E-E dipole term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 1
+factor 1
+type polynomial
+factor 1
+values
+B0	-0.8605	  
+end 
+ 
+lambda-p2q 2 2 
+name "E-E lambda-p2q term" 
+spin 1.0 1.0
+lambda 1 1
+factor 1
+type polynomial
+factor 1
+values
+B0	-0.0250	  
+end 
+ 
+lambda-opq 5 5
+name "B-B dipole term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 1
+factor 1
+type polynomial
+factor 1
+values
+B0	0.613	  
+end 
+ 
+lambda-p2q 5 5
+name "B-B dipole term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 1
+factor 1
+type polynomial
+factor 1
+values
+B0	-0.01960	  
+end 
+ 
+dipole 1 1
+name "X-X dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> 2i 2i 
+lambda 2 2
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.533
+d0	1.0
+k0	2.75
+t0	-2.680
+l1	-6.589
+l2	17.146
+end 
+ 
+dipole 2 2
+name "E-E dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> i i 
+lambda 1 1
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.562
+d0	1.0
+k0	2.75
+t0	-0.268
+l1	-22.210
+l2	43.049
+end 
+ 
+dipole 4 4
+name "A-A dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> 3i 3i 
+lambda 3 3
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.497
+d0	1.0
+k0	2.75
+t0	-9.145
+l1	11.893
+l2	4.613
+end 
+ 
+dipole 5 5
+name "B-B dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 1
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.493
+d0	1.0
+k0	2.75
+t0	-1.341
+l1	-29.652
+l2	59.303
+end 
+ 
+dipole 7 7
+name "a-a dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 2 2
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-0.561
+d0	1.0
+k0	2.75
+t0	-2.010
+l1	-9.719
+l2	22.956
+end 
+ 
+dipole 9 9
+name "b-b dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 1 1
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.464
+d0	1.0
+k0	2.75
+t0	-0.055
+l1	-21.501
+l2	33.970
+end 
+ 
+dipole 8 8
+name "d-d dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 0 0
+type avoidedcrossing_diag_mu
+units angstrom ea0
+values
+j0	1.
+m0	-1.537
+d0	1.0
+k0	2.75
+t0	-3.820
+l1	-1.978
+l2	18.271
+end 
+ 
+dipole-x 1 4
+name "X-A dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> 2i 3i 
+lambda 2 3
+type atan_so
+units angstrom debye
+values
+r0      1.687
+SO0    4.495
+SOinf   0.0
+k       -3.312
+f  -1
+end 
+ 
+dipole-x 1 2
+name "X-E dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> 2i i 
+lambda 2 1
+type atan_so
+units angstrom debye
+values
+r0      1.4848
+SO0     1.608
+SOinf   0.0
+k       -3.907
+f  -1
+end 
+ 
+dipole-x 1 5
+name "X-B dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+<x|Lz|y> 2i i
+lambda 2 1
+type atan_so
+units angstrom debye
+values
+r0      1.667
+SO0     5.013
+SOinf   0.0
+k       -4.101
+f  -1
+end 
+ 
+dipole 1 6
+name "X-C dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 2 2
+type atan_so
+units angstrom debye
+values
+r0      1.515
+SO0     7.482
+SOinf   0.0
+k       -1.652
+f  -1
+end 
+ 
+dipole 2 5
+name "E-B dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 1
+type atan_so
+units angstrom debye
+values
+r0      1.6
+SO0     0.721
+SOinf   0.0
+k       -4.0
+f  -1
+end 
+ 
+dipole-x 2 6
+name "E-C dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 2
+<x|Lz|y> i 2i
+type atan_so
+units angstrom debye
+values
+r0      1.530
+SO0     0.593
+SOinf   0.0
+k       -8.229
+f  -1
+end 
+ 
+dipole-x 4 6
+name "A-C dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 3 2
+<x|Lz|y> 3i 2i
+type atan_so
+units angstrom debye
+values
+r0      1.6
+SO0     0.652
+SOinf   0.0
+k       -4.
+f  -1
+end 
+ 
+dipole-x 5 6
+name "B-C dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 1.0 1.0
+lambda 1 2
+<x|Lz|y> i 2i
+type atan_so
+units angstrom debye
+values
+r0      1.6
+SO0     0.330
+SOinf   0.0
+k       -4.
+f  -1
+end 
+ 
+dipole-x 8 9
+name "d-b dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 0 1
+<x|Lz|y> 0 i
+type atan_so
+units angstrom debye
+values
+r0      1.6
+SO0     4.227
+SOinf   0.0
+k       -1.146
+f  -1
+end 
+ 
+dipole-x 7 9
+name "a-b dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 2 1
+<x|Lz|y> 2i i
+type atan_so
+units angstrom debye
+values
+r0      1.953
+SO0     3.996
+SOinf   0.0
+k       -3.334
+f  -1
+end 
+ 
+dipole-x 7 10
+name "a-c dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 2 3
+<x|Lz|y> 2i 3i
+type atan_so
+units angstrom debye
+values
+r0      2.019
+SO0     4.723
+SOinf   0.0
+k       -1.705
+f  -1
+end 
+ 
+dipole-x 9 11
+name "b-f dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 1 2
+<x|Lz|y> i 2i
+type atan_so
+units angstrom debye
+values
+r0      1.617
+SO0     1.518
+SOinf   0.0
+k       -6.621
+f  -1
+end 
+ 
+dipole 7 11
+name "a-f dipole-x term"   (aug-cc-pVQZ/MRCI, 1 state only)
+spin 0.0 0.0
+lambda 2 2
+type atan_so
+units angstrom debye
+values
+r0      1.930
+SO0     5.608
+SOinf   0.0
+k       -1.911
+f  -1
+end 
+ 
+intensity
+  absorption
+thresh_coeff 1e-40
+temperature   3000.0
+  gns           1.0 1.0
+  selection (rules) 1 1
+  J     0.0,12
+freq-window  0., 10000.0
+  energy low   -0.01,  1000.00, upper   0.,  2000.
+    linelist 48_J173200__Toto_ISMv1.0 
+end 
+ 
