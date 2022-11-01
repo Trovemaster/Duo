@@ -2,6 +2,7 @@
 *.o
 *.mod
 /*j-duo*.x
+/*.x
 /debug.log
 *genmod.f90
 
@@ -71,3 +72,5 @@ venv/
 Network Trash Folder
 Temporary Items
 .apdisk
+.vscode/launch.json
+.vscode/tasks.json
