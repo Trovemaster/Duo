@@ -28,7 +28,8 @@ $RECYCLE.BIN/
 *.code-workspace
 .vs/
 .vscode/
-*.json
+.vscode/launch.json
+.vscode/tasks.json
 
 # Vim files
 *.swp
@@ -72,5 +73,3 @@ venv/
 Network Trash Folder
 Temporary Items
 .apdisk
-.vscode/launch.json
-.vscode/tasks.json

@@ -300,7 +300,6 @@ contains
     beta         = planck * vellgt / (boltz * Intensity%temperature)
     inten_cm_mol = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef       = planck*vellgt/(4.0_rk*pi)
-    A_coef_s_1     = 64.0d-36 * pi**4  / (3.0_rk * planck)
 
     !
     ! vacuum permittivity (NIST 2018) - needs to be

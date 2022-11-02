@@ -4,41 +4,54 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "args": ["O2MLRfitfull_12.out", "-o", "O2MLRfitfull_13.inp"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "(gdb) Debug",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/duo.x",
-            "args": [
-                "<",
-                //"debug.inp", 
-                "O2_5states_QM.inp",
-                //"O2XabMD.inp",
-                //"H2XMD.inp",
-                ">",
-                "debug.out"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "build",
-        }
+      {
+        "name": "(gdb) Fortran + Build",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/duo.x",
+        "args": [
+          "<",
+          "16O2_4states_MD.inp",
+          ">",
+          "16O2_4states_MD.out"
+        ], // Possible input args for a.out
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        "preLaunchTask": "build",
+      },
+      {
+        "name": "(gdb) Fortran",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/duo.x",
+        "args": [
+          "<",
+          "16O2_4states_MD.inp",
+          ">",
+          "16O2_4states_MD.out"
+        ], // Possible input args for a.out
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ]
+      }
     ]
-}
+  }

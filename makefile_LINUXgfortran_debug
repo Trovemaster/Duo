@@ -11,7 +11,6 @@ EXE = duo.x
 FOR = gfortran  
 
 #FFLAGS = -O3 -fopenmp
-#export OMP_NUM_THREADS=4
 # Debugging options
 FFLAGS = -O0 -g -Wall -Wextra -Wline-truncation -pedantic -fimplicit-none -fcheck=all -fbacktrace
 
@@ -22,22 +21,25 @@ LIB     =   $(LAPACK)
 
 ###############################################################################
 
-OBJ = grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o magnetic_dipole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o me_numer.o RWF.o
+OBJ = F1_hyperfine.o F1_intensity.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o magnetic_dipole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o me_numer.o RWF.o
 
 diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o me_numer.o
 dipole.o: timer.o accuracy.o diatom.o symmetry.o
 quadrupole.o: timer.o accuracy.o diatom.o symmetry.o
 magnetic_dipole.o: timer.o accuracy.o diatom.o symmetry.o
-duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o
+duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o F1_hyperfine.o F1_intensity.o 
 functions.o: accuracy.o timer.o
 grids.o: accuracy.o Lobatto.o
 header_info.o: accuracy.o
+F1_hyperfine.o: accuracy.o diatom.o lapack.o symmetry.o
+F1_intensity.o: F1_hyperfine.o accuracy.o diatom.o
 me_numer.o : accuracy.o lapack.o timer.o
 lapack.o: accuracy.o timer.o
 Lobatto.o: accuracy.o timer.o
 refinement.o: timer.o accuracy.o diatom.o
 symmetry.o: accuracy.o
 timer.o: accuracy.o
+RWF.o: accuracy.o diatom.o timer.o symmetry.o lapack.o
 
 # clear internal suffix rules
 .SUFFIXES:
@@ -48,6 +50,9 @@ timer.o: accuracy.o
 
 duo:	$(OBJ) duo.o
 	$(FOR) -o $(EXE) $(OBJ) $(FFLAGS) duo.o $(LIB)
+	
+RWF.o: RWF.f90 accuracy.o diatom.o timer.o symmetry.o lapack.o
+	$(FOR) -c RWF.f90 $(FFLAGS)
 
 clean:
 	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat        Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat

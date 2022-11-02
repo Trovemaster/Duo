@@ -6,13 +6,13 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "rm *.o *.mod duo.x",
-            "problemMatcher": "",
+            "command": "rm *.o *.mod duo.x"
         },
         {
             "label": "build",
             "type": "shell",
             "command": "make -f makefile_LINUXgfortran_debug",
+            "dependsOn": ["clean"],
             "group": {
                 "kind": "build",
                 "isDefault": true

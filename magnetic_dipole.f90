@@ -397,10 +397,11 @@ contains
 
     ! conversion factor for Q[a.u] -> Q[S.I],
     ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m]
-    unitConv = 4.486551525d-40
+    !unitConv = 4.486551525d-40
+    unitConv = 8.6007262932d-41
 
     ! calculate the common factor for the Einstein coefficient
-    A_coef_s_1 = unitConv*(16.0_rk * pi**5 * vacPerm)/(planck)
+    A_coef_s_1 = unitConv*(16.0_rk * pi**3 * vacPerm)/(3 * planck)
     !
     nJ = size(Jval)
     !
