@@ -9,29 +9,34 @@
 
 import argparse, sys
 
+# Define runtime arguments that can be passed to the script
 parser = argparse.ArgumentParser(description="Duo fitting input iterator")
 parser.add_argument(
     'input', metavar='duo_output.out', type=str,
     help="Reference file to generate new input from."
     )
 parser.add_argument(
-    '-o', '--output', metavar='my_input.inp', type=str,
+    '-f', '--file', metavar='my_input.inp', type=str,
     help="Name of the Duo '.inp' file to write output to, if not console." 
 )
 parser.add_argument(
     '-n', '--number', metavar='n', type=int, default=-1,
-    help="The iteration number from which to take the fitted parameters. Defaults to the last iteration. Can also be specified from the end using negative numbers, i.e -n -2 uses the penultimate iteration."
+    help="The iteration number (zero indexed) from which to take the fitted parameters. Defaults to the last iteration. Can also be specified from the end using negative numbers, i.e -n -2 uses the penultimate iteration."
 )
+args = parser.parse_args() #parse arguments
 
-args = parser.parse_args()
+# Duo input files are composed of blocks that define objects or program arguments.
+# All the information required to build a new input file can be obtained by 
+# copying and replacing blocks of text from different parts of the output file.
 
+# Class to store the position of a block of text within the file
 class fileBlock:
     def __init__(self, start_line, init_lines=[]):
         self.lines = init_lines
         self.start_line = start_line
 
     @property
-    def line_nums(self):
+    def line_nums(self): # return range of line numbers contained in block
         return range(self.start_line, self.start_line+len(self.lines)+1)
 
 class objBlock(fileBlock):
@@ -53,6 +58,13 @@ class objBlock(fileBlock):
         return None
 
     @property
+    def duo_type(self):
+        for num, line in enumerate(self.lines):
+            if line.split()[0].upper() == 'TYPE':
+                return line.split()[1].upper()
+        return None
+
+    @property
     def param_lines(self):
         return [self.lines[i] for i in self.loc_param_line_nums]
 
@@ -63,6 +75,7 @@ class OutputReader:
         "POTEN": 1,
         "SPIN-ORBIT": 2,
         "SPINORBIT": 2,
+        "SPIN-ORBIT-X": 2,
         "L2": 3,
         "LXLY": 4,
         "SPIN-SPIN": 5,
@@ -122,9 +135,9 @@ class OutputReader:
                     outline = obj.param_lines[num - self.input_objects[obj_id].glob_param_line_nums[0]].split()
                     
                     preval = inpline[1]
-                    newval = outline[1]
-
-                    if len(inpline) > 2 and inpline[2] == "fit":
+                    if self.input_objects[obj_id].duo_type == "GRID":
+                        pass #grid type potentials do not change during fitting
+                    elif len(inpline) > 2 and inpline[2] == "fit":
                         if len(inpline) > 3 and inpline[3] == "link":
                             line = "{0:11} {1: .14E} fit link {2} {3} {4} ({5: .14E})".format(outline[0], float(outline[1]), *outline[3:6], float(preval))
                         else:
@@ -203,10 +216,9 @@ class OutputReader:
 gen = OutputReader(args.input)
 
 fout = None
-if args.output is not None:
-    fout = open(args.output, 'w+')
+if args.file is not None:
+    fout = open(args.file, 'w+')
 for line in gen.genfromit(it_num=args.number):
     print(line, file=fout)
-if args.output is not None:
+if args.file is not None:
     fout.close()
-
