@@ -15,7 +15,7 @@ via non-zero density in the small region of :math:`\delta` at the right border :
 
 :math:`\int_{r_{\rm max - \delta}}^{r_{\rm max}} |\psi_{\lambda}(r)|^2 dr > \epsilon` 
 
-:math:`\epsilon \sim 10^{-8}` is a small thrshold value. The threshold is uotomaticall chosen as :math:`\sqrt{\epsilon(1.0)\sim 1.5 \times 10^{-8}`. 
+:math:`\epsilon \sim 10^{-8}` is a small threshold value. The default threshold value is  :math:`\epsilon \sim 10^{-8}` is chosen as :math:`\sqrt{\epsilon(1.0d0)} \sim 1.5 \times 10^{-8}`. 
 The threshold value can be specified in the input file using the keyword `thresh_bound`. 
 
 
