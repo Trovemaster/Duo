@@ -23,7 +23,24 @@ Excluding  unbound states
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Once the unboud states are identified they can be excluded from the intensity or line list calculations using the `bound` keyword in the INTENSITY section, 
-which tells Duo to compute boud-bound spectra only. 
+which tells Duo to compute boud-bound spectra only, e.g.:
+
+Example:
+::
+  
+  intensity  
+    absorption
+    bound
+    thresh_intes 1e-50
+    thresh_bound  1e-6
+    temperature 3000 (K)
+    nspin 2.5  1.5
+    linelist AlCl-37_61_J160
+    J 0, 20
+    freq-window  0.0  48000.0
+    energy low 0.0 30000, upper 0.0,48000
+  end
+    
 
 
 Excluding  bound upper states
