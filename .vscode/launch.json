@@ -1,57 +1,66 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-      {
-        "name": "(gdb) Fortran + Build",
-        "type": "cppdbg",
-        "request": "launch",
-        "program": "${workspaceFolder}/duo.x",
-        "args": [
-          "<",
-          "16O2_4states_MD.inp",
-          ">",
-          "16O2_4states_MD.out"
-        ], // Possible input args for a.out
-        "stopAtEntry": false,
-        "cwd": "${workspaceFolder}",
-        "environment": [],
-        "externalConsole": false,
-        "MIMode": "gdb",
-        "setupCommands": [
-          {
-            "description": "Enable pretty-printing for gdb",
-            "text": "-enable-pretty-printing",
-            "ignoreFailures": true
-          }
-        ],
-        "preLaunchTask": "build",
-      },
-      {
-        "name": "(gdb) Fortran",
-        "type": "cppdbg",
-        "request": "launch",
-        "program": "${workspaceFolder}/duo.x",
-        "args": [
-          "<",
-          "16O2_4states_MD.inp",
-          ">",
-          "16O2_4states_MD.out"
-        ], // Possible input args for a.out
-        "stopAtEntry": false,
-        "cwd": "${workspaceFolder}",
-        "environment": [],
-        "externalConsole": false,
-        "MIMode": "gdb",
-        "setupCommands": [
-          {
-            "description": "Enable pretty-printing for gdb",
-            "text": "-enable-pretty-printing",
-            "ignoreFailures": true
-          }
-        ]
-      }
-    ]
-  }
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "args": ["-f test.inp", "OH_8.out"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "(gdb) Fortran + Build",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/j-duo-v218v1.x",
+      "args": [
+        "<",
+        "MD_debugging_5states.inp",
+        ">",
+        "MD_debugging_5states.out"
+      ], // Possible input args for a.out
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "build",
+    },
+    {
+      "name": "(gdb) Fortran",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/j-duo-v218v1.x",
+      "args": [
+        "<",
+        "MD_debugging_5states.inp",
+        ">",
+        "MD_debugging_5states.out"
+      ], // Possible input args for a.out
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "rm *.o *.mod duo.x"
+            "command": "rm *.o *.mod j-duo-v218v1.x"
         },
         {
             "label": "build",

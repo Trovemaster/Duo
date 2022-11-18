@@ -54,6 +54,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
+  !        case (13) nac
   !        case (14 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a

@@ -395,10 +395,9 @@ contains
     !vacuum permeability (NIST 2018)
     vacPerm = 1.25663706212d-6
 
-    ! conversion factor for Q[a.u] -> Q[S.I],
+    ! conversion factor for d[μ_B] -> d[S.I],
     ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m]
-    !unitConv = 4.486551525d-40
-    unitConv = 8.6007262932d-41
+    unitConv = 8.6007262932d-34
 
     ! calculate the common factor for the Einstein coefficient
     A_coef_s_1 = unitConv*(16.0_rk * pi**3 * vacPerm)/(3 * planck)
@@ -1955,7 +1954,7 @@ contains
                     !add spin magnetic moment
                     ls  =  f_t*f3j*vector(icontrI)
                     !
-                    half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                    !half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
                     !
                   enddo
                   !

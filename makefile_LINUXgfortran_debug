@@ -6,7 +6,7 @@ tarball:
 checkin:
 	ci -l Makefile *.f90
 
-EXE = duo.x
+EXE = j-duo-v218v1.x
 
 FOR = gfortran  
 
