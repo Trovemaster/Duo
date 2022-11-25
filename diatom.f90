@@ -155,6 +155,8 @@ module diatom_module
     integer(ik)          :: jref         ! reference number of the coupling term as given in input (ket in case of the coupling)
     integer(ik)          :: istate       ! the actual state number (bra in case of the coupling)
     integer(ik)          :: jstate       ! the actual state number (ket in case of the coupling)
+    character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
+    character(len=cl)    :: jTAG         ! reference State TAG of the term as given in input (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
     integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
     integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
@@ -544,7 +546,7 @@ module diatom_module
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
-    character(len=cl) :: w,ioname
+    character(len=cl) :: w,ioname,iTAG
     character(len=wl) :: large_fmt
     !
     integer(ik)       :: iut !  iut is a unit number. 
@@ -1588,8 +1590,18 @@ module diatom_module
              !
              idip = idip + 1
              !
-             call readi(iref)
-             call readi(jref)
+             call reada(iTAG)
+             !
+             call StateStart(iTAG,iref)
+             !
+             jref = iref
+             !
+             ! for nondiagonal terms
+             if (nitems>2) call reada(iTAG)
+             call StateStart(iTAG,jref)
+             !
+             !call readi(iref)
+             !call readi(jref)
              !
              include_state = .false.
              loop_istated : do istate=1,Nestates
@@ -1632,34 +1644,11 @@ module diatom_module
              !
           case("SPIN-ORBIT","SPIN-ORBIT-X")
              !
-             iobject(2) = iobject(2) + 1
+             call input_non_diagonal_field(Nobjects,2,iobject(2),spinorbit,ierr)
              !
-             call readi(iref)
-             call readi(jref)
+             field => spinorbit(iobject(2))
              !
-             include_state = .false.
-             loop_istate : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate
-                 endif
-                 !
-               enddo
-             enddo loop_istate
-             !
-             if (.not.include_state) then
-                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
-                 iobject(2) = iobject(2) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              iso = iobject(2)
              !
@@ -1668,52 +1657,17 @@ module diatom_module
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
              !
-             field => spinorbit(iso)
-             !
-             !call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
-             !
-             if (action%fitting) call report ("SPIN-ORBIT cannot appear after FITTING",.true.)
-             field%class = "SPINORBIT"
-             !
              if (trim(w)=='SPIN-ORBIT-X') then
                field%molpro = .true.
              endif
              !
           case("LXLY","LYLX","L+","L_+","LX")
              !
-             iobject(4) = iobject(4) + 1
+             call input_non_diagonal_field(Nobjects,4,iobject(4),lxly,ierr)
              !
-             call readi(iref)
-             call readi(jref)
+             field => lxly(iobject(4))
              !
-             include_state = .false.
-             loop_istatex : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istatex
-                 endif
-                 !
-               enddo
-             enddo loop_istatex
-             !
-             if (.not.include_state) then
-                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
-                 iobject(4) = iobject(4) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              ilxly = iobject(4)
              !
@@ -1722,12 +1676,8 @@ module diatom_module
                  call report ("Too many L+ couplings given in the input for"//trim(w),.true.)
              endif
              !
-             field => lxly(ilxly)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = "L+"
-             !
-             if (action%fitting) call report ("LXLY (L+) cannot appear after FITTING",.true.)
+             !call set_field_refs(field,iref,jref,istate_,jstate_)
+             !field%class = "L+"
              !
              if (trim(w)=='LX') then
                field%molpro = .true.
@@ -1758,7 +1708,13 @@ module diatom_module
              field%istate = iobject(1)
              field%jstate = iobject(1)
              !
-             call readi(field%iref)
+             call reada(field%iTAG)
+             !
+             ! Map the state TAG to an integer count 
+             !
+             call StateStart(field%iTAG,field%iref)
+             !
+             !call readi(field%iref)
              field%jref = field%iref
              field%class = "POTEN"
              !
@@ -1773,342 +1729,69 @@ module diatom_module
              !
           case("L2","L**2", "L^2")
              !
-             iobject(3) = iobject(3) + 1
+             call input_non_diagonal_field(Nobjects,3,iobject(3),l2,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => l2(iobject(3))
              !
-             ! for nondiagonal L2 terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_l2 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_l2
-                 endif
-               enddo
-             enddo loop_istate_l2
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(3)-1
-                if (iref==l2(istate)%iref.and.jref==l2(istate)%jref) then
-                  call report ("L2 object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The L2 term ',2i8,' is skipped')") iref,jref
-                 iobject(3) = iobject(3) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             il2 = iobject(3)
-             !
-             field => l2(il2)
-             field%class = trim(classnames(3))
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             if (action%fitting) call report ("L2 cannot appear after FITTING",.true.)
-             !
+             if (ierr>0) cycle
              !
           case("BOB-ROT","BOBROT")
              !
-             iobject(7) = iobject(7) + 1
+             call input_non_diagonal_field(Nobjects,7,iobject(7),bobrot,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => bobrot(iobject(7))
              !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_bobrot : do istate=1,Nestates
-                 if (iref==poten(istate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   exit loop_istate_bobrot
-                 endif
-             enddo loop_istate_bobrot
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(7)-1
-                if (iref==bobrot(istate)%iref.and.jref==bobrot(istate)%jref) then
-                  call report ("BROT object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The BOB-ROT term ',1i8,' is skipped')") iref
-                 iobject(7) = iobject(7) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             ibobrot = iobject(7)
-             !
-             field => bobrot(ibobrot)
-             !
-             call set_field_refs(field,iref,jref,istate_,istate_)
-             !
-             field%class = trim(classnames(7))
-             !
-             if (action%fitting) call report ("BOBrot cannot appear after FITTING",.true.)
+             if (ierr>0) cycle
              !
           case("SPIN-SPIN")
              !
-             iobject(5) = iobject(5) + 1
+             call input_non_diagonal_field(Nobjects,5,iobject(5),spinspin,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => spinspin(iobject(5))
              !
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_ss : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_ss
-                 endif
-               enddo
-             enddo loop_istate_ss
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(5)-1
-                if (iref==spinspin(istate)%iref.and.jref==spinspin(istate)%jref) then
-                  call report ("Spin-spin object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SS term ',2i8,' is skipped')") iref,jref
-                 iobject(5) = iobject(5) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             iss = iobject(5)
-             !
-             field => spinspin(iss)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(classnames(5))
-             !
-             if (action%fitting) call report ("Spin-spin cannot appear after FITTING",.true.)
+             if (ierr>0) cycle
              !
              ! non-diagonal spin-spin term 
              !
           case("SPIN-SPIN-O")
              !
-             iobject(6) = iobject(6) + 1
+             call input_non_diagonal_field(Nobjects,6,iobject(6),spinspino,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => spinspino(iobject(6))
              !
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_sso : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_sso
-                 endif
-               enddo
-             enddo loop_istate_sso
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(6)-1
-                if (iref==spinspino(istate)%iref.and.jref==spinspino(istate)%jref) then
-                  call report ("SS-o object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SS-o term ',2i8,' is skipped')") iref,jref
-                 iobject(6) = iobject(6) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              isso = iobject(6)
-             !
-             field => spinspino(isso)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = trim(classnames(6))
-             !
-             if (action%fitting) call report ("Spin-spin-o cannot appear after FITTING",.true.)
              !
           case("SPIN-ROT","SPIN-ROTATION")
              !
              ! spin-rotation (gammma) term 
              !
-             iobject(8) = iobject(8) + 1
+             call input_non_diagonal_field(Nobjects,8,iobject(8),spinrot,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => spinrot(iobject(8))
              !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_sr : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_sr
-                 endif
-               enddo
-             enddo loop_istate_sr
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(8)-1
-                if (iref==spinrot(istate)%iref.and.jref==spinrot(istate)%jref) then
-                  call report ("SR object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SR term ',2i8,' is skipped')") iref,jref
-                 iobject(8) = iobject(8) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              isr = iobject(8)
              !
-             field => spinrot(isr)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(classnames(8))
-             !
-             if (action%fitting) call report ("Spin-rot cannot appear after FITTING",.true.)
-             !
           case("DIABAT","DIABATIC")
              !
-             iobject(9) = iobject(9) + 1
+             call input_non_diagonal_field(Nobjects,9,iobject(9),diabatic,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => diabatic(iobject(9))
              !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_diab : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_diab
-                 endif
-               enddo
-             enddo loop_istate_diab
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(9)-1
-                if (iref==diabatic(istate)%iref.and.jref==diabatic(istate)%jref) then
-                  call report ("diabatic object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The DIABATIC term ',2i8,' is skipped')") iref,jref
-                 iobject(9) = iobject(9) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              idiab = iobject(9)
              !
-             field => diabatic(idiab)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = trim(classnames(9))
-             !
-             if (action%fitting) call report ("DIABATIC cannot appear after FITTING",.true.)
-             !
           case("LAMBDA-OPQ","LAMBDAOPQ")  ! o+p+q
              !
-             iobject(10) = iobject(10) + 1
-             !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_10 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_10
-                 endif
-               enddo
-             enddo loop_istate_10
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(10)-1
-                if (iref==lambdaopq(istate)%iref.and.jref==lambdaopq(istate)%jref) then
-                  call report ("lambdaopq object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-O term ',2i8,' is skipped')") iref,jref
-                 iobject(10) = iobject(10) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             call input_non_diagonal_field(Nobjects,10,iobject(10),lambdaopq,ierr)
              !
              field => lambdaopq(iobject(10))
              !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(10))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+             if (ierr>0) cycle
              !
              ! -(p+2q)
              !
@@ -4394,6 +4077,7 @@ module diatom_module
         integer(ik),intent(out) :: ierr
         type(FieldT),pointer :: fields(:)
         type(FieldT),pointer :: field
+        character(len=cl)    :: iTAG
         !
         integer(ik) :: iref,jref,istare,jstate,istate_,jstate_
         !
@@ -4403,10 +4087,13 @@ module diatom_module
         !
         field => fields(iobject)
         !
-        call readi(iref) ; jref = iref
+        call reada(iTAG)
+        !
+        call StateStart(iTAG,iref)
         !
         ! for nondiagonal terms
-        if (nitems>2) call readi(jref)
+        if (nitems>2) call reada(iTAG)
+        call StateStart(iTAG,jref)
         !
         ! find the corresponding potential
         !

@@ -22,7 +22,7 @@ module timer
   implicit none
   private
   public TimerStart, TimerStop, TimerReport, IOStart, IOStop , ArrayStart, ArrayStop, ArrayMinus, &
-         MemoryReport,memory_limit,maxmemory,memory_now
+         MemoryReport,memory_limit,maxmemory,memory_now, StateStart, StateStop
   !
   integer, parameter :: trk        = rk ! selected_real_kind(12)
   integer, parameter :: table_size = 2000 ! Max number of entries to track
@@ -69,7 +69,7 @@ module timer
   end type tio_unit
 
 
-  ! -----  io-units
+  ! ----- array-units
   type tarray_unit
     logical                 :: used       ! Slot used?
     logical                 :: active     ! Currently active?
@@ -78,6 +78,18 @@ module timer
     integer(ik)             :: slot       ! Number of times the unit was invoked
     real(trk)             :: size       ! total size
   end type tarray_unit
+
+
+  ! -----  State-units
+  type tState_unit
+    logical                 :: used       ! Slot used?
+    logical                 :: active     ! Currently active?
+    character(len=name_len) :: name       ! Timer name
+    integer(ik)             :: stack_p    ! For active units, position in the stack
+    integer(ik)             :: slot     ! Number of times the unit was invoked
+  end type tState_unit
+
+
 
 
   type(tarray_unit), target :: array_table (tarray_size) ! All of our array uints
@@ -91,6 +103,15 @@ module timer
   integer(ik)       :: io_appear(table_size) ! Appearance order for the i/o-unit
   integer(ik)       :: io_count =  0         ! Number of defined io units (we will start counting from unit=10)
   integer(ik)       :: io_active = 0         ! Number of currently active units
+
+
+  type(tState_unit), target :: State_table (table_size) ! All of our i/o uints
+  integer(ik)       :: State_appear(table_size) ! Appearance order for the i/o-unit
+  integer(ik)       :: State_count =  0         ! Number of defined State units (we will start counting from unit=10)
+  integer(ik)       :: State_active = 0         ! Number of currently active units
+
+
+
 
 
   !
@@ -488,6 +509,123 @@ module timer
       end do search
       !
     end function insert_iounit
+
+
+
+    !
+    !  Start new State unit
+    !
+    subroutine StateStart(name,slot)
+      character(len=*), intent(in) :: name  ! Unit name
+      integer(ik), intent(out)     :: slot  ! Unit slot
+      !
+      integer(ik)          :: pos  ! Unit position
+      type(tState_unit), pointer   :: t    ! Current State_unit (for convenience)
+      logical                   :: ifopen
+      !
+      !  One-time initialization
+      !
+      if (State_count==0) then
+        State_count = 0
+        State_table(:)%used = .false.
+      end if
+      !
+      pos =  insert_Stateunit(name)
+      t   => State_table(pos)
+      !
+      if (t%active) then
+        slot  = t%slot
+        return
+      end if
+      !
+      inquire (t%slot,OPENED=ifopen)
+      !
+      if (ifopen) then
+        write (out,"('StateStart: unit ',a,' is already open')") trim(name)
+        stop 'StateStart - unit was open before'
+      end if
+      !
+      !  Push the new timer to the timer stack
+      !
+      State_active = State_active + 1
+      slot  = t%slot
+      !
+      t%active     = .true.
+
+    end subroutine StateStart
+
+
+    !
+    !  End an State unit
+    !
+    subroutine StateStop(name)
+      character(len=*), intent(in) :: name  ! Unit name
+      !
+      integer(ik)        :: pos        ! unit position
+      type(tState_unit), pointer :: t          ! Current unit (for convenience)
+      !
+      pos =  insert_Stateunit(name)
+      t   => State_table(pos)
+      !
+      if (.not.t%active) then
+        write (out,"('StateStop: timer ',a,' is not running')") trim(name)
+        stop 'StateStop - inactive State-slot'
+      end if
+      !
+      !  Get timings for this invocation
+      !
+      !  Mark as inactive
+      !
+      t%active    = .false.
+      !
+      !  Pop the timer from stack, and update counts for the parent
+      !
+      State_active = State_active - 1
+      !if (t_active>0) then
+      !  pt => State_table(t_nested(t_active))
+      !end if
+      !
+    end subroutine StateStop
+
+
+
+    !
+    !  Linear insertion with linear search (Algorithm L)
+    !
+    function insert_Stateunit(name) result(pos)
+      character(len=*), intent(in) :: name
+      integer(ik)                  :: pos
+      !
+      pos = string_hash(name)
+      search: do
+        if (.not.State_table(pos)%used) then
+          !
+          ! This is a new key, insert it
+          !
+          State_count = State_count + 1
+          if (State_count>=table_size/2) then
+            write (out,"('Too many State_units. Increase table_size in "// &
+                       "timer.f90 to at least ',i5)") State_count*2+1
+            stop 'timer%insert_item'
+          end if
+          State_appear(State_count)      = pos
+          State_table(pos)%used      = .true.
+          State_table(pos)%active    = .false.
+          State_table(pos)%name      = name
+          State_table(pos)%slot      = State_count
+          exit search
+        end if
+        if (State_table(pos)%name==name) then
+          !
+          ! This is an existing key, simply return the location
+          !
+          exit search
+        end if
+        pos = 1 + modulo(pos-2,table_size)
+      end do search
+      !
+    end function insert_Stateunit
+
 
 
 
