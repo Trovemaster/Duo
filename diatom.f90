@@ -538,7 +538,8 @@ module diatom_module
     !
     integer(ik)  :: iobject(Nobjects)
     integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
-    integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
+    integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
+                    iterm,iobj,iclass_,ielement
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
     integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
@@ -1797,99 +1798,19 @@ module diatom_module
              !
           case("LAMBDA-P2Q","LAMBDAP2Q")
              !
-             iobject(11) = iobject(11) + 1
-             !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_11 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_11
-                 endif
-               enddo
-             enddo loop_istate_11
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(11)-1
-                if (iref==lambdap2q(istate)%iref.and.jref==lambdap2q(istate)%jref) then
-                  call report ("lambdap2q object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-P term ',2i8,' is skipped')") iref,jref
-                 iobject(11) = iobject(11) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             call input_non_diagonal_field(Nobjects,11,iobject(11),lambdap2q,ierr)
              !
              field => lambdap2q(iobject(11))
              !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(11))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+             if (ierr>0) cycle
              !
           case("LAMBDA-Q","LAMBDAQ")
              !
-             iobject(12) = iobject(12) + 1
+             call input_non_diagonal_field(Nobjects,12,iobject(12),lambdaopq,ierr)
              !
-             call readi(iref) ; jref = iref
+             field => lambdaopq(iobject(12))
              !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_12 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_12
-                 endif
-               enddo
-             enddo loop_istate_12
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(12)-1
-                if (iref==lambdaq(istate)%iref.and.jref==lambdaq(istate)%jref) then
-                  call report ("lambdaq object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
-                 iobject(12) = iobject(12) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             field => lambdaq(iobject(12))
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(12))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+             if (ierr>0) cycle
              !
           case("NAC")
              !
@@ -1945,10 +1866,10 @@ module diatom_module
              field%class = "QUADRUPOLE"
              !
           case("HFCC-BF")
+            !
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
             iobject(21) = iobject(21) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -1990,7 +1911,6 @@ module diatom_module
             hfcc1(2)%num_field = hfcc1(2)%num_field + 1
             iobject(22) = iobject(22) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2032,7 +1952,6 @@ module diatom_module
             hfcc1(3)%num_field = hfcc1(3)%num_field + 1
             iobject(23) = iobject(23) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2076,7 +1995,6 @@ module diatom_module
             hfcc1(4)%num_field = hfcc1(4)%num_field + 1
             iobject(24) = iobject(24) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2120,7 +2038,6 @@ module diatom_module
             hfcc1(5)%num_field = hfcc1(5)%num_field + 1
             iobject(25) = iobject(25) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2162,7 +2079,6 @@ module diatom_module
             hfcc1(6)%num_field = hfcc1(6)%num_field + 1
             iobject(26) = iobject(26) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2204,7 +2120,6 @@ module diatom_module
             hfcc1(7)%num_field = hfcc1(7)%num_field + 1
             iobject(27) = iobject(27) + 1
             call readi(iref); jref = iref
-            include_state = .false.
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2251,6 +2166,52 @@ module diatom_module
              jref = 0
              jstate_ = 0
              iabi_ = 0
+             !
+             iobject_ = 0 
+             !
+             loop_abinit_find : do iclass_ = 1,Nobjects
+              !
+              if (trim(w)==trim(CLASSNAMES(iclass_))) then
+                !
+                iobject_ = iclass_
+                exit loop_abinit_find
+              endif
+              !
+             enddo loop_abinit_find
+             !
+             if (iobject_==0) call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
+             !
+             call readi(iref) ; jref = iref
+             if (nitems>3) call readi(jref)
+             !
+             ielement = which_element(iref,jref,iobject_,iobject,ierr)
+             !
+             include_state = .false.
+             loop_istate_abl2x : do i=1,iobject(iobject_)
+                 if (iref==l2(i)%iref.and.jref==l2(i)%jref) then
+                   include_state = .true.
+                   !istate_ = istate
+                   !
+                   iabi_ = Nestates + iso + i
+                   !
+                   exit loop_istate_abl2x
+                 endif
+             enddo loop_istate_abl2x
+
+
+             !
+             iobject_ = 10
+             !
+             include_state = .false.
+             loop_istate_ab10x : do i=1,iobject(iobject_)
+                 if (iref==lambdaopq(i)%iref.and.jref==lambdaopq(i)%jref) then
+                   include_state = .true.
+                   !
+                   iabi_ = sum(iobject(1:iobject_-1)) + i
+                   !
+                   exit loop_istate_ab10x
+                 endif
+             enddo loop_istate_ab10x
              !
              select case (w)
                !
@@ -4133,7 +4094,67 @@ module diatom_module
         !
         if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
         !
-    end subroutine input_non_diagonal_field    
+    end subroutine input_non_diagonal_field  
+    !  
+    function which_element(iref,jref,iclass,nobject,ierr) result(ielement)
+        !
+        integer(ik),intent(in) :: iref,jref,iclass
+        integer(ik),intent(inout)  :: nobject(:)
+        integer(ik),intent(out) :: ierr
+        type(FieldT),pointer :: field
+        !
+        integer(ik) :: ielement_,ielement,ifield
+        !
+        ierr = 0 
+        ielement = 0
+        !
+        do iobject_ =1,Nobjects
+           !
+           do ifield =1,nobject(iobject_)
+             !
+             select case (iclass)
+             case (1)
+               field => poten(ifield)
+             case (2)
+               field => spinorbit(ifield)
+             case (3)
+               field => l2(ifield)
+             case (4)
+               field => lxly(ifield)
+             case (5)
+               field => spinspin(ifield)
+             case (6)
+               field => spinspino(ifield)
+             case (7)
+               field => bobrot(ifield)
+             case (8)
+               field => spinrot(ifield)
+             case (9)
+               field => diabatic(ifield)
+             case (10)
+               field => lambdaopq(ifield)
+             case (11)
+               field => lambdap2q(ifield)
+             case (12)
+               field => lambdaq(ifield)
+             case (13)
+               field => nac(ifield)
+             case (14)
+              field => quadrupoletm(ifield)
+            end select
+            !
+            if ( iref==field%iref.and.jref==field%jref ) then
+              ielement = ifield
+              return 
+            endif
+            !
+          enddo
+        enddo
+        !
+        if (ielement==0) ierr = 2
+        !
+    end function which_element    
+
     !
   end subroutine ReadInput
 
