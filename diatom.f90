@@ -3452,7 +3452,7 @@ module diatom_module
               call input_options(echo_lines=.false.)
               !
               if (field%molpro.and.(field%ix_lz_y==1000.or.field%jx_lz_y==1000)) then
-                write(out,"('For MOLPRO-X representaion please define <x|lx|y>',a,2i4)") trim(field%class),field%iref,field%jref
+                write(out,"('For MOLPRO-X representaion please define <x|lz|y>',a,2i4)") trim(field%class),field%iref,field%jref
                 stop '<x|lz|y> is undefined in dipole-x or spin-orbit-x'
               endif
               !
@@ -6015,7 +6015,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   !
-                  ! The <x|Lx+iLy|y> element is <x|Lx|y>
+                  ! The <x|Lx+iLy|y> element is <x|Lz|y>
                   !
                   c = field%gridvalue(i)*field%complex_f
                   !
@@ -6509,7 +6509,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   !
-                  ! The <x|Lx+iLy|y> element is <x|Lx|y>
+                  ! The <x|Lx+iLy|y> element is <x|Lz|y>
                   !
                   c = field%gridvalue(i)*field%complex_f
                   !
