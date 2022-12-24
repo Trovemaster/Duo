@@ -397,7 +397,11 @@ module refinement
             !
             object0(iobject,ifield)%value = objects(iobject,ifield)%field%value
             !
-            ifield_ = ifield_ + 1
+            ! what is the number of the parent field in the abinitio counter?
+            !
+            ifield_  = objects(iobject,ifield)%field%iabi
+            !
+            if (ifield_==0) cycle 
             !
             ! change to the equilibrium
             !
@@ -1284,7 +1288,11 @@ module refinement
                !
                do ifield =1,Nfields
                  !
-                 ifield_ = ifield_ + 1
+                 ifield_  = objects(iobject,ifield)%field%iabi
+                 !
+                 if (ifield_==0) cycle 
+                 !
+                 !ifield_ = ifield_ + 1
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
