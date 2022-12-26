@@ -1673,6 +1673,7 @@ module functions
     !
     f1 = poten_EMO(r,parameters(1:nparams1))
     f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    !
     a  = poten_lorentzian_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
     !
     discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2

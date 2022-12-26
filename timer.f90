@@ -538,13 +538,6 @@ module timer
         return
       end if
       !
-      inquire (t%slot,OPENED=ifopen)
-      !
-      if (ifopen) then
-        write (out,"('StateStart: unit ',a,' is already open')") trim(name)
-        stop 'StateStart - unit was open before'
-      end if
-      !
       !  Push the new timer to the timer stack
       !
       State_active = State_active + 1

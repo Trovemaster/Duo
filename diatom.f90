@@ -79,7 +79,7 @@ module diatom_module
                                                              "HFCC-CI-1", &
                                                              "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
                                                              "", & ! reserved
-                                                             "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
+                                                             "ABINITIO","QUADRUPOLE","BROT","DIPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -2119,6 +2119,10 @@ module diatom_module
              !
              iobject_ = 0 
              !
+             ! for "-X" type objects we need to use the corresponding parent withoit "-X"
+             !
+             w = identify_parent_for_x(w)
+             !
              loop_abinit_find : do iclass_ = 1,Nobjects
               !
               if (trim(w)==trim(CLASSNAMES(iclass_))) then
@@ -3678,7 +3682,36 @@ module diatom_module
         !
         if (ielement==0) ierr = 2
         !
-    end function which_element    
+    end function which_element
+    !
+    ! remove "-x" from the field name, identify the parent object 
+    !
+    function identify_parent_for_x(in_x)  result(out)
+        !
+        character(len=cl),intent(in) :: in_x
+        character(len=cl)    :: out
+        !      
+        select case (in_x)
+          !
+        case("SPIN-ORBIT-X","SPINORBIT-X")
+          !
+          out = "SPINORBIT"
+          !
+        case("LX")
+          !
+          out = "L+"
+          !
+        case("DIPOLE-X")
+          !
+          out = "DIPOLE"
+          !
+        case default 
+          !
+          out = trim(in_x)
+          !
+        end select
+        !
+    end function identify_parent_for_x  
 
     !
   end subroutine ReadInput
@@ -4243,7 +4276,7 @@ subroutine map_fields_onto_grid(iverbose)
           endif
           !
           select case(trim(field%type))
-          !
+            !
           case("GRID")
             !
             nterms = field%Nterms
@@ -4514,6 +4547,16 @@ subroutine map_fields_onto_grid(iverbose)
           case default
             !
             call define_analytical_field(field%type,field%analytical_field)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            !
+            if (field%class=="DIABATIC".or.field%class=="NAC") then 
+              !
+              ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
+              !
+              field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
+              !
+            endif
             !
             !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
@@ -5003,7 +5046,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               endif
               ! 
-            case ('L+','ABINITIO-LX')
+            case ('L+','ABINITIO-LX','ABINITIO-L+')
               !
               !write(out,"('molpro_duo: this L+-part is not implemented')")
               !stop 'molpro_duo: this L+-part is not implemented'
@@ -5058,7 +5101,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   ! 
-                case ('L+','ABINITIO-LX')
+                case ('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (poten(field%jstate)%parity%pm==-1) then 
                     !
@@ -5128,7 +5171,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   ! 
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! The following relations are found using the condition <0|LX+iLY|+1> = 0
                   ! Regualr case is for <0|LX|Pix> and iregular is for <0|LX|Piy>
@@ -5238,7 +5281,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
                   !coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
                   !
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (abs(field%lambda-field%lambdaj)/=1) then
                     !
@@ -5520,7 +5563,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               endif
               ! 
-            case ('L+','ABINITIO-LX')
+            case ('L+','ABINITIO-LX','ABINITIO-L+')
               !
               !write(out,"('molpro_duo: this L+-part is not implemented')")
               !stop 'molpro_duo: this L+-part is not implemented'
@@ -5588,7 +5631,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case ('L+','ABINITIO-LX')
+                case ('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! eigen-vector 2 is for Lambda
                   !
@@ -5660,7 +5703,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! eigen-vector 1 is for Lambda
                   !
@@ -5732,7 +5775,7 @@ subroutine map_fields_onto_grid(iverbose)
                   coupling(2,1) = -c*conjg(a(1,2))/conjg(a(2,2))
                   coupling(2,2) =  c*b(1,2)*conjg(a(1,2))/(conjg(a(2,2))*b(2,2))
                   !
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (abs(field%lambda-field%lambdaj)/=1) then
                     !
@@ -5849,6 +5892,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
             enddo
             !omp end parallel do
+            !
 
      end subroutine molpro_duo_old_2018
 
@@ -6252,6 +6296,78 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,*)
            !
      end subroutine check_and_print_field
+     !
+     !
+     ! This funciton finds a crossing point between tow PECs
+     !
+     function find_crossing_point_of_PECs(iref1,iref2) result(r)
+       !
+       integer(ik),intent(in) :: iref1,iref2
+       real(rk)               :: re1,re2    
+       real(rk)               :: f1,f2,r_,r,r1,r2,diff
+       integer(ik)            :: i
+       !
+       real(rk),parameter     :: threshold_V = 1e-4,threshold_r = 1e-9
+       integer(ik),parameter  :: imax = 100
+       !
+       ! Here we assume that the second parameter in the analytic type is used for the equilibrium parameter
+       !
+       !re1 = poten(iref1)%value(2)
+       !re2 = poten(iref2)%value(2)
+       !
+       r1 = grid%rmin
+       r2 = grid%rmax
+       !
+       f1 =  poten(iref1)%analytical_field(r1,poten(iref1)%value)
+       f2 =  poten(iref2)%analytical_field(r2,poten(iref2)%value)
+       !
+       ! find crossing point between f1 and f2
+       !
+       if (r2<r1) then
+         write(out,"(a,a,a,3f12.8)") 'r1>r2 error','find_crossing_point_of_PECs','r1,r2 = ',r1,r2
+         stop 'r1>r2 error find_crossing_point_of_PECs imax reached'
+       endif
+       !
+       i = 0
+       !
+       do 
+          !
+          r_ = (r1+r2)*0.5_rk
+          f1 =  poten(iref1)%analytical_field(r_,poten(iref1)%value)
+          f2 =  poten(iref2)%analytical_field(r_,poten(iref2)%value)
+          !
+          if (f2>f1) then 
+           !
+           r1 = r_
+           !
+          else
+           !
+           r2 = r_
+           !
+          endif
+          !
+          i = i + 1
+          !
+          diff = abs(f2-f1)
+          !
+          if (i==imax) exit
+          if (abs(f2-f1)<threshold_V) exit
+          if (abs(r2-r1)<threshold_r) exit
+          !
+          cycle  
+          !    
+       enddo
+       !
+       if (i==imax) then
+         !
+         write(out,"(a,a,a,2f18.9,2f19.12)") 'crossing error max imax','find_crossing_point_of_PECs','r1,r2,f1,f2 = ',r1,r2,f1,f2
+         stop 'crossing error find_crossing_point_of_PECs imax reached'
+         !
+       endif
+       !
+       r  = r_
+       !
+     end function find_crossing_point_of_PECs
      !
 end subroutine map_fields_onto_grid
 
