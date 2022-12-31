@@ -133,7 +133,7 @@ module refinement
        ! count all grid points 
        !
        j = 0
-       do ifield = 1,Ntotalfields
+       do ifield = 1,Nabi !Ntotalfields
          !
          field => abinitio(ifield)
          !
@@ -263,7 +263,7 @@ module refinement
        ! weights for the ab initio fields
        !
        j = 0
-       do ifield =1,Ntotalfields
+       do ifield =1,Nabi
          !
          field => abinitio(ifield)
          do i=1,field%Nterms
@@ -1384,7 +1384,7 @@ module refinement
             &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
             !
             j = 0 
-            do ifield =1,Ntotalfields
+            do ifield =1,Nabi
               !
               field => abinitio(ifield)
               !

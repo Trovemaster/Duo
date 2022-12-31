@@ -3252,7 +3252,7 @@ module diatom_module
     Ndipoles = idip
     Nlxly = ilxly
     Nl2   = il2
-    Nabi  = 0
+    Nabi  = iabi
     Nss   = iss
     Nsso  = isso
     Nbobrot  = ibobrot
@@ -3295,90 +3295,90 @@ module diatom_module
     !
     !if (action%fitting .eqv. .true.) then
       !
-      Nabi = Ntotalfields
+      !Nabi = Ntotalfields
       fieldmap(Nobjects-2)%Nfields = Nabi
       !
       ! we also check whether not all fields are given on a grid and thus can be varied.
       !
       allgrids = .true.
       !
-      iabi = 0
-      !
-      do iobj = 1,Nobjects-3
-        !
-        do iterm = 1,fieldmap(iobj)%Nfields
-          !
-          select case (iobj)
-          case (1)
-            field => poten(iterm)
-          case (2)
-            field => spinorbit(iterm)
-          case (3)
-            field => l2(iterm)
-          case (4)
-            field => lxly(iterm)
-          case (5)
-            field => spinspin(iterm)
-          case (6)
-            field => spinspino(iterm)
-          case (7)
-            field => bobrot(iterm)
-          case (8)
-            field => spinrot(iterm)
-          case (9)
-            field => diabatic(iterm)
-          case (10)
-            field => lambdaopq(iterm)
-          case (11)
-            field => lambdap2q(iterm)
-          case (12)
-            field => lambdaq(iterm)
-          case (13)
-            field => nac(iterm)
-          case (21, 22, 23, 24, 25, 26, 27)
-            field => hfcc1(iobj - 20)%field(iterm)
-          case (Nobjects-3)
-            field => quadrupoletm(iterm)
-          case (Nobjects-2)
-            field => abinitio(iterm)
-          case default
-             print "(a,i0)", "iobject = ",iobj
-             stop "illegal iobject  "
-          end select
-          !
-          iabi = iabi + 1
-          !
-          if (trim(field%type)/="GRID") allgrids = .false.
-          !
-          !field => abinitio(iabi)
-          !
-          if (.not.associated(abinitio(iabi)%value)) then
-            !
-            Nparam = 1 ; abinitio(iabi)%Nterms = 0
-            !
-            allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
-                     abinitio(iabi)%weight(Nparam),stat=alloc)
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
-            !
-            abinitio(iabi)%value = 0
-            abinitio(iabi)%grid = 1.0_rk
-            abinitio(iabi)%weight = 0
-            abinitio(iabi)%type = 'DUMMY'  ! dummy field
-            abinitio(iabi)%name    = field%name
-            abinitio(iabi)%spini   = field%spini
-            abinitio(iabi)%spinj   = field%spinj
-            abinitio(iabi)%sigmai  = field%sigmai
-            abinitio(iabi)%sigmaj  = field%sigmaj
-            abinitio(iabi)%multi   = field%multi
-            abinitio(iabi)%lambda  = field%lambda
-            abinitio(iabi)%lambdaj = field%lambdaj
-            !
-          endif
-          !
-        enddo
-      enddo
+      !iabi = 0
+      !!
+      !do iobj = 1,0 !,Nobjects-3
+      !  !
+      !  do iterm = 1,fieldmap(iobj)%Nfields
+      !    !
+      !    select case (iobj)
+      !    case (1)
+      !      field => poten(iterm)
+      !    case (2)
+      !      field => spinorbit(iterm)
+      !    case (3)
+      !      field => l2(iterm)
+      !    case (4)
+      !      field => lxly(iterm)
+      !    case (5)
+      !      field => spinspin(iterm)
+      !    case (6)
+      !      field => spinspino(iterm)
+      !    case (7)
+      !      field => bobrot(iterm)
+      !    case (8)
+      !      field => spinrot(iterm)
+      !    case (9)
+      !      field => diabatic(iterm)
+      !    case (10)
+      !      field => lambdaopq(iterm)
+      !    case (11)
+      !      field => lambdap2q(iterm)
+      !    case (12)
+      !      field => lambdaq(iterm)
+      !    case (13)
+      !      field => nac(iterm)
+      !    case (21, 22, 23, 24, 25, 26, 27)
+      !      field => hfcc1(iobj - 20)%field(iterm)
+      !    case (Nobjects-3)
+      !      field => quadrupoletm(iterm)
+      !    case (Nobjects-2)
+      !      field => abinitio(iterm)
+      !    case default
+      !       print "(a,i0)", "iobject = ",iobj
+      !       stop "illegal iobject  "
+      !    end select
+      !    !
+      !    iabi = iabi + 1
+      !    !
+      !    if (trim(field%type)/="GRID") allgrids = .false.
+      !    !
+      !    !field => abinitio(iabi)
+      !    !
+      !    if (.not.associated(abinitio(iabi)%value)) then
+      !      !
+      !      Nparam = 1 ; abinitio(iabi)%Nterms = 0
+      !      !
+      !      allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
+      !               abinitio(iabi)%weight(Nparam),stat=alloc)
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
+      !      !
+      !      abinitio(iabi)%value = 0
+      !      abinitio(iabi)%grid = 1.0_rk
+      !      abinitio(iabi)%weight = 0
+      !      abinitio(iabi)%type = 'DUMMY'  ! dummy field
+      !      abinitio(iabi)%name    = field%name
+      !      abinitio(iabi)%spini   = field%spini
+      !      abinitio(iabi)%spinj   = field%spinj
+      !      abinitio(iabi)%sigmai  = field%sigmai
+      !      abinitio(iabi)%sigmaj  = field%sigmaj
+      !      abinitio(iabi)%multi   = field%multi
+      !      abinitio(iabi)%lambda  = field%lambda
+      !      abinitio(iabi)%lambdaj = field%lambdaj
+      !      !
+      !    endif
+      !    !
+      !  enddo
+      !enddo
       !
       !if (allgrids.and.action%fitting) then
       !  call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
@@ -3625,7 +3625,7 @@ module diatom_module
         integer(ik),intent(out) :: ierr
         type(FieldT),pointer,intent(out) :: field
         !
-        integer(ik) :: ielement_,ielement,ifield
+        integer(ik) :: ielement,ifield,iobject_
         !
         ierr = 0 
         ielement = 0
@@ -4111,7 +4111,7 @@ subroutine map_fields_onto_grid(iverbose)
      integer(ik),intent(in) :: iverbose
      !
      integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
-     integer(ik)             :: ifterm,iobject,ifield
+     integer(ik)             :: ifterm,iobject,ifield,iabi
      real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
      real(rk),allocatable    :: f(:)
      !
@@ -4550,7 +4550,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            if (field%class=="DIABATIC".or.field%class=="NAC") then 
+            if (field%class=="DIABATIC") then 
               !
               ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
               !
@@ -4652,9 +4652,11 @@ subroutine map_fields_onto_grid(iverbose)
           !
           if (field%morphing.and.iobject/=Nobjects-2) then
             !
-            ! check if ai field was defined 
+            ! check if ai field was defined
             !
-            check_ai = sum((abinitio(ifield)%gridvalue)**2)
+            iabi = field%iabi 
+            !
+            check_ai = sum((abinitio(iabi)%gridvalue)**2)
             !
             if (check_ai<small_) then 
               !
@@ -4663,7 +4665,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
             endif
             ! 
-            field%gridvalue = field%gridvalue*abinitio(ifield)%gridvalue
+            field%gridvalue = field%gridvalue*abinitio(iabi)%gridvalue
             !
           endif
           !
