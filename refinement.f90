@@ -1434,12 +1434,32 @@ module refinement
                  !dec end if
                enddo  
                !
+               ! In case any diagonal matrix elements of al is zero, we can have remove this paramter 
+               ! from the fit and set its value to zero. And start the iteration again. 
+               do ncol=1,numpar 
+                  !
+                  if ( abs(al(ncol,ncol))<small_ ) then 
+                      !
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      !
+                      objects(iobject,ifield)%field%weight(iterm) = 0
+                      objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                      !
+                      write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                      !
+                      cycle outer_loop
+                      !
+                  endif 
+                  !
+               enddo 
                !
                ! Using Marquardt's fitting method
                !
                ! solve the linear equatins for two values of lambda and lambda/10
                !
-               ! Defining scalled (with covariance) A and b
+               ! Defining scaled (with covariance) A and b
                ! 
                ! form A matrix 
                do irow=1,numpar       

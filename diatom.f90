@@ -1648,9 +1648,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,Nobjects,iobject(Nobjects),dipoletm,ierr)
              !
-             field => dipoletm(iobject(Nobjects))
-             !
              if (ierr>0) cycle
+             !
+             field => dipoletm(iobject(Nobjects))
              !
              idip = iobject(Nobjects)
              !
@@ -1667,9 +1667,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,2,iobject(2),spinorbit,ierr)
              !
-             field => spinorbit(iobject(2))
-             !
              if (ierr>0) cycle
+             !
+             field => spinorbit(iobject(2))
              !
              iso = iobject(2)
              !
@@ -1686,9 +1686,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,4,iobject(4),lxly,ierr)
              !
-             field => lxly(iobject(4))
-             !
              if (ierr>0) cycle
+             !
+             field => lxly(iobject(4))
              !
              ilxly = iobject(4)
              !
@@ -1708,25 +1708,25 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,3,iobject(3),l2,ierr)
              !
-             field => l2(iobject(3))
-             !
              if (ierr>0) cycle
+             !
+             field => l2(iobject(3))
              !
           case("BOB-ROT","BOBROT")
              !
              call input_non_diagonal_field(Nobjects,7,iobject(7),bobrot,ierr)
              !
-             field => bobrot(iobject(7))
-             !
              if (ierr>0) cycle
+             !
+             field => bobrot(iobject(7))
              !
           case("SPIN-SPIN")
              !
              call input_non_diagonal_field(Nobjects,5,iobject(5),spinspin,ierr)
              !
-             field => spinspin(iobject(5))
-             !
              if (ierr>0) cycle
+             !
+             field => spinspin(iobject(5))
              !
              ! non-diagonal spin-spin term 
              !
@@ -1734,11 +1734,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,6,iobject(6),spinspino,ierr)
              !
-             field => spinspino(iobject(6))
-             !
              if (ierr>0) cycle
              !
-             isso = iobject(6)
+             field => spinspino(iobject(6))
              !
           case("SPIN-ROT","SPIN-ROTATION")
              !
@@ -1746,9 +1744,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,8,iobject(8),spinrot,ierr)
              !
-             field => spinrot(iobject(8))
-             !
              if (ierr>0) cycle
+             !
+             field => spinrot(iobject(8))
              !
              isr = iobject(8)
              !
@@ -1756,9 +1754,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,9,iobject(9),diabatic,ierr)
              !
-             field => diabatic(iobject(9))
-             !
              if (ierr>0) cycle
+             !
+             field => diabatic(iobject(9))
              !
              idiab = iobject(9)
              !
@@ -1766,9 +1764,9 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,10,iobject(10),lambdaopq,ierr)
              !
-             field => lambdaopq(iobject(10))
-             !
              if (ierr>0) cycle
+             !
+             field => lambdaopq(iobject(10))
              !
              ! -(p+2q)
              !
@@ -1776,25 +1774,25 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,11,iobject(11),lambdap2q,ierr)
              !
-             field => lambdap2q(iobject(11))
-             !
              if (ierr>0) cycle
+             !
+             field => lambdap2q(iobject(11))
              !
           case("LAMBDA-Q","LAMBDAQ")
              !
              call input_non_diagonal_field(Nobjects,12,iobject(12),lambdaq,ierr)
              !
-             field => lambdaq(iobject(12))
-             !
              if (ierr>0) cycle
+             !
+             field => lambdaq(iobject(12))
              !
           case("NAC")
              !
              call input_non_diagonal_field(Nobjects,13,iobject(13),nac,ierr)
              !
-             field => nac(iobject(13))
-             !
              if (ierr>0) cycle
+             !
+             field => nac(iobject(13))
              !
           case("QUADRUPOLE")
              !
@@ -1804,13 +1802,13 @@ module diatom_module
              !
              call input_non_diagonal_field(Nobjects,Nobjects-3,iobject(Nobjects-3),quadrupoletm,ierr)
              !
-             field => quadrupoletm(iobject(Nobjects-3))
-             !
              if (ierr>0) cycle
              !
-             iquad = iobject(Nobjects)
+             field => quadrupoletm(iobject(Nobjects-3))
              !
-             if (idip>ncouples) then
+             iquad = iobject(Nobjects-3)
+             !
+             if (iquad>ncouples) then
                  write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
@@ -3248,21 +3246,21 @@ module diatom_module
     !
     if (Nestates<1) call report ("At least one POTEN object must be present (abinitio poten does not count)",.true.)
     !
-    Nspinorbits = iso
-    Ndipoles = idip
-    Nlxly = ilxly
-    Nl2   = il2
-    Nabi  = iabi
-    Nss   = iss
-    Nsso  = isso
-    Nbobrot  = ibobrot
-    Nsr = isr
-    Ndiabatic = idiab
+    Nspinorbits = iobject(2)
+    Nl2   = iobject(3)
+    Nlxly = iobject(4)
+    Nss   = iobject(5)
+    Nsso  = iobject(6)
+    Nbobrot  = iobject(7)
+    Nsr = iobject(8)
+    Ndiabatic = iobject(9)
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
     Nnac = iobject(13)    
-    nQuadrupoles = iquad
+    nQuadrupoles = iobject(Nobjects-3)
+    Ndipoles = iobject(Nobjects)
+    Nabi  = iabi
     !
     ! create a map with field distribution
     !
@@ -3568,8 +3566,6 @@ module diatom_module
         !
         iobject = iobject + 1
         !
-        field => fields(iobject)
-        !
         call reada(iTAG)
         !
         call StateStart(iTAG,iref)
@@ -3592,13 +3588,6 @@ module diatom_module
           enddo
         enddo loop_istate_nd
         !
-        ! Check if it was defined before 
-        do istate=1,iobject-1
-           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
-             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
-           endif
-        enddo
-        !
         if (.not.include_state) then
             !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
             iobject = iobject - 1
@@ -3609,6 +3598,15 @@ module diatom_module
             ierr = 1
             return
         endif
+        !
+        field => fields(iobject)
+        !
+        ! Check if it was defined before 
+        do istate=1,iobject-1
+           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
+             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
+           endif
+        enddo
         !
         call set_field_refs(field,iref,jref,istate_,jstate_)
         !
