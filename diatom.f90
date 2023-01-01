@@ -1408,6 +1408,10 @@ module diatom_module
                 !
                 call readi(fitting%obs(iobs)%N)
                 !
+                ! Check if this number has been already used and change it by 1
+                !
+                call check_unique_obs_energies(iobs)
+                !
                 if (action%frequency) then
                   call readf(fitting%obs(iobs)%Jrot_)
                   !
@@ -1817,7 +1821,9 @@ module diatom_module
             !
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
             iobject(21) = iobject(21) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -1858,7 +1864,9 @@ module diatom_module
           case("HFCC-A")
             hfcc1(2)%num_field = hfcc1(2)%num_field + 1
             iobject(22) = iobject(22) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -1899,7 +1907,9 @@ module diatom_module
           case("HFCC-C")
             hfcc1(3)%num_field = hfcc1(3)%num_field + 1
             iobject(23) = iobject(23) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -1942,7 +1952,9 @@ module diatom_module
           case("HFCC-D")
             hfcc1(4)%num_field = hfcc1(4)%num_field + 1
             iobject(24) = iobject(24) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -1985,7 +1997,9 @@ module diatom_module
             !
             hfcc1(5)%num_field = hfcc1(5)%num_field + 1
             iobject(25) = iobject(25) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2026,7 +2040,9 @@ module diatom_module
           case("HFCC-EQQ0")
             hfcc1(6)%num_field = hfcc1(6)%num_field + 1
             iobject(26) = iobject(26) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2067,7 +2083,9 @@ module diatom_module
           case("HFCC-EQQ2")
             hfcc1(7)%num_field = hfcc1(7)%num_field + 1
             iobject(27) = iobject(27) + 1
-            call readi(iref); jref = iref
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2133,8 +2151,13 @@ module diatom_module
              !
              if (iobject_==0) call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
              !
-             call readi(iref) ; jref = iref
-             if (nitems>3) call readi(jref)
+             call reada(iTAG)
+             call StateStart(iTAG,iref)
+             jref = iref
+             !
+             ! for nondiagonal terms
+             if (nitems>3) call reada(iTAG)
+             call StateStart(iTAG,jref)
              !
              include_state = .false.
              !
@@ -2558,6 +2581,8 @@ module diatom_module
               call readf(field%spini)
               field%spinj = field%spini
               if (nitems>2) call readf(field%spinj)
+              field%multi = nint(2.0_rk*field%spini)+1
+              field%jmulti = nint(2.0_rk*field%spinj)+1
               !
               if (mod(nint(2.0_rk*field%spini+1.0_rk),2)==0.and.integer_spin) then
                 call report("The spin of the field is inconsistent with the multiplicity of J-s in J_list/Jrot (top)",.true.)
@@ -3567,8 +3592,8 @@ module diatom_module
         iobject = iobject + 1
         !
         call reada(iTAG)
-        !
         call StateStart(iTAG,iref)
+        jref = iref
         !
         ! for nondiagonal terms
         if (nitems>2) call reada(iTAG)
@@ -3710,6 +3735,25 @@ module diatom_module
         end select
         !
     end function identify_parent_for_x  
+    !
+    recursive subroutine check_unique_obs_energies(nobs)
+      !
+      integer(ik),intent(in) :: nobs
+      integer(ik)            :: iobs
+      !
+      do iobs=1,nobs-1 
+         if (nint(fitting%obs(nobs)%Jrot-fitting%obs(iobs)%Jrot)==0.and.&
+                  fitting%obs(nobs)%iparity ==fitting%obs(iobs)%iparity.and.&
+                  fitting%obs(nobs)%N ==fitting%obs(iobs)%N) then                  
+          !
+          fitting%obs(nobs)%N = fitting%obs(iobs)%N+1
+          !
+          ! We need to check if this N has not been used before by calling check_unique_obs_energies recursivly 
+          call check_unique_obs_energies(nobs)
+         endif
+      enddo
+      !
+    end  subroutine check_unique_obs_energies
 
     !
   end subroutine ReadInput
