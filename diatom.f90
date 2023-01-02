@@ -13,6 +13,7 @@ module diatom_module
   !                     of the input (useful for jumping around).
   !
   integer             :: ierr
+  logical             :: zDebug =.true.   ! switching off this parameter will suppress many internal checks and should speed up calculations but make them more risky 
   character(len=wl)   :: line_buffer
   integer,parameter   :: max_input_lines=500000  ! maximum length (in lines) of input. 500,000 lines is plenty..
   !                                              ! to avoid feeding in GB of data by mistake.
@@ -79,7 +80,7 @@ module diatom_module
                                                              "HFCC-CI-1", &
                                                              "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
                                                              "", & ! reserved
-                                                             "ABINITIO","BROT","DIPOLE","QUADRUPOLE"/)
+                                                             "ABINITIO","QUADRUPOLE","BROT","DIPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -155,6 +156,8 @@ module diatom_module
     integer(ik)          :: jref         ! reference number of the coupling term as given in input (ket in case of the coupling)
     integer(ik)          :: istate       ! the actual state number (bra in case of the coupling)
     integer(ik)          :: jstate       ! the actual state number (ket in case of the coupling)
+    character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
+    character(len=cl)    :: jTAG         ! reference State TAG of the term as given in input (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
     integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
     integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
@@ -191,7 +194,6 @@ module diatom_module
     real(rk)             :: rimin        ! r_imin, r of the minimum of potential energy curve on the grid
     integer(ik)          :: imax         ! grid point index at which a potential energy curve is maximum
     real(rk)             :: Vimax        ! V(imax), maximum of potential energy curve on the grid in cm-1
-
     logical              :: zHasMinimum =.true.  ! whether a potential energy curve has a minimum
     real(rk)             :: re   ! pecs only: minimum for given pec, in angstroms.
     real(rk)             :: V0   ! pecs only: V(re)    , in cm-1
@@ -208,8 +210,6 @@ module diatom_module
     real(rk)             :: Omega_min  !  pecs only: minimum physically possible value for |Omega|=|Lambda+Sigma|
     real(rk)             :: approxEJ0    !  pecs only: approximate J=0, v=0 energy (no couplings)
     real(rk)             :: approxEJmin  !  pecs only: approximate J=Jmin, v=0 energy (no couplings)
-
-
     procedure (analytical_fieldT),pointer, nopass :: analytical_field => null()
     type(linkT),pointer   :: link(:)       ! address to link with the fitting parameter in a different object in the fit
     logical               :: morphing = .false.    ! When morphing is the field is used to morph the ab initio couterpart
@@ -223,6 +223,8 @@ module diatom_module
     real(rk)              :: adjust_val = 0.0_rk
     real(rk)              :: asymptote = 0.0_rk      ! reference asymptote energy used e.g. in the renormalisation of the continuum wavefunctions to sin(kr)
     logical               :: adjust = .false.        ! Add constant adjust_val to all fields
+    integer(ik)           :: iabi = 0                ! abinitio field's id if associated 
+    !
   end type fieldT
   !
   type FieldListT
@@ -536,7 +538,8 @@ module diatom_module
     !
     integer(ik)  :: iobject(Nobjects)
     integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
-    integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,iterm,iobj
+    integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
+                    iterm,iobj,iclass_,ielement
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
     integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
@@ -544,7 +547,7 @@ module diatom_module
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
-    character(len=cl) :: w,ioname
+    character(len=cl) :: w,ioname,iTAG
     character(len=wl) :: large_fmt
     !
     integer(ik)       :: iut !  iut is a unit number. 
@@ -1406,6 +1409,10 @@ module diatom_module
                 !
                 call readi(fitting%obs(iobs)%N)
                 !
+                ! Check if this number has been already used and change it by 1
+                !
+                call check_unique_obs_energies(iobs)
+                !
                 if (action%frequency) then
                   call readf(fitting%obs(iobs)%Jrot_)
                   !
@@ -1475,7 +1482,14 @@ module diatom_module
                   call readf(fitting%obs(iobs)%energy)
                 endif
                 !
-                call readi(fitting%obs(iobs)%quanta%istate)
+                ! read the state label
+                call reada(iTAG)
+                !
+                call StateStart(iTAG,iref)
+                !
+                fitting%obs(iobs)%quanta%istate = iref
+                !
+                !call readi(fitting%obs(iobs)%quanta%istate)
                 !
                 ! skip current line if this state is not processed
                 !
@@ -1505,7 +1519,14 @@ module diatom_module
                 !
                 if (action%frequency) then
                   !
-                  call readi(fitting%obs(iobs)%quanta_%istate)
+                  ! read the state label
+                  call reada(iTAG)
+                  !
+                  call StateStart(iTAG,iref)
+                  !
+                  fitting%obs(iobs)%quanta_%istate = iref
+                  !
+                  !call readi(fitting%obs(iobs)%quanta_%istate)
                   !
                   ! skip current line if this state is not processed
                   !
@@ -1566,7 +1587,7 @@ module diatom_module
             call report ('wrong last line in FITTING ',.false.)
          endif
           !
-       case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
+       case("SPIN-ORBIT","SPIN-ORBIT-X","SPIN-ORBIT-Z","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
             "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
@@ -1579,159 +1600,6 @@ module diatom_module
           unit_field = 1 ; unit_r = 1
           !
           select case (w)
-             !
-          case("DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X")
-             !
-             if (idip==0) then 
-                allocate(dipoletm(ncouples),stat=alloc)
-             endif
-             !
-             idip = idip + 1
-             !
-             call readi(iref)
-             call readi(jref)
-             !
-             include_state = .false.
-             loop_istated : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istated
-                 endif
-                 !
-               enddo
-             enddo loop_istated
-             !
-             if (.not.include_state) then
-                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
-                 idip = idip - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             if (idip>ncouples) then
-                 write(out,"(2a,i4,a,i6)") trim(w),": Number of dipoles = ",idip," exceeds the maximal allowed value",ncouples
-                 call report ("Too many couplings given in the input for"//trim(w),.true.)
-             endif
-             !
-             field => dipoletm(idip)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = "DIPOLE"
-             !
-             if (trim(w)=='DIPOLE-X') then
-               field%molpro = .true.
-             endif
-             !
-          case("SPIN-ORBIT","SPIN-ORBIT-X")
-             !
-             iobject(2) = iobject(2) + 1
-             !
-             call readi(iref)
-             call readi(jref)
-             !
-             include_state = .false.
-             loop_istate : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate
-                 endif
-                 !
-               enddo
-             enddo loop_istate
-             !
-             if (.not.include_state) then
-                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
-                 iobject(2) = iobject(2) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             iso = iobject(2)
-             !
-             if (iso>ncouples) then
-                 write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
-                 call report ("Too many couplings given in the input for"//trim(w),.true.)
-             endif
-             !
-             field => spinorbit(iso)
-             !
-             !call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%iref = iref
-             field%jref = jref
-             field%istate = istate_
-             field%jstate = jstate_
-             !
-             if (action%fitting) call report ("SPIN-ORBIT cannot appear after FITTING",.true.)
-             field%class = "SPINORBIT"
-             !
-             if (trim(w)=='SPIN-ORBIT-X') then
-               field%molpro = .true.
-             endif
-             !
-          case("LXLY","LYLX","L+","L_+","LX")
-             !
-             iobject(4) = iobject(4) + 1
-             !
-             call readi(iref)
-             call readi(jref)
-             !
-             include_state = .false.
-             loop_istatex : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istatex
-                 endif
-                 !
-               enddo
-             enddo loop_istatex
-             !
-             if (.not.include_state) then
-                 !write(out,"('The interaction ',2i8,' is skipped')") iref,jref
-                 iobject(4) = iobject(4) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             ilxly = iobject(4)
-             !
-             if (ilxly>ncouples) then
-                 print "(2a,i4,a,i6)",trim(w),": Number of L+ couplings = ",ilxly," exceeds the maximal allowed value",ncouples
-                 call report ("Too many L+ couplings given in the input for"//trim(w),.true.)
-             endif
-             !
-             field => lxly(ilxly)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = "L+"
-             !
-             if (action%fitting) call report ("LXLY (L+) cannot appear after FITTING",.true.)
-             !
-             if (trim(w)=='LX') then
-               field%molpro = .true.
-             endif
              !
           case("POTEN","POTENTIAL")
              !
@@ -1758,7 +1626,13 @@ module diatom_module
              field%istate = iobject(1)
              field%jstate = iobject(1)
              !
-             call readi(field%iref)
+             call reada(field%iTAG)
+             !
+             ! Map the state TAG to an integer count 
+             !
+             call StateStart(field%iTAG,field%iref)
+             !
+             !call readi(field%iref)
              field%jref = field%iref
              field%class = "POTEN"
              !
@@ -1771,450 +1645,159 @@ module diatom_module
              !
              if (action%fitting) call report ("POTEN cannot appear after FITTING",.true.)
              !
-          case("L2","L**2", "L^2")
+          case("DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X")
              !
-             iobject(3) = iobject(3) + 1
-             !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal L2 terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_l2 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_l2
-                 endif
-               enddo
-             enddo loop_istate_l2
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(3)-1
-                if (iref==l2(istate)%iref.and.jref==l2(istate)%jref) then
-                  call report ("L2 object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The L2 term ',2i8,' is skipped')") iref,jref
-                 iobject(3) = iobject(3) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
+             if (idip==0) then 
+                allocate(dipoletm(ncouples),stat=alloc)
              endif
              !
-             il2 = iobject(3)
+             call input_non_diagonal_field(Nobjects,Nobjects,iobject(Nobjects),dipoletm,ierr)
              !
-             field => l2(il2)
-             field%class = trim(classnames(3))
+             if (ierr>0) cycle
              !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
+             field => dipoletm(iobject(Nobjects))
              !
-             if (action%fitting) call report ("L2 cannot appear after FITTING",.true.)
+             idip = iobject(Nobjects)
              !
+             if (idip>ncouples) then
+                 write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
+                 call report ("Too many couplings given in the input for"//trim(w),.true.)
+             endif
+             !
+             if (trim(w)=='DIPOLE-X') then
+               field%molpro = .true.
+             endif
+             !
+          case("SPIN-ORBIT","SPIN-ORBIT-X","SPIN-ORBIT-Z")
+             !
+             call input_non_diagonal_field(Nobjects,2,iobject(2),spinorbit,ierr)
+             !
+             if (ierr>0) cycle
+             !
+             field => spinorbit(iobject(2))
+             !
+             iso = iobject(2)
+             !
+             if (iso>ncouples) then
+                 write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
+                 call report ("Too many couplings given in the input for"//trim(w),.true.)
+             endif
+             !
+             if (trim(w)=='SPIN-ORBIT-X'.or.trim(w)=='SPIN-ORBIT-Z') then
+               field%molpro = .true.
+             endif
+             !
+          case("LXLY","LYLX","L+","L_+","LX")
+             !
+             call input_non_diagonal_field(Nobjects,4,iobject(4),lxly,ierr)
+             !
+             if (ierr>0) cycle
+             !
+             field => lxly(iobject(4))
+             !
+             ilxly = iobject(4)
+             !
+             if (ilxly>ncouples) then
+                 print "(2a,i4,a,i6)",trim(w),": Number of L+ couplings = ",ilxly," exceeds the maximal allowed value",ncouples
+                 call report ("Too many L+ couplings given in the input for"//trim(w),.true.)
+             endif
+             !
+             !call set_field_refs(field,iref,jref,istate_,jstate_)
+             !field%class = "L+"
+             !
+             if (trim(w)=='LX') then
+               field%molpro = .true.
+             endif
+             !
+          case("L2","L**2", "L^2")
+             !
+             call input_non_diagonal_field(Nobjects,3,iobject(3),l2,ierr)
+             !
+             if (ierr>0) cycle
+             !
+             field => l2(iobject(3))
              !
           case("BOB-ROT","BOBROT")
              !
-             iobject(7) = iobject(7) + 1
+             call input_non_diagonal_field(Nobjects,7,iobject(7),bobrot,ierr)
              !
-             call readi(iref) ; jref = iref
+             if (ierr>0) cycle
              !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_bobrot : do istate=1,Nestates
-                 if (iref==poten(istate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   exit loop_istate_bobrot
-                 endif
-             enddo loop_istate_bobrot
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(7)-1
-                if (iref==bobrot(istate)%iref.and.jref==bobrot(istate)%jref) then
-                  call report ("BROT object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The BOB-ROT term ',1i8,' is skipped')") iref
-                 iobject(7) = iobject(7) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             ibobrot = iobject(7)
-             !
-             field => bobrot(ibobrot)
-             !
-             call set_field_refs(field,iref,jref,istate_,istate_)
-             !
-             field%class = trim(classnames(7))
-             !
-             if (action%fitting) call report ("BOBrot cannot appear after FITTING",.true.)
+             field => bobrot(iobject(7))
              !
           case("SPIN-SPIN")
              !
-             iobject(5) = iobject(5) + 1
+             call input_non_diagonal_field(Nobjects,5,iobject(5),spinspin,ierr)
              !
-             call readi(iref) ; jref = iref
+             if (ierr>0) cycle
              !
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_ss : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_ss
-                 endif
-               enddo
-             enddo loop_istate_ss
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(5)-1
-                if (iref==spinspin(istate)%iref.and.jref==spinspin(istate)%jref) then
-                  call report ("Spin-spin object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SS term ',2i8,' is skipped')") iref,jref
-                 iobject(5) = iobject(5) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             iss = iobject(5)
-             !
-             field => spinspin(iss)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(classnames(5))
-             !
-             if (action%fitting) call report ("Spin-spin cannot appear after FITTING",.true.)
+             field => spinspin(iobject(5))
              !
              ! non-diagonal spin-spin term 
              !
           case("SPIN-SPIN-O")
              !
-             iobject(6) = iobject(6) + 1
+             call input_non_diagonal_field(Nobjects,6,iobject(6),spinspino,ierr)
              !
-             call readi(iref) ; jref = iref
+             if (ierr>0) cycle
              !
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_sso : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_sso
-                 endif
-               enddo
-             enddo loop_istate_sso
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(6)-1
-                if (iref==spinspino(istate)%iref.and.jref==spinspino(istate)%jref) then
-                  call report ("SS-o object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SS-o term ',2i8,' is skipped')") iref,jref
-                 iobject(6) = iobject(6) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
-             !
-             isso = iobject(6)
-             !
-             field => spinspino(isso)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = trim(classnames(6))
-             !
-             if (action%fitting) call report ("Spin-spin-o cannot appear after FITTING",.true.)
+             field => spinspino(iobject(6))
              !
           case("SPIN-ROT","SPIN-ROTATION")
              !
              ! spin-rotation (gammma) term 
              !
-             iobject(8) = iobject(8) + 1
+             call input_non_diagonal_field(Nobjects,8,iobject(8),spinrot,ierr)
              !
-             call readi(iref) ; jref = iref
+             if (ierr>0) cycle
              !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_sr : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_sr
-                 endif
-               enddo
-             enddo loop_istate_sr
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(8)-1
-                if (iref==spinrot(istate)%iref.and.jref==spinrot(istate)%jref) then
-                  call report ("SR object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The SR term ',2i8,' is skipped')") iref,jref
-                 iobject(8) = iobject(8) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             field => spinrot(iobject(8))
              !
              isr = iobject(8)
              !
-             field => spinrot(isr)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(classnames(8))
-             !
-             if (action%fitting) call report ("Spin-rot cannot appear after FITTING",.true.)
-             !
           case("DIABAT","DIABATIC")
              !
-             iobject(9) = iobject(9) + 1
+             call input_non_diagonal_field(Nobjects,9,iobject(9),diabatic,ierr)
              !
-             call readi(iref) ; jref = iref
+             if (ierr>0) cycle
              !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_diab : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_diab
-                 endif
-               enddo
-             enddo loop_istate_diab
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(9)-1
-                if (iref==diabatic(istate)%iref.and.jref==diabatic(istate)%jref) then
-                  call report ("diabatic object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The DIABATIC term ',2i8,' is skipped')") iref,jref
-                 iobject(9) = iobject(9) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             field => diabatic(iobject(9))
              !
              idiab = iobject(9)
              !
-             field => diabatic(idiab)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             field%class = trim(classnames(9))
-             !
-             if (action%fitting) call report ("DIABATIC cannot appear after FITTING",.true.)
-             !
           case("LAMBDA-OPQ","LAMBDAOPQ")  ! o+p+q
              !
-             iobject(10) = iobject(10) + 1
+             call input_non_diagonal_field(Nobjects,10,iobject(10),lambdaopq,ierr)
              !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_10 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_10
-                 endif
-               enddo
-             enddo loop_istate_10
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(10)-1
-                if (iref==lambdaopq(istate)%iref.and.jref==lambdaopq(istate)%jref) then
-                  call report ("lambdaopq object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-O term ',2i8,' is skipped')") iref,jref
-                 iobject(10) = iobject(10) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              field => lambdaopq(iobject(10))
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(10))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
              !
              ! -(p+2q)
              !
           case("LAMBDA-P2Q","LAMBDAP2Q")
              !
-             iobject(11) = iobject(11) + 1
+             call input_non_diagonal_field(Nobjects,11,iobject(11),lambdap2q,ierr)
              !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_11 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_11
-                 endif
-               enddo
-             enddo loop_istate_11
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(11)-1
-                if (iref==lambdap2q(istate)%iref.and.jref==lambdap2q(istate)%jref) then
-                  call report ("lambdap2q object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-P term ',2i8,' is skipped')") iref,jref
-                 iobject(11) = iobject(11) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              field => lambdap2q(iobject(11))
              !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(11))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
-             !
           case("LAMBDA-Q","LAMBDAQ")
              !
-             iobject(12) = iobject(12) + 1
+             call input_non_diagonal_field(Nobjects,12,iobject(12),lambdaq,ierr)
              !
-             call readi(iref) ; jref = iref
-             !
-             ! for nondiagonal terms
-             if (nitems>2) call readi(jref)
-             !
-             ! find the corresponding potential
-             !
-             include_state = .false.
-             loop_istate_12 : do istate=1,Nestates
-               do jstate=1,Nestates
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_istate_12
-                 endif
-               enddo
-             enddo loop_istate_12
-             !
-             ! Check if it was defined before 
-             do istate=1,iobject(12)-1
-                if (iref==lambdaq(istate)%iref.and.jref==lambdaq(istate)%jref) then
-                  call report ("lambdaq object is repeated",.true.)
-                endif
-             enddo
-             !
-             if (.not.include_state) then
-                 !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
-                 iobject(12) = iobject(12) - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             if (ierr>0) cycle
              !
              field => lambdaq(iobject(12))
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = trim(CLASSNAMES(12))
-             !
-             if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
              !
           case("NAC")
              !
              call input_non_diagonal_field(Nobjects,13,iobject(13),nac,ierr)
              !
-             field => nac(iobject(13))
-             !
              if (ierr>0) cycle
+             !
+             field => nac(iobject(13))
              !
           case("QUADRUPOLE")
              !
@@ -2222,50 +1805,26 @@ module diatom_module
                 allocate(quadrupoletm(ncouples),stat=alloc)
              endif
              !
-             iquad = iquad + 1
+             call input_non_diagonal_field(Nobjects,Nobjects-3,iobject(Nobjects-3),quadrupoletm,ierr)
              !
-             call readi(iref)
-             call readi(jref)
+             if (ierr>0) cycle
              !
-             include_state = .false.
-             loop_quad : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   include_state = .true.
-                   istate_ = istate
-                   jstate_ = jstate
-                   exit loop_quad
-                 endif
-                 !
-               enddo
-             enddo loop_quad
+             field => quadrupoletm(iobject(Nobjects-3))
              !
-             if (.not.include_state) then
-                 iquad = iquad - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             iquad = iobject(Nobjects-3)
              !
              if (iquad>ncouples) then
-                 write(out,"(2a,i4,a,i6)") trim(w),": Number of quadrupoles = ",iquad," exceeds the maximal allowed value",ncouples
+                 write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
              !
-             field => quadrupoletm(iquad)
-             !
-             call set_field_refs(field,iref,jref,istate_,jstate_)
-             !
-             field%class = "QUADRUPOLE"
-             !
           case("HFCC-BF")
+            !
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
             iobject(21) = iobject(21) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2306,8 +1865,9 @@ module diatom_module
           case("HFCC-A")
             hfcc1(2)%num_field = hfcc1(2)%num_field + 1
             iobject(22) = iobject(22) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2348,8 +1908,9 @@ module diatom_module
           case("HFCC-C")
             hfcc1(3)%num_field = hfcc1(3)%num_field + 1
             iobject(23) = iobject(23) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2392,8 +1953,9 @@ module diatom_module
           case("HFCC-D")
             hfcc1(4)%num_field = hfcc1(4)%num_field + 1
             iobject(24) = iobject(24) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2436,8 +1998,9 @@ module diatom_module
             !
             hfcc1(5)%num_field = hfcc1(5)%num_field + 1
             iobject(25) = iobject(25) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2478,8 +2041,9 @@ module diatom_module
           case("HFCC-EQQ0")
             hfcc1(6)%num_field = hfcc1(6)%num_field + 1
             iobject(26) = iobject(26) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2520,8 +2084,9 @@ module diatom_module
           case("HFCC-EQQ2")
             hfcc1(7)%num_field = hfcc1(7)%num_field + 1
             iobject(27) = iobject(27) + 1
-            call readi(iref); jref = iref
-            include_state = .false.
+            call reada(iTAG)
+            call StateStart(iTAG,iref)
+            jref = iref
             !
             ! find the corresponding potential
             include_state = .false.
@@ -2569,387 +2134,38 @@ module diatom_module
              jstate_ = 0
              iabi_ = 0
              !
-             select case (w)
-               !
-             case ("POTEN","POTENTIAL")
-               !
-               ! find the corresponding potential
-               !
-               call readi(iref)
-               !
-               include_state = .false.
-               loop_istate_abpot : do istate=1,Nestates
-                   if (iref==poten(istate)%iref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     iabi_ = istate
-                     exit loop_istate_abpot
-                   endif
-               enddo loop_istate_abpot
-               !
-             case("L2","L**2")
-               !
-               ! find the corresponding L2
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_abl2 : do i=1,NL2
-                   if (iref==l2(i)%iref.and.jref==l2(i)%jref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + i
-                     !
-                     exit loop_istate_abl2
-                   endif
-               enddo loop_istate_abl2
-
-             case("BOB-ROT","BOBROT")
-               !
-               ! find the corresponding BB
-               !
-               call readi(iref) ; jref = iref
-               !
-               include_state = .false.
-               loop_istate_abbobr : do i=1,NL2
-                   if (iref==bobrot(i)%iref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + il2 + ilxly + iss+isso+i
-                     !
-                     exit loop_istate_abbobr
-                   endif
-               enddo loop_istate_abbobr
-               !
-             case("SPIN-ORBIT","SPIN-ORBIT-X")
-               !
-               call readi(iref)
-               call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_abiso : do i=1,iso
-                   !
-                   if (iref==spinorbit(i)%iref.and.jref==spinorbit(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = Nestates + i
-                     !
-                     if (trim(w)=='SPIN-ORBIT-X') then
-                       abinitio(iabi_)%molpro = .true.
-                     endif
-                     !
-                     exit loop_istate_abiso
-                   endif
-                   !
-               enddo loop_istate_abiso
-               !
-               w = "SPINORBIT"
-               !
-             case("LXLY","LYLX","L+","L_+","LX")
-               !
-               call readi(iref)
-               call readi(jref)
-               !
-               include_state = .false.
-               loop_istatex_abi : do i=1,ilxly
-                   !
-                   if (iref==lxly(i)%iref.and.jref==lxly(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = Nestates + iso + il2 + i
-                     !
-                     exit loop_istatex_abi
-                   endif
-                   !
-               enddo loop_istatex_abi
-               !
-               if (trim(w)=='LX'.and.iabi_>0) then
-                 abinitio(iabi_)%molpro = .true.
-               endif
-               !
-               w = "LX"
-               !
-             case("SPIN-SPIN")
-               !
-               ! find the corresponding SS
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_abss : do i=1,iss
-                   if (iref==spinspin(i)%iref.and.jref==spinspin(i)%jref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + il2 + ilxly + i
-                     !
-                     exit loop_istate_abss
-                   endif
-               enddo loop_istate_abss
-               !
-             case("SPIN-SPIN-O")
-               !
-               ! find the corresponding SSO
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_absso : do i=1,isso
-                   if (iref==spinspino(i)%iref.and.jref==spinspino(i)%jref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + il2 + ilxly + iss+i
-                     !
-                     exit loop_istate_absso
-                   endif
-               enddo loop_istate_absso
-               !
-             case("SPIN-ROT","SPIN-ROTATION")
-               !
-               ! find the corresponding object
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_absr : do i=1,isr
-                   if (iref==spinrot(i)%iref.and.jref==spinrot(i)%jref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + il2 + ilxly + iss + isso + ibobrot + i
-                     !
-                     exit loop_istate_absr
-                   endif
-               enddo loop_istate_absr
-               !
-             case("DIABATIC","DIABAT")
-               !
-               ! find the corresponding object
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               include_state = .false.
-               loop_istate_abdia : do i=1,idiab
-                   if (iref==diabatic(i)%iref.and.jref==diabatic(i)%jref) then
-                     include_state = .true.
-                     !istate_ = istate
-                     !
-                     iabi_ = Nestates + iso + il2 + ilxly + iss + isso + ibobrot + isr + i
-                     !
-                     exit loop_istate_abdia
-                   endif
-               enddo loop_istate_abdia
-               !
-             case("LAMBDA-OPQ","LAMBDAOPQ")
-               !
-               ! find the corresponding object
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               iobject_ = 10
-               !
-               include_state = .false.
-               loop_istate_ab10 : do i=1,iobject(iobject_)
-                   if (iref==lambdaopq(i)%iref.and.jref==lambdaopq(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = sum(iobject(1:iobject_-1)) + i
-                     !
-                     exit loop_istate_ab10
-                   endif
-               enddo loop_istate_ab10
-               !
-             case("LAMBDA-P2Q","LAMBDAP2Q")
-               !
-               ! find the corresponding object
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               iobject_ = 11
-               !
-               include_state = .false.
-               loop_istate_ab11 : do i=1,iobject(iobject_)
-                   if (iref==lambdap2q(i)%iref.and.jref==lambdap2q(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = sum(iobject(1:iobject_-1)) + i
-                     !
-                     exit loop_istate_ab11
-                   endif
-               enddo loop_istate_ab11
-               !
-             case("LAMBDA-Q","LAMBDAQ")
-               !
-               ! find the corresponding object
-               !
-               call readi(iref) ; jref = iref
-               if (nitems>2) call readi(jref)
-               !
-               iobject_ = 12
-               !
-               include_state = .false.
-               loop_istate_ab12 : do i=1,iobject(iobject_)
-                   if (iref==lambdaq(i)%iref.and.jref==lambdaq(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = sum(iobject(1:iobject_-1)) + i
-                     !
-                     exit loop_istate_ab12
-                   endif
-               enddo loop_istate_ab12
-               !
-             case("DIPOLE","DIPOLE-X")
-               !
-               call readi(iref)
-               call readi(jref)
-               !
-               iobject_ = Nobjects
-               !
-               include_state = .false.
-               loop_istate_abdip : do i=1,idip
-                   !
-                   if (iref==dipoletm(i)%iref.and.jref==dipoletm(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = sum(iobject(1:Nobjects-2)) + i
-                     !
-                     exit loop_istate_abdip
-                   endif
-                   !
-               enddo loop_istate_abdip
-               !
-               if (trim(w)=='DIPOLE-X') then
-                 abinitio(iabi_)%molpro = .true.
-               endif
-               !
-             case("QUADRUPOLE")
-               !
-               call report ("Ab initio field is crrently not working with QUADRUPOLE",.true.)
-               !
-               call readi(iref)
-               call readi(jref)
-               !
-               iobject_ = Nobjects-3
-               !
-               include_state = .false.
-               loop_istate_abquad : do i=1,iquad
-                   !
-                   if (iref==quadrupoletm(i)%iref.and.jref==quadrupoletm(i)%jref) then
-                     include_state = .true.
-                     !
-                     iabi_ = sum(iobject(1:Nobjects-3)) + i
-                     !
-                     exit loop_istate_abquad
-                   endif
-                   !
-               enddo loop_istate_abquad
-               !
-             case("HFCC-BF")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(1)%num_field
-                    if (iref == hfcc1(1)%field(i)%iref.and.jref == hfcc1(1)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:21-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             case("HFCC-A")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(2)%num_field
-                    if (iref == hfcc1(2)%field(i)%iref.and.jref == hfcc1(2)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:22-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             case("HFCC-C")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(3)%num_field
-                    if (iref == hfcc1(3)%field(i)%iref.and.jref == hfcc1(3)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:23-1)) + i
-                      exit
-                    endif
-                enddo
-                !             
-             case("HFCC-D")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(4)%num_field
-                    if (iref == hfcc1(4)%field(i)%iref.and.jref == hfcc1(4)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:24-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             case("HFCC-CI")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(5)%num_field
-                    if (iref == hfcc1(5)%field(i)%iref.and.jref == hfcc1(5)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:25-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             case("HFCC-EQQ0")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(6)%num_field
-                    if (iref == hfcc1(6)%field(i)%iref.and.jref == hfcc1(6)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:26-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             case("HFCC-EQQ2")
-                call readi(iref) ; jref = iref
-                if (nitems>2) call readi(jref)
-                !
-                include_state = .false.
-                do i = 1, hfcc1(7)%num_field
-                    if (iref == hfcc1(7)%field(i)%iref.and.jref == hfcc1(7)%field(i)%jref) then
-                      include_state = .true.
-                      iabi_ = sum(iobject(1:27-1)) + i
-                      exit
-                    endif
-                enddo
-                !
-             end select
+             iobject_ = 0 
              !
-             if (.not.include_state) then
-                 !write(out,"('The ab initio potential  ',i8,' is skipped')") iref
-                 iabi = iabi - 1
+             ! for "-X" type objects we need to use the corresponding parent withoit "-X"
+             !
+             w = identify_parent_for_x(w)
+             !
+             loop_abinit_find : do iclass_ = 1,Nobjects
+              !
+              if (trim(w)==trim(CLASSNAMES(iclass_))) then
+                !
+                iobject_ = iclass_
+                exit loop_abinit_find
+              endif
+              !
+             enddo loop_abinit_find
+             !
+             if (iobject_==0) call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
+             !
+             call reada(iTAG)
+             call StateStart(iTAG,iref)
+             jref = iref
+             !
+             ! for nondiagonal terms
+             if (nitems>3) call reada(iTAG)
+             call StateStart(iTAG,jref)
+             !
+             include_state = .false.
+             !
+             ielement = which_element(iref,jref,iobject_,iobject,field,ierr)
+             !
+             if (ierr > 0) then 
+                iabi = iabi - 1
                  do while (trim(w)/="".and.trim(w)/="END")
                    call read_line(eof,iut) ; if (eof) exit
                    call readu(w)
@@ -2957,45 +2173,17 @@ module diatom_module
                  cycle
              endif
              !
-             field => abinitio(iabi_)
+             ! assign the abinitio counter 
              !
-             field%iref = iref
-             field%jref = jref
+             field%iabi = iabi
              !
-             field%refvalue = 0
+             iabi_ = iabi
              !
-             !field%istate = istate_
-             !field%jstate = jstate_
-             !
-             if (.not.include_state) then
-                 !write(out,"('The ab initio potential  ',i8,' is skipped')") iref
-                 iabi = iabi - 1
-                 do while (trim(w)/="".and.trim(w)/="END")
-                   call read_line(eof,iut) ; if (eof) exit
-                   call readu(w)
-                 enddo
-                 cycle
-             endif
+             abinitio(iabi) = field 
              !
              field => abinitio(iabi_)
              !
-             field%iref = iref
-             field%jref = jref
              field%class = "ABINITIO-"//trim(w)
-             !
-             field%refvalue = 0
-             !
-             loop_istate_ai : do istate=1,Nestates
-               do jstate=1,Nestates
-                 !
-                 if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                   field%istate = istate
-                   field%jstate = jstate
-                   exit loop_istate_ai
-                 endif
-                 !
-               enddo
-             enddo loop_istate_ai
              !
           case default
              call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
@@ -3394,6 +2582,8 @@ module diatom_module
               call readf(field%spini)
               field%spinj = field%spini
               if (nitems>2) call readf(field%spinj)
+              field%multi = nint(2.0_rk*field%spini)+1
+              field%jmulti = nint(2.0_rk*field%spinj)+1
               !
               if (mod(nint(2.0_rk*field%spini+1.0_rk),2)==0.and.integer_spin) then
                 call report("The spin of the field is inconsistent with the multiplicity of J-s in J_list/Jrot (top)",.true.)
@@ -4082,21 +3272,21 @@ module diatom_module
     !
     if (Nestates<1) call report ("At least one POTEN object must be present (abinitio poten does not count)",.true.)
     !
-    Nspinorbits = iso
-    Ndipoles = idip
-    Nlxly = ilxly
-    Nl2   = il2
-    Nabi  = 0
-    Nss   = iss
-    Nsso  = isso
-    Nbobrot  = ibobrot
-    Nsr = isr
-    Ndiabatic = idiab
+    Nspinorbits = iobject(2)
+    Nl2   = iobject(3)
+    Nlxly = iobject(4)
+    Nss   = iobject(5)
+    Nsso  = iobject(6)
+    Nbobrot  = iobject(7)
+    Nsr = iobject(8)
+    Ndiabatic = iobject(9)
     Nlambdaopq = iobject(10)
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
     Nnac = iobject(13)    
-    nQuadrupoles = iquad
+    nQuadrupoles = iobject(Nobjects-3)
+    Ndipoles = iobject(Nobjects)
+    Nabi  = iabi
     !
     ! create a map with field distribution
     !
@@ -4129,90 +3319,90 @@ module diatom_module
     !
     !if (action%fitting .eqv. .true.) then
       !
-      Nabi = Ntotalfields
+      !Nabi = Ntotalfields
       fieldmap(Nobjects-2)%Nfields = Nabi
       !
       ! we also check whether not all fields are given on a grid and thus can be varied.
       !
       allgrids = .true.
       !
-      iabi = 0
-      !
-      do iobj = 1,Nobjects-3
-        !
-        do iterm = 1,fieldmap(iobj)%Nfields
-          !
-          select case (iobj)
-          case (1)
-            field => poten(iterm)
-          case (2)
-            field => spinorbit(iterm)
-          case (3)
-            field => l2(iterm)
-          case (4)
-            field => lxly(iterm)
-          case (5)
-            field => spinspin(iterm)
-          case (6)
-            field => spinspino(iterm)
-          case (7)
-            field => bobrot(iterm)
-          case (8)
-            field => spinrot(iterm)
-          case (9)
-            field => diabatic(iterm)
-          case (10)
-            field => lambdaopq(iterm)
-          case (11)
-            field => lambdap2q(iterm)
-          case (12)
-            field => lambdaq(iterm)
-          case (13)
-            field => nac(iterm)
-          case (21, 22, 23, 24, 25, 26, 27)
-            field => hfcc1(iobj - 20)%field(iterm)
-          case (Nobjects-3)
-            field => quadrupoletm(iterm)
-          case (Nobjects-2)
-            field => abinitio(iterm)
-          case default
-             print "(a,i0)", "iobject = ",iobj
-             stop "illegal iobject  "
-          end select
-          !
-          iabi = iabi + 1
-          !
-          if (trim(field%type)/="GRID") allgrids = .false.
-          !
-          !field => abinitio(iabi)
-          !
-          if (.not.associated(abinitio(iabi)%value)) then
-            !
-            Nparam = 1 ; abinitio(iabi)%Nterms = 0
-            !
-            allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
-                     abinitio(iabi)%weight(Nparam),stat=alloc)
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
-            call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
-            !
-            abinitio(iabi)%value = 0
-            abinitio(iabi)%grid = 1.0_rk
-            abinitio(iabi)%weight = 0
-            abinitio(iabi)%type = 'DUMMY'  ! dummy field
-            abinitio(iabi)%name    = field%name
-            abinitio(iabi)%spini   = field%spini
-            abinitio(iabi)%spinj   = field%spinj
-            abinitio(iabi)%sigmai  = field%sigmai
-            abinitio(iabi)%sigmaj  = field%sigmaj
-            abinitio(iabi)%multi   = field%multi
-            abinitio(iabi)%lambda  = field%lambda
-            abinitio(iabi)%lambdaj = field%lambdaj
-            !
-          endif
-          !
-        enddo
-      enddo
+      !iabi = 0
+      !!
+      !do iobj = 1,0 !,Nobjects-3
+      !  !
+      !  do iterm = 1,fieldmap(iobj)%Nfields
+      !    !
+      !    select case (iobj)
+      !    case (1)
+      !      field => poten(iterm)
+      !    case (2)
+      !      field => spinorbit(iterm)
+      !    case (3)
+      !      field => l2(iterm)
+      !    case (4)
+      !      field => lxly(iterm)
+      !    case (5)
+      !      field => spinspin(iterm)
+      !    case (6)
+      !      field => spinspino(iterm)
+      !    case (7)
+      !      field => bobrot(iterm)
+      !    case (8)
+      !      field => spinrot(iterm)
+      !    case (9)
+      !      field => diabatic(iterm)
+      !    case (10)
+      !      field => lambdaopq(iterm)
+      !    case (11)
+      !      field => lambdap2q(iterm)
+      !    case (12)
+      !      field => lambdaq(iterm)
+      !    case (13)
+      !      field => nac(iterm)
+      !    case (21, 22, 23, 24, 25, 26, 27)
+      !      field => hfcc1(iobj - 20)%field(iterm)
+      !    case (Nobjects-3)
+      !      field => quadrupoletm(iterm)
+      !    case (Nobjects-2)
+      !      field => abinitio(iterm)
+      !    case default
+      !       print "(a,i0)", "iobject = ",iobj
+      !       stop "illegal iobject  "
+      !    end select
+      !    !
+      !    iabi = iabi + 1
+      !    !
+      !    if (trim(field%type)/="GRID") allgrids = .false.
+      !    !
+      !    !field => abinitio(iabi)
+      !    !
+      !    if (.not.associated(abinitio(iabi)%value)) then
+      !      !
+      !      Nparam = 1 ; abinitio(iabi)%Nterms = 0
+      !      !
+      !      allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
+      !               abinitio(iabi)%weight(Nparam),stat=alloc)
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
+      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
+      !      !
+      !      abinitio(iabi)%value = 0
+      !      abinitio(iabi)%grid = 1.0_rk
+      !      abinitio(iabi)%weight = 0
+      !      abinitio(iabi)%type = 'DUMMY'  ! dummy field
+      !      abinitio(iabi)%name    = field%name
+      !      abinitio(iabi)%spini   = field%spini
+      !      abinitio(iabi)%spinj   = field%spinj
+      !      abinitio(iabi)%sigmai  = field%sigmai
+      !      abinitio(iabi)%sigmaj  = field%sigmaj
+      !      abinitio(iabi)%multi   = field%multi
+      !      abinitio(iabi)%lambda  = field%lambda
+      !      abinitio(iabi)%lambdaj = field%lambdaj
+      !      !
+      !    endif
+      !    !
+      !  enddo
+      !enddo
       !
       !if (allgrids.and.action%fitting) then
       !  call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
@@ -4394,6 +3584,7 @@ module diatom_module
         integer(ik),intent(out) :: ierr
         type(FieldT),pointer :: fields(:)
         type(FieldT),pointer :: field
+        character(len=cl)    :: iTAG
         !
         integer(ik) :: iref,jref,istare,jstate,istate_,jstate_
         !
@@ -4401,12 +3592,13 @@ module diatom_module
         !
         iobject = iobject + 1
         !
-        field => fields(iobject)
-        !
-        call readi(iref) ; jref = iref
+        call reada(iTAG)
+        call StateStart(iTAG,iref)
+        jref = iref
         !
         ! for nondiagonal terms
-        if (nitems>2) call readi(jref)
+        if (nitems>2) call reada(iTAG)
+        call StateStart(iTAG,jref)
         !
         ! find the corresponding potential
         !
@@ -4422,13 +3614,6 @@ module diatom_module
           enddo
         enddo loop_istate_nd
         !
-        ! Check if it was defined before 
-        do istate=1,iobject-1
-           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
-             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
-           endif
-        enddo
-        !
         if (.not.include_state) then
             !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
             iobject = iobject - 1
@@ -4440,13 +3625,157 @@ module diatom_module
             return
         endif
         !
+        field => fields(iobject)
+        !
+        ! Check if it was defined before 
+        do istate=1,iobject-1
+           if ( iref==fields(istate)%iref.and.jref==fields(istate)%jref ) then
+             call report (trim(CLASSNAMES(iType))//" is repeated",.true.)
+           endif
+        enddo
+        !
         call set_field_refs(field,iref,jref,istate_,jstate_)
         !
         field%class = trim(CLASSNAMES(iType))
         !
         if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
         !
-    end subroutine input_non_diagonal_field    
+    end subroutine input_non_diagonal_field  
+    !  
+    function which_element(iref,jref,iclass,nobject,field,ierr) result(ielement)
+        !
+        integer(ik),intent(in) :: iref,jref,iclass
+        integer(ik),intent(inout)  :: nobject(:)
+        integer(ik),intent(out) :: ierr
+        type(FieldT),pointer,intent(out) :: field
+        !
+        integer(ik) :: ielement,ifield,iobject_
+        !
+        ierr = 0 
+        ielement = 0
+        !
+        do iobject_ =1,Nobjects
+           !
+           do ifield =1,nobject(iobject_)
+             !
+             select case (iclass)
+             case (1)
+               field => poten(ifield)
+             case (2)
+               field => spinorbit(ifield)
+             case (3)
+               field => l2(ifield)
+             case (4)
+               field => lxly(ifield)
+             case (5)
+               field => spinspin(ifield)
+             case (6)
+               field => spinspino(ifield)
+             case (7)
+               field => bobrot(ifield)
+             case (8)
+               field => spinrot(ifield)
+             case (9)
+               field => diabatic(ifield)
+             case (10)
+               field => lambdaopq(ifield)
+             case (11)
+               field => lambdap2q(ifield)
+             case (12)
+               field => lambdaq(ifield)
+             case (13)
+               field => nac(ifield)
+             case (Nobjects-3)
+               field => quadrupoletm(ifield)
+             case (Nobjects-2)
+               field => abinitio(ifield)
+             case (Nobjects)
+               field => dipoletm(ifield)
+             case default
+                print "(a,i0)", "which_element: iobject = ",iobj
+                stop "which_element: illegal iobject"
+            end select
+            !
+            if ( iref==field%iref.and.jref==field%jref ) then
+              ielement = ifield
+              return 
+            endif
+            !
+          enddo
+        enddo
+        !
+        if (ielement==0) ierr = 2
+        !
+    end function which_element
+    !
+    ! remove "-x" from the field name, identify the parent object 
+    !
+    function identify_parent_for_x(in_x)  result(out)
+        !
+        character(len=cl),intent(in) :: in_x
+        character(len=cl)    :: out
+        !      
+        select case (in_x)
+          !
+        case("SPIN-ORBIT-X","SPINORBIT-X","SPINORBIT","SPIN-ORBIT","SPIN-ORBIT-Z")
+          !
+          out = "SPINORBIT"
+          !
+        case("LX","L_+","L+","LPLUS")
+          !
+          out = "L+"
+          !
+        case("DIPOLE-X","DIPOLE","DIPOLE-MOMENT")
+          !
+          out = "DIPOLE"
+          !
+        case("SPIN-ROT","SPIN-ROTATION")
+          !
+          out = "SPIN-ROT"
+          !
+        case("DIABATIC","DIABAT")
+          !
+          out = "DIABATIC"
+          !
+        case("LAMBDA-OPQ","LAMBDAOPQ")
+          !
+          out = "LAMBDA-OPQ"
+          !
+        case("LAMBDA-P2Q","LAMBDAP2Q")
+          !
+          out = "LAMBDA-P2Q"
+          !
+        case("LAMBDA-Q","LAMBDAQ")
+          !
+          out = "LAMBDA-Q"
+          !
+        case default 
+          !
+          out = trim(in_x)
+          !
+        end select
+        !
+    end function identify_parent_for_x  
+    !
+    recursive subroutine check_unique_obs_energies(nobs)
+      !
+      integer(ik),intent(in) :: nobs
+      integer(ik)            :: iobs
+      !
+      do iobs=1,nobs-1 
+         if (nint(fitting%obs(nobs)%Jrot-fitting%obs(iobs)%Jrot)==0.and.&
+                  fitting%obs(nobs)%iparity ==fitting%obs(iobs)%iparity.and.&
+                  fitting%obs(nobs)%N ==fitting%obs(iobs)%N) then                  
+          !
+          fitting%obs(nobs)%N = fitting%obs(iobs)%N+1
+          !
+          ! We need to check if this N has not been used before by calling check_unique_obs_energies recursivly 
+          call check_unique_obs_energies(nobs)
+         endif
+      enddo
+      !
+    end  subroutine check_unique_obs_energies
+
     !
   end subroutine ReadInput
 
@@ -4845,7 +4174,7 @@ subroutine map_fields_onto_grid(iverbose)
      integer(ik),intent(in) :: iverbose
      !
      integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
-     integer(ik)             :: ifterm,iobject,ifield
+     integer(ik)             :: ifterm,iobject,ifield,iabi
      real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
      real(rk),allocatable    :: f(:)
      !
@@ -5010,7 +4339,7 @@ subroutine map_fields_onto_grid(iverbose)
           endif
           !
           select case(trim(field%type))
-          !
+            !
           case("GRID")
             !
             nterms = field%Nterms
@@ -5282,6 +4611,16 @@ subroutine map_fields_onto_grid(iverbose)
             !
             call define_analytical_field(field%type,field%analytical_field)
             !
+            ! find a crossing point between two PECS required for diabatic cases
+            !
+            if (field%class=="DIABATIC") then 
+              !
+              ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
+              !
+              field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
+              !
+            endif
+            !
             !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
               !
@@ -5376,9 +4715,11 @@ subroutine map_fields_onto_grid(iverbose)
           !
           if (field%morphing.and.iobject/=Nobjects-2) then
             !
-            ! check if ai field was defined 
+            ! check if ai field was defined
             !
-            check_ai = sum((abinitio(ifield)%gridvalue)**2)
+            iabi = field%iabi 
+            !
+            check_ai = sum((abinitio(iabi)%gridvalue)**2)
             !
             if (check_ai<small_) then 
               !
@@ -5387,7 +4728,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
             endif
             ! 
-            field%gridvalue = field%gridvalue*abinitio(ifield)%gridvalue
+            field%gridvalue = field%gridvalue*abinitio(iabi)%gridvalue
             !
           endif
           !
@@ -5770,7 +5111,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               endif
               ! 
-            case ('L+','ABINITIO-LX')
+            case ('L+','ABINITIO-LX','ABINITIO-L+')
               !
               !write(out,"('molpro_duo: this L+-part is not implemented')")
               !stop 'molpro_duo: this L+-part is not implemented'
@@ -5825,7 +5166,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   ! 
-                case ('L+','ABINITIO-LX')
+                case ('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (poten(field%jstate)%parity%pm==-1) then 
                     !
@@ -5895,7 +5236,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif
                   ! 
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! The following relations are found using the condition <0|LX+iLY|+1> = 0
                   ! Regualr case is for <0|LX|Pix> and iregular is for <0|LX|Piy>
@@ -6005,7 +5346,7 @@ subroutine map_fields_onto_grid(iverbose)
                   !coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
                   !coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
                   !
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (abs(field%lambda-field%lambdaj)/=1) then
                     !
@@ -6287,7 +5628,7 @@ subroutine map_fields_onto_grid(iverbose)
                 !
               endif
               ! 
-            case ('L+','ABINITIO-LX')
+            case ('L+','ABINITIO-LX','ABINITIO-L+')
               !
               !write(out,"('molpro_duo: this L+-part is not implemented')")
               !stop 'molpro_duo: this L+-part is not implemented'
@@ -6355,7 +5696,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case ('L+','ABINITIO-LX')
+                case ('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! eigen-vector 2 is for Lambda
                   !
@@ -6427,7 +5768,7 @@ subroutine map_fields_onto_grid(iverbose)
                     !
                   endif 
                   ! 
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   ! eigen-vector 1 is for Lambda
                   !
@@ -6499,7 +5840,7 @@ subroutine map_fields_onto_grid(iverbose)
                   coupling(2,1) = -c*conjg(a(1,2))/conjg(a(2,2))
                   coupling(2,2) =  c*b(1,2)*conjg(a(1,2))/(conjg(a(2,2))*b(2,2))
                   !
-                case('L+','ABINITIO-LX')
+                case('L+','ABINITIO-LX','ABINITIO-L+')
                   !
                   if (abs(field%lambda-field%lambdaj)/=1) then
                     !
@@ -6616,6 +5957,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
             enddo
             !omp end parallel do
+            !
 
      end subroutine molpro_duo_old_2018
 
@@ -7019,6 +6361,78 @@ subroutine map_fields_onto_grid(iverbose)
            write(out,*)
            !
      end subroutine check_and_print_field
+     !
+     !
+     ! This funciton finds a crossing point between tow PECs
+     !
+     function find_crossing_point_of_PECs(iref1,iref2) result(r)
+       !
+       integer(ik),intent(in) :: iref1,iref2
+       real(rk)               :: re1,re2    
+       real(rk)               :: f1,f2,r_,r,r1,r2,diff
+       integer(ik)            :: i
+       !
+       real(rk),parameter     :: threshold_V = 1e-4,threshold_r = 1e-9
+       integer(ik),parameter  :: imax = 100
+       !
+       ! Here we assume that the second parameter in the analytic type is used for the equilibrium parameter
+       !
+       !re1 = poten(iref1)%value(2)
+       !re2 = poten(iref2)%value(2)
+       !
+       r1 = grid%rmin
+       r2 = grid%rmax
+       !
+       f1 =  poten(iref1)%analytical_field(r1,poten(iref1)%value)
+       f2 =  poten(iref2)%analytical_field(r2,poten(iref2)%value)
+       !
+       ! find crossing point between f1 and f2
+       !
+       if (r2<r1) then
+         write(out,"(a,a,a,3f12.8)") 'r1>r2 error','find_crossing_point_of_PECs','r1,r2 = ',r1,r2
+         stop 'r1>r2 error find_crossing_point_of_PECs imax reached'
+       endif
+       !
+       i = 0
+       !
+       do 
+          !
+          r_ = (r1+r2)*0.5_rk
+          f1 =  poten(iref1)%analytical_field(r_,poten(iref1)%value)
+          f2 =  poten(iref2)%analytical_field(r_,poten(iref2)%value)
+          !
+          if (f2>f1) then 
+           !
+           r1 = r_
+           !
+          else
+           !
+           r2 = r_
+           !
+          endif
+          !
+          i = i + 1
+          !
+          diff = abs(f2-f1)
+          !
+          if (i==imax) exit
+          if (abs(f2-f1)<threshold_V) exit
+          if (abs(r2-r1)<threshold_r) exit
+          !
+          cycle  
+          !    
+       enddo
+       !
+       if (i==imax) then
+         !
+         write(out,"(a,a,a,2f18.9,2f19.12)") 'crossing error max imax','find_crossing_point_of_PECs','r1,r2,f1,f2 = ',r1,r2,f1,f2
+         stop 'crossing error find_crossing_point_of_PECs imax reached'
+         !
+       endif
+       !
+       r  = r_
+       !
+     end function find_crossing_point_of_PECs
      !
 end subroutine map_fields_onto_grid
 
@@ -9015,7 +8429,7 @@ end subroutine map_fields_onto_grid
                 enddo
                 !
                 ! print out the internal matrix at the first grid point
-                if (iverbose>=4.and.abs(hmat(i,j)) >small_) then
+                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j)) >small_) then
                     write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
                 endif
                 !
@@ -9118,7 +8532,7 @@ end subroutine map_fields_onto_grid
                   ! the corresponding three_j should be non-zero:
                   three_j_ref = three_j(spini_, 2.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
                   !
-                  if (abs(three_j_ref)<small_) then 
+                  if (zDebug .and. abs(three_j_ref)<small_) then 
                     !
                     write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
                           field%istate,field%jstate
@@ -9129,11 +8543,11 @@ end subroutine map_fields_onto_grid
                   !
                   ! Also check the that the SO is consistent with the selection rules for SS
                   !
-                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
+                  if (zDebug .and. ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
                      ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm/=poten(field%jstate)%parity%pm ).or.&
                      ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
                         abs(ilambda_we-jlambda_we)>2.or.abs(nint(sigmai_we-sigmaj_we))>2.or.&
-                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) ) then
                      !
                      write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
                                      " with SO selection rules: ')") field%istate,field%jstate
@@ -9209,7 +8623,7 @@ end subroutine map_fields_onto_grid
                       endif
                       !
                       ! double check
-                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                      if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
                         write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
                                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
                         stop 'SO: wrongly reconsrtucted omegai or omegaj'
@@ -9224,7 +8638,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                           !
                           write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
                           printout(ilevel) = trim(printout(ilevel))//trim(printout_)
@@ -9261,7 +8675,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_ss
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    SS-o",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9298,7 +8712,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_sr*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    SR",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9355,7 +8769,7 @@ end subroutine map_fields_onto_grid
                         !
                         !
                         ! double check
-                        if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                        if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
                          write(out,'("SR: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
                                     & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
                           stop 'SR: wrongly reconsrtucted spini or spinj'
@@ -9408,7 +8822,7 @@ end subroutine map_fields_onto_grid
                           hmat(i,j) = hmat(i,j) - f_t*0.5_rk
                           !
                           ! print out the internal matrix at the first grid point
-                          if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                          if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                              write(printout_,'(i3,"-SR",2i3)') isr,ilevel,jlevel
                              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                              write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -9448,14 +8862,14 @@ end subroutine map_fields_onto_grid
                 !
                 !hmat(j,i) = hmat(i,j)
                 !
-                if ((nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
+                if (zDebug .and. (nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
                   write(out,'("J*S: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
                                                                                                          sigmai,sigmaj,i,j
                   stop 'J*S: omegai/=omegaj+/-1 '
                 endif
                 !
                 ! print out the internal matrix at the first grid point
-                if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                    write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                    if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9523,7 +8937,7 @@ end subroutine map_fields_onto_grid
                   ! the corresponding three_j should be non-zero:
                   three_j_ref = three_j(spini_, 1.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
                   !
-                  if (abs(three_j_ref)<small_) then 
+                  if (zDebug .and. abs(three_j_ref)<small_) then 
                     !
                     write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
                           field%istate,field%jstate
@@ -9534,11 +8948,11 @@ end subroutine map_fields_onto_grid
                   !
                   ! Also check the that the SO is consistent with the selection rules for SO
                   !
-                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
+                  if (zDebug .and. ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
                      ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm==poten(field%jstate)%parity%pm ).or.&
                      ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
                         abs(ilambda_we-jlambda_we)>1.or.abs(nint(sigmai_we-sigmaj_we))>1.or.&
-                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) ) then
                      !
                      write(out,"('The quantum numbers of the spin-orbit field ',2i3,' are inconsistent" // &
                                      " with SO selection rules: ')") field%istate,field%jstate
@@ -9614,7 +9028,7 @@ end subroutine map_fields_onto_grid
                       endif
                       !
                       ! double check
-                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                      if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
                         write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
                                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
                         stop 'SO: wrongly reconsrtucted omegai or omegaj'
@@ -9629,7 +9043,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                           !
                           write(printout_,'(i3,"-SO",2i3)') iso,ilevel,jlevel
                           printout(ilevel) = trim(printout(ilevel))//trim(printout_)
@@ -9654,7 +9068,7 @@ end subroutine map_fields_onto_grid
                 !
                 ! Also check that L+ is consistent with the selection rules
                 !
-                if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+                if ( zDebug .and. field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
                    !
                    write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
                                    " with L+selection rules: ')") field%istate,field%jstate
@@ -9713,7 +9127,7 @@ end subroutine map_fields_onto_grid
                     if (abs(ilambda-jlambda)/=1) cycle
                     !
                     ! double check
-                    if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                    if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
                      write(out,'("LJ: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
                                 & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
                       stop 'LJ: wrongly reconsrtucted spini or spinj'
@@ -9776,7 +9190,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                          write(printout_,'(i3,"-LS",2i3)') ilxly,ilevel,jlevel
                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                          write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -9798,7 +9212,7 @@ end subroutine map_fields_onto_grid
                       !
                       ! we should obtain  omegaj = omega+f_l
                       ! double check
-                      if ( nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
+                      if ( zDebug .and. nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
                          write(out,'("L*J omegaj ",f8.1," does agree with assumed ",f8.1," value omegai+/-1")') omegaj,omegai+f_l
                          stop 'wrongly reconsrtucted omegaj'
                       endif
@@ -9840,7 +9254,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                          write(printout_,'(i3,"-LJ",2i3)') ilxly,ilevel,jlevel
                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                          write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -9878,7 +9292,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LO",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9912,7 +9326,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LP",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9947,7 +9361,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LO",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9966,7 +9380,7 @@ end subroutine map_fields_onto_grid
          !
          if (iverbose>=3) write(out,'("...done!")')
          !
-         if (iverbose>=5) then
+         if (zDebug .and. iverbose>=4) then
             ! print out the structure of the submatrix
             !
             write(out,'(/"Non-zero matrix elements of the coupled Sigma-Lambda matrix:")')

@@ -133,7 +133,7 @@ module refinement
        ! count all grid points 
        !
        j = 0
-       do ifield = 1,Ntotalfields
+       do ifield = 1,Nabi !Ntotalfields
          !
          field => abinitio(ifield)
          !
@@ -263,7 +263,7 @@ module refinement
        ! weights for the ab initio fields
        !
        j = 0
-       do ifield =1,Ntotalfields
+       do ifield =1,Nabi
          !
          field => abinitio(ifield)
          do i=1,field%Nterms
@@ -397,7 +397,11 @@ module refinement
             !
             object0(iobject,ifield)%value = objects(iobject,ifield)%field%value
             !
-            ifield_ = ifield_ + 1
+            ! what is the number of the parent field in the abinitio counter?
+            !
+            ifield_  = objects(iobject,ifield)%field%iabi
+            !
+            if (ifield_==0) cycle 
             !
             ! change to the equilibrium
             !
@@ -1284,7 +1288,11 @@ module refinement
                !
                do ifield =1,Nfields
                  !
-                 ifield_ = ifield_ + 1
+                 ifield_  = objects(iobject,ifield)%field%iabi
+                 !
+                 if (ifield_==0) cycle 
+                 !
+                 !ifield_ = ifield_ + 1
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
@@ -1376,7 +1384,7 @@ module refinement
             &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
             !
             j = 0 
-            do ifield =1,Ntotalfields
+            do ifield =1,Nabi
               !
               field => abinitio(ifield)
               !
@@ -1426,12 +1434,32 @@ module refinement
                  !dec end if
                enddo  
                !
+               ! In case any diagonal matrix elements of al is zero, we can have remove this paramter 
+               ! from the fit and set its value to zero. And start the iteration again. 
+               do ncol=1,numpar 
+                  !
+                  if ( abs(al(ncol,ncol))<small_ ) then 
+                      !
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      !
+                      objects(iobject,ifield)%field%weight(iterm) = 0
+                      objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                      !
+                      write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                      !
+                      cycle outer_loop
+                      !
+                  endif 
+                  !
+               enddo 
                !
                ! Using Marquardt's fitting method
                !
                ! solve the linear equatins for two values of lambda and lambda/10
                !
-               ! Defining scalled (with covariance) A and b
+               ! Defining scaled (with covariance) A and b
                ! 
                ! form A matrix 
                do irow=1,numpar       

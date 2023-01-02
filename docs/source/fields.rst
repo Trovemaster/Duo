@@ -40,7 +40,8 @@ scalar-relativistic correction and with the
 Born-Oppenheimer Diagonal correction
 (also known as adiabatic correction). Approximate PECs can be obtained with
 well-known quantum chemistry methods such as Hartree-Fock, coupled cluster theory etc.
-Objects of type ``poten`` should always appear before
+
+Objects of type ``poten`` or ``potential`` should always appear before
 all other objects as they are used to assign to each electronic states its quantum numbers.
 Here is an example for a PEC showing the general structure:   
 ::
@@ -64,6 +65,37 @@ Here is an example for a PEC showing the general structure:
       B1         -0.92543284427290E-02
       B2          0.00000000000000E+00
       end
+
+
+Here  ``poten 1`` refers to the electronic state 1. This label `1` should be used consistently in all couplings as well as 
+in the description of the experimental data. 
+
+From 2023, the state labels can be any string of characters, e.g. 
+ 
+
+      poten Ap
+      name "Ap2Delta"
+      lambda 2
+      mult   2
+      type  EMO
+      values
+      V0           1.47069212003828e+04  fit    (  1.47070955806154e+04)
+      RE           1.817000000000000000
+      DE           5.92200000000000E+04
+      RREF        -1.00000000000000E+00
+      PL           4.00000000000000E+00
+      PR           4.00000000000000E+00
+      NL           1.00000000000000E+00
+      NR           4.00000000000000E+00
+      B0           1.700000000000000000
+      B1           0.000000000000000000
+      B2           0.000000000000000000
+      B3           0.000000000000000000
+      B4           0.000000000000000000
+      end
+
+
+Integers 1,2,3 from before 2023 will continue working.  
 
 
 
@@ -122,12 +154,57 @@ Example:
       5.00    -37.348300
     end
 
+
+Here 1 and 3 refer to the electronic states ``1`` and ``3`` as introduced using the corresponding ``potential``s:
+
+
+    potential 1 
+    ......
+    end
+
+    and  
+
+
+    potential 3
+    ......
+    end
+
+
+From 2023, for the electromic states can be labelled using strings of characters, e.g. 
+
+
+    spin-orbit-x  A A
+    name "<A2Pi|LSZ|A2Pi>"
+    spin   0.5 0.5
+    lambda  1  1
+    sigma  0.5 0.5
+    units  cm-1
+    factor    -i   (0, 1 or i)
+    type polynom_decay_24
+    <x|Lz|y>  -i -i
+    values
+    RE           1.79280000000000E+00
+    BETA         8.00000000000000E-01
+    GAMMA        2.00000000000000E-02
+    P            6.00000000000000E+00
+    B0           2.06176847388046e+02 
+    B1          -7.04066795005532e+01 
+    B2           0.000000000000000000 
+    B3           0.00000000000000E+00
+    BINF         220.0
+    end
+
+
+where A is the reference label used for  the electronic state ``A2Pi``.
+
+
 For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the matrix elements of the
  :math:`\hat{L}_z` operator nust be specified using the ``<x|Lz|y>`` keyword. 
  This representation is designed to work with e.g., the MOLPRO outputs. 
  For :math:`\Lambda\ne 0`, the diagonal SO-matrix element (e.g. between to :math:`\Pi`-components of :math:`\Lambda=1`) 
  should be specified using the :math:`\langle \Pi_x|LSZ |\Pi_y \rangle` component 
  (e.g. :math:`\langle 1.2 |{\rm LSZ} |1.3 \rangle`).
+
 
 
 
@@ -151,7 +228,31 @@ which can be interpreted as a position-dependent modification to the rotational 
 ^^^^^^^^^^^^
 
 Alias: ``diabat``. Non-diagonal coupling of potential energy functions in the diabatic 
-representation. 
+representation. A diabatic coupling should be centred about the crossing point of the correpsonding diabatic potential curves. 
+For an analitycal (non-grid) representaion, Duo will automatically finds a crossing between the corresponding 
+states and store its value to the second parameter of the diabatic field. It is threfore important to reserve the second 
+line for the reference, expansion point. The search of the crossing point is done by the dividing-by-half approach until the 
+convergence  (or 100 iterations) is reached.  Only one crossing is currenly supported. 
+
+Example:
+::
+
+     diabatic  B D 
+     name "<B2Sigma+|DC|D2Sigma+>"
+     lambda     0 0 
+     spin   0.5 0.5
+     type  Lorentz
+     factor    1.0
+     values
+      V0           0.000000000000000000
+      RE           2.08                   (this value will be replaced by the actual crossing point between B and D)
+      gamma        1.99627265568284e-01
+      a            2.75756224068962e+02
+      f1           0.000000000000000000
+     end
+
+
+
 
 ``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
