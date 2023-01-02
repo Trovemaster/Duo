@@ -71,7 +71,7 @@ Here  ``poten 1`` refers to the electronic state 1. This label `1` should be use
 in the description of the experimental data. 
 
 From 2023, the state labels can be any string of characters, e.g. 
- 
+::
 
       poten Ap
       name "Ap2Delta"
