@@ -13,6 +13,7 @@ module diatom_module
   !                     of the input (useful for jumping around).
   !
   integer             :: ierr
+  logical             :: zDebug =.false.   ! switching off this parameter will suppress many internal checks and should speed up calculations but make them more risky 
   character(len=wl)   :: line_buffer
   integer,parameter   :: max_input_lines=500000  ! maximum length (in lines) of input. 500,000 lines is plenty..
   !                                              ! to avoid feeding in GB of data by mistake.
@@ -8408,7 +8409,7 @@ end subroutine map_fields_onto_grid
                 enddo
                 !
                 ! print out the internal matrix at the first grid point
-                if (iverbose>=4.and.abs(hmat(i,j)) >small_) then
+                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j)) >small_) then
                     write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
                 endif
                 !
@@ -8511,7 +8512,7 @@ end subroutine map_fields_onto_grid
                   ! the corresponding three_j should be non-zero:
                   three_j_ref = three_j(spini_, 2.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
                   !
-                  if (abs(three_j_ref)<small_) then 
+                  if (zDebug .and. abs(three_j_ref)<small_) then 
                     !
                     write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
                           field%istate,field%jstate
@@ -8522,11 +8523,11 @@ end subroutine map_fields_onto_grid
                   !
                   ! Also check the that the SO is consistent with the selection rules for SS
                   !
-                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
+                  if (zDebug .and. ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>2.or.&
                      ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm/=poten(field%jstate)%parity%pm ).or.&
                      ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
                         abs(ilambda_we-jlambda_we)>2.or.abs(nint(sigmai_we-sigmaj_we))>2.or.&
-                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) ) then
                      !
                      write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
                                      " with SO selection rules: ')") field%istate,field%jstate
@@ -8602,7 +8603,7 @@ end subroutine map_fields_onto_grid
                       endif
                       !
                       ! double check
-                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                      if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
                         write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
                                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
                         stop 'SO: wrongly reconsrtucted omegai or omegaj'
@@ -8617,7 +8618,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                           !
                           write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
                           printout(ilevel) = trim(printout(ilevel))//trim(printout_)
@@ -8654,7 +8655,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_ss
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    SS-o",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -8691,7 +8692,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_sr*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    SR",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -8748,7 +8749,7 @@ end subroutine map_fields_onto_grid
                         !
                         !
                         ! double check
-                        if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                        if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
                          write(out,'("SR: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
                                     & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
                           stop 'SR: wrongly reconsrtucted spini or spinj'
@@ -8801,7 +8802,7 @@ end subroutine map_fields_onto_grid
                           hmat(i,j) = hmat(i,j) - f_t*0.5_rk
                           !
                           ! print out the internal matrix at the first grid point
-                          if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                          if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                              write(printout_,'(i3,"-SR",2i3)') isr,ilevel,jlevel
                              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                              write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -8841,14 +8842,14 @@ end subroutine map_fields_onto_grid
                 !
                 !hmat(j,i) = hmat(i,j)
                 !
-                if ((nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
+                if (zDebug .and. (nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
                   write(out,'("J*S: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
                                                                                                          sigmai,sigmaj,i,j
                   stop 'J*S: omegai/=omegaj+/-1 '
                 endif
                 !
                 ! print out the internal matrix at the first grid point
-                if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                    write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                    if (abs(hmat(i,j))>sqrt(small_)) then
@@ -8916,7 +8917,7 @@ end subroutine map_fields_onto_grid
                   ! the corresponding three_j should be non-zero:
                   three_j_ref = three_j(spini_, 1.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
                   !
-                  if (abs(three_j_ref)<small_) then 
+                  if (zDebug .and. abs(three_j_ref)<small_) then 
                     !
                     write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
                           field%istate,field%jstate
@@ -8927,11 +8928,11 @@ end subroutine map_fields_onto_grid
                   !
                   ! Also check the that the SO is consistent with the selection rules for SO
                   !
-                  if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
+                  if (zDebug .and. ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
                      ( ilambda_we==0.and.jlambda_we==0.and.poten(field%istate)%parity%pm==poten(field%jstate)%parity%pm ).or.&
                      ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
                         abs(ilambda_we-jlambda_we)>1.or.abs(nint(sigmai_we-sigmaj_we))>1.or.&
-                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                     ( poten(field%istate)%parity%gu/=0.and.poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) ) then
                      !
                      write(out,"('The quantum numbers of the spin-orbit field ',2i3,' are inconsistent" // &
                                      " with SO selection rules: ')") field%istate,field%jstate
@@ -9007,7 +9008,7 @@ end subroutine map_fields_onto_grid
                       endif
                       !
                       ! double check
-                      if ( nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                      if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
                         write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
                                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
                         stop 'SO: wrongly reconsrtucted omegai or omegaj'
@@ -9022,7 +9023,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                           !
                           write(printout_,'(i3,"-SO",2i3)') iso,ilevel,jlevel
                           printout(ilevel) = trim(printout(ilevel))//trim(printout_)
@@ -9047,7 +9048,7 @@ end subroutine map_fields_onto_grid
                 !
                 ! Also check that L+ is consistent with the selection rules
                 !
-                if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+                if ( zDebug .and. field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
                    !
                    write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
                                    " with L+selection rules: ')") field%istate,field%jstate
@@ -9106,7 +9107,7 @@ end subroutine map_fields_onto_grid
                     if (abs(ilambda-jlambda)/=1) cycle
                     !
                     ! double check
-                    if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                    if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
                      write(out,'("LJ: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", & 
                                 & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
                       stop 'LJ: wrongly reconsrtucted spini or spinj'
@@ -9169,7 +9170,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                          write(printout_,'(i3,"-LS",2i3)') ilxly,ilevel,jlevel
                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                          write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -9191,7 +9192,7 @@ end subroutine map_fields_onto_grid
                       !
                       ! we should obtain  omegaj = omega+f_l
                       ! double check
-                      if ( nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
+                      if ( zDebug .and. nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
                          write(out,'("L*J omegaj ",f8.1," does agree with assumed ",f8.1," value omegai+/-1")') omegaj,omegai+f_l
                          stop 'wrongly reconsrtucted omegaj'
                       endif
@@ -9233,7 +9234,7 @@ end subroutine map_fields_onto_grid
                       !hmat(j,i) = hmat(i,j)
                       !
                       ! print out the internal matrix at the first grid point
-                      if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                          write(printout_,'(i3,"-LJ",2i3)') ilxly,ilevel,jlevel
                          printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                          write(printout_,'(g12.4)') hmat(i,j)/sc
@@ -9271,7 +9272,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LO",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9305,7 +9306,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LP",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9340,7 +9341,7 @@ end subroutine map_fields_onto_grid
                    hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                    !
                    ! print out the internal matrix at the first grid point
-                   if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
                       write(printout_,'("    LO",2i3)') ilevel,jlevel
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                       if (abs(hmat(i,j))>sqrt(small_)) then
@@ -9359,7 +9360,7 @@ end subroutine map_fields_onto_grid
          !
          if (iverbose>=3) write(out,'("...done!")')
          !
-         if (iverbose>=5) then
+         if (zDebug .and. iverbose>=4) then
             ! print out the structure of the submatrix
             !
             write(out,'(/"Non-zero matrix elements of the coupled Sigma-Lambda matrix:")')
