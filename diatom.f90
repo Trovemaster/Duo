@@ -3638,7 +3638,13 @@ module diatom_module
         !
         field%class = trim(CLASSNAMES(iType))
         !
-        if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING",.true.)
+        if (action%fitting) then 
+           if (trim(field%class)=='DIPOLE') then 
+             write(out,"('Warning: move DIPOLE before FITTING. This wil become soon compulsory.')")
+           else
+             call report (trim(field%class)//" cannot appear after FITTING; move FITTING to the end of input",.true.)
+           endif
+        endif
         !
     end subroutine input_non_diagonal_field  
     !  

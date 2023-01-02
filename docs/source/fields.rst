@@ -155,22 +155,25 @@ Example:
     end
 
 
-Here 1 and 3 refer to the electronic states ``1`` and ``3`` as introduced using the corresponding ``potential``s:
+Here 1 and 3 refer to the electronic states ``1`` and ``3`` as introduced using the corresponding ``potential``:
+::
 
 
     potential 1 
-    ......
+    name . . . 
+    . . . 
     end
 
     and  
 
 
     potential 3
-    ......
+    . . . . . .
     end
 
 
 From 2023, for the electromic states can be labelled using strings of characters, e.g. 
+::
 
 
     spin-orbit-x  A A
@@ -193,6 +196,7 @@ From 2023, for the electromic states can be labelled using strings of characters
     B3           0.00000000000000E+00
     BINF         220.0
     end
+
 
 
 where A is the reference label used for  the electronic state ``A2Pi``.
