@@ -13,7 +13,7 @@ module diatom_module
   !                     of the input (useful for jumping around).
   !
   integer             :: ierr
-  logical             :: zDebug =.false.   ! switching off this parameter will suppress many internal checks and should speed up calculations but make them more risky 
+  logical             :: zDebug =.true.   ! switching off this parameter will suppress many internal checks and should speed up calculations but make them more risky 
   character(len=wl)   :: line_buffer
   integer,parameter   :: max_input_lines=500000  ! maximum length (in lines) of input. 500,000 lines is plenty..
   !                                              ! to avoid feeding in GB of data by mistake.
