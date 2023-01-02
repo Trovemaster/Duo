@@ -1587,7 +1587,7 @@ module diatom_module
             call report ('wrong last line in FITTING ',.false.)
          endif
           !
-       case("SPIN-ORBIT","SPIN-ORBIT-X","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
+       case("SPIN-ORBIT","SPIN-ORBIT-X","SPIN-ORBIT-Z","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
             "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
             "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
             "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
@@ -1668,7 +1668,7 @@ module diatom_module
                field%molpro = .true.
              endif
              !
-          case("SPIN-ORBIT","SPIN-ORBIT-X")
+          case("SPIN-ORBIT","SPIN-ORBIT-X","SPIN-ORBIT-Z")
              !
              call input_non_diagonal_field(Nobjects,2,iobject(2),spinorbit,ierr)
              !
@@ -1683,7 +1683,7 @@ module diatom_module
                  call report ("Too many couplings given in the input for"//trim(w),.true.)
              endif
              !
-             if (trim(w)=='SPIN-ORBIT-X') then
+             if (trim(w)=='SPIN-ORBIT-X'.or.trim(w)=='SPIN-ORBIT-Z') then
                field%molpro = .true.
              endif
              !
@@ -3717,17 +3717,37 @@ module diatom_module
         !      
         select case (in_x)
           !
-        case("SPIN-ORBIT-X","SPINORBIT-X")
+        case("SPIN-ORBIT-X","SPINORBIT-X","SPINORBIT","SPIN-ORBIT","SPIN-ORBIT-Z")
           !
           out = "SPINORBIT"
           !
-        case("LX")
+        case("LX","L_+","L+","LPLUS")
           !
           out = "L+"
           !
-        case("DIPOLE-X")
+        case("DIPOLE-X","DIPOLE","DIPOLE-MOMENT")
           !
           out = "DIPOLE"
+          !
+        case("SPIN-ROT","SPIN-ROTATION")
+          !
+          out = "SPIN-ROT"
+          !
+        case("DIABATIC","DIABAT")
+          !
+          out = "DIABATIC"
+          !
+        case("LAMBDA-OPQ","LAMBDAOPQ")
+          !
+          out = "LAMBDA-OPQ"
+          !
+        case("LAMBDA-P2Q","LAMBDAP2Q")
+          !
+          out = "LAMBDA-P2Q"
+          !
+        case("LAMBDA-Q","LAMBDAQ")
+          !
+          out = "LAMBDA-Q"
           !
         case default 
           !
