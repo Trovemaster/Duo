@@ -547,7 +547,7 @@ module diatom_module
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
-    character(len=cl) :: w,ioname,iTAG
+    character(len=cl) :: w,ioname,iTAG,jTAG
     character(len=wl) :: large_fmt
     !
     integer(ik)       :: iut !  iut is a unit number. 
@@ -1628,6 +1628,8 @@ module diatom_module
              !
              call reada(field%iTAG)
              !
+             field%jTAG = field%iTAG
+             !
              ! Map the state TAG to an integer count 
              !
              call StateStart(field%iTAG,field%iref)
@@ -1822,7 +1824,7 @@ module diatom_module
             !
             hfcc1(1)%num_field = hfcc1(1)%num_field + 1
             iobject(21) = iobject(21) + 1
-            call reada(iTAG)
+            call reada(iTAG) ; jTAG = iTAG
             call StateStart(iTAG,iref)
             jref = iref
             !
@@ -1858,7 +1860,7 @@ module diatom_module
             !
             field => hfcc1(1)%field(hfcc1(1)%num_field) 
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-BF-1"
             if (action%fitting) call report ("Fermi-contact object cannot appear after FITTING",.true.)
             !
@@ -1901,7 +1903,7 @@ module diatom_module
             !
             field => hfcc1(2)%field(hfcc1(2)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-A-1"
             if (action%fitting) call report ("Nuclear spin -- orbit object cannot appear after FITTING",.true.)
             !
@@ -1944,7 +1946,7 @@ module diatom_module
             !
             field => hfcc1(3)%field(hfcc1(3)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-C-1"
             if (action%fitting) then
               call report ("Diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
@@ -1989,7 +1991,7 @@ module diatom_module
             !
             field => hfcc1(4)%field(hfcc1(4)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-D-1"
             if (action%fitting) then
               call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
@@ -2034,7 +2036,7 @@ module diatom_module
             !
             field => hfcc1(5)%field(hfcc1(5)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-CI-1"
             if (action%fitting) call report ("Nuclear spin -- rotation object cannot appear after FITTING",.true.)
             !
@@ -2077,7 +2079,7 @@ module diatom_module
             !
             field => hfcc1(6)%field(hfcc1(6)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-EQQ0-1"
             if (action%fitting) call report ("Diagonal nuclear electric quadrupole object cannot appear after FITTING",.true.)
             !
@@ -2120,7 +2122,7 @@ module diatom_module
             !
             field => hfcc1(7)%field(hfcc1(7)%num_field)
             !
-            call set_field_refs(field, iref, jref, istate_, jstate_)
+            call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
             field%class = "HFCC-EQQ2-1"
             if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
              !
@@ -3562,15 +3564,18 @@ module diatom_module
     !
     ! set some default values of diffferent fields based on the descritpion of the corresponding poten-s
     !
-    subroutine set_field_refs(field,iref,jref,istate,jstate)
+    subroutine set_field_refs(field,iref,jref,istate,jstate,iTag,jTag)
       !
       integer(ik),intent(in) :: iref,jref,istate,jstate
+      character(len=cl),intent(in) :: iTag,jTag
       type(fieldT),pointer,intent(in)  :: field
          !
          field%iref = iref
          field%jref = jref
          field%istate = istate
          field%jstate = jstate
+         field%iTag = iTag
+         field%jTag = jTag
          if ( field%sigmai<bad_value+1 ) field%sigmai  = field%spini ! `sigma' should be irrelevant; but we define it to `spin'
          if ( field%sigmaj<bad_value+1 ) field%sigmaj  = field%spinj
          !
@@ -3584,7 +3589,7 @@ module diatom_module
         integer(ik),intent(out) :: ierr
         type(FieldT),pointer :: fields(:)
         type(FieldT),pointer :: field
-        character(len=cl)    :: iTAG
+        character(len=cl)    :: iTAG,jTAG
         !
         integer(ik) :: iref,jref,istare,jstate,istate_,jstate_
         !
@@ -3595,10 +3600,11 @@ module diatom_module
         call reada(iTAG)
         call StateStart(iTAG,iref)
         jref = iref
+        jTAG = iTAG
         !
         ! for nondiagonal terms
-        if (nitems>2) call reada(iTAG)
-        call StateStart(iTAG,jref)
+        if (nitems>2) call reada(jTAG)
+        call StateStart(jTAG,jref)
         !
         ! find the corresponding potential
         !
@@ -3634,7 +3640,7 @@ module diatom_module
            endif
         enddo
         !
-        call set_field_refs(field,iref,jref,istate_,jstate_)
+        call set_field_refs(field,iref,jref,istate_,jstate_,iTAG,jTAG)
         !
         field%class = trim(CLASSNAMES(iType))
         !

@@ -1705,9 +1705,10 @@ module refinement
                  !if (abinitio(ifield_)%type=="DUMMY") cycle
                  !
                  nchar = len_trim(objects(iobject,ifield)%field%class)
-                 write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,2i7)"
-                 write(out,my_fmt) trim(objects(iobject,ifield)%field%class),objects(iobject,ifield)%field%iref,&
-                                   objects(iobject,ifield)%field%jref
+                 write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,a,1x,a)"
+                 write(out,my_fmt) trim(objects(iobject,ifield)%field%class),&
+                                   trim(objects(iobject,ifield)%field%itag),&
+                                   trim(objects(iobject,ifield)%field%jtag)
                  !
                  !write(out,'(/tl,a20,2i4)') adjustl(trim(objects(iobject,ifield)%field%class)), &
                  !   objects(iobject,ifield)%field%iref,objects(iobject,ifield)%field%jref
