@@ -744,10 +744,10 @@ Example:
 
 
 
-``LORENTZ`` (alis ``LORENTZIAN``)
+``LORENTZ`` 
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Lorentzian type function used to represent the ``diabatic`` coupling:
+Alias is ``LORENTZIAN``. A Lorentzian type function used to represent the ``diabatic`` coupling:
                  
 :math:`f(r) = y_0 + 2\frac{f_0(r)}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}`, 
 
