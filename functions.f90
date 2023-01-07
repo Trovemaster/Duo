@@ -187,6 +187,10 @@ module functions
       !
       fanalytical_field => poten_lorentzian_polynom
       !
+    case("SQRT(LORENTZ)","SQRT(LORENTZIAN)")
+      !
+      fanalytical_field => poten_sqrt_lorentzian_polynom
+      !
     case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
       !
       fanalytical_field => polynomial_dimensionless
@@ -1809,6 +1813,37 @@ module functions
     f = y0+2.0_rk*f0/pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) )
     !
   end function poten_lorentzian_polynom
+
+
+  !
+  ! A sqrt(lorentzian) function for the couplings between diabatic curves
+  !
+  function poten_sqrt_lorentzian_polynom(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y0,r0,w,a,z,f0,f
+    integer(ik)            :: k,N
+    !
+    N = size(parameters)
+    !
+    y0 = parameters(1)
+    r0 = parameters(2)
+    w = parameters(3)
+    a = parameters(4)
+    !
+    z = (r-r0)
+    !
+    f0 = a
+    do k=5,N
+     f0 = f0 + parameters(k)*z**(k-4)
+    enddo
+    !
+    f = y0+f0*sqrt(2.0_rk*pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) ))
+    !
+  end function poten_sqrt_lorentzian_polynom
+
+
 
 
   function polynomial_dimensionless(r,parameters) result(f)

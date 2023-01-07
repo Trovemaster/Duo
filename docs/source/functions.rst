@@ -774,6 +774,36 @@ Example:
 
 
 
+``SQRT(LORENTZ)`` (alis ``SQRT(LORENTZIAN)``)
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A squore root of a Lorentzian type function used to represent the ``diabatic`` coupling:
+                 
+:math:`f(r) = y_0 + f_0(r) \sqrt{2\frac{1}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}}`, 
+
+where
+
+:math:`f_0(r) = \sum_{i=0}^N a_i (r-r_0)^i`
+
+Example:
+::
+
+
+    diabatic 3 5 
+    name "<A|diab|C>"
+    lambda 1
+    mult   2
+    type  sqrt(Lorentz)
+    values
+     V0           0.000000000000000000 
+     RE           1.98                
+     gamma        0.05               
+     a0           1.58
+    end
+
+
+
+
 
 ``POLYNOM_DECAY_24`` 
 ^^^^^^^^^^^^^^^^^^^^
