@@ -745,7 +745,7 @@ Example:
 
 
 ``LORENTZ`` 
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^
 
 Alias is ``LORENTZIAN``. A Lorentzian type function used to represent the ``diabatic`` coupling:
                  
@@ -774,10 +774,12 @@ Example:
 
 
 
-``SQRT(LORENTZ)`` (alis ``SQRT(LORENTZIAN)``)
-^^^^^^^^^^^^^^^^^^^^^^^^
+``SQRT(LORENTZ)`` 
+^^^^^^^^^^^^^^^^^
 
-A squore root of a Lorentzian type function used to represent the ``diabatic`` coupling:
+Alais ``SQRT(LORENTZIAN)`.
+
+A square-root of a Lorentzian type function used to represent the ``diabatic`` coupling:
                  
 :math:`f(r) = y_0 + f_0(r) \sqrt{2\frac{1}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}}`, 
 

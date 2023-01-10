@@ -1823,20 +1823,22 @@ module functions
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
     real(rk)               :: y0,r0,w,a,z,f0,f
-    integer(ik)            :: k,N
+    integer(ik)            :: k,N,p
     !
     N = size(parameters)
     !
     y0 = parameters(1)
     r0 = parameters(2)
-    w = parameters(3)
-    a = parameters(4)
+    p  = parameters(3)
     !
-    z = (r-r0)
+    w = parameters(4)
+    a = parameters(5)
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
     !
     f0 = a
-    do k=5,N
-     f0 = f0 + parameters(k)*z**(k-4)
+    do k=6,N
+     f0 = f0 + parameters(k)*z**(k-5)
     enddo
     !
     f = y0+f0*sqrt(2.0_rk*pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) ))
