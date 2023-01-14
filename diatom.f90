@@ -6487,7 +6487,7 @@ end subroutine map_fields_onto_grid
      real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
      integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
      integer(ik)             :: total_roots,irrep,jrrep,isr,ild
-     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:),kinmat(:,:)
+     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:),kinmat(:,:),kinmat1(:,:)
      real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
      real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
      integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
@@ -7184,6 +7184,9 @@ end subroutine map_fields_onto_grid
        allocate(kinmat(ngrid,ngrid),stat=alloc)
        call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
        !
+       allocate(kinmat1(ngrid,ngrid),stat=alloc)
+       call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+       !
        if (trim(solution_method)=="LOBATTO") then 
          allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),vibTmat(ngrid,ngrid),stat=alloc)
          call ArrayStart('LobAbs',alloc,size(LobAbs),kind(LobAbs))
@@ -7199,7 +7202,7 @@ end subroutine map_fields_onto_grid
        endif
        !
        !
-       call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+       call kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
        !
        do istate = 1,Nestates
          !
@@ -7550,21 +7553,6 @@ end subroutine map_fields_onto_grid
          !
        endif
        !
-       if (Nnac>0) then 
-           !
-           vibmat = 0 
-           !
-           ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
-           !kinetic factor is  12*h**2/(2*h) = 6*h 
-           !
-           do igrid =1, ngrid
-             if (igrid>1) then
-               vibmat(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
-               vibmat(igrid-1,igrid) = -vibmat(igrid,igrid-1)
-             endif
-           enddo
-       endif
-       !
        do iobject = 1,Nobjects
           !
           if (iobject==Nobjects-2) cycle
@@ -7668,7 +7656,7 @@ end subroutine map_fields_onto_grid
                  !
                  if (iobject==13) then 
                    !
-                   vibener =  matmul(vibmat,contrfunc(1:,jlevel))
+                   vibener =  matmul(kinmat1,contrfunc(1:,jlevel))
                    field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
                    field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
                    !
@@ -8477,7 +8465,7 @@ end subroutine map_fields_onto_grid
                 if (nac(iNAC)%istate==istate.and.nac(iNAC)%jstate==jstate.and.&
                     abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
                   field => nac(iNAC) 
-                  f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))*sc
+                  f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))
                   hmat(i,j) = hmat(i,j) + f_nac
                   exit
                 endif
@@ -10478,6 +10466,9 @@ end subroutine map_fields_onto_grid
      deallocate(kinmat)
      call ArrayStop('kinmat')
      !
+     deallocate(kinmat1)
+     call ArrayStop('kinmat1')
+     !
      if (allocated(contrenergy)) then 
        deallocate(contrenergy)
        call ArrayStop('contrenergy')
@@ -10631,44 +10622,58 @@ end subroutine map_fields_onto_grid
     !
     !
 
-     subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+     subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
         !
         integer(ik),intent(in)  :: ngrid
-        real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
+        real(rk),intent(inout)  :: kinmat(ngrid,ngrid),kinmat1(ngrid,ngrid)
         real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
         real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
         integer(ik)   :: jgrid,kgrid,igrid
         !
-        kinmat = 0
+        kinmat  = 0
+        kinmat1 = 0
         !
         do igrid =1, ngrid
           !
           select case(solution_method)
           case ("5POINTDIFFERENCES")
-           !
-           kinmat(igrid,igrid) = kinmat(igrid,igrid) + d2dr(igrid)
-           !
-           ! The nondiagonal matrix elemenets are:
-           ! The vibrational kinetic energy operator will connect only the
-           ! neighbouring grid points igrid+/1 and igrid+/2.
-           !
-           ! Comment by Lorenzo Lodi
-           ! The following method corresponds to approximating the second derivative of the wave function
-           ! psi''  by the 5-point finite difference formula:
-           !
-           ! f''(0) = [-f(-2h) +16*f(-h) - 30*f(0) +16*f(h) - f(2h) ] / (12 h^2)  + O( h^4 )
-           !
-           if (igrid>1) then
-             kinmat(igrid,igrid-1) = -16.0_rk*z(igrid-1)*z(igrid)
-             kinmat(igrid-1,igrid) = kinmat(igrid,igrid-1)
-           endif
-           !
-           if (igrid>2) then
-             kinmat(igrid,igrid-2) = z(igrid-2)*z(igrid)
-             kinmat(igrid-2,igrid) = kinmat(igrid,igrid-2)
-           endif
-           !
-           case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
+            !
+            kinmat(igrid,igrid) = kinmat(igrid,igrid) + d2dr(igrid)
+            !
+            ! The nondiagonal matrix elemenets are:
+            ! The vibrational kinetic energy operator will connect only the
+            ! neighbouring grid points igrid+/1 and igrid+/2.
+            !
+            ! Comment by Lorenzo Lodi
+            ! The following method corresponds to approximating the second derivative of the wave function
+            ! psi''  by the 5-point finite difference formula:
+            !
+            ! f''(0) = [-f(-2h) +16*f(-h) - 30*f(0) +16*f(h) - f(2h) ] / (12 h^2)  + O( h^4 )
+            !
+            if (igrid>1) then
+              kinmat(igrid,igrid-1) = -16.0_rk*z(igrid-1)*z(igrid)
+              kinmat(igrid-1,igrid) = kinmat(igrid,igrid-1)
+            endif
+            !
+            if (igrid>2) then
+              kinmat(igrid,igrid-2) = z(igrid-2)*z(igrid)
+              kinmat(igrid-2,igrid) = kinmat(igrid,igrid-2)
+            endif
+            !
+            if (Nnac>0) then
+              !
+              ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
+              ! kinetic factor is  12*h**2/(2*h)/1e-8 = 6*h/1e-8 
+              ! where 1e-8 is because of one d/dr not d^2/dr^2
+              !
+              if (igrid>1) then
+                kinmat1(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
+                kinmat1(igrid-1,igrid) = -kinmat1(igrid,igrid-1)
+              endif
+              !
+            endif
+            !
+          case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
                           ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
              if( grid%nsub /=0) then
                write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
@@ -10681,6 +10686,19 @@ end subroutine map_fields_onto_grid
                kinmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
                kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
              enddo
+             !
+             if (Nnac>0) then
+               !
+               ! f'(0) = (-1)^(i+j)/(i-j)/h
+               ! kinetic factor is  12*h**2/(h)/1e-8 
+               ! where 1e-8 is because of one d/dr not d^2/dr^2
+               !
+               do jgrid =igrid+1, ngrid
+                 kinmat1(igrid,jgrid) = +(12._rk)*real( (-1)**(igrid+jgrid), rk)*hstep/ real(igrid - jgrid, rk)
+                 kinmat1(jgrid,igrid) = kinmat1(igrid,jgrid)
+               enddo
+               !
+             endif
              !
            case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
                            ! Requires the Lobatto nonuniform grid to work
