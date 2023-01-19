@@ -4625,7 +4625,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            if (field%class=="DIABATIC") then 
+            if (field%class=="DIABATIC".and.trim(field%type)/="GRID") then 
               !
               ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
               !
@@ -6563,7 +6563,6 @@ end subroutine map_fields_onto_grid
      !
      h12 = 12.0_rk*hstep**2
      sc  = h12*scale
-
      !
      b_rot = aston/amass
      !
