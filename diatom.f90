@@ -8454,8 +8454,19 @@ end subroutine map_fields_onto_grid
                   field => diabatic(idiab)
                   f_diabatic = field%matelem(ivib,jvib)*sc
                   hmat(i,j) = hmat(i,j) + f_diabatic
+                  !
+                  ! print out the internal matrix at the first grid point
+                  if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      !
+                      write(printout_,'(i3,"-DIA",2i3)') idiab,ilevel,jlevel
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                      write(printout_,'(g12.4)') f_diabatic/sc
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                     !
+                  endif
                   exit
                 endif
+                !
               enddo
               !
               ! NAC non-diagonal contribution  term
@@ -8466,6 +8477,17 @@ end subroutine map_fields_onto_grid
                   field => nac(iNAC) 
                   f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))
                   hmat(i,j) = hmat(i,j) + f_nac
+                  !
+                  ! print out the internal matrix at the first grid point
+                  if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
+                      !
+                      write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                      write(printout_,'(g12.4)') f_nac/sc
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                     !
+                  endif
+                  !
                   exit
                 endif
               enddo
@@ -10681,6 +10703,8 @@ end subroutine map_fields_onto_grid
              endif
              kinmat(igrid,igrid) = kinmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
              !
+             ! the standard sinc DVR expression is multiplied by -12*hstep^2 to make it agree with the KE form used in finite differences
+             !
              do jgrid =igrid+1, ngrid
                kinmat(igrid,jgrid) = +(12._rk)*2._rk* real( (-1)**(igrid+jgrid), rk) / real(igrid - jgrid, rk)**2
                kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
@@ -10693,8 +10717,8 @@ end subroutine map_fields_onto_grid
                ! where 1e-8 is because of one d/dr not d^2/dr^2
                !
                do jgrid =igrid+1, ngrid
-                 kinmat1(igrid,jgrid) = +(12._rk)*real( (-1)**(igrid+jgrid), rk)*hstep/ real(igrid - jgrid, rk)
-                 kinmat1(jgrid,igrid) = kinmat1(igrid,jgrid)
+                 kinmat1(igrid,jgrid) = -(12._rk)*real( (-1)**(igrid+jgrid), rk)*hstep/ real(igrid - jgrid, rk)
+                 kinmat1(jgrid,igrid) = -kinmat1(igrid,jgrid)
                enddo
                !
              endif
