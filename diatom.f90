@@ -6471,7 +6471,7 @@ end subroutine map_fields_onto_grid
      integer(ik),intent(out),optional  :: nenerout(:,:)
      !
      real(rk)                :: scale,sigma,omega,omegai,omegaj,spini,spinj,sigmaj,sigmai,jval
-     integer(ik)             :: alloc,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
+     integer(ik)             :: alloc,alloc_p,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
      integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
      integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
      integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
@@ -6520,6 +6520,7 @@ end subroutine map_fields_onto_grid
      !
      type(contract_solT),allocatable :: contracted(:)
      real(rk),allocatable            :: vect_i(:),vect_j(:)
+     real(rk),allocatable            :: nacvib_(:)
      !
      !
      ! open file for later (if option is set)
@@ -7619,7 +7620,7 @@ end subroutine map_fields_onto_grid
               field => dipoletm(iterm)
             end select
             !
-            ! check if the field wass not allocated at previous call to prevent multiple allocatetions 
+            ! check if the field wass not allocated at previous call to prevent multiple allocations 
             !
             if (.not.fields_allocated) then
               allocate(field%matelem(totalroots,totalroots),stat=alloc)
@@ -7680,6 +7681,34 @@ end subroutine map_fields_onto_grid
               enddo
             enddo
             !$omp end parallel do
+            !
+            ! a special case of a NAC
+            !
+            if (iobject==13) then 
+              !
+              !$omp parallel private(nacvib_,alloc_p)
+              allocate(nacvib_(ngrid),stat = alloc_p)
+              if (alloc_p/=0) then
+                  write (out,"(' error: ',i9,' trying to allocate array - nacvib_')") alloc_p
+                  stop 'nacvib_ - out of memory'
+              end if
+              !
+              !$omp do private(ilevel,jlevel) schedule(guided)
+              do ilevel = 1,totalroots
+                do jlevel = 1,ilevel
+                   !
+                   nacvib_ =  matmul(kinmat1,contrfunc(1:,jlevel))
+                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*nacvib_(:))
+                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+                   !
+                enddo
+              enddo
+              !$omp enddo
+              !
+              deallocate(nacvib_)
+              !$omp end parallel
+              ! 
+            endif
             !
             ! printing out transition moments 
             !
@@ -8522,11 +8551,11 @@ end subroutine map_fields_onto_grid
                     istate_ = field%jstate ; ilambda_we = field%lambdaj ; sigmai_we = field%sigmaj ; spini_ = field%spinj
                     !
                   endif
-                  ! proceed only if the spins of the field equal the corresponding <i| and |j> spins of the current matrix elements. 
+                  ! proceed only if the spins of the field equals the corresponding <i| and |j> spins of the current matrix elements. 
                   ! otherwise skip it:
                   if ( nint(spini_-spini)/=0.or.nint(spinj_-spinj)/=0 ) cycle
                   !
-                  ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! however the permutation makes sense only for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
                   ! otherwise it will cause a double counting:
                   !
                   if (ipermute==1.and.istate_==jstate_.and.ilambda_we==jlambda_we.and.nint(sigmai_we-sigmaj_we)==0.and. & 
@@ -14122,6 +14151,6 @@ end subroutine map_fields_onto_grid
   end function faclog
   !
 end module diatom_module
- 
+
 
 
