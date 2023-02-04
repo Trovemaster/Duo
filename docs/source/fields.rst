@@ -261,7 +261,7 @@ Non-adiabatic coupling: ``NAC``
 Non-adiabatic coupling (NAC). It is a non-diagonal coupling element used for adiabatic representation. It appears in the kinetic energy operator as 
 a linear momentum term: 
 
-  :math:`{H^{\rm NAC}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ \frac{d^{\gets}}{d r} w^{(1)}- w^{(1)} \frac{d^{\to}}{d r }}  \right]`.
+  :math:`H^{\rm NAC}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ \frac{d^{\gets}}{d r} w^{(1)}- w^{(1)} \frac{d^{\to}}{d r }  \right]`.
   
 A typical NAC is a Lorentz- or Gaussian-type functions. NAC should be centred about the crossing point of the correpsonding diabatic potential curves.
 
