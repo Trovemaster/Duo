@@ -1098,6 +1098,74 @@ Example:
 
 
 
+``EHH``: Extended Hulburt-Hirschfelde
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This form uis used for PEFs given by 
+
+:math:`V^{\rm EHH}(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e}) \left[\left(1-e^{-q}\right)^2 + cq^3\left(1+\sum_{i=1}^N b_i q^i \right) e^{-2q}\right]`,
+
+where :math:`q = \alpha \left(r-r_\textrm{e}\right)`. 
+See  Medvedev and Ushakov J. Quant. Spectrosc. Radiat. Transfer 288, 108255 (2022).
+
+
+Example:
+::
+
+ 
+    poten 1
+    name "X1Sigma+"
+    symmetry +
+    lambda 0
+    mult   1
+    type   EHH
+    values
+      TE        0.00000000000000E+00
+      RE        0.149086580348419329D+01
+      AE        0.519274276353915047D+05   
+      alpha     0.221879954515301936D+01 
+      c         0.948616297258670499D-01 
+      B1        0.100084121923090996D+01 
+      B2        0.470612349534084318D+00 
+      B3        0.890787339171956738D-01 
+    end
+
+
+ 
+``MEDVDEDEV_SING2`` (``SING2``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:math:`\mu(r) = \frac{\left[1-\exp(-r/\alpha)\right]^n}{\sqrt{\left(r^2-r_1^2\right)^2+b_1^4+2 b_1^2 r^2 + 2 b_1^2 r_1^2} \sqrt{\left(r^2-r_2^2\right)^2+b_2^4+2 b_2^2 r^2 + 2 b_2^2 r_2^2}}\sum_{i=0}^kc_i\left(1-2e^{- r/\beta}\right)^i`.
+
+
+Example:
+::
+
+   dipole  1 1
+   name "<X1Sigma+|dmz|X1Sigma+>"
+   spin   0 0
+   lambda  0  0
+   type   MEDVDEDEV_SING2
+   values
+    alpha 0.571943934116598385D+00
+    beta 0.189077983442740627D+01 
+    r1   0.400000000000000000D+00 
+    b1   0.158181393520692576D+00 
+    r2   0.233556959486025795D+01 
+    b2   0.563434902653936143D+00 
+    n    5
+    c0   0.954686180104024606D+04 
+    c1  -0.100829376358086127D+06 
+    c2   0.343009094395974884D+06 
+    c3  -0.593296257373294560D+06 
+    c4   0.574050119444558513D+06 
+    c5  -0.296914092409155215D+06 
+    c6   0.644340312384712088D+05 
+   end
+
+
+
+
 
 Implementation guide  
 ^^^^^^^^^^^^^^^^^^^^

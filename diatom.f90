@@ -2320,6 +2320,11 @@ module diatom_module
                   !
                   unit_r = bohr
                   !
+                  if(trim(field%class(1:3))=="NAC") then
+                    write(out,"('Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert')")
+                    call report ("nput error: NAC must be given in 1/Angstrom, not 1/bohr, please convert",.true.)
+                  endif
+                  !
                 case ('ANG','ANGSTROM','ANGSTROMS')
                   !
                   unit_r = 1.0_rk
@@ -2785,6 +2790,7 @@ module diatom_module
                    call readf(f_t)
                    !
                    field%value(iparam) = f_t*unit_field
+                   !
                    field%weight(iparam) = 0
                    !
                    if(nitems>=3) then

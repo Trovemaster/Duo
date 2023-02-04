@@ -203,6 +203,14 @@ module functions
       !
       fanalytical_field => potential_stolyarov_CO_X_UBO
       !
+    case("EHH") !  Extended Hulburt-Hirschfelde
+      !
+      fanalytical_field => poten_EHH
+      !
+    case("MEDVDEDEV_SING2","SING2") ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
+      !
+      fanalytical_field => dipole_medvedev_sing
+      !
     case("NONE")
       !
       write(out,'(//"Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
@@ -393,9 +401,7 @@ module functions
     !
   end function poten_EMO
   !
-  
-
-
+  !
   function poten_EMO_BOB(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -1980,5 +1986,75 @@ module functions
       !
   end function potential_stolyarov_CO_X_UBO
   !
+  !
+  function poten_EHH(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,alpha,q,phi,c
+    integer(ik)            :: k,N
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    alpha = parameters(4)
+    c     = parameters(5)
+    !
+    N     = size(parameters) - 5
+    !
+    if (size(parameters)<5) then
+      write(out,"('poten_EHH: Illegal number of parameters in EHH, no beta -present')")
+      print*,parameters(:)
+      stop 'poten_EHH: Illegal number of parameters, no beta'
+    endif
+    !
+    q = alpha*(r-r0)
+    !
+    phi = 1.0_rk
+    do k=1,N
+     phi = phi + parameters(k+5)*q**k
+    enddo
+    !
+    y  = exp(-q)
+    !
+    f = de*((1.0_rk-y)**2+c*q**3*phi*y*y)+v0
+    !
+  end function poten_EHH
+  !
+  !
+  ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
+  !
+  function dipole_medvedev_sing(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: alpha,beta,z,y,f,r1,r2,b1,b2,s
+    integer(ik)            :: N,k,i
+    !
+    alpha = parameters(1)
+    beta  = parameters(2)
+    r1    = parameters(3)
+    b1    = parameters(4)
+    r2    = parameters(5)
+    b2    = parameters(6)
+    n     = int(parameters(7))
+    !
+    z=1.0_rk-2.0_rk*exp(-r/alpha)
+    y=1.0_rk-exp(-r/beta)
+    !
+    k = size(parameters)-8
+    !    
+    s = parameters(8)
+    do i = 1, k
+        s = s+parameters(i+8)*z**i
+    end do
+    !
+    f = s*y**5/&
+        sqrt( (r**2-r1**2+b1**2)**2+(2.0_rk*r1*b1)**2 )/&
+        sqrt( (r**2-r2**2+b2**2)**2+(2.0_rk*r2*b2)**2 )
+    !
+  end function dipole_medvedev_sing
   !
 end module functions
