@@ -1,0 +1,90 @@
+atoms P N
+
+molecule PN
+
+(Total number of states taken into account)
+nstates 1
+
+(Total angular momentum quantum  - a value or an interval)
+jrot 0 - 100
+
+(Defining the integration grid)
+grid
+  npoints 501  (odd)
+  range  0.5, 6.0
+  type 0   (nsub)
+end 
+
+PRINT_PECS_AND_COUPLINGS_TO_FILE
+
+symmetry Cs(M)
+
+
+ASSIGN_V_BY_COUNT
+
+DIAGONALIZER 
+ SYEV
+end
+
+(PRINT_PECS_AND_COUPLINGS_TO_FILE)
+
+CONTRACTION
+  vib
+  vmax 30
+END
+
+poten 1
+name "X1Sigma+"
+symmetry +
+lambda 0
+mult   1
+type   EHH
+values
+V0        0.00000000000000E+00
+RE        0.149086580348419329D+01
+DE        0.519274276353915047D+05   
+alpha     0.221879954515301936D+01 
+c         0.948616297258670499D-01 
+B1        0.100084121923090996D+01 
+B2        0.470612349534084318D+00 
+B3        0.890787339171956738D-01 
+end
+
+
+
+
+dipole  1 1
+name "<X1Sigma+|dmz|X1Sigma+>"
+spin   0 0
+lambda  0  0
+type   MEDVDEDEV_SING2
+factor   1   (0, 1 or i)
+values
+alpha 0.571943934116598385D+00
+beta 0.189077983442740627D+01 
+r1   0.400000000000000000D+00 
+b1   0.158181393520692576D+00 
+r2   0.233556959486025795D+01 
+b2   0.563434902653936143D+00 
+n    5
+c0   0.954686180104024606D+04 
+c1  -0.100829376358086127D+06 
+c2   0.343009094395974884D+06 
+c3  -0.593296257373294560D+06 
+c4   0.574050119444558513D+06 
+c5  -0.296914092409155215D+06 
+c6   0.644340312384712088D+05 
+end
+
+INTENSITY 
+  absorption
+  THRESH_INTES  1e-40
+  THRESH_LINE   1e-40
+  thresh_dipole 1e-8
+  TEMPERATURE   2000.0
+  linelist  PN
+  nspin  1  0.5
+  J,  0,  10
+  freq-window    0,   50000
+  energy low   -0.001, 50000.00, upper   -0.00, 50000.0
+END
