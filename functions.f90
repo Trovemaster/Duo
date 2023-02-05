@@ -2041,8 +2041,8 @@ module functions
     b2    = parameters(6)
     n     = int(parameters(7))
     !
-    z=1.0_rk-2.0_rk*exp(-r/alpha)
-    y=1.0_rk-exp(-r/beta)
+    z=1.0_rk-2.0_rk*exp(-r*beta)
+    y=1.0_rk-exp(-r*alpha)
     !
     k = size(parameters)-8
     !    
@@ -2052,8 +2052,8 @@ module functions
     end do
     !
     f = s*y**5/&
-        sqrt( (r**2-r1**2+b1**2)**2+(2.0_rk*r1*b1)**2 )/&
-        sqrt( (r**2-r2**2+b2**2)**2+(2.0_rk*r2*b2)**2 )
+        sqrt( (r**2-r1**2)**2+b1**2 )/&
+        sqrt( (r**2-r2**2)**2+b2**2 )
     !
   end function dipole_medvedev_sing
   !
