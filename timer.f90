@@ -30,7 +30,7 @@ module timer
   integer, parameter :: name_len   =   40 ! Max length of timer name
   !
   real(rk)           :: maxmemory   =   0 ! Maximal memory allocated
-  real(rk)           :: memory_limit =   4.0 ! Limit to allocatable memory in GB
+  real(rk)           :: memory_limit =   8.0 ! Limit to allocatable memory in GB
   !
   type tim
     logical                 :: used       ! Slot used?
@@ -721,7 +721,7 @@ module timer
       !
       maxmemory = max(memory_now,maxmemory)
       !
-      if (memory_now>memory_limit*1000.0_rk) then
+      if (memory_now>memory_limit) then
         !
         write(out,"('Warning: High memory usage!')")
         write(out,"(A, F16.3, A)") 'Memory usage exceeded the limit of ', memory_limit, ' GB'

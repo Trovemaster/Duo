@@ -7184,14 +7184,17 @@ end subroutine map_fields_onto_grid
        !
        allocate(vibmat(ngrid,ngrid),vibener(ngrid),contrenergy(ngrid*Nestates),vec(ngrid),stat=alloc)
        call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
-       call ArrayStart('vibener',alloc,size(vibener),kind(vibmat))
+       call ArrayStart('vibener',alloc,size(vibener),kind(vibener))
        call ArrayStart('contrenergy',alloc,size(contrenergy),kind(contrenergy))
        call ArrayStart('vec',alloc,size(vec),kind(vec))
        allocate(kinmat(ngrid,ngrid),stat=alloc)
        call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
        !
-       allocate(kinmat1(ngrid,ngrid),stat=alloc)
-       call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+       ! only needed if NACs are present
+       if (nnac>0) then
+         allocate(kinmat1(ngrid,ngrid),stat=alloc)
+         call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+       endif
        !
        if (trim(solution_method)=="LOBATTO") then 
          allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),vibTmat(ngrid,ngrid),stat=alloc)
@@ -7207,8 +7210,17 @@ end subroutine map_fields_onto_grid
          call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
        endif
        !
+       if (Nnac>0) then 
+         !
+         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
+         !
+       else
+         !
+         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+         !
+       endif
        !
-       call kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
+       if (iverbose>=4) call MemoryReport
        !
        do istate = 1,Nestates
          !
@@ -7519,6 +7531,9 @@ end subroutine map_fields_onto_grid
        !allocate(matelem_rk(totalroots,totalroots),stat=alloc)
        !call ArrayStart('matelem_rk',alloc,size(matelem_rk),kind(matelem_rk))
        !
+       deallocate(kinmat)
+       call ArrayStop('kinmat')
+       !
        deallocate(vec)
        call ArrayStop('vec')
        !
@@ -7660,14 +7675,6 @@ end subroutine map_fields_onto_grid
                  !
                  field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
                  !
-                 if (iobject==13) then 
-                   !
-                   vibener =  matmul(kinmat1,contrfunc(1:,jlevel))
-                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*vibener(:))
-                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-                   !
-                 endif
-                 !
                  !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
                  !
                  !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* & 
@@ -7713,6 +7720,9 @@ end subroutine map_fields_onto_grid
               !
               deallocate(nacvib_)
               !$omp end parallel
+              !
+              deallocate(kinmat1)
+              call ArrayStop('kinmat1')
               ! 
             endif
             !
@@ -8419,6 +8429,9 @@ end subroutine map_fields_onto_grid
                 select case (trim(poten(istate)%integration_method))
                 !
                 case ('NONE','RAW')
+                  !
+                  stop 'NONE,RAW are beeing deactivated'
+                  !
                   hmat(i,j) = hmat(i,j) + kinmat(v_i+1,v_j+1)
                 end select 
                 !
@@ -10519,11 +10532,15 @@ end subroutine map_fields_onto_grid
        !  
      endif
      !
-     deallocate(kinmat)
-     call ArrayStop('kinmat')
+     if (allocated(kinmat)) then 
+        deallocate(kinmat)
+        call ArrayStop('kinmat')
+     endif
      !
-     deallocate(kinmat1)
-     call ArrayStop('kinmat1')
+     if (allocated(kinmat1)) then 
+        deallocate(kinmat1)
+        call ArrayStop('kinmat1')
+     endif
      !
      if (allocated(contrenergy)) then 
        deallocate(contrenergy)
@@ -10677,17 +10694,17 @@ end subroutine map_fields_onto_grid
     end function vibrational_reduced_density
     !
     !
-
-     subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
+    subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
         !
         integer(ik),intent(in)  :: ngrid
-        real(rk),intent(inout)  :: kinmat(ngrid,ngrid),kinmat1(ngrid,ngrid)
+        real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
+        real(rk),intent(inout),optional  :: kinmat1(ngrid,ngrid)
         real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
         real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
         integer(ik)   :: jgrid,kgrid,igrid
         !
         kinmat  = 0
-        kinmat1 = 0
+        if (present(kinmat1)) kinmat1 = 0
         !
         do igrid =1, ngrid
           !
@@ -10790,7 +10807,7 @@ end subroutine map_fields_onto_grid
            !
         enddo
         !     
-     end subroutine kinetic_energy_grid_points
+    end subroutine kinetic_energy_grid_points
 
 
 
