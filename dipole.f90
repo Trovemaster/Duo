@@ -1270,10 +1270,8 @@ contains
                          !             !
                          !             jI,sym%label(isymI),jF,sym%label(isymF),branch, &
                          !             linestr,itransit,tm
-
-
-
-                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                         ! 
+                         write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
                                       &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
                                       & 3(1x, es16.8),&
                                       & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
@@ -1282,14 +1280,9 @@ contains
                                       0.0,tm,absorption_int,&
                                       istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
                                       istateI,ivI,ilambdaI,sigmaI,omegaI
-
-
+                                      !
                          !$omp end critical
-
-
                        endif
-
-
                        !
                    end select
                    !
