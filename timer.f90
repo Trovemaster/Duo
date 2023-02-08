@@ -721,7 +721,7 @@ module timer
       !
       maxmemory = max(memory_now,maxmemory)
       !
-      if (memory_now>memory_limit) then
+      if (memory_now>memory_limit*1000.0_rk) then
         !
         write(out,"('Warning: High memory usage!')")
         write(out,"(A, F16.3, A)") 'Memory usage exceeded the limit of ', memory_limit, ' GB'

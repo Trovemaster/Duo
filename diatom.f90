@@ -716,23 +716,23 @@ module diatom_module
               !
             case("TB","T")
               !
-              memory_limit = memory_limit*1024.0_rk
+              memory_limit = memory_limit*1000.0_rk**2
               !
             case("GB","G")
               !
-              memory_limit = memory_limit
+              memory_limit = memory_limit*1000.0_rk
               !
             case("MB","M")
               !
-              memory_limit = memory_limit/1024.0_rk
+              memory_limit = memory_limit
               !
             case("KB","K")
               !
-              memory_limit = memory_limit/1024.0_rk**2
+              memory_limit = memory_limit/1000.0_rk
               !
             case("B")
               !
-              memory_limit = memory_limit/1024.0_rk**3
+              memory_limit = memory_limit/1000.0_rk**2
               !
           end select
           !
