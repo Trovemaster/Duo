@@ -1,3 +1,5 @@
+.. _unboud states
+
 Treating unbound states
 =======================
 

@@ -284,6 +284,25 @@ Thresholds
 ** ``THRESH_DIPOLE`` transition dipole threshold (debye)
 
 
+* ``states-only``, ``states_only``: to switch off the transition intensity when building the line list. When this option is given in 
+the INTENSITY block, only a .states file is generated.  
+    
+Example:
+::
+
+    INTENSITY
+    ....
+    linelist CH_A-X
+    states-only
+    .....
+    END
+
+
+** ``bound`` used in INTENSITY calculations to produce bound-only spectra or linelists. For ``bound``, Duo 
+identifies bound wavefunctions corresponding to the upper state and uses them to compute bound transition intensities. See also :ref:`_unboud states`. 
+
+** ``unbound`` (oposite of ``bound``) used in INTENSITY calculations to produce unbound-only spectra or linelists. For ``unbound``, Duo 
+identifies unbound wavefunctions corresponding to the upper state and uses them to compute unbound transition intensities. See also :ref:`_unboud states`. 
 
 
 
