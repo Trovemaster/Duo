@@ -885,8 +885,13 @@ contains
     !allocate(icoeffF(sym%Maxdegen,dimenmax), stat = info)
     !
     if (Ntransit==0) then 
-         write(out,"('dm_intensity: the transition filters are too tight: no entry')") 
-         stop 'dm_intensity: the filters are too tight' 
+         write(out,"('dm_intensity: the transition filters are too tight: no transitions selected')") 
+         return 'dm_intensity: the filters are too tight, zero transitions' 
+    endif 
+    !
+    if (intensity%states_only) then 
+         write(out,"('The transition intensities are not requested (states_only option)')") 
+         return 
     endif 
     !
     !call TimerStop('Dipole moment integration (i)')

@@ -408,7 +408,8 @@ module diatom_module
      character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
      logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
      logical             :: bound = .false.        ! filter bound states
-     logical             :: unbound = .false.       ! filter and process unbound upper states only 
+     logical             :: unbound = .false.      ! filter and process unbound upper states only 
+     logical             :: states_only = .false.  ! Only .states file is generated while .trans is skipped. Equivalent to setting negative freq-window 
      !
  end type IntensityT
   !
@@ -2999,6 +3000,10 @@ module diatom_module
            case('MATELEM','RICHMOL')
              !
              intensity%matelem = .true.
+             !
+           case('STATES-ONLY','STATES_ONLY')
+             !
+             intensity%states_only = .true.
              !
            case('RAMAN','POLARIZABILITY')
              !
