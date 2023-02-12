@@ -1890,7 +1890,7 @@ contains
                   !
                   if (abs(nint(omegaF - omegaI))>1 &
                       .or.nint(spinI-spinF)/=0     &
-                      .or.nint(sigmaI-sigmaF)>1    &
+                      .or.abs(nint(sigmaI-sigmaF))>1    &
                       .or.abs(ilambdaI-ilambdaF)>1) cycle loop_I
                   !if (abs(nint(omegaF - omegaI))==0.and.ilambdaI/=ilambdaF) cycle loop_I
                   !if (abs(nint(omegaF - omegaI))==1.and.abs(ilambdaI-ilambdaF)/=1) cycle loop_I
