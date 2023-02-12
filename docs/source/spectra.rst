@@ -16,7 +16,6 @@ Here is an example of its general structure:
     thresh_coeff   1e-15
     temperature   300.0
     qstat         10.0
-    gns           1.0 1.0
     ZPE  931.418890
     selection (rules) 1 1
     J,  0.5, 1.5
@@ -125,7 +124,8 @@ Example:
    freq-window 0.001, 25000.0
 
 
-* ``gns`` nuclear statistical weight
+* ``gns``  nuclear statistical weight (depriciated). **It is now automatically estimated using nuclear spin values
+from the internal atomic and nuclear database.** 
 
 ``gns`` specifies the nuclear statistical weight, which for heteronuclear diatomics
 is given by :math:`g_{ns} = (2 I_1+1)(2I_2+1)`, where :math:`I_1` and :math:`I_2` are the spins of the two nuclei.
@@ -234,7 +234,10 @@ In the example above two files will be written, ``ScH.states``, containing a lis
 and ``ScH.trans``, containing the line transition data (line positions and Einstein :math:`A` coefficients).
  
  
-* ``Nspin``  Nuclear spins of both atoms 
+* ``Nspin``  Nuclear spins of both atoms (**depriciated**). 
+
+**The nuclear spins are now provided in the internal atomic and nuclear databases and is not required 
+to be specified anymore.** 
 
 The nuclear spin values are used to define the nuclear degeneracy factors as follows. Example
 ::
