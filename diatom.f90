@@ -505,7 +505,7 @@ module diatom_module
   integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
                    Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
-  real(rk)      :: jmin,jmax,amass,hstep,Nspin1,Nspin2
+  real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
   real(rk)      :: jmin_global
   !
   !type(fieldT),pointer :: refined(:)
@@ -2955,7 +2955,7 @@ module diatom_module
          !
          ! defauls values
          !
-         intensity%gns = 1
+         intensity%gns = -1
          forall(i=1:sym%Nrepresen) intensity%isym_pairs(i) = 1
          !
          call read_line(eof,iut) ; if (eof) exit
@@ -3085,28 +3085,7 @@ module diatom_module
              call readf(Nspin1)
              call readf(Nspin2)
              !
-             if ( ( m1>0.and.abs(m1-m2)<small_ ).or.( trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2) ) ) then
-               !
-               gns_a = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2+(2.0_rk*Nspin1+1.0_rk))
-               gns_b = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2-(2.0_rk*Nspin1+1.0_rk))
-               !
-               if (mod(nint(2.0*Nspin1),2)==1) then 
-                 !
-                 intensity%gns(1:2) = gns_b
-                 intensity%gns(3:4) = gns_a
-                 !
-               else
-                 !
-                 intensity%gns(1:2) = gns_a
-                 intensity%gns(3:4) = gns_b
-                 !
-               endif
-               !
-             else
-               !
-               intensity%gns(1:2) = (2.0_rk*Nspin1+1.0_rk)*(2.0_rk*Nspin2+1.0_rk)
-               !
-             endif
+             call define_gns_factor(nspin1,nspin2)
              !
            case('GNS')
              !
@@ -4059,10 +4038,10 @@ module diatom_module
 ! if masses or spins are given explicitely, uses those values
 subroutine check_and_set_atomic_data(iverbose)
    use atomic_and_nuclear_data, only: print_atomic_and_nuclear_info, get_z, get_a, get_m, atomic_mass, &
-                                      get_name_from_mass !, nuclear_spin
+                                      get_name_from_mass, nuclear_spin
    integer,intent(in) :: iverbose
    integer :: zi, ai, m
-   real(kind=rk) m1_ref, m2_ref
+   real(kind=rk) m1_ref, m2_ref, nspin1_ref,nspin2_ref
    integer :: iselect ! flag use to identify four cases:
                       ! iselect =1 => mass is given and atom symbol is given. The given mass is used, info on the atom printed.
                       ! iselect =2 => mass is given and atom symbol NOT given. The given mass is used, info on the atom printed.
@@ -4115,14 +4094,32 @@ subroutine check_and_set_atomic_data(iverbose)
        if( ai <= 0 .and. m >= 0 ) m1_ref = atomic_mass(zi,m=m)
        if( ai <= 0 .and. m  < 0 ) m1_ref = atomic_mass(zi)
 
+       if( ai >0   .and. m >= 0 ) nspin1_ref = nuclear_spin(zi,ai,m)
+       if( ai >0   .and. m <  0 ) nspin1_ref = nuclear_spin(zi,ai)
+       if( ai <= 0 .and. m >= 0 ) nspin1_ref = nuclear_spin(zi,m=m)
+       if( ai <= 0 .and. m  < 0 ) nspin1_ref = nuclear_spin(zi)
+
        if( m1_ref <= 0._rk) then
            write(out,'(A)') 'Error: cannot use mass from internal database because: element not found.'
 !          write(out,'(A)') 'Possibly radioactive with a half-life < 1 hour.'
            return
        endif
+       !
+       if( nspin1_ref <= 0._rk) then
+           write(out,'(A)') 'Error: cannot use nspin1 from internal database because: element not found.'
+           stop 'Error: cannot use nspin1 from internal database because: element not found.'
+       endif
+       !
+       if (nspin1>=0._rk.and.abs(nspin1_ref-nspin1)>small_) then
+         write(out,'(a,2f9.2)') 'nspin1 in input does not agree with the value from the atomic data', nspin1,nspin1_ref
+         stop 'nspin1 in input does not agree with the value from the atomic data'
+       endif
+       !
+       nspin1 = nspin1_ref
+       !
        m1 = m1_ref
        if (iverbose>=4) write(out,'(A,F25.12,/)') 'Using the following mass m1 = ', m1
-
+       !
       case(4) ! mass is NOT given and atom symbol NOT given
         return ! do nothing, error message triggered later
     end select
@@ -4174,19 +4171,79 @@ subroutine check_and_set_atomic_data(iverbose)
        if( ai <= 0 .and. m >= 0 ) m2_ref = atomic_mass(zi,m=m)
        if( ai <= 0 .and. m  < 0 ) m2_ref = atomic_mass(zi)
 
+       if( ai >0   .and. m >= 0 ) nspin2_ref = nuclear_spin(zi,ai,m)
+       if( ai >0   .and. m <  0 ) nspin2_ref = nuclear_spin(zi,ai)
+       if( ai <= 0 .and. m >= 0 ) nspin2_ref = nuclear_spin(zi,m=m)
+       if( ai <= 0 .and. m  < 0 ) nspin2_ref = nuclear_spin(zi)
+
        if( m2_ref <= 0._rk) then
            if (iverbose>=4) write(out,'(A)') 'Error: cannot use mass from internal database because: element not found.'
 !          write(out,'(A)') 'Possibly radioactive with a half-life < 1 hour.'
            return
        endif
+       !
+       if( nspin2_ref <= 0._rk) then
+           write(out,'(A)') 'Error: cannot use nspin2 from internal database because: element not found.'
+           stop 'Error: cannot use nspin2 from internal database because: element not found.'
+       endif
+       !
+       if (nspin2>=0._rk.and.abs(nspin2_ref-nspin2)>small_) then
+         write(out,'(a,2f9.2)') 'nspin2 in input does not agree with the value from the atomic data', nspin2,nspin2_ref
+         stop 'nspin2 in input does not agree with the value from the atomic data'
+       endif
+       !
+       nspin2 = nspin2_ref
+       !
        m2 = m2_ref
        if (iverbose>=4) write(out,'(A,F25.12,/)') 'Using the following mass m2 = ', m2
-
+       !
       case(4) ! mass is NOT given and atom symbol NOT given
         return ! do nothing, error message triggered later
     end select
     !
+    ! For intensity calculations we can use nspin to define the nuclear spin degeneracy g_ns, if undefined
+    if (action%intensity) then 
+      !
+      if (intensity%gns(1)<0) then 
+        !
+        call define_gns_factor(nspin1,nspin2)
+        !
+      endif
+      !
+    endif
+    !
+    !
 end subroutine  check_and_set_atomic_data
+!
+subroutine define_gns_factor(nspin1,nspin2)
+   !
+   real(rk),intent(in) :: nspin1,nspin2
+   real(rk)            :: gns_a,gns_b
+   !
+   if ( ( m1>0.and.abs(m1-m2)<small_ ).or.( trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2) ) ) then
+     !
+     gns_a = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2+(2.0_rk*Nspin1+1.0_rk))
+     gns_b = 0.5_rk*((2.0_rk*Nspin1+1.0_rk)**2-(2.0_rk*Nspin1+1.0_rk))
+     !
+     if (mod(nint(2.0*Nspin1),2)==1) then 
+       !
+       intensity%gns(1:2) = gns_b
+       intensity%gns(3:4) = gns_a
+       !
+     else
+       !
+       intensity%gns(1:2) = gns_a
+       intensity%gns(3:4) = gns_b
+       !
+     endif
+     !
+   else
+     !
+     intensity%gns(1:2) = (2.0_rk*Nspin1+1.0_rk)*(2.0_rk*Nspin2+1.0_rk)
+     !
+   endif
+   !
+end subroutine define_gns_factor
 
 subroutine map_fields_onto_grid(iverbose)
      !
