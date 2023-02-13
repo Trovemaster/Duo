@@ -4105,7 +4105,7 @@ subroutine check_and_set_atomic_data(iverbose)
            return
        endif
        !
-       if( nspin1_ref <= 0._rk) then
+       if( nspin1_ref < 0._rk) then
            write(out,'(A)') 'Error: cannot use nspin1 from internal database because: element not found.'
            stop 'Error: cannot use nspin1 from internal database because: element not found.'
        endif
@@ -4182,7 +4182,7 @@ subroutine check_and_set_atomic_data(iverbose)
            return
        endif
        !
-       if( nspin2_ref <= 0._rk) then
+       if( nspin2_ref < 0._rk) then
            write(out,'(A)') 'Error: cannot use nspin2 from internal database because: element not found.'
            stop 'Error: cannot use nspin2 from internal database because: element not found.'
        endif
