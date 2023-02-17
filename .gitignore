@@ -29,6 +29,9 @@ $RECYCLE.BIN/
 *.code-workspace
 *.vscode/
 
+# Pythong venv
+*venv/
+
 # Vim files
 *.swp
 

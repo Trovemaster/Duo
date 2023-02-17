@@ -353,10 +353,24 @@ At the moment Duo cannot compute magnetic dipole transition line intensities.
 ^^^^^^^^^^^^^^
 
 The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole 
-ransition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in 
+transition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in 
 the ``intensity`` section also (:ref:`see here <computing-spectra>`).
 
-Currently Duo requires quadrupole moment curves to be provided in the spherical irreducible representation, with atomic units (a.u.). Additionally, the units must be specified via the ``units`` keyword. For example
+The quadrupole moment is defined in Cartesian coordinates by the following expression the Shortley convention:
+
+:math:`Q_{\alpha \beta} = -\sum_i e_i \left( r_{i\alpha} r_{i\beta} - \frac{1}{3}r^2_i \delta_{\alpha \beta} \right)`
+
+where :math:`-e_i` is the charge of the :math:`i-th` electron with position vector :math:`\vec{r}_i`. 
+This differs from the Buckingham convention, which is used in many quantum chemistry programs, where:
+
+:math:`Q_{\alpha \beta} = -\frac{3}{2} \sum_i e_i \left( r_{i\alpha} r_{i\beta} - \frac{1}{3}r^2_i \delta_{\alpha \beta} \right)`
+
+Currently Duo requires quadrupole moment curves to be provided in the spherical irreducible representation, with atomic units (a.u.),
+which can be obtain from the Cartesian components in the Buckingham convention via the relations given by Eq. (6) - (11) of 
+`W. Somogyi et al., JCP 155, (2021) <https://doi.org/10.1063/5.0063256>`_.
+
+
+Additionally, the units must be specified via the ``units`` keyword. For example
 ::
 
      quadrupole 1 1
