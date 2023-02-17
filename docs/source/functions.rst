@@ -283,8 +283,11 @@ Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
 :math:`V(r) = T_{\rm e} + (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf},`
 
 
-where :math:`y_p^{\textrm{eq}}` is the \v{S}urkus variable (\ref{eq:ypEQ}) and
-`a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
+where :math:`y_p^{\textrm{eq}}` is the Surkus variable with :math:`r_\textrm{ref} = r_\textrm{eq}`
+
+:math:`y_p^{\textrm{ref}} = \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}`
+
+and :math:`a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
 
 See also Eq.(36) in `R. Le Roy, JQSRT 186, 167 (2017) <https://doi.org/10.1016/j.jqsrt.2016.05.028>`_
 
@@ -354,11 +357,11 @@ Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
 :math:`F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},`
 
 
-where :math:`y_p^{\textrm{eq}}` is the \v{S}urkus variable (\ref{eq:ypEQ}), :math:`t(r)` is given by
+where :math:`y_p^{\textrm{eq}}` is the Surkus variable, :math:`t(r)` is given by
 
-:math:`t(r) = \mu_a \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\ge 0} b_i [y_p^{\textrm{eq}}]^i `,
+:math:`t(r) = \mu_a \sum_{i\geq 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\geq 0} b_i [y_p^{\textrm{eq}}]^i`,
 
-`t_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty` as given by 
+:math:`t_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty` as given by 
 
 :math:`t_{\rm inf} = \mu_a a_{\rm inf} + \mu_b b_{\rm inf} `.
 
