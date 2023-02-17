@@ -9959,7 +9959,6 @@ end subroutine map_fields_onto_grid
           allocate(vib_count(Nroots),stat=alloc)
           call ArrayStart('vib_count',alloc,size(vib_count),kind(vib_count))
           vib_count = 0
-          v = 0
           !
           !omp parallel do private(i,mterm,f_t,plusminus) shared(maxTerm) schedule(dynamic)
           do i=1,Nroots
@@ -10009,6 +10008,7 @@ end subroutine map_fields_onto_grid
             ilambda = icontr(mterm)%ilambda
             omega = icontr(mterm)%omega
             spini = icontr(mterm)%spin
+            v = 0
             !
             ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
             if (job%assign_v_by_count) then
