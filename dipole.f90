@@ -954,7 +954,7 @@ contains
     !
     if (trim(intensity%linelist_file)/="NONE") then 
        write(out,"(/'This is a line list poduction only, intensity print-out is swtitched off')")
-       write(out,"('For intensities remove the keyword LINELIST from INTENSITY'/)")
+       write(out,"('To see intensities in the standard out remove the keyword LINELIST from INTENSITY'/)")
     else 
       !
       write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
@@ -1131,7 +1131,7 @@ contains
                 !
                 iswap = 0
                 !
-                !$omp parallel private(vecF,alloc_p)
+                !$omp parallel private(vecF,alloc_p) shared(nu_ram,acoef_RAM,indexi_RAM,indexf_RAM)
                 allocate(vecF(dimenmax),stat = alloc_p)
                 if (alloc_p/=0) then
                     write (out,"(' dipole: ',i9,' trying to allocate array -vecF')") alloc_p
@@ -1139,8 +1139,8 @@ contains
                 end if
                 !
                 !$omp do private(ilevelF,energyF,dimenF,quantaF,istateF,ivibF,ivF,sigmaF,spinF,ilambdaF,omegaF,passed,&
-                !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm) schedule(static) &
-                !$omp& reduction(+:itransit,iswap)
+                !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm,iswap_) schedule(static) &
+                !$omp&  reduction(+:itransit,iswap)
                 Flevels_loop: do ilevelF = 1,nlevelsF
                    !
                    !energy and and quanta of the final state
