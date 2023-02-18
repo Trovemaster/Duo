@@ -79,6 +79,7 @@ module refinement
       character(len=1),parameter    :: pm(1:2) = (/"+","-"/)
       character(len=1)  :: mark_
       character(len=3)  :: mark_f
+      character(len=3) :: iTAG,iTAGC,iTAG_,iTAGC_
       !
       integer(ik)  :: ifield,jfield,ifield_,iobject,Nfields,iterm,ifitpar,istate,ilambda,ivib,istate_,ilambda_,ivib_,ngrid,Nterms
       integer(ik)  :: maxNfields,ipotmin,i_,nchar,k,k_
@@ -824,6 +825,7 @@ module refinement
                  omega   = sigmai + real(ilambda,rk)
                  spin    = fitting%obs(iener)%quanta%spin
                  ivib    = fitting%obs(iener)%quanta%v
+                 iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                  !
                  Jrot_   = fitting%obs(iener)%Jrot_
                  irot_   = fitting%obs(iener)%irot_
@@ -833,6 +835,7 @@ module refinement
                  omega_  = fitting%obs(iener)%quanta_%omega
                  spin_   = fitting%obs(iener)%quanta_%spin
                  ivib_   = fitting%obs(iener)%quanta_%v
+                 iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                  !
                  itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                  itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -857,6 +860,7 @@ module refinement
                     omegaC   = sigmaC+real(ilambdaC,rk)
                     spinC    = calc(irot,itau,i)%spin
                     ivibC    = calc(irot,itau,i)%v
+                    iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                     !
                     JrotC_   = calc(irot_,itau_,i_)%Jrot
                     istateC_ = calc(irot_,itau_,i_)%istate
@@ -865,14 +869,15 @@ module refinement
                     omegaC_  = sigmaC_+real(ilambdaC_,rk)
                     spinC_   = calc(irot_,itau_,i_)%spin
                     ivibC_   = calc(irot_,itau_,i_)%v
+                    iTAGC_   = calc(irot_,itau_,i_)%iTAG(1:3)
                     
                     write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')', " &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')',a)") &
                            iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                            wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
-                           istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                           istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                           iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                           iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                            mark(iener)
                 endif
                 !
@@ -892,6 +897,7 @@ module refinement
                     omega   = fitting%obs(iener)%quanta%omega
                     spin    = fitting%obs(iener)%quanta%spin
                     ivib    = fitting%obs(iener)%quanta%v
+                    iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                     !
                     Jrot_   = fitting%obs(iener)%Jrot_
                     irot_   = fitting%obs(iener)%irot_
@@ -901,6 +907,7 @@ module refinement
                     omega_  = fitting%obs(iener)%quanta_%omega
                     spin_   = fitting%obs(iener)%quanta_%spin
                     ivib_   = fitting%obs(iener)%quanta_%v
+                    iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                     !
                     itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                     itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -928,6 +935,7 @@ module refinement
                           omegaC   = sigmaC+real(ilambdaC,rk)
                           spinC    = calc(irot,itau,k)%spin
                           ivibC    = calc(irot,itau,k)%v
+                          iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                           !
                           JrotC_   = calc(irot_,itau_,k_)%Jrot
                           istateC_ = calc(irot_,itau_,k_)%istate
@@ -936,16 +944,17 @@ module refinement
                           omegaC_  = sigmaC_+real(ilambdaC_,rk)
                           spinC_   = calc(irot_,itau_,k_)%spin
                           ivibC_   = calc(irot_,itau_,k_)%v
+                          iTAGC_   = calc(irot_,itau_,i_)%iTAG
                           !
                           write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
-                                 &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
-                                 // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
+                                 &'(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )" &
+                                 // "(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )',a)") &
                                  iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
                                  fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
                                  fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
                                  wtall(iener),energy_(irot,itau,k)-ezero(1),energy_(irot_,itau_,k_)-ezero(1),&
-                                 istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                                 istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                                 iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                                 iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                                  mark_
                        enddo
                        !
@@ -985,6 +994,7 @@ module refinement
                                    omega  = fitting%obs(jener)%quanta%omega
                                    spin   = fitting%obs(jener)%quanta%spin
                                    ivib   = fitting%obs(jener)%quanta%v
+                                   iTAG    = fitting%obs(jener)%quanta%iTAG(1:3)
                                    !
                                    Jrot_   = fitting%obs(jener)%Jrot_
                                    istate_ = fitting%obs(jener)%quanta_%istate
@@ -993,26 +1003,20 @@ module refinement
                                    omega_  = fitting%obs(jener)%quanta_%omega
                                    spin_   = fitting%obs(jener)%quanta_%spin
                                    ivib_   = fitting%obs(jener)%quanta_%v
-                                   !
-                                   istateC = calc(irot,itau,i)%istate
-                                   sigmaC = calc(irot,itau,i)%sigma
-                                   ilambdaC= calc(irot,itau,i)%ilambda
-                                   omegaC  = sigmaC + real(ilambdaC,rk)
-                                   spinC   = calc(irot,itau,i)%spin
-                                   ivibC   = calc(irot,itau,i)%v
+                                   iTAG_   = fitting%obs(jener)%quanta_%iTAG(1:3)
                                    !
                                    i_ = fitting%obs(jener)%N_
                                    irot_ = fitting%obs(jener)%irot_
                                    itau_ = fitting%obs(jener)%iparity_+1
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
-                                         &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )', &
+                                         &'(',1x,a3,1x,2i4,2f7.1,' )',a1,2x,a)") & 
                                       i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                       enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
                                       energy_(irot,itau,i)-ezero(1),&
                                       energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
-                                      istate, ivib, ilambda ,sigmai ,omega ,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,&
+                                      iTAG, ivib, ilambda ,sigmai ,omega ,&
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,&
                                       mark(jener),trim( poten(istate)%name )
                                    !
                                 endif 
@@ -1028,10 +1032,11 @@ module refinement
                                    omega_   = calc(irot,itau,i)%omega
                                    spin_    = calc(irot,itau,i)%spin
                                    ivib_    = calc(irot,itau,i)%v
+                                   iTAG_    = calc(irot,itau,i)%iTAG(1:3)
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )',2x,a)") &
                                       i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
                                    !
                               endif
                               !
@@ -1155,6 +1160,7 @@ module refinement
                    omega   = fitting%obs(iener)%quanta%omega
                    spin = fitting%obs(iener)%quanta%spin
                    ivib = fitting%obs(iener)%quanta%v
+                   iTAG = fitting%obs(iener)%quanta%iTAG(1:3)
                    !
                    JrotC   = calc(irot,itau,i)%Jrot
                    istateC = calc(irot,itau,i)%istate
@@ -1163,13 +1169,14 @@ module refinement
                    omegaC  = sigmaC + real(ilambdaC,rk)
                    spinC   = calc(irot,itau,i)%spin
                    ivibC   = calc(irot,itau,i)%v
+                   iTAGC = calc(irot,itau,i)%iTAG(1:3)
                    !
                    write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
-                          &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                          &'(',1x,a3,1x,2i4,2f8.1,' )','(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                           iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                           wtall(iener),&
-                          istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                          istate ,ivib ,ilambda ,sigmai,omega ,&
+                          iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                          iTAG ,ivib ,ilambda ,sigmai,omega ,&
                           mark(iener)
                  endif
               enddo
@@ -1211,21 +1218,23 @@ module refinement
                              omega  = fitting%obs(jener)%quanta%omega
                              spin   = fitting%obs(jener)%quanta%spin
                              ivib   = fitting%obs(jener)%quanta%v
+                             iTAG   = fitting%obs(jener)%quanta%iTAG(1:3)
                              !
                              istateC = calc(irot,itau,i)%istate
-                             sigmaC = calc(irot,itau,i)%sigma
+                             sigmaC  = calc(irot,itau,i)%sigma
                              ilambdaC= calc(irot,itau,i)%ilambda
                              omegaC  = sigmaC + real(ilambdaC,rk)
                              spinC   = calc(irot,itau,i)%spin
                              ivibC   = calc(irot,itau,i)%v
+                             iTAGC   = calc(irot,itau,i)%iTAG(1:3)
                              !
-                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
-                                          & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )', &
+                                          & '(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                                 i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                 enercalc(jener)+eps(jener),&
                                 enercalc(jener),eps(jener),wtall(jener),&
-                                istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                                istate,ivib  ,ilambda,sigmai,omega,&
+                                iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                                iTAG ,ivib  ,ilambda,sigmai,omega,&
                                 mark(jener)
                             !
                           else
@@ -1237,10 +1246,11 @@ module refinement
                             omega_ = calc(irot,itau,i)%omega
                             spin_ = calc(irot,itau,i)%spin
                             ivib_ = calc(irot,itau,i)%v
+                            iTAG_ = calc(irot,itau,i)%iTAG(1:3)
                             !
-                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
+                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )')") &
                                i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
-                               istate_,ivib_,ilambda_,sigmai_,omega_
+                               iTAG_,ivib_,ilambda_,sigmai_,omega_
                                !
                           endif 
                           !

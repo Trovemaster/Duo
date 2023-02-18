@@ -306,6 +306,7 @@ module diatom_module
     integer(ik)  :: iomega = 1   ! countig number of omega
     character(len=cl) :: name    ! Identifying name of the  function
     logical :: bound = .true.    ! is this state bound or unbound 
+    character(len=cl) :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
   end type quantaT
   !
   type eigenT
@@ -1489,6 +1490,7 @@ module diatom_module
                 call StateStart(iTAG,iref)
                 !
                 fitting%obs(iobs)%quanta%istate = iref
+                fitting%obs(iobs)%quanta%iTAG   = iTAG                
                 !
                 !call readi(fitting%obs(iobs)%quanta%istate)
                 !
@@ -1526,6 +1528,7 @@ module diatom_module
                   call StateStart(iTAG,iref)
                   !
                   fitting%obs(iobs)%quanta_%istate = iref
+                  fitting%obs(iobs)%quanta_%iTAG   = iTAG
                   !
                   !call readi(fitting%obs(iobs)%quanta_%istate)
                   !
@@ -10071,6 +10074,7 @@ end subroutine map_fields_onto_grid
                   quantaout(irot,irrep,nener_total)%Jrot = Jval
                   quantaout(irot,irrep,nener_total)%irot = irot
                   quantaout(irot,irrep,nener_total)%istate = istate
+                  quantaout(irot,irrep,nener_total)%iTAG = poten(istate)%iTAG
                   quantaout(irot,irrep,nener_total)%sigma = sigma
                   quantaout(irot,irrep,nener_total)%imulti = imulti
                   quantaout(irot,irrep,nener_total)%ilambda = ilambda
