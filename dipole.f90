@@ -364,6 +364,10 @@ contains
     type(quantaT),pointer  :: quantaI,quantaF
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
+    real(rk),allocatable :: acoef_RAM(:),nu_ram(:)  
+    integer(ik)  :: iswap,iswap_
+    !
+    integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer :: ndecimals
@@ -419,6 +423,16 @@ contains
       write(ioname, '(a, i4)') 'Transition file '
       call IOstart(trim(ioname),transunit)
       open(unit = transunit, action = 'write',status='replace' , file = filename)
+      !
+      ! allocating all different arrays to keep the data in RAM
+      !
+      allocate(acoef_RAM(intensity%N_cache),stat=info)
+      call ArrayStart('swap:acoef_RAM',info,size(acoef_RAM),kind(acoef_RAM))
+      allocate(nu_RAM(intensity%N_cache),stat=info)
+      call ArrayStart('swap:nu_RAM',info,size(nu_RAM),kind(nu_RAM))
+      allocate(indexf_RAM(intensity%N_cache),indexi_RAM(intensity%N_cache),stat=info)
+      call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
+      call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
       !
       if ( intensity%matelem ) then
         !
@@ -1115,6 +1129,8 @@ contains
                 !
                 !loop over final states
                 !
+                iswap = 0
+                !
                 !$omp parallel private(vecF,alloc_p)
                 allocate(vecF(dimenmax),stat = alloc_p)
                 if (alloc_p/=0) then
@@ -1124,7 +1140,7 @@ contains
                 !
                 !$omp do private(ilevelF,energyF,dimenF,quantaF,istateF,ivibF,ivF,sigmaF,spinF,ilambdaF,omegaF,passed,&
                 !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm) schedule(static) &
-                !$omp                                                                             & reduction(+:itransit)
+                !$omp& reduction(+:itransit,iswap)
                 Flevels_loop: do ilevelF = 1,nlevelsF
                    !
                    !energy and and quanta of the final state
@@ -1221,39 +1237,71 @@ contains
                        !
                        if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then 
                          !
-                         !$omp critical
-                         !
-                         ! generate the line list (Transition file)
-                         !
                          if (trim(intensity%linelist_file)/="NONE") then
-                           !
-                           if ( intensity%matelem ) then 
-                             !
-                             write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
-                                               quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
-                             !
-                           else
-                             !
-                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
-                                       quantaF%iroot,quantaI%iroot,A_einst,nu_if
-                           endif
-                           !
+                            !
+                            iswap = iswap + 1
+                            !
+                            if ( intensity%matelem ) then 
+                              !
+                              acoef_RAM(iswap) = linestr 
+                              nu_ram(iswap) = nu_if
+                              indexi_RAM(iswap) = quantaI%iJ_ID
+                              indexf_RAM(iswap) = quantaF%iJ_ID
+                              !
+                            else ! exomol
+                              !
+                              acoef_RAM(iswap) = A_einst 
+                              nu_ram(iswap) = nu_if
+                              indexi_RAM(iswap) = quantaI%iroot
+                              indexf_RAM(iswap) = quantaF%iroot
+                              !
+                            endif
+                            !
+                            ! generate the line list (Transition file)
+                            !
+                            if (iswap==intensity%N_cache.or.ilevelF==nlevelsF) then
+                               !
+                               !$omp critical
+                               !
+                               do iswap_=1,iswap
+                                 !
+                                 if ( intensity%matelem ) then 
+                                   !
+                                   write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
+                                                     indexi_RAM(iswap_),indexf_RAM(iswap_),1,1,acoef_RAM(iswap_)
+                                   !
+                                 else
+                                   !
+                                   write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                             indexf_RAM(iswap_),indexi_RAM(iswap_),acoef_RAM(iswap_),nu_ram(iswap_)
+                                 endif
+                                 !
+                               enddo
+                               !
+                               !$omp end critical
+                               !
+                               iswap = 0
+                               !
+                            endif
+                            !
                          else
-                           !
-                           write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
-                                      &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                                      & 3(1x, es16.8),&
-                                      & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
-                                      jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
-                                      energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
-                                      linestr2,A_einst,absorption_int,&
-                                      istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
-                                      istateI,ivI,ilambdaI,sigmaI,omegaI
-                                      !
-                           !
+                            !
+                            !$omp critical
+                            !
+                            write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
+                                       &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                                       & 3(1x, es16.8),&
+                                       & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                       jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
+                                       energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
+                                       linestr2,A_einst,absorption_int,&
+                                       istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
+                                       istateI,ivI,ilambdaI,sigmaI,omegaI
+                                       !
+                            !
+                            !$omp end critical
+                            !
                          endif
-                         !
-                         !$omp end critical
                          !
                        endif
                        !
@@ -1330,6 +1378,23 @@ contains
     !
     deallocate(half_linestr)
     call ArrayStop('half_linestr')
+    !
+    if (allocated(acoef_RAM)) then 
+       deallocate(acoef_RAM)
+       call ArrayStop('swap:acoef_RAM')
+    endif 
+    if (allocated(nu_RAM)) then 
+       deallocate(nu_RAM)
+       call ArrayStop('swap:nu_RAM')
+    endif 
+    if (allocated(indexf_RAM)) then 
+       deallocate(indexf_RAM)
+       call ArrayStop('swap:indexf_RAM')
+    endif 
+    if (allocated(indexi_RAM)) then 
+       deallocate(indexi_RAM)
+       call ArrayStop('swap:indexi_RAM')
+    endif 
     !
     if (trim(intensity%linelist_file)/="NONE") close(transunit,status="keep")
     !
