@@ -7277,11 +7277,11 @@ end subroutine map_fields_onto_grid
        !
        if (Nnac>0) then 
          !
-         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
+         call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
          !
        else
          !
-         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+         call kinetic_energy_grid_points(ngrid,kinmat)
          !
        endif
        !
@@ -10766,7 +10766,7 @@ end subroutine map_fields_onto_grid
     end function vibrational_reduced_density
     !
     !
-    subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
+    subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
         !
         integer(ik),intent(in)  :: ngrid
         real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
@@ -10849,6 +10849,10 @@ end subroutine map_fields_onto_grid
              !
            case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
                            ! Requires the Lobatto nonuniform grid to work
+             !
+             write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
+             stop 'The Lobatto DVR method is temporally disabled'
+             !
              if(grid%nsub /= 6) then
                write(out, '(A)') 'The Lobatto DVR method only works with the'
                write(out, '(A)') 'Lobatto grid (grid type 6).'

@@ -1794,15 +1794,10 @@ module refinement
                   write(out,'(/)') 
 
                   nchar = len_trim(objects(iobject,ifield)%field%class)
-                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,2i7)"
-                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),objects(iobject,ifield)%field%iref,& 
-                                    objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,*) adjustl(trim(objects(iobject,ifield)%field%class)),objects(iobject,ifield)%field%iref,& 
-                  !objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,'(/tl1,a20,2i4)') adjustl(trim(objects(iobject,ifield)%field%class)), &
-                  !  objects(iobject,ifield)%field%iref, objects(iobject,ifield)%field%jref
+                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,a,1x,a)"
+                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),&
+                                    trim(objects(iobject,ifield)%field%itag),&
+                                    trim(objects(iobject,ifield)%field%jtag)
                   !
                   write(out,'(a4,4x,a)') "name",adjustl(trim(objects(iobject,ifield)%field%name))
                   write(out,'(a4,4x,a20)') "type",adjustl(trim(objects(iobject,ifield)%field%type))
