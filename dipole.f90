@@ -365,7 +365,6 @@ contains
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
     real(rk),allocatable :: acoef_RAM(:),nu_ram(:)  
-    integer(ik)  :: iswap,iswap_
     !
     integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
     !
@@ -1143,7 +1142,7 @@ contains
                 !
                 !$omp do private(ilevelF,energyF,dimenF,quantaF,istateF,ivibF,ivF,sigmaF,spinF,ilambdaF,omegaF,passed,&
                 !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm) schedule(static) &
-                !$omp& reduction(+:itransit,iswap)
+                !$omp& reduction(+:itransit)
                 Flevels_loop: do ilevelF = 1,nlevelsF
                    !
                    !energy and and quanta of the final state
@@ -1937,8 +1936,9 @@ contains
           !
           !loop over final state basis components
           !
-          !omp parallel do private(irootF,icontrF,ktau,kF,tauF,cirootI,irootI,icontrI,tauI,sigmaI,sigmaF,kI, & 
-          !                   &    irow,icol,cind,f3j,ls) shared(half_ls) schedule(guided)
+          !$omp parallel do private(icontrF,ivibF,istateF,omegaF,sigmaF,spinF,ilambdaF,iomegaF_,&
+          !$omp & icontrI,ivibI,istateI,omegaI,sigmaI,ilambdaI,iomegaI_,f3j,ls,idip,ipermute,&
+          !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau,f_t) shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
                ivibF = basis(indF)%icontr(icontrF)%ivib
@@ -1981,19 +1981,17 @@ contains
                   !
                   loop_idipole : do idip =1,Ndipoles
                     !
-                    field => dipoletm(idip)
-                    !
                     do ipermute  = 0,1
                       !
                       if (ipermute==0) then
                         !
-                        istateI_ = field%istate ; ilambdaI_ = field%lambda  ; spinI_ = field%spini
-                        istateF_ = field%jstate ; ilambdaF_ = field%lambdaj ; spinF_ = field%spinj
+                        istateI_ = dipoletm(idip)%istate ; ilambdaI_ = dipoletm(idip)%lambda  ; spinI_ = dipoletm(idip)%spini
+                        istateF_ = dipoletm(idip)%jstate ; ilambdaF_ = dipoletm(idip)%lambdaj ; spinF_ = dipoletm(idip)%spinj
                         !
                       else  ! permute
                         !
-                        istateF_ = field%istate ; ilambdaF_ = field%lambda  ; spinF_ = field%spini
-                        istateI_ = field%jstate ; ilambdaI_ = field%lambdaj ; spinI_ = field%spinj
+                        istateF_ = dipoletm(idip)%istate ; ilambdaF_ = dipoletm(idip)%lambda  ; spinF_ = dipoletm(idip)%spini
+                        istateI_ = dipoletm(idip)%jstate ; ilambdaI_ = dipoletm(idip)%lambdaj ; spinI_ = dipoletm(idip)%spinj
                         !
                       endif
                       !
@@ -2013,7 +2011,7 @@ contains
                         !
                         ! the permutation is only needed if at least some of the quanta is not zero. 
                         ! otherwise it should be skipped to avoid the double counting.
-                        if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+                        if( isigmav==1.and. abs( dipoletm(idip)%lambda ) + abs( dipoletm(idip)%lambdaj )==0 ) cycle
                 
                         ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                         ilambdaI_ = ilambdaI_*(-1)**isigmav
@@ -2035,7 +2033,7 @@ contains
                         !
                         !f_grid  = field%matelem(ivib,jvib)
                         !
-                        f_t = field%matelem(ivibI,ivibF)
+                        f_t = dipoletm(idip)%matelem(ivibI,ivibF)
                         !
                         ! the result of the symmetry transformation:
                         if (isigmav==1) then
@@ -2062,7 +2060,7 @@ contains
                end do  loop_I
                !
             end do   loop_F
-            !omp end parallel do
+            !$omp end parallel do
             !
             call TimerStop('do_1st_half_linestr')
             !

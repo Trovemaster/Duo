@@ -411,7 +411,6 @@ module diatom_module
      logical             :: bound = .false.        ! filter bound states
      logical             :: unbound = .false.      ! filter and process unbound upper states only 
      logical             :: states_only = .false.  ! Only .states file is generated while .trans is skipped. Equivalent to setting negative freq-window 
-     integer(ik)         :: N_cache  = 1           ! Lines to keep in RAM
      !
  end type IntensityT
   !
@@ -3159,11 +3158,6 @@ module diatom_module
              call readf(intensity%freq_window(2))
              !
              if (intensity%freq_window(1)<small_) intensity%freq_window(1) = -small_ 
-             !
-           case ("LINES-TO-CACHE","NCACHE")
-             !
-             call readf(f_t)
-             intensity%N_cache = int(f_t,hik)
              !
            case('NPOINTS')
              !
