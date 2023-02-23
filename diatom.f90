@@ -6318,10 +6318,13 @@ subroutine map_fields_onto_grid(iverbose)
            !
            write(out, '(A18)',advance='no') "der4, cm-1/ang^4 ="
            do istate=1,N
-              if(fl(istate)%zHasMinimum) then
-                write(out,'(F22.10)',advance='no') fl(istate)%V4
-              else
-                write(out, '(a22)', advance='no') 'N.A.'
+              !
+              if (abs(fl(istate)%V4)<1e14) then 
+                if(fl(istate)%zHasMinimum) then
+                  write(out,'(F22.8)',advance='no') fl(istate)%V4
+                else
+                  write(out, '(a22)', advance='no') 'N.A.'
+                endif
               endif
            enddo
            write(out,*)
@@ -6572,6 +6575,7 @@ end subroutine map_fields_onto_grid
      type(fieldT),pointer       :: field
      !
      real(ark),allocatable      :: psipsi_ark(:)
+     real(rk),allocatable       :: psipsi(:)
      real(rk),allocatable       :: mu_rr(:)
      !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
      !real(rk)                  :: f_rk
@@ -6591,7 +6595,9 @@ end subroutine map_fields_onto_grid
      !
      type(contract_solT),allocatable :: contracted(:)
      real(rk),allocatable            :: vect_i(:),vect_j(:)
-     real(rk),allocatable            :: nacvib_(:)
+     real(rk),allocatable            :: nacmat_(:,:)
+     real(rk) :: ddot
+     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0
      !
      !
      ! open file for later (if option is set)
@@ -7624,6 +7630,8 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=4) call TimerStop('Solve vibrational part')
        !
+       if (iverbose>=4) call TimerStart('Compute vibrational matrix elements')
+       !
        ! Now we need to compute all vibrational matrix elements of all field of the Hamiltonian, except for the potentials V,
        ! which together with the vibrational kinetic energy operator are diagonal on the contracted basis developed
        !
@@ -7728,6 +7736,10 @@ end subroutine map_fields_onto_grid
                  !
                  !field%matelem(ilevel,jlevel) = f_ark
                  !
+                 !psipsi(:) = contrfunc(:,ilevel)*(field%gridvalue(:))
+                 !
+                 !field%matelem(ilevel,jlevel)  = ddot(ngrid,psipsi,1,contrfunc(:,jlevel),1)
+                 !
                  field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
                  !
                  ! A special case of the non-diagonal integration of NAC
@@ -7762,32 +7774,41 @@ end subroutine map_fields_onto_grid
             !
             ! a special case of a NAC
             !
-            if (iobject==13) then 
+            if (iobject==13) then
               !
-              !$omp parallel private(nacvib_,alloc_p)
-              allocate(nacvib_(ngrid),stat = alloc_p)
-              if (alloc_p/=0) then
-                  write (out,"(' error: ',i9,' trying to allocate array - nacvib_')") alloc_p
-                  stop 'nacvib_ - out of memory'
-              end if
+              if (iverbose>=4) call TimerStart('Compute kinmat1 nac')
               !
-              !$omp do private(ilevel,jlevel) schedule(guided)
-              do ilevel = 1,totalroots
-                do jlevel = 1,ilevel
-                   !
-                   nacvib_ =  matmul(kinmat1,contrfunc(1:,jlevel))
-                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*nacvib_(:))
-                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-                   !
-                enddo
+              allocate(nacmat_(totalroots,ngrid),stat=alloc)
+              call ArrayStart('nacmat_',alloc,size(nacmat_),kind(nacmat_))
+              !
+              !$omp parallel do private(i) shared(kinmat1) schedule(guided)
+              do i = 1,ngrid
+                 kinmat1(i,:) = field%gridvalue(i)*kinmat1(i,:)
               enddo
-              !$omp enddo
+              !$omp end parallel do
               !
-              deallocate(nacvib_)
-              !$omp end parallel
+              call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,& 
+                          kinmat1,ngrid,beta_,nacmat_,totalroots)
+              call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,& 
+                         contrfunc,ngrid,beta_,field%matelem,totalroots)
+              !
+              !omp parallel do private(ilevel,jlevel) schedule(guided)
+              !do ilevel = 1,totalroots
+              !  do jlevel = ilevel+1,totalroots
+              !     !
+              !     field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+              !     !
+              !  enddo
+              !enddo
+              !omp end parallel do
+              !
+              deallocate(nacmat_)
+              call ArrayStop('nacmat_')
               !
               deallocate(kinmat1)
               call ArrayStop('kinmat1')
+              !
+              if (iverbose>=4) call TimerStop('Compute kinmat1 nac')
               ! 
             endif
             !
@@ -7865,6 +7886,8 @@ end subroutine map_fields_onto_grid
        !endif
        !
      end select 
+     !
+     if (iverbose>=4) call TimerStop('Compute vibrational matrix elements')
      !
      ! First we start a loop over J - the total angular momentum quantum number
      !
@@ -10808,7 +10831,7 @@ end subroutine map_fields_onto_grid
             if (Nnac>0) then
               !
               ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
-              ! kinetic factor is  12*h**2/(2*h)/1e-8 = 6*h/1e-8 
+              ! kinetic factor is  12*h**2/(2*h) = 6*h 
               ! where 1e-8 is because of one d/dr not d^2/dr^2
               !
               if (igrid>1) then
@@ -10837,7 +10860,7 @@ end subroutine map_fields_onto_grid
              if (Nnac>0) then
                !
                ! f'(0) = (-1)^(i+j)/(i-j)/h
-               ! kinetic factor is  12*h**2/(h)/1e-8 
+               ! kinetic factor is  12*h**2/(h)
                ! where 1e-8 is because of one d/dr not d^2/dr^2
                !
                do jgrid =igrid+1, ngrid
