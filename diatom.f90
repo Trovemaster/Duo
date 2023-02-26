@@ -7805,9 +7805,6 @@ end subroutine map_fields_onto_grid
               deallocate(nacmat_)
               call ArrayStop('nacmat_')
               !
-              deallocate(kinmat1)
-              call ArrayStop('kinmat1')
-              !
               if (iverbose>=4) call TimerStop('Compute kinmat1 nac')
               ! 
             endif
@@ -7864,6 +7861,11 @@ end subroutine map_fields_onto_grid
        !
        !deallocate(matelem_rk)
        !call ArrayStop('matelem_rk')
+       !
+       if (allocated(kinmat1)) then 
+            deallocate(kinmat1)
+            call ArrayStop('kinmat1')
+       endif
        !
        if (allocated(psipsi_ark)) then 
          deallocate(psipsi_ark)
@@ -8585,12 +8587,36 @@ end subroutine map_fields_onto_grid
               !
               do idiab = 1,Ndiabatic
                 !
-                if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
-                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
-                  field => diabatic(idiab)
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0 ) cycle
+                !
+                field => diabatic(idiab) 
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate
+                    jstate_ = field%jstate
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate
+                    istate_ = field%jstate
+                    !
+                  endif
+                  !
+                  ! the permutation makes sense only for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
                   f_diabatic = field%matelem(ivib,jvib)*sc
                   hmat(i,j) = hmat(i,j) + f_diabatic
                   !
+                  ! print out the internal matrix at the first grid point
                   ! print out the internal matrix at the first grid point
                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                       !
@@ -8600,17 +8626,45 @@ end subroutine map_fields_onto_grid
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                      !
                   endif
+                  !
                   exit
-                endif
+                  !
+                enddo
                 !
               enddo
               !
               ! NAC non-diagonal contribution  term
               !
               do iNAC = 1,Nnac
-                if (nac(iNAC)%istate==istate.and.nac(iNAC)%jstate==jstate.and.&
-                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
-                  field => nac(iNAC) 
+                !
+                !selection rules
+                !
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0 ) cycle
+                !
+                field => nac(iNAC) 
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate
+                    jstate_ = field%jstate
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate
+                    istate_ = field%jstate
+                    !
+                  endif
+                  !
+                  ! the permutation makes sense only for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
                   f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))
                   hmat(i,j) = hmat(i,j) + f_nac
                   !
@@ -8625,7 +8679,8 @@ end subroutine map_fields_onto_grid
                   endif
                   !
                   exit
-                endif
+                  !
+                enddo
               enddo
               !
               !  Non-diagonal spin-spin term
@@ -10861,7 +10916,6 @@ end subroutine map_fields_onto_grid
                !
                ! f'(0) = (-1)^(i+j)/(i-j)/h
                ! kinetic factor is  12*h**2/(h)
-               ! where 1e-8 is because of one d/dr not d^2/dr^2
                !
                do jgrid =igrid+1, ngrid
                  kinmat1(igrid,jgrid) = -(12._rk)*real( (-1)**(igrid+jgrid), rk)*hstep/ real(igrid - jgrid, rk)
