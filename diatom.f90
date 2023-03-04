@@ -256,6 +256,7 @@ module diatom_module
       real(rk),pointer    :: j_list(:)     ! J values processed
       integer(ik)         :: nJ = 1        ! Number of J values processed 
       character(len=cl)   :: IO_eigen = 'NONE'   ! we can either SAVE to or READ from the eigenfunctions from an external file
+      character(len=cl)   :: IO_density = 'NONE'  ! we can SAVE reduced density to an external file
       character(len=cl)   :: IO_dipole = 'NONE'  ! we can either SAVE to or READ from an external file the dipole moment 
       character(len=cl)   :: basis_set = 'NONE'   ! we can keep the vibrational basis functions for further usage 
       !                                                matrix elements on the contr. basis 
@@ -362,6 +363,7 @@ module diatom_module
                                         ! taken into account in the matrix elements evaluation.
      real(rk) :: bound_density = sqrt(small_)   ! threshold defining the unbound state density 
                                                 !calculated at the edge of the box whioch must be small for bound states
+     real(rk) :: deltaR_dens = -1e0     ! small interval for computing the state density 
      !
   end type thresholdsT
   !
@@ -1003,6 +1005,18 @@ module diatom_module
              call readu(w)
              !
              job%IO_eigen = trim(w)
+             !
+             if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
+               call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
+             endif 
+           !
+           case('DENSITY','DENS')
+             !
+             call readu(w)
+             !
+             job%IO_density = trim(w)
+             !
+             job%IO_eigen = 'SAVE'
              !
              if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
@@ -3071,6 +3085,10 @@ module diatom_module
            case('THRESH_BOUND')
              !
              call readf(intensity%threshold%bound_density)
+             !
+           case('THRESH_DELTA_R')
+             !
+             call readf(intensity%threshold%deltaR_dens)
              !
            case('TEMPERATURE')
              !
@@ -7947,6 +7965,7 @@ end subroutine map_fields_onto_grid
         enddo
         !
         write(vibunit,"('End of contracted basis')")
+        !
         if (trim(solution_method)=="LOBATTO") then 
           write(vibunit,"('Start of Lobatto Weights - needed for internal testing in RmatReact code')")
            do k=1, grid%npoints
@@ -7958,6 +7977,19 @@ end subroutine map_fields_onto_grid
         close(unit = vibunit, status='keep')
         !
      endif
+     !
+     if (job%IO_density=='SAVE') then
+        !
+        ! Reduced vibrational (bond-length) density 
+        !
+        filename =  trim(job%eigenfile%vectors)//'_dens.chk'
+        write(ioname, '(a, i4)') 'Reduced density file '
+        call IOstart(trim(ioname),vibunit)
+        open(unit = vibunit, action = 'write',status='replace' , file = filename)
+        !
+        write(vibunit,"('Start of Densities')")
+        !
+     endif 
      !
      if (trim(solution_method)=="LOBATTO") then 
        deallocate(LobDerivs,LobAbs,LobWeights,vibTmat)
@@ -10361,7 +10393,12 @@ end subroutine map_fields_onto_grid
                       !
                       if (iverbose>=4) call TimerStart('Find unbound states')
                       !
-                      npoints_last = max(10,grid%npoints/50) 
+                      ! small interval at the edge of the box
+                      !
+                      npoints_last = int(intensity%threshold%deltaR_dens/hstep)
+                      !
+                      npoints_last = max(10,grid%npoints/50,npoints_last)
+                      !
                       if (npoints_last>=grid%npoints) then
                         write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
                         stop 'wavefunciton unboud check error: too few grid points'
@@ -10484,7 +10521,7 @@ end subroutine map_fields_onto_grid
                       !
                       if (sum_wv>sqrt(small_)) then 
                          !
-                         if (iverbose>=4) call TimerStart('Find aplitudes of unbound wavefuncs')
+                         if (iverbose>=4) call TimerStart('Find amlitudes of unbound wavefuncs')
                          !
                          ! energy of the unbound state aboove the asympote energy
                          !
@@ -10607,6 +10644,21 @@ end subroutine map_fields_onto_grid
                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                   enddo
                   !
+                  if (job%IO_density=='SAVE') then                  
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= 1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                        vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      do k = 1,grid%npoints
+                        write(vibunit,'(e20.12," ||",1x,f8.1,1x,i2,i8)') psi_vib(k),J_list(irot),irrep-1,i
+                      enddo
+                      !
+                  endif
+                  !
                 endif
                 !
               endif
@@ -10679,6 +10731,14 @@ end subroutine map_fields_onto_grid
        write(iunit,"('End of eigenvector')")
        !
        close(unit = iunit, status='keep')
+       !
+     endif
+     !
+     if (job%IO_density=='SAVE') then 
+       !
+       write(vibunit,"('End of Densities')")
+       !
+       close(unit = vibunit, status='keep')       
        !  
      endif
      !
