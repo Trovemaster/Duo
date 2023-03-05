@@ -1,10 +1,11 @@
-Eigenfunctions
-==============
+Eigenfunctions and reduced density
+==================================
 
 The computed eigenfunctions can be printed out into a sperate file (checkpoint). This option can be enabled via the section ``Checkpoint``:
 ::
 
    Checkpoint
+    density save
     eigenvectors save
     Filename xxxxx
    End
@@ -50,6 +51,11 @@ the coefficient :math:`C_i^{J,p}`, State, :math:`v`, :math:`\Lambda`, :math:`\Si
 
 The optional keyword ``Filename`` (alias ``Vector-Filename``) is to change  the checkpoint-prefix ``eigen`` 
 to ``filename``. The default name is ``eigen_vectors.chk``.
+
+The option ``density save`` is to compute the vibrational reduced density for all eigenfuncitons on a grid of bond length points, computed as follows 
+
+:math:`\rho(r)_i = \sum_{v,v'} \sum_{\rm State},\Lambda,\Sigma} [C_{v,{\rm State},\Lambda,\Sigma}^{i}]* C_{v',{\rm State},\Lambda,\Sigma}^i 
+\phi_{v}(r)^* \phi_{v'}(r) \Delta r`
 
 
 
@@ -126,6 +132,23 @@ The first seven lines are a header containing the names of the atoms, the atomic
 computed, the total dimension of the :math:`J>0` or coupled Hamiltonian matrix,
 the number of electronic states in the calculations, the number of grid points and range of the grid (in \AA).
 The numbers following are: ``#`` is a counter over the rovibronic wave functions; `J` is the total  [#1]_
+
+
+The density checkpoint file has the following structure:
+:: 
+
+
+      0.545190480438E-08 ||      1.5  0       1
+      0.286121234769E-07 ||      1.5  0       1
+      0.134835397210E-06 ||      1.5  0       1
+      0.572802754694E-06 ||      1.5  0       1
+      0.220181930274E-05 ||      1.5  0       1
+      0.768598025530E-05 ||      1.5  0       1
+      0.244490197607E-04 ||      1.5  0       1
+
+
+Where the first column represent the reduced density value on a grid point :math:`r_i`, followed by a dilemeter ``||``, :math:`J`, parity :math:`\tau` 
+and the state number as in the Duo output. 
 
 
 

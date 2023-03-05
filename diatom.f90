@@ -1018,6 +1018,8 @@ module diatom_module
              !
              job%IO_eigen = 'SAVE'
              !
+             job%basis_set='KEEP'
+             !
              if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
              endif 
@@ -10250,6 +10252,13 @@ end subroutine map_fields_onto_grid
                call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
                call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
                psi_vib = 0
+            endif
+            !
+            if (job%IO_density=='SAVE') then
+                if (.not.allocated(psi_vib)) then 
+                   allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
+                   call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+                endif
             endif
             !
             if (intensity%renorm) then
