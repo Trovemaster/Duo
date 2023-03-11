@@ -275,8 +275,12 @@ and
 ``bob-rot``   
 ^^^^^^^^^^^
 
-Alias: ``bobrot``. Specifies the rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
-which can be interpreted as a position-dependent modification to the rotational mass.
+Alias: ``bobrot``. Specifies the (diagonal) rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
+which can be interpreted as a position-dependent modification to the rotational mass and is introduced as follows
+
+  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + {\rm BobRot}(r)\right).` 
+  
+
 
 ``diabatic``
 ^^^^^^^^^^^^
