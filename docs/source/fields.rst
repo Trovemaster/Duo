@@ -229,13 +229,13 @@ The diagonal spin-spin matrix elements are given by
 
 The nono-diagonal spin-spin matrix elements are given by
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}(ccc)  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}(ccc)    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right)`
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}{ccc}  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}{ccc}    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right)`
 
 
   :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}`
 
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = \left(\begin{array}(ccc)  S & 2 & S^\prime \\  -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right)`
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = \left(\begin{array}{ccc}  S & 2 & S^\prime \\  -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right)`
 
 
   
