@@ -269,7 +269,7 @@ module diatom_module
       logical             :: print_vibrational_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_rovibronic_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
-      logical             :: assign_v_by_count = .false.
+      logical             :: assign_v_by_count = .true.
       logical             :: legacy_version = .false.
       !
   end type jobT
@@ -620,38 +620,7 @@ module diatom_module
           !
           exit
           !
-        case("HYPERFINE")
-          ! skip if hyperfine NONE
-          if (Nitems>1) then
-            call readu(w)
-            if (trim(w)=="NONE".or.trim(w)=="OFF") then
-              action%hyperfine = .false.
-              do while (trim(w)/="".and.trim(w)/="END")
-                call read_line(eof,iut) ; if (eof) exit
-                call readu(w)
-              enddo
-              cycle
-            endif
-          endif
-          !
-          action%save_eigen_J = .true.
-          action%hyperfine = .True.
-          !
-          job%basis_set = 'KEEP'
-          !
-          do while (trim(w)/="".and.trim(w)/="END")
-            call read_line(eof,iut) ; if (eof) exit
-            call readu(w)
-            select case(w)
-            case("I")
-              call readf(F1_hyperfine_setup%I1)
-            case default
-              call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
-            end select
-
-            call read_line(eof,iut) ; if (eof) exit
-            call readu(w)
-         end do
+        case("") ! do nothing in case of blank lines
          !
         case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
           job%print_pecs_and_couplings_to_file = .true.
@@ -672,11 +641,13 @@ module diatom_module
           ! 
           job%zExclude_JS_coupling = .true.
           !
-        case("") ! do nothing in case of blank lines
-          !
         case("ASSIGN_V_BY_COUNT")
           !
           job%assign_v_by_count = .true.
+          !
+        case("ASSIGN_V_BY_CONTRIBUTION")
+          !
+          job%assign_v_by_count = .false.
           !
         case("LEGACY","OLD-VERSION","VERSION")
           !
@@ -1190,6 +1161,39 @@ module diatom_module
             stop 'input - illigal last line in DIAGONALIZER'
             !
          endif
+          !
+        case("HYPERFINE")
+          ! skip if hyperfine NONE
+          if (Nitems>1) then
+            call readu(w)
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
+              action%hyperfine = .false.
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+          endif
+          !
+          action%save_eigen_J = .true.
+          action%hyperfine = .True.
+          !
+          job%basis_set = 'KEEP'
+          !
+          do while (trim(w)/="".and.trim(w)/="END")
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+            select case(w)
+            case("I")
+              call readf(F1_hyperfine_setup%I1)
+            case default
+              call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
+            end select
+
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+         end do
          !
        case("FITTING")
          !

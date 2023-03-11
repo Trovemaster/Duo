@@ -15,6 +15,7 @@ Welcome to Duo's documentation!
    fields
    functions
    fitting
+   grid
    eigenfunc
    unbound
    keywords

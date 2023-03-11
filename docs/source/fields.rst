@@ -1,5 +1,6 @@
 Specification of curves and couplings (Duo objects)
 ***************************************************
+: .. _Fields:
 
 Once the main global parameters have been specified as described in the
 previous sections, it is necessary to introduce the PECs and the various coupling
@@ -26,7 +27,7 @@ specifying the two indexes of the two electronic states involved (bra and ket).
 The indexes are the numbers specified after the \texttt{poten} keyword.
 
 Currently Duo supports the following types of objects: ``potential``, ``spinorbit``, ``L2``, ``Lx``, ``spinspin``, ``spinspino``, ``bobrot``, 
-``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``.
+``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``, ``nac``.
 
 
 ``poten`` (alias: potential) 

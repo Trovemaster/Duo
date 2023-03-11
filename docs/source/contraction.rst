@@ -1,3 +1,4 @@
+.. _Contractions:
 Contractions and vibrational basis set
 ======================================
 
@@ -8,10 +9,10 @@ of ``npoints``. Then a certain number  of the resulted
 vibrational eigenfunctions :math:`|v\rangle` with :math:`0 \le v\le` vmax and :math:`\tilde{E} \le` ``EnerMax``  is selected to
 form the vibrational part of the basis set.
 
-There are currently two contraction schemes supported by Duo: vibrational ``vib`` and ``Omega`` (diabatic). 
+There is currently one contraction scheme supported by Duo: vibrational ``vib``. The  ``Omega`` is under construction. 
 
 The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
-by the keywords ``vib`` or ``omega``. 
+by the keyword ``vib``. 
 
 
 
@@ -26,10 +27,20 @@ obtained independently for each electronic state as the vibrational basis. The r
 
 where :math:`| J \Omega \rangle`  and :math:`| S \Sigma \rangle`  are the rigid rotor functions and :math:`| \Lambda \rangle`  are the
 electronic wavefunctions implicitly taken from the ab initio calculations.
+Example : 
+:: 
 
 
-Omega (diabatic) contraction
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     contraction
+       vib
+       nmax 30
+       enermax 25000
+     end
+
+
+
+Omega (diabatic) contraction - under construciton 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`. 
 This contraction consists of two steps. 
@@ -47,16 +58,6 @@ The rovibronic basis set in the Omega representation is given by
 where :math:`| J \Omega \rangle`  are the rigid rotor functions.
 
 
-
-Example 1: 
-:: 
-
-
-     contraction
-       vib
-       nmax 30
-       enermax 25000
-     end
 
 
 Example 2:

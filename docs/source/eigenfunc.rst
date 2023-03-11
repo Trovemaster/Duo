@@ -1,5 +1,6 @@
 Eigenfunctions and reduced density
 ==================================
+: .. _Eigenfunctions and reduced density:
 
 The computed eigenfunctions can be printed out into a sperate file (checkpoint). This option can be enabled via the section ``Checkpoint``:
 ::
