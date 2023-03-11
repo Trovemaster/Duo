@@ -445,7 +445,7 @@ Here is an example of its general structure:
 
 
 Eigenfunctions and reduced density
-""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The computed eigenfunctions and radical reduced densities  can be printed out into a sperate file (checkpoint). 
 This option can be enabled via the section ``Checkpoint``:
