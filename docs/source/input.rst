@@ -131,15 +131,16 @@ a grid-type potential energy curve by of Jacek Koput, JCP  135, 244308 (2011), T
     
 
 Input structure
-^^^^^^^^^^^^^^^
+---------------
 
 
 In the following we present the description of the main keywords and options used to define a *Duo* project. 
 A Duo ``project`` file can contain any objectst and descriptors used at different stages of the project. Different keys are used to switch neccesary options on and off. 
 
 
-Srtuctural keywords
--------------------
+Structural keywords
+^^^^^^^^^^^^^^^^^^^
+
 
 * Atoms:  defines the chemical symbols of the two atoms.
 
@@ -463,6 +464,120 @@ This option can be enabled via the section ``Checkpoint``:
 See :ref:`Eigenfunctions and reduced density`. 
 
 
+
+
+
+
+Control keys
+^^^^^^^^^^^^
+
+The following keys can appear anywere in the input file but outsides any sections. 
+
+* ``ASSIGN_V_BY_COUNT`` 
+
+
+(*Default*)
+The vibrational quantum number :math:`v` is assigned by counting the rovibronic states of the same ``State``, :math:`\Lambda`, 
+:math:`\Sigma` arranged by increasing energy. The corresponding ``State``, :math:`\Lambda`, 
+:math:`\Sigma` labels are defined using the largest-contribution approach 
+(the quantum labels corresponding to the basis set contribution with the largest expansion coefficient).   
+The keyword should appear anywhere in the body of the input file. This is the default option. An alternative is to use the largest-contribution  
+approach also to assign the vibrational quantum number (``ASSIGN_V_BY_CONTRIBUTIO``), which is used for all other quantum numbers. 
+
+
+* ``ASSIGN_V_BY_CONTRIBUTION``
+
+The vibrational quantum numbers  is to use the largest-contribution  approach also to assign the vibrational quantum number (opposite to ``ASSIGN_V_BY_COUNT``). 
+The largest contribution approach is used for all other quantum numbers.
+
+
+* ``Print_PECs_and_Couplings_to_File``
+
+This keyword will tell Duo to print out all curves to a separate, auxiliary file. 
+
+* ``Print_Vibrational_Energies_to_File``
+
+This keyword is to print out all vibrational energies into a separate, auxiliary file. 
+
+* ``Print_Rovibronic_Energies_To_File``
+
+This keyword is to print out all rovibronic energies into a separate, auxiliary file.  
+
+* DO_NOT_ECHO_INPUT is switch off the printing the inout file at the beginning of the output. 
+
+* ``Do_not_Shift_PECs``
+
+By default the PECs are shifted such that the minimum of the first PEC is at zero. This leads to Zero-Point-Energy (ZPE) to be 
+defined relative to this zero.
+All rovibronic energies are by default defined relative to the ZPE. This keyword will suppress shifting PECs so that ZPE is on the absolute scale. 
+
+The default is to do the shift of the PECs to the minimum of  ``poten 1``. In order to suppress shifting  energies to ZPE, use
+::
+
+   ZPE 0.0
+
+see also the description of the keyword ``ZPE``.
+
+
+
+
+* ``DO_NOT_INCLUDE_JS_COUPLING``
+
+This option is to switch the JS coupling in the Hamiltonian, can be used for debugging purposes. 
+
+* ``ASSIGN_V_BY_COUNT``
+
+This keyword will switch off the default assigning method  (based on the largest basis set contribution) of the vibrational to simple 
+counting of the states, starting from :math:`v=0` within the same rotational-electronic configuration :math:`|{\rm State}, \Lambda, \Sigma, \Omega \rangle`. 
+The default method  to assign the states with vibrational quantum numbers is known to fail at high excitations. 
+
+* ``Legacy`` 
+
+Aliases: ``Old-Version``, ``Version xxxx`` (xxxx is the year). This keyword to switch to the original, older version of the molpro function, 
+which was modified in 2019 (bugs fixed and restructured). This keyword should help to reproduce the results published 
+with the old version of the code. 
+    
+
+* ``L2Convention``
+
+There are two conventions to include the electronic angular momentum :math:`\hat{L}_z^2` components: 
+it can be defined either as part of the kinetic energy operator (``SPECIFY_L^2``, ``SPECIFY_L**2``,``Default``)
+as :math:`\Lambda^2` or as part of the :math:`\hat{L}^2`  operator (``SPECIFY_LX^2_PLUS_LY^2``,``SPECIFY_LX**2_PLUS_LY**2``).
+
+Example:
+::
+
+    L2Convention SPECIFY_LX^2_PLUS_LY^2
+
+
+* ``Mem,``, ``Memory``: defines the maximal memory (RAM) available for the calculations.  
+
+The program will stop with an error if the memory will be acceded before attempting to allocate a new array. The memory can be specified in 
+``B``, ``Kb``, ``Mb``, ``Gb`` or ``Tb``. Example: 
+::
+
+    64 Gb 
+    
+    
+* SOLUTIONMETHOD * defines the DVR basis set and thus the DVR solution method for the vibrational problem. 
+
+Possible methods include ``5POINTDIFFERENCES``.
+:: 
+     
+     SOLUTIONMETHOD  5POINTDIFFERENCES
+     
+
+for the 5 points stencil finite differences to derive the kinetic energy operator. A more efficient method is Sinc DVR (default), which is switched on with
+::
+
+    SOLUTIONMETHOD  SINC
+
+Since Sinc is also currently the default method, this does not have to be specified.
+
+
+
+
+
 Example: computing energy levels (one PEC)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -704,112 +819,4 @@ An alternative definition is an analytical PEC, see e.g. Barton_ et. al MNRAS 43
 
 
 
-
-
-
-Control keys
-------------
-
-The following keys can appear anywere in the input file but outsides any sections. 
-
-* ``ASSIGN_V_BY_COUNT`` 
-
-
-(*Default*)
-The vibrational quantum number :math:`v` is assigned by counting the rovibronic states of the same ``State``, :math:`\Lambda`, 
-:math:`\Sigma` arranged by increasing energy. The corresponding ``State``, :math:`\Lambda`, 
-:math:`\Sigma` labels are defined using the largest-contribution approach 
-(the quantum labels corresponding to the basis set contribution with the largest expansion coefficient).   
-The keyword should appear anywhere in the body of the input file. This is the default option. An alternative is to use the largest-contribution  
-approach also to assign the vibrational quantum number (``ASSIGN_V_BY_CONTRIBUTIO``), which is used for all other quantum numbers. 
-
-
-* ``ASSIGN_V_BY_CONTRIBUTION``
-
-The vibrational quantum numbers  is to use the largest-contribution  approach also to assign the vibrational quantum number (opposite to ``ASSIGN_V_BY_COUNT``). 
-The largest contribution approach is used for all other quantum numbers.
-
-
-* ``Print_PECs_and_Couplings_to_File``
-
-This keyword will tell Duo to print out all curves to a separate, auxiliary file. 
-
-* ``Print_Vibrational_Energies_to_File``
-
-This keyword is to print out all vibrational energies into a separate, auxiliary file. 
-
-* ``Print_Rovibronic_Energies_To_File``
-
-This keyword is to print out all rovibronic energies into a separate, auxiliary file.  
-
-* DO_NOT_ECHO_INPUT is switch off the printing the inout file at the beginning of the output. 
-
-* ``Do_not_Shift_PECs``
-
-By default the PECs are shifted such that the minimum of the first PEC is at zero. This leads to Zero-Point-Energy (ZPE) to be 
-defined relative to this zero.
-All rovibronic energies are by default defined relative to the ZPE. This keyword will suppress shifting PECs so that ZPE is on the absolute scale. 
-
-The default is to do the shift of the PECs to the minimum of  ``poten 1``. In order to suppress shifting  energies to ZPE, use
-::
-
-   ZPE 0.0
-
-see also the description of the keyword ``ZPE``.
-
-
-
-
-* ``DO_NOT_INCLUDE_JS_COUPLING``
-
-This option is to switch the JS coupling in the Hamiltonian, can be used for debugging purposes. 
-
-* ``ASSIGN_V_BY_COUNT``
-
-This keyword will switch off the default assigning method  (based on the largest basis set contribution) of the vibrational to simple 
-counting of the states, starting from :math:`v=0` within the same rotational-electronic configuration :math:`|{\rm State}, \Lambda, \Sigma, \Omega \rangle`. 
-The default method  to assign the states with vibrational quantum numbers is known to fail at high excitations. 
-
-* ``Legacy`` 
-
-Aliases: ``Old-Version``, ``Version xxxx`` (xxxx is the year). This keyword to switch to the original, older version of the molpro function, 
-which was modified in 2019 (bugs fixed and restructured). This keyword should help to reproduce the results published 
-with the old version of the code. 
-    
-
-* ``L2Convention``
-
-There are two conventions to include the electronic angular momentum :math:`\hat{L}_z^2` components: 
-it can be defined either as part of the kinetic energy operator (``SPECIFY_L^2``, ``SPECIFY_L**2``,``Default``)
-as :math:`\Lambda^2` or as part of the :math:`\hat{L}^2`  operator (``SPECIFY_LX^2_PLUS_LY^2``,``SPECIFY_LX**2_PLUS_LY**2``).
-
-Example:
-::
-
-    L2Convention SPECIFY_LX^2_PLUS_LY^2
-
-
-* ``Mem,``, ``Memory``: defines the maximal memory (RAM) available for the calculations.  
-
-The program will stop with an error if the memory will be acceded before attempting to allocate a new array. The memory can be specified in 
-``B``, ``Kb``, ``Mb``, ``Gb`` or ``Tb``. Example: 
-::
-
-    64 Gb 
-    
-    
-* SOLUTIONMETHOD * defines the DVR basis set and thus the DVR solution method for the vibrational problem. 
-
-Possible methods include ``5POINTDIFFERENCES``.
-:: 
-     
-     SOLUTIONMETHOD  5POINTDIFFERENCES
-     
-
-for the 5 points stencil finite differences to derive the kinetic energy operator. A more efficient method is Sinc DVR (default), which is switched on with
-::
-
-    SOLUTIONMETHOD  SINC
-
-Since Sinc is also currently the default method, this does not have to be specified.
 
