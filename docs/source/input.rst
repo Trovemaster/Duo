@@ -342,9 +342,6 @@ Duo objects
 ^^^^^^^^^^^
 
 
-``poten`` (alias: potential) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 
 Duo uses concepts of ``objects`` or ``fields`` of different types to define rhe corresponding curves: potential energy curves (PECs), spin-orbit curves (SOCS), electronic angular momenta curves (EAMs) etc.
 
 For example,  ``potential`` represents a PEC. From the point of view of theory,  each objects, including PEC, is a result of the electronic
@@ -448,7 +445,7 @@ Here is an example of its general structure:
 
 
 Eigenfunctions and reduced density
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""""""
 
 The computed eigenfunctions and radical reduced densities  can be printed out into a sperate file (checkpoint). 
 This option can be enabled via the section ``Checkpoint``:
@@ -469,7 +466,7 @@ See :ref:`Eigenfunctions and reduced density`.
 
 
 Control keys
-^^^^^^^^^^^^
+------------
 
 The following keys can appear anywere in the input file but outsides any sections. 
 
