@@ -30,10 +30,10 @@ Currently Duo supports the following types of objects: ``potential``, ``spinorbi
 ``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``, ``nac``.
 
 
-``potential`` (alias: poten) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``potential`` 
+^^^^^^^^^^^^^
 
-Objects of type ``poten`` represent potential energy curves (PECs) and are
+Alias: ``poten``.  Objects of type ``poten`` represent potential energy curves (PECs) and are
 the most fundamental objects underlying each calculation.
 From the point of view of theory each PEC is the solution of the electronic
 Schoedinger equation with clamped nuclei, possibly complemented with the
@@ -100,17 +100,18 @@ Integers 1,2,3 from before 2023 will continue working.
 
 
 
-``L2`` (alias: ``L**2``)
-^^^^^^^^^^^^^^^^^^^^^^
+``L2``
+^^^^^^
 
-These objects represent matrix elements between electronic states of the molecule-fixed
+Alias: ``L**2``. These objects represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-``Lx``  (aliases: ``Lplus``, ``LxLy`` and  ``L+``) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``Lx``  and ``L+``  
+^^^^^^^^^^^^^^^^^^
 
 
+Aliases: ``Lplus``, ``LxLy`` and  ``L+``. 
 It represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}_+ = \hat{L}_x + i \hat{L}_y` and
   :math:`\hat{L}_x` in the :math:`\Lambda`- and Cartesian-representations, respectively.
