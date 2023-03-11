@@ -1204,7 +1204,7 @@ Example:
 
 
 Implementation guide  
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 All these analytical functions are programmed as Fortran double precision functions 
 in the module ``functions.f90``. 
