@@ -131,7 +131,7 @@ a grid-type potential energy curve by of Jacek Koput, JCP  135, 244308 (2011), T
     
 
 Input strucure
---------------
+^^^^^^^^^^^^^^
 
 
 In the following we present the description of the main keywords and options used to define a *Duo* project. 
@@ -139,7 +139,7 @@ A Duo ``project`` file can contain any objectst and descriptors used at differen
 
 
 Srtuctural keywords
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
 * Atoms:  defines the chemical symbols of the two atoms.
 
