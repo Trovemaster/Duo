@@ -2387,10 +2387,10 @@ module diatom_module
                   !
                   unit_r = bohr
                   !
-                  if(trim(field%class(1:3))=="NAC") then
-                    write(out,"('Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert')")
-                    call report ("nput error: NAC must be given in 1/Angstrom, not 1/bohr, please convert",.true.)
-                  endif
+                  !if(trim(field%class(1:3))=="NAC") then
+                  !  write(out,"('Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert')")
+                  !  call report ("Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert",.true.)
+                  !endif
                   !
                 case ('ANG','ANGSTROM','ANGSTROMS')
                   !
@@ -2418,6 +2418,11 @@ module diatom_module
                 case ('DEBYE')
                   !
                   unit_field = 1.0_rk
+                  !
+                case ('1/BOHR')
+                  ! used for NAC
+                  !
+                  unit_field = 1.0_rk/bohr
                   !
                 case default
                   !
