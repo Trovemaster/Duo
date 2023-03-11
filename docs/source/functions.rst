@@ -6,6 +6,9 @@ Duo Functions
 This section shows examples of the definitions of the analytical functions supported in Duo.
 
 
+Potential energy funcitons 
+--------------------------
+
 Extended Morse Oscillator ``EMO`` 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -275,135 +278,6 @@ Example:
 
 
 
-Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-(alias ``BobLeroy``)
-
-:math:`V(r) = T_{\rm e} + (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf},`
-
-
-where :math:`y_p^{\textrm{eq}}` is the Surkus variable with :math:`r_\textrm{ref} = r_\textrm{eq}`
-
-:math:`y_p^{\textrm{ref}} = \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}`
-
-and :math:`a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
-
-See also Eq.(36) in `R. Le Roy, JQSRT 186, 167 (2017) <https://doi.org/10.1016/j.jqsrt.2016.05.028>`_
-
-Example:
-::
-
-    Bob-Rot  1 1 
-    name "<a2Pi|BR|a2Pi>"
-    spin   0.5 0.5
-    lambda 1 1
-    type  BOBLEROY
-    factor    1.0   (0, 1 or i)
-    values
-     re         0.17700000000000E+01
-     rref      -0.10000000000000E+01
-     P          0.20000000000000E+01
-     NT         0.30000000000000E+01
-     a0        -0.63452015232176E+02
-     a1        -0.20566444179565E+01
-     a2        -0.13784613913938E+02
-     a3         0.00000000000000E+00
-     ainf      -0.56030500000000E+02
-    end
-
-
-
-``Surkus-damp`` (alias ``BobLeroy_damp``) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Surkus-polynomial expansion with a damping  function:
-
-:math:`V(r) =  T_{\rm e} + \left[ (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf}\right] f^{\rm damp} + t^{\rm damp} (1- f^{\rm damp}),`
-
-where the damping function is defined by
-:math:`f^{\rm damp} = 1-\tanh[\alpha(r-r_0)]`, and  :math:`t^{\rm damp}`, :math:`r_0` and :math:`\alpha` are parameters.
-
-
-Example:
-::
-
-    Bob-Rot  2 2
-    name "<a2Pi|BR|+1a2Pi>"
-    spin   0.5 0.5
-    lambda 1 1
-    type  BOBLEROY_damp
-    factor    1.0   (0, 1 or i)
-    values
-    re         0.17700000000000E+01
-    rref      -0.10000000000000E+01
-    P          0.20000000000000E+01
-    NT         0.30000000000000E+01
-    a0        -0.63452015232176E+02
-    a1        -0.20566444179565E+01
-    a2        -0.13784613913938E+02
-    a3         0.00000000000000E+00
-    ainf      -0.56030500000000E+02
-    tdamp      0.00000000000000E+00
-    r0         0.10000000000000E+01
-    alpha      0.30000000000000E+01
-    end
-
-
-
-Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-:math:`F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},`
-
-
-where :math:`y_p^{\textrm{eq}}` is the Surkus variable, :math:`t(r)` is given by
-
-:math:`t(r) = \mu_a \sum_{i\geq 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\geq 0} b_i [y_p^{\textrm{eq}}]^i`,
-
-:math:`t_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty` as given by 
-
-:math:`t_{\rm inf} = \mu_a a_{\rm inf} + \mu_b b_{\rm inf} `.
-
-The mass-dependent factors are given by
-
-:math:`\mu_a = M_a/M_a^{\rm ref}`
-
-:math:`\mu_b = M_b/M_b^{\rm ref}`
-
-where :math:`M_a^{\rm ref}` and :math:`M_b^{\rm ref}` are the reference masses of the parent isotopologue. 
-
-
-
-Example:
-::
-
-    Bob-Rot  1 1 
-    name "<a2Pi|BR|a2Pi>"
-    spin   0.5 0.5
-    lambda 1 1
-    type  BOBNA
-    factor    1.0   (0, 1 or i)
-    values
-     re         0.17700000000000E+01
-     Maref         1.0000
-     Ma            1.0000
-     Mbref         12.000
-     Mb            12.000
-     P          0.20000000000000E+01
-     NTa        0.30000000000000E+01
-     NTb        0.30000000000000E+01
-     a0        -0.63452015232176E+02
-     a1        -0.20566444179565E+01
-     a2        -0.13784613913938E+02
-     a3         0.00000000000000E+00
-     ainf      -0.56030500000000E+02
-     b0        -0.63452015232176E+02
-     b1        -0.20566444179565E+01
-     b2        -0.13784613913938E+02
-     b3         0.00000000000000E+00
-     binf      -0.56030500000000E+02
-    end
 
 
 Morse oscillator ``Morse`` 
@@ -747,65 +621,6 @@ Example:
 
 
 
-``LORENTZ`` 
-^^^^^^^^^^^
-
-Alias is ``LORENTZIAN``. A Lorentzian type function used to represent the ``diabatic`` coupling:
-                 
-:math:`f(r) = y_0 + 2\frac{f_0(r)}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}`, 
-
-where
-
-:math:`f_0(r) = \sum_{i=0}^N a_i (r-r_0)^i`
-
-Example:
-::
-
-
-    diabatic 3 5 
-    name "<A|diab|C>"
-    lambda 1
-    mult   2
-    type  Lorentz
-    values
-     V0           0.000000000000000000 
-     RE           1.98                
-     gamma        0.05               
-     a0           1.58
-    end
-
-
-
-
-``SQRT(LORENTZ)`` 
-^^^^^^^^^^^^^^^^^
-
-Alais ``SQRT(LORENTZIAN)`.
-
-A square-root of a Lorentzian type function used to represent the ``diabatic`` coupling:
-                 
-:math:`f(r) = y_0 + f_0(r) \sqrt{2\frac{1}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}}`, 
-
-where
-
-:math:`f_0(r) = \sum_{i=0}^N a_i (r-r_0)^i`
-
-Example:
-::
-
-
-    diabatic 3 5 
-    name "<A|diab|C>"
-    lambda 1
-    mult   2
-    type  sqrt(Lorentz)
-    values
-     V0           0.000000000000000000 
-     RE           1.98                
-     gamma        0.05               
-     a0           1.58
-    end
-
 
 
 
@@ -848,6 +663,258 @@ Example
    B3           0.00000000000000
    BINF         1.0
    end
+
+
+``COUPLED_EMO_REPULSIVE``
+^^^^^^^^^^^^^^^^^^^^^^^^^
+             
+This is a combination of a EMO and a ``repulsive`` diabatic potential coupled by  a ``COSH-POLY`` function
+into adiabatic potentials. Only one of the two adiabatic components is requested via the last parameter ``COMPON``.
+
+
+Example:
+::
+
+
+     poten 2
+     name "A1Pi"
+     lambda 1
+     mult   1
+     type  COUPLED_EMO_REPULSIVE
+     values
+      V0           2.37503864856843e+04   fit    (  2.37512779848526e+04)  
+      RE           1.6483281182                  (  1.73436012667172e+00)
+      DE           2.84148346146689E+04
+      RREF        -1.00000000000000E+00
+      PB           4.00000000000000E+00
+      PU           4.00000000000000E+00
+      NSPHI        4.00000000000000E+00
+      NLPHI        4.00000000000000E+00
+      B0           2.33710099174412e+00   fit    (  2.34057128807870e+00)  
+      B1           0.00000000000000E+00
+      B2           0.00000000000000E+00
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      NREP         1.10000000000000E+01
+      V0           2.55900000000000E+04
+      B1           0.00000000000000E+00
+      B2           0.00000000000000E+00
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      B5           0.00000000000000E+00
+      B6           2.98032773475875e+05   fit    (  2.98032773545535e+05)  
+      B7           0.00000000000000E+00
+      B8           0.00000000000000E+00
+      B9           0.00000000000000E+00
+      B10          0.00000000000000E+00
+      V0           0.00000000000000E+00
+      BETA         2.00000000000000E-01
+      RE           2.20000000000000E+00
+      B0           9.83507743432739E+02
+      B1           0.00000000000000E+00
+      B2           0.00000000000000E+00
+      COMPON       1.00000000000000E+00
+     end
+
+
+
+``CO_X_UBOS`` 
+^^^^^^^^^^^^^
+
+This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
+of CO in its ground electronic state.  All parameters are predefined internally.  
+
+
+       
+``TWO_COUPLED_EMOS``
+^^^^^^^^^^^^^^^^^^^^
+             
+This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
+Only one of the two EMOS is requested via the last parameter ``COMPON``.
+
+
+Example:
+::
+
+
+     poten 1
+     name "X1Sigmag+"
+     symmetry g +
+     type   TWO_COUPLED_EMOs
+     lambda 0
+     mult   1
+     N 17
+     values
+      V0           0.00000000000000E+00
+      RE           1.24523246726220e+00   fit    (  1.24557289520164e+00)  
+      DE           5.09379077331962E+04
+      RREF        -1.30000000000000E+00
+      PL           4.00000000000000E+00
+      PR           4.00000000000000E+00
+      NL           1.00000000000000E+00
+      NR           4.00000000000000E+00
+      B0           2.46634378637660e+00   fit    (  2.46634099008862e+00)  
+      B1           2.12861537671055e-01   fit    (  2.13213572172644e-01)  
+      B2           3.68744269741852e-01   fit    (  3.67251371602415e-01)  
+      B3           2.79829009743158e-02   fit    (  3.08989242446331e-02)  
+      B4           0.00000000000000E+00
+      V0           1.53096974359289E+04
+      RE           1.37782087090000E+00
+      DE           5.12700000000000E+04
+      RREF         1.45000000000000E+00
+      PL           6.00000000000000E+00
+      PR           6.00000000000000E+00
+      NL           2.00000000000000E+00
+      NR           4.00000000000000E+00
+      B0           1.69821419712600e+00   fit    (  1.69441561141992e+00)  
+      B1           8.82161990201937e-01   fit    (  8.75640185107701e-01)  
+      B2           0.00000000000000E+00
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      V0           0.00000000000000E+00
+      BETA        -4.06826947563977E-01
+      RE           1.61000000000000E+00
+      B0           1.69000000000000E+03
+      B1           0.00000000000000E+00
+      B2           0.00000000000000E+00
+      COMPON       1.00000000000000E+00
+     end
+
+
+
+Other funcitonal forms  
+----------------------
+
+
+Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+(alias ``BobLeroy``)
+
+:math:`V(r) = T_{\rm e} + (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf},`
+
+
+where :math:`y_p^{\textrm{eq}}` is the Surkus variable with :math:`r_\textrm{ref} = r_\textrm{eq}`
+
+:math:`y_p^{\textrm{ref}} = \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}`
+
+and :math:`a_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty`.
+
+See also Eq.(36) in `R. Le Roy, JQSRT 186, 167 (2017) <https://doi.org/10.1016/j.jqsrt.2016.05.028>`_
+
+Example:
+::
+
+    Bob-Rot  1 1 
+    name "<a2Pi|BR|a2Pi>"
+    spin   0.5 0.5
+    lambda 1 1
+    type  BOBLEROY
+    factor    1.0   (0, 1 or i)
+    values
+     re         0.17700000000000E+01
+     rref      -0.10000000000000E+01
+     P          0.20000000000000E+01
+     NT         0.30000000000000E+01
+     a0        -0.63452015232176E+02
+     a1        -0.20566444179565E+01
+     a2        -0.13784613913938E+02
+     a3         0.00000000000000E+00
+     ainf      -0.56030500000000E+02
+    end
+
+
+
+``Surkus-damp`` (alias ``BobLeroy_damp``) 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Surkus-polynomial expansion with a damping  function:
+
+:math:`V(r) =  T_{\rm e} + \left[ (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf}\right] f^{\rm damp} + t^{\rm damp} (1- f^{\rm damp}),`
+
+where the damping function is defined by
+:math:`f^{\rm damp} = 1-\tanh[\alpha(r-r_0)]`, and  :math:`t^{\rm damp}`, :math:`r_0` and :math:`\alpha` are parameters.
+
+
+Example:
+::
+
+    Bob-Rot  2 2
+    name "<a2Pi|BR|+1a2Pi>"
+    spin   0.5 0.5
+    lambda 1 1
+    type  BOBLEROY_damp
+    factor    1.0   (0, 1 or i)
+    values
+    re         0.17700000000000E+01
+    rref      -0.10000000000000E+01
+    P          0.20000000000000E+01
+    NT         0.30000000000000E+01
+    a0        -0.63452015232176E+02
+    a1        -0.20566444179565E+01
+    a2        -0.13784613913938E+02
+    a3         0.00000000000000E+00
+    ainf      -0.56030500000000E+02
+    tdamp      0.00000000000000E+00
+    r0         0.10000000000000E+01
+    alpha      0.30000000000000E+01
+    end
+
+
+
+Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:math:`F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},`
+
+
+where :math:`y_p^{\textrm{eq}}` is the Surkus variable, :math:`t(r)` is given by
+
+:math:`t(r) = \mu_a \sum_{i\geq 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\geq 0} b_i [y_p^{\textrm{eq}}]^i`,
+
+:math:`t_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty` as given by 
+
+:math:`t_{\rm inf} = \mu_a a_{\rm inf} + \mu_b b_{\rm inf} `.
+
+The mass-dependent factors are given by
+
+:math:`\mu_a = M_a/M_a^{\rm ref}`
+
+:math:`\mu_b = M_b/M_b^{\rm ref}`
+
+where :math:`M_a^{\rm ref}` and :math:`M_b^{\rm ref}` are the reference masses of the parent isotopologue. 
+
+
+
+Example:
+::
+
+    Bob-Rot  1 1 
+    name "<a2Pi|BR|a2Pi>"
+    spin   0.5 0.5
+    lambda 1 1
+    type  BOBNA
+    factor    1.0   (0, 1 or i)
+    values
+     re         0.17700000000000E+01
+     Maref         1.0000
+     Ma            1.0000
+     Mbref         12.000
+     Mb            12.000
+     P          0.20000000000000E+01
+     NTa        0.30000000000000E+01
+     NTb        0.30000000000000E+01
+     a0        -0.63452015232176E+02
+     a1        -0.20566444179565E+01
+     a2        -0.13784613913938E+02
+     a3         0.00000000000000E+00
+     ainf      -0.56030500000000E+02
+     b0        -0.63452015232176E+02
+     b1        -0.20566444179565E+01
+     b2        -0.13784613913938E+02
+     b3         0.00000000000000E+00
+     binf      -0.56030500000000E+02
+    end
 
 
 
@@ -920,124 +987,40 @@ Example:
    end
 
 
+``MEDVEDEV_SING2`` (``SING2``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-``CO_X_UBOS`` 
-^^^^^^^^^^^^^
-
-This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
-of CO in its ground electronic state.  All parameters are predefined internally.  
-
-
-       
-``TWO_COUPLED_EMOS``
-^^^^^^^^^^^^^^^^^^^^
-             
-This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
-Only one of the two EMOS is requested via the last parameter ``COMPON``.
+:math:`\mu(r) = \frac{\left[1-\exp(-r \alpha)\right]^n}{\sqrt{\left(r^2-r_1^2\right)^2+b_1^2} \sqrt{\left(r^2-r_2^2\right)^2+b_2^2}}\sum_{i=0}^kc_i\left(1-2e^{- r\beta}\right)^i`.
 
 
 Example:
 ::
 
-
-     poten 1
-     name "X1Sigmag+"
-     symmetry g +
-     type   TWO_COUPLED_EMOs
-     lambda 0
-     mult   1
-     N 17
-     values
-      V0           0.00000000000000E+00
-      RE           1.24523246726220e+00   fit    (  1.24557289520164e+00)  
-      DE           5.09379077331962E+04
-      RREF        -1.30000000000000E+00
-      PL           4.00000000000000E+00
-      PR           4.00000000000000E+00
-      NL           1.00000000000000E+00
-      NR           4.00000000000000E+00
-      B0           2.46634378637660e+00   fit    (  2.46634099008862e+00)  
-      B1           2.12861537671055e-01   fit    (  2.13213572172644e-01)  
-      B2           3.68744269741852e-01   fit    (  3.67251371602415e-01)  
-      B3           2.79829009743158e-02   fit    (  3.08989242446331e-02)  
-      B4           0.00000000000000E+00
-      V0           1.53096974359289E+04
-      RE           1.37782087090000E+00
-      DE           5.12700000000000E+04
-      RREF         1.45000000000000E+00
-      PL           6.00000000000000E+00
-      PR           6.00000000000000E+00
-      NL           2.00000000000000E+00
-      NR           4.00000000000000E+00
-      B0           1.69821419712600e+00   fit    (  1.69441561141992e+00)  
-      B1           8.82161990201937e-01   fit    (  8.75640185107701e-01)  
-      B2           0.00000000000000E+00
-      B3           0.00000000000000E+00
-      B4           0.00000000000000E+00
-      V0           0.00000000000000E+00
-      BETA        -4.06826947563977E-01
-      RE           1.61000000000000E+00
-      B0           1.69000000000000E+03
-      B1           0.00000000000000E+00
-      B2           0.00000000000000E+00
-      COMPON       1.00000000000000E+00
-     end
+   dipole  1 1
+   name "<X1Sigma+|dmz|X1Sigma+>"
+   spin   0 0
+   lambda  0  0
+   type   MEDVDEDEV_SING2
+   values
+    alpha   0.528882306544608771D+00
+    beta    0.174842312392832677D+01
+    r1      0.367394402167278311D+00
+    b1      0.126545114816554061D+00
+    r2      0.226658916500257268D+01
+    b2      0.263188285464316518D+01
+    n       5                       
+    c0      0.954686180104024606D+04
+    c1     -0.100829376358086127D+06
+    c2      0.343009094395974884D+06
+    c3     -0.593296257373294560D+06
+    c4      0.574050119444558513D+06
+    c5     -0.296914092409155215D+06
+    c6      0.644340312384712088D+05
+   end
 
 
            
 
-
-``COUPLED_EMO_REPULSIVE``
-^^^^^^^^^^^^^^^^^^^^^^^^^
-             
-This is a combination of a EMO and a ``repulsive`` diabatic potential coupled by  a ``COSH-POLY`` function
-into adiabatic potentials. Only one of the two adiabatic components is requested via the last parameter ``COMPON``.
-
-
-Example:
-::
-
-
-     poten 2
-     name "A1Pi"
-     lambda 1
-     mult   1
-     type  COUPLED_EMO_REPULSIVE
-     values
-      V0           2.37503864856843e+04   fit    (  2.37512779848526e+04)  
-      RE           1.6483281182                  (  1.73436012667172e+00)
-      DE           2.84148346146689E+04
-      RREF        -1.00000000000000E+00
-      PB           4.00000000000000E+00
-      PU           4.00000000000000E+00
-      NSPHI        4.00000000000000E+00
-      NLPHI        4.00000000000000E+00
-      B0           2.33710099174412e+00   fit    (  2.34057128807870e+00)  
-      B1           0.00000000000000E+00
-      B2           0.00000000000000E+00
-      B3           0.00000000000000E+00
-      B4           0.00000000000000E+00
-      NREP         1.10000000000000E+01
-      V0           2.55900000000000E+04
-      B1           0.00000000000000E+00
-      B2           0.00000000000000E+00
-      B3           0.00000000000000E+00
-      B4           0.00000000000000E+00
-      B5           0.00000000000000E+00
-      B6           2.98032773475875e+05   fit    (  2.98032773545535e+05)  
-      B7           0.00000000000000E+00
-      B8           0.00000000000000E+00
-      B9           0.00000000000000E+00
-      B10          0.00000000000000E+00
-      V0           0.00000000000000E+00
-      BETA         2.00000000000000E-01
-      RE           2.20000000000000E+00
-      B0           9.83507743432739E+02
-      B1           0.00000000000000E+00
-      B2           0.00000000000000E+00
-      COMPON       1.00000000000000E+00
-     end
 
 
                      
@@ -1135,36 +1118,71 @@ Example:
 
 
  
-``MEDVDEDEV_SING2`` (``SING2``)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-:math:`\mu(r) = \frac{\left[1-\exp(-r \alpha)\right]^n}{\sqrt{\left(r^2-r_1^2\right)^2+b_1^2} \sqrt{\left(r^2-r_2^2\right)^2+b_2^2}}\sum_{i=0}^kc_i\left(1-2e^{- r\beta}\right)^i`.
 
+
+Diabatic/non-adiabatic couplings 
+--------------------------------
+
+``LORENTZ`` 
+^^^^^^^^^^^
+
+Alias is ``LORENTZIAN``. A Lorentzian type function used to represent the ``diabatic`` coupling:
+                 
+:math:`f(r) = y_0 + 2\frac{f_0(r)}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}`, 
+
+where
+
+:math:`f_0(r) = \sum_{i=0}^N a_i (r-r_0)^i`
 
 Example:
 ::
 
-   dipole  1 1
-   name "<X1Sigma+|dmz|X1Sigma+>"
-   spin   0 0
-   lambda  0  0
-   type   MEDVDEDEV_SING2
-   values
-    alpha   0.528882306544608771D+00
-    beta    0.174842312392832677D+01
-    r1      0.367394402167278311D+00
-    b1      0.126545114816554061D+00
-    r2      0.226658916500257268D+01
-    b2      0.263188285464316518D+01
-    n       5                       
-    c0      0.954686180104024606D+04
-    c1     -0.100829376358086127D+06
-    c2      0.343009094395974884D+06
-    c3     -0.593296257373294560D+06
-    c4      0.574050119444558513D+06
-    c5     -0.296914092409155215D+06
-    c6      0.644340312384712088D+05
-   end
+
+    diabatic 3 5 
+    name "<A|diab|C>"
+    lambda 1
+    mult   2
+    type  Lorentz
+    values
+     V0           0.000000000000000000 
+     RE           1.98                
+     gamma        0.05               
+     a0           1.58
+    end
+
+
+
+
+``SQRT(LORENTZ)`` 
+^^^^^^^^^^^^^^^^^
+
+Alais ``SQRT(LORENTZIAN)`.
+
+A square-root of a Lorentzian type function used to represent the ``diabatic`` coupling:
+                 
+:math:`f(r) = y_0 + f_0(r) \sqrt{2\frac{1}{\pi} \frac{\gamma}{4 (r-r_0)^2+\gamma^2}}`, 
+
+where
+
+:math:`f_0(r) = \sum_{i=0}^N a_i (r-r_0)^i`
+
+Example:
+::
+
+
+    diabatic 3 5 
+    name "<A|diab|C>"
+    lambda 1
+    mult   2
+    type  sqrt(Lorentz)
+    values
+     V0           0.000000000000000000 
+     RE           1.98                
+     gamma        0.05               
+     a0           1.58
+    end
+
 
 
 

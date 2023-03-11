@@ -207,7 +207,7 @@ module functions
       !
       fanalytical_field => poten_EHH
       !
-    case("MEDVDEDEV_SING2","SING2") ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
+    case("MEDVEDEV_SING2","SING2") ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
       !
       fanalytical_field => dipole_medvedev_sing
       !
