@@ -219,27 +219,27 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
 Parametrised phenomenological spin-spin operator (diagonal and off-diagonal). 
 The diagonal spin-spin matrix elements are given by
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v', S,\Sigma \rangle = \lanlge v| f_{\rm SS}| v' \rangle \left[ 3 \Sigma^2- S(S+1) \right]`.
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm SS}| v^\prime \rangle \left[ 3 \Sigma^2- S(S+1) \right]`.
 
 
 .. note:: The definition of :math:`f_{\rm SS}` is different from the spectroscopic spin-spin constant :math:`\lambda`:
 
-  :math:`\lanlge v| f_{\rm SS}| v' \rangle = \frac{2}{3} \lambda`.
+  :math:`\langle v| f_{\rm SS}| v^\prime \rangle = \frac{2}{3} \lambda`.
 
 
 The nono-diagonal spin-spin matrix elements are given by
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v', S',\Sigma' \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}} 
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}   
   \left(\begin{array}(ccc) 
-   S & 2 & S' \\
-   -\Sigma & \Sigma'-\Sigma & \Sigma ' 
+   S & 2 & S^\prime \\
+   -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime 
   \end{array}
   \right) / 
     \left(\begin{array}(ccc) 
-   S & 2 & S' \\
-   -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref} ' 
+   S & 2 & S^\prime \\
+   -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime 
   \end{array}
-  \right)
+  \right) 
   `
   
 where :math:`\Sigma_{\rm ref}` is a refence value of the projection of spin used to specify the spin-spin field in the Duo input, e.g. 
