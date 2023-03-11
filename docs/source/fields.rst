@@ -30,7 +30,7 @@ Currently Duo supports the following types of objects: ``potential``, ``spinorbi
 ``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``, ``nac``.
 
 
-``poten`` (alias: potential) 
+``potential`` (alias: poten) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Objects of type ``poten`` represent potential energy curves (PECs) and are
@@ -107,8 +107,8 @@ These objects represent matrix elements between electronic states of the molecul
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-``L+``  (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``Lx``  (aliases: ``Lplus``, ``LxLy`` and  ``L+``) 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 It represent matrix elements between electronic states of the molecule-fixed
@@ -216,19 +216,60 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
 ``spin-spin``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
+Parametrised phenomenological spin-spin operator (diagonal and off-diagonal). 
+The diagonal spin-spin matrix elements are given by
+
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v', S,\Sigma \rangle = \lanlge v| f_{\rm SS}| v' \rangle \left[ 3 \Sigma^2- S(S+1) \right]`.
 
 
+.. note:: The definition of :math:`f_{\rm SS}` is different from the spectroscopic spin-spin constant :math:`\lambda`:
 
-  :math:`H^{\rm SS}(r) = f_{\rm SS} \left[ 3 \Sigma^2- S(S+1) \right]`.
+  :math:`\lanlge v| f_{\rm SS}| v' \rangle = \frac{2}{3} \lambda`.
+
+
+The nono-diagonal spin-spin matrix elements are given by
+
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v', S',\Sigma' \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}} 
+  \left(\begin{array}(ccc) 
+   S & 2 & S' \\
+   -\Sigma & \Sigma'-\Sigma & \Sigma ' 
+  \end{array}
+  \right) / 
+    \left(\begin{array}(ccc) 
+   S & 2 & S' \\
+   -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref} ' 
+  \end{array}
+  \right)
+  `
+  
+where :math:`\Sigma_{\rm ref}` is a refence value of the projection of spin used to specify the spin-spin field in the Duo input, e.g. 
+::
+
+     spin-spin A a 
+     name "<A|SS|a>"
+     spin   2.5 1.5
+     factor  1.0
+     lambda 0 0
+     sigma 0.5 0.5 
+     type  BOBLEROY
+     values
+     RE           0.16500000000000E+01
+     RREF        -0.10000000000000E+01
+     P            0.10000000000000E+01
+     NT           0.20000000000000E+01
+     B0           0.74662463783234E-01 
+     B1           0.73073583911575E+01 
+     B2           0.00000000000000E+00
+     BINF         0.00000000000000E+00
+     end
 
 
 
 
 ``spin-rot`` 
-^^^^^^^^^^^^^^
+^^^^^^^^^^^^
 
-Matrix elements of the spin-rotational operator .
+Matrix elements of the spin-rotational operator.
 
 
 

@@ -35,7 +35,7 @@ Sometimes keywords have several aliases, which are all equivalent.
 Lines delimited by parentheses (i.e., round brackets) are ignored and can be used for comments.
 If in the input there is a line with one of the keyword `END`, `STOP` or `FINISH` all lines after it are ignored.
 
-Most of the input keywords as well as keyword sections can appear in any order, except for  ``Atoms``, ``States''/``Nstates'', ``POTENTIAL'', ``GRID'' etc
+Most of the input keywords as well as keyword sections can appear in any order, except for  ``Atoms``, ``States``/``Nstates``, ``POTENTIAL``, ``GRID`` etc
 that define other objects and are expected to appear at the top of an input file. In case of a duplicated keyword, the one with the latest appearence takes the 
 presedence. 
 
@@ -133,7 +133,7 @@ Input strucure
 
 
 In the following we present the description of the main keywords and options used to define a *Duo* project. 
-A Duo ``project'' file can contain any objectst and descriptors used at different stages of the project. Different keys are used to switch neccesary options on and off. 
+A Duo ``project`` file can contain any objectst and descriptors used at different stages of the project. Different keys are used to switch neccesary options on and off. 
 
 
 Srtuctural keywords
@@ -212,16 +212,16 @@ For example, if the ground state and four excited states of a molecule are to be
 Note that if ``nstates`` is set to a number different from the actual number of PECs  included in the 
 input file no error message is issued; if more than nstates PECs are included in the input file then the PECs 
 with ``state`` > ``nstates``  will be ignored.  A Duo input file can contain more states and associated objects than required for a current task, with 
-``Nstates'' to specify which states should be used. 
+``Nstates`` to specify which states should be used. 
 
 Note also that, consistently with the way Duo works internally, ``nstates`` is the number of unique PECs in absence of spin-orbit couplings.
 
-An alternative to ``nstates'', the selection of the electronic states can be made via the `States` list as follows:
+An alternative to ``nstates``, the selection of the electronic states can be made via the `States` list as follows:
 :: 
       
       States  X A B a C^Pi
 
-where the strings X, A, B, a and C^Pi are also used to label ``Potential'' Duo objects to identify the corresponding electronic states:
+where the strings X, A, B, a and C^Pi are also used to label ``Potential`` Duo objects to identify the corresponding electronic states:
 ::
 
 
@@ -316,7 +316,7 @@ See :ref:`Eigensolver`.
 Vibrational basis and contraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-While tje primitive radial basis set is defined by the DVR grid points (see ``Grid'') with the sizes controlled by ``Npoints'', the actual vibratioanl 
+While tje primitive radial basis set is defined by the DVR grid points (see ``Grid``) with the sizes controlled by ``Npoints``, the actual vibratioanl 
 basis set is in the solution of the Schroedinger equation as part of the the rovibronic basis set, is constructed as follows. 
 As a first step the `J=0` vibration problem is solved for each electronic state, in which the
 corresponding Schroedinger equation is solved in the grid representation of ``npoints``. Then a certain number  of the resulted
@@ -342,7 +342,7 @@ Duo objects
 ``poten`` (alias: potential) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
-Duo uses concepts of ``objects'' or ``fields'' of different types to define rhe corresponding curves: potential energy curves (PECs), spin-orbit curves (SOCS), electronic angular momenta curves (EAMs) etc.
+Duo uses concepts of ``objects`` or ``fields`` of different types to define rhe corresponding curves: potential energy curves (PECs), spin-orbit curves (SOCS), electronic angular momenta curves (EAMs) etc.
 
 For example,  ``potential`` represents a PEC. From the point of view of theory,  each objects, including PEC, is a result of the electronic
 structure calculation with clamped nuclei, possibly complemented with the scalar-relativistic correction and with the 
@@ -380,7 +380,7 @@ Duo Fitting
 
 Duo allows the user to modify (`refine`) the potential energy curves and other coupling curves
 by least-squares-fit to `experimental` energy term values or wavenumbers. For detaisl see Section :ref:`fitting`. 
-Teh fitting is activated via the section ``Fitting'', for example:
+Teh fitting is activated via the section ``Fitting``, for example:
 ::
 
   FITTING
@@ -402,7 +402,7 @@ Teh fitting is activated via the section ``Fitting'', for example:
   end
 
 
-The section can be deactivated by adding the keyword ``OFF'' next to ``FITTING'':
+The section can be deactivated by adding the keyword ``OFF`` next to ``FITTING``:
 ::
  
     FITTING OFF
@@ -416,7 +416,7 @@ Absorption or emission spectra as well as line lists and other
 related quantities can be computed by adding an ``INTENSITY`` section. For details see :ref:`computing-spectra`. 
 
 
-The ``INTENSITY'' section can be deactivated by adding the keyword ``OFF'' next to ``FITTING'':
+The ``INTENSITY`` section can be deactivated by adding the keyword ``OFF`` next to ``FITTING``:
 ::
  
     INTENSITY OFF
@@ -722,7 +722,7 @@ The keyword should appear anywhere in the body of the input file. This is the de
 approach also to assign the vibrational quantum number (``ASSIGN_V_BY_CONTRIBUTIO``), which is used for all other quantum numbers. 
 
 
-* ``ASSIGN_V_BY_CONTRIBUTION''
+* ``ASSIGN_V_BY_CONTRIBUTION``
 
 The vibrational quantum numbers  is to use the largest-contribution  approach also to assign the vibrational quantum number (opposite to ``ASSIGN_V_BY_COUNT``). 
 The largest contribution approach is used for all other quantum numbers.

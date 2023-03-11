@@ -8871,7 +8871,7 @@ end subroutine map_fields_onto_grid
                   do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
                     !
                     ! Sigmas from Wigner-Eckart
-                    sigmai_ = real(isigma2,rk)*0.5 
+                    sigmai_ = real(isigma2,rk)*0.5_rk
                     sigmaj_ = sigmai_ - q_we
                     !
                     ! three_j for current Sigmas
