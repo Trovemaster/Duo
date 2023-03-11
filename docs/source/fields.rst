@@ -269,9 +269,7 @@ The nonzero off-diagonal matrix elements are
 
 and 
 
-  :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda\mp1 \rangle |v^\prime, S,\Sigma\pm 1,\Omega \rangle = -\frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle
-  \langle \Lambda | L_{\pm}|\Lambda \mp1 \rangle 
-    \left[ S(S+1)- \Sigma(\Sigma\pm1) \right]`.
+  :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda\mp1 \rangle |v^\prime, S,\Sigma\pm 1,\Omega \rangle = -\frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle   \langle \Lambda | L_{\pm}|\Lambda \mp1 \rangle     \left[ S(S+1)- \Sigma(\Sigma\pm1) \right]`.
 
 
 ``bob-rot``   
