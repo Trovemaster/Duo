@@ -481,6 +481,7 @@ module diatom_module
   !
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
+  integer,parameter  :: states_max = 50
   type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
                           spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:),nac(:)
   type(fieldT),pointer :: brot(:),quadrupoletm(:)
@@ -505,7 +506,7 @@ module diatom_module
   type(IntensityT)            :: Intensity
   !type(symmetryT)             :: sym
   !
-  integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
+  integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
                    Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
@@ -543,7 +544,7 @@ module diatom_module
     integer(ik)  :: iobject(Nobjects)
     integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
-                    iterm,iobj,iclass_,ielement
+                    iterm,iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
     integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
@@ -551,7 +552,7 @@ module diatom_module
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
-    character(len=cl) :: w,ioname,iTAG,jTAG
+    character(len=cl) :: w,ioname,iTAG,jTAG,States_list(states_max)
     character(len=wl) :: large_fmt
     !
     integer(ik)       :: iut !  iut is a unit number. 
@@ -599,6 +600,8 @@ module diatom_module
     !
     ! To count objects
     iobject = 0
+    !
+    nstate_listed = 0
     !
     if( job%zEchoInput) then
       write(out,"('(Transcript of the input --->)')")
@@ -844,9 +847,36 @@ module diatom_module
         !    !
         !  endif
         !  !
-        case ("NSTATES","NESTATES")
+        case ("NSTATES","NESTATES","STATES")
           !
-          call readi(nestates)
+          if (nestates>-1) then 
+            !
+            call report("Conflicting input: Nstates and States cannot be used at the same time: ",.true.)
+            !
+          endif 
+          !
+          select case (w)
+            !
+          case ("STATES")
+            !
+            i = 0
+            !
+            do while (item<Nitems.and.i<states_max)
+               !
+               i = i + 1
+               call readu(States_list(i))
+               !
+            enddo
+            !
+            nestates = i
+            !
+            nstate_listed = i
+            !
+          case default 
+            !
+            call readi(nestates)
+            !
+          end select 
           !
           if (nestates<1) call report("nestates cannot be 0 or negative",.true.)
           !
@@ -1625,9 +1655,22 @@ module diatom_module
              !
              iobject(1) = iobject(1) + 1
              !
-             if (iobject(1)>nestates) then
-                 print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
+             call reada(w)
+             !
+             include_state = .true.
+             if (nstate_listed>0) include_state = .false.
+             loop_istate_pot : do istate=1,nstate_listed
+                 if (trim(w)==trim(States_list(istate))) then
+                   include_state = .true.
+                   !                   
+                   exit loop_istate_pot
+                 endif
+             enddo loop_istate_pot
+             !
+             if (.not.include_state.or.iobject(1)>nestates) then
+                 !print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
                  !call report ("Too many potentials given in the input",.true.)
+                 !
                  iobject(1) = iobject(1) - 1
                  !
                  do while (trim(w)/="".and.trim(w)/="END")
@@ -1635,8 +1678,6 @@ module diatom_module
                    call readu(w)
                  enddo
                  !
-                 !call read_line(eof,iut) ; if (eof) exit
-                 !call readu(w)
                  cycle
              endif
              !
@@ -1646,7 +1687,9 @@ module diatom_module
              field%istate = iobject(1)
              field%jstate = iobject(1)
              !
-             call reada(field%iTAG)
+             field%iTAG = w
+             !
+             !call reada(field%iTAG)
              !
              field%jTAG = field%iTAG
              !
@@ -3286,6 +3329,22 @@ module diatom_module
     enddo
     !
     if (Nestates<1) call report ("At least one POTEN object must be present (abinitio poten does not count)",.true.)
+    !
+    if (nstate_listed/=Nestates) then 
+        loop_istate_pot_check: do istate=1,nstate_listed
+          !
+          do jstate=1,Nestates
+            !
+            if (trim( poten(jstate)%iTAG )==trim( States_list(istate) ) ) then
+              cycle loop_istate_pot_check
+            endif
+          enddo 
+          !
+          write(out,"('Input error: State ',a,' was not found in the input, check the STATES line')"),trim(States_list(istate))
+          stop "Input error: State not found in the input, check STATES line"
+          !
+        enddo loop_istate_pot_check 
+    endif 
     !
     Nspinorbits = iobject(2)
     Nl2   = iobject(3)

@@ -212,15 +212,25 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
 
 
 
-``spin-spin-p`` and ``spin-spin-o`` 
+``spin-spin``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
+
+
+
+  :math:`H^{\rm SS}(r) = f_{\rm SS} \left[ 3 \Sigma^2- S(S+1) \right]`.
+
+
+
 
 ``spin-rot`` 
 ^^^^^^^^^^^^^^
 
 Matrix elements of the spin-rotational operator .
+
+
+
 
 ``bob-rot``   
 ^^^^^^^^^^^
