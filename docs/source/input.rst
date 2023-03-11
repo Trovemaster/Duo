@@ -127,6 +127,8 @@ a grid-type potential energy curve by of Jacek Koput, JCP  135, 244308 (2011), T
      20.00          0.0
     end
     
+    
+    
 
 Input strucure
 --------------
