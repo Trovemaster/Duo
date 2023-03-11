@@ -265,7 +265,7 @@ The diagonal matrix elements of the spin-rotational operator are given by
 
 The nonzero off-diagonal matrix elements are  
 
-   :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda \rangle (r) |v^\prime, S,\Sigma\pm 1,\Omega\pm 1 \rangle = \frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle \left[ J(J+1)- \Omega(\Omrga\pm1) \right]`.
+   :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda \rangle (r) |v^\prime, S,\Sigma\pm 1,\Omega\pm 1 \rangle = \frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle \left[ J(J+1)- \Omega(\Omega\pm1) \right]`.
 
 and 
 
