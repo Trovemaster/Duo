@@ -266,9 +266,19 @@ where :math:`\Sigma_{\rm ref}` is a refence value of the projection of spin used
 ``spin-rot`` 
 ^^^^^^^^^^^^
 
-Matrix elements of the spin-rotational operator.
+The diagonal matrix elements of the spin-rotational operator are given by 
 
+   :math:`\langle v,S,\Sigma |H^{\rm S-R}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm S-R}| v^\prime \rangle \left[ \Sigma^2- S(S+1) \right]`.
 
+The nonzero off-diagonal matrix elements are  
+
+   :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda \rangle (r) |v^\prime, S,\Sigma\pm 1,\Omega\pm 1 \rangle = \frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle \left[ J(J+1)- \Omega(\Omrga\pm1) \right]`.
+
+and 
+
+  :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda\mp1 \rangle |v^\prime, S,\Sigma\pm 1,\Omega \rangle = -\frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle
+  \langle \Lambda | L_{\pm}|\Lambda \mp1 \rangle 
+    \left[ S(S+1)- \Sigma(\Sigma\pm1) \right]`.
 
 
 ``bob-rot``   
