@@ -8689,7 +8689,7 @@ end subroutine map_fields_onto_grid
               !
               do idiab = 1,Ndiabatic
                 !
-                if (ilambda/=jlambda.or.nint(spini-spinj)/=0 ) cycle
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
                 !
                 field => diabatic(idiab) 
                 !
@@ -8741,7 +8741,7 @@ end subroutine map_fields_onto_grid
                 !
                 !selection rules
                 !
-                if (ilambda/=jlambda.or.nint(spini-spinj)/=0 ) cycle
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
                 !
                 field => nac(iNAC) 
                 !
