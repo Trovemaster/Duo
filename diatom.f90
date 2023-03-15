@@ -2233,7 +2233,7 @@ module diatom_module
              !
              include_state = .false.
              !
-             ielement = which_element(iref,jref,iobject_,iobject,field,ierr)
+             ielement = which_element(iref,jref,iobject_,iobject,field_,ierr)
              !
              if (ierr > 0) then 
                 iabi = iabi - 1
@@ -2246,14 +2246,17 @@ module diatom_module
              !
              ! assign the abinitio counter 
              !
-             field%iabi = iabi
+             field_%iabi = iabi
              !
              iabi_ = iabi
              !
-             abinitio(iabi) = field 
+             !abinitio(iabi) = field 
              !
              field => abinitio(iabi_)
+             call set_field_refs(field,field_%iref,field_%iref,field_%istate,field_%jstate,field_%iTAG,field_%jTAG)
+             call transfer_field_quantum_numbers(field_,field)
              !
+             field%name = field_%name
              field%class = "ABINITIO-"//trim(w)
              !
           case default

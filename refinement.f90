@@ -1285,6 +1285,11 @@ module refinement
             !
             call TimerStart('Grid points')
             !
+            rewind(abinitunit)
+            !
+            write(abinitunit,"(' Grid points '/&
+            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
+            !
             ! this will count different ab initio fields one by one 
             ifield_ = 0
             !
@@ -1303,6 +1308,7 @@ module refinement
                  if (ifield_==0) cycle 
                  !
                  !ifield_ = ifield_ + 1
+                 if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
@@ -1338,6 +1344,13 @@ module refinement
                       fshift = objects(iobject,ifield)%field%value(1)-abinitio(ifield_)%refvalue
                       eps(en_npts+j) = eps(en_npts+j)+fshift
                    endif
+                   !
+                   ! print out into .pot
+                   !
+                   write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
+                          ifield,r_t, &
+                          abinitio(ifield_)%value(i)*abinitio(ifield_)%factor,f, &
+                          eps(en_npts+j),wtall(en_npts+j) 
                    !
                    ! calculate the derivative of the potential function wrt the fitting parameters
                    !
@@ -1385,36 +1398,6 @@ module refinement
             enddo
             !
             call TimerStop('Grid points')
-            !
-            ! print out the potential energy corrections at the 'ab initio' geometries
-            !
-            rewind(abinitunit)
-            !
-            write(abinitunit,"(' Grid points '/&
-            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
-            !
-            j = 0 
-            do ifield =1,Nabi
-              !
-              field => abinitio(ifield)
-              !
-              if (field%type=="DUMMY") cycle
-              !
-              write(abinitunit,'(a)') field%name
-              !
-              do i=1,field%Nterms
-                 !
-                 j = j + 1
-                 !
-                 f = field%value(i)*field%factor-eps(j+en_npts)
-                 !
-                 write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
-                        ifield,field%grid(i), &
-                        field%value(i)*field%factor,f, &
-                        eps(en_npts+j),wtall(en_npts+j) 
-                !
-              enddo
-            enddo
             !
             ! ssq  - weighted rms**2, rms  - root mean square deviation. 
             !
