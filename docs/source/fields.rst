@@ -316,8 +316,16 @@ Non-adiabatic coupling: ``NAC``
 Non-adiabatic coupling (NAC). It is a non-diagonal coupling element used for adiabatic representation. It appears in the kinetic energy operator as 
 a linear momentum term: 
 
-  :math:`H^{\rm NAC}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ -\left(\frac{d^{\gets}}{d r} w^{(1)}- w^{(1)} \frac{d^{\to}}{d r }\right)  \right]`.
+  :math:`H^{\rm NAC}_{12}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ -\left(\frac{d^{\gets}}{d r} w^{(12)}- w^{(12)} \frac{d^{\to}}{d r }\right)  \right]`,
   
+where 12 stands for the coupling between states 1 and 2. 
+By default, a NAC field trigers the "second order NAC" corrections to the corresponding potential energies defined as 
+
+  :math:`H^{\rm NAC2}_{i}(r) = \frac{h}{8 \pi^2 c \mu}  \left(H^{\rm NAC}_{12}(r) \right)^2,`
+
+where :math:`i=1,2`. In Duo, the diagonal ``diabatic'' fields are used to store :math:`H^{\rm NAC2}_{i}(r)`. If however, the corresponding diabatic fields are
+directly specified, these second order NAC correction are ignored. 
+
 A typical NAC is a Lorentz- or Gaussian-type functions. NAC should be centred about the crossing point of the correpsonding diabatic potential curves.
 
 Example:
@@ -338,6 +346,60 @@ Example:
      end
 
 
+The second order NAC corrections can be provided as two diagonal diabatic fields, e.g. (from the YO spectroscopic model)
+
+Example:
+::
+
+     diabatic B B
+     name "<B2Sigma+|NAC2|B2Sigma+>"
+     lambda     0 0 
+     spin   0.5 0.5
+     type  grid
+     factor  1.243548973
+     values
+      1.81020          0.0731621425
+      1.81040          0.0735930439
+      1.81060          0.0740271189
+      1.81080          0.0744643954
+      1.81100          0.0749049019
+      1.81120          0.0753486669
+      1.81140          0.0757957194
+      1.81160          0.0762460887
+      1.81180          0.0766998042
+      1.81200          0.0771568959
+      1.81220          0.0776173938
+      1.81240          0.0780813285
+      1.81260          0.0785487308
+      1.81280          0.0790196317
+     end
+:
+
+     diabatic D D
+     name "<D2Sigma+|NAC2|D2Sigma+>"
+     lambda     0 0 
+     spin   0.5 0.5
+     type  grid
+     factor  1.243548973
+     values
+      1.81020          0.0731621425
+      1.81040          0.0735930439
+      1.81060          0.0740271189
+      1.81080          0.0744643954
+      1.81100          0.0749049019
+      1.81120          0.0753486669
+      1.81140          0.0757957194
+      1.81160          0.0762460887
+      1.81180          0.0766998042
+      1.81200          0.0771568959
+      1.81220          0.0776173938
+      1.81240          0.0780813285
+      1.81260          0.0785487308
+      1.81280          0.0790196317
+     end
+
+
+Here ``factor 1.243548973`` is :math:`\frac{h}{8 \pi^2 c \mu}` for YO.
 
 
 ``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  

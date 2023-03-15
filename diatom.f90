@@ -55,6 +55,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
+  !        case (13) nac(iterm)
   !        case (14 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a
@@ -482,9 +483,10 @@ module diatom_module
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
   integer,parameter  :: states_max = 50
-  type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
-                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:),nac(:)
-  type(fieldT),pointer :: brot(:),quadrupoletm(:)
+  type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
+                          dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
+                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
+  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null()
   !
   ! Fields in the Omega representation
   !
@@ -547,7 +549,7 @@ module diatom_module
                     iterm,iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
-    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
+    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_,inac
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
@@ -557,9 +559,9 @@ module diatom_module
     !
     integer(ik)       :: iut !  iut is a unit number. 
     !
-    type(fieldT),pointer      :: field
+    type(fieldT),pointer      :: field,field_
     logical :: eof,include_state,allgrids
-    logical :: symmetry_defined=.false.
+    logical :: symmetry_defined=.false.,skip_diabatic
     integer :: ic,ierr
     !
     ! -----------------------------------------------------------
@@ -3371,132 +3373,76 @@ module diatom_module
     Ndipoles = iobject(Nobjects)
     Nabi  = iabi
     !
+    ! For each NAC field, the second order NAC can be defined and added to a diabatic field,
+    ! unless it is already present in the input as a diagonal diabatic field
+    lool_NAC: do iNAC = 1,Nnac
+      !
+      ! diagonal diabatic #1 
+      !
+      ! Check if it has been defined before 
+      skip_diabatic = .false.
+      do istate=1,Ndiabatic
+         if ( nac(iNAC)%iref==diabatic(istate)%iref ) then
+            skip_diabatic = .true.
+            exit
+         endif
+      enddo
+      !
+      if (.not.skip_diabatic) then 
+        !
+        Ndiabatic = Ndiabatic + 1
+        iobject(9) = Ndiabatic
+        !
+        field  => diabatic(Ndiabatic)
+        field_ => nac(iNAC)
+        !
+        call set_field_refs(field,nac(iNAC)%iref,nac(iNAC)%iref,nac(iNAC)%istate,nac(iNAC)%istate,nac(iNAC)%iTAG,nac(iNAC)%iTAG)
+        call transfer_field_quantum_numbers(field_,field)
+        !
+        field%class = trim(CLASSNAMES(9))
+        field%type = "NAC"
+        field%name = nac(iNAC)%name
+        !
+      endif
+      !
+      ! diagonal diabatic #2
+      !
+      ! Check if it has been defined before 
+      do istate=1,Ndiabatic
+         if ( nac(iNAC)%jref==diabatic(istate)%jref ) then
+            cycle lool_NAC
+         endif
+      enddo
+      !
+      Ndiabatic = Ndiabatic + 1
+      iobject(9) = Ndiabatic
+      !
+      field   => diabatic(Ndiabatic)
+      field_  => nac(iNAC)
+      !
+      call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
+      call transfer_field_quantum_numbers(field_,field)
+      !
+      field%class = trim(CLASSNAMES(9))
+      field%type = "NAC"
+      field%name = nac(iNAC)%name
+      !
+    enddo lool_NAC
+    !
     ! create a map with field distribution
     !
     do i = 1,Nobjects-4
       fieldmap(i)%Nfields = iobject(i)
     enddo
     !
-    !fieldmap(1)%Nfields = Nestates
-    !fieldmap(2)%Nfields = Nspinorbits
-    !fieldmap(3)%Nfields = Nl2
-    !fieldmap(4)%Nfields = Nlxly
-    !fieldmap(5)%Nfields = Nss
-    !fieldmap(6)%Nfields = Nsso
-    !fieldmap(7)%Nfields = Nbobrot
-    !fieldmap(8)%Nfields = Nsr
-    !fieldmap(9)%Nfields = Ndiabatic
-    !fieldmap(10)%Nfields = iobject(10)
-    !
     fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
-    !Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
-    !
     Ntotalfields = sum(iobject(1:Nobjects-4))
-    !
-    ! check if all abinitio fields are initialized. If not we need to make dummy abinitio fields;
-    ! we also check whether not all fields are given on a grid and thus can be varied.
-    !
-    !if (action%fitting .eqv. .true.) then
-      !
-      !Nabi = Ntotalfields
-      fieldmap(Nobjects-2)%Nfields = Nabi
-      !
-      ! we also check whether not all fields are given on a grid and thus can be varied.
-      !
-      allgrids = .true.
-      !
-      !iabi = 0
-      !!
-      !do iobj = 1,0 !,Nobjects-3
-      !  !
-      !  do iterm = 1,fieldmap(iobj)%Nfields
-      !    !
-      !    select case (iobj)
-      !    case (1)
-      !      field => poten(iterm)
-      !    case (2)
-      !      field => spinorbit(iterm)
-      !    case (3)
-      !      field => l2(iterm)
-      !    case (4)
-      !      field => lxly(iterm)
-      !    case (5)
-      !      field => spinspin(iterm)
-      !    case (6)
-      !      field => spinspino(iterm)
-      !    case (7)
-      !      field => bobrot(iterm)
-      !    case (8)
-      !      field => spinrot(iterm)
-      !    case (9)
-      !      field => diabatic(iterm)
-      !    case (10)
-      !      field => lambdaopq(iterm)
-      !    case (11)
-      !      field => lambdap2q(iterm)
-      !    case (12)
-      !      field => lambdaq(iterm)
-      !    case (13)
-      !      field => nac(iterm)
-      !    case (21, 22, 23, 24, 25, 26, 27)
-      !      field => hfcc1(iobj - 20)%field(iterm)
-      !    case (Nobjects-3)
-      !      field => quadrupoletm(iterm)
-      !    case (Nobjects-2)
-      !      field => abinitio(iterm)
-      !    case default
-      !       print "(a,i0)", "iobject = ",iobj
-      !       stop "illegal iobject  "
-      !    end select
-      !    !
-      !    iabi = iabi + 1
-      !    !
-      !    if (trim(field%type)/="GRID") allgrids = .false.
-      !    !
-      !    !field => abinitio(iabi)
-      !    !
-      !    if (.not.associated(abinitio(iabi)%value)) then
-      !      !
-      !      Nparam = 1 ; abinitio(iabi)%Nterms = 0
-      !      !
-      !      allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
-      !               abinitio(iabi)%weight(Nparam),stat=alloc)
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
-      !      !
-      !      abinitio(iabi)%value = 0
-      !      abinitio(iabi)%grid = 1.0_rk
-      !      abinitio(iabi)%weight = 0
-      !      abinitio(iabi)%type = 'DUMMY'  ! dummy field
-      !      abinitio(iabi)%name    = field%name
-      !      abinitio(iabi)%spini   = field%spini
-      !      abinitio(iabi)%spinj   = field%spinj
-      !      abinitio(iabi)%sigmai  = field%sigmai
-      !      abinitio(iabi)%sigmaj  = field%sigmaj
-      !      abinitio(iabi)%multi   = field%multi
-      !      abinitio(iabi)%lambda  = field%lambda
-      !      abinitio(iabi)%lambdaj = field%lambdaj
-      !      !
-      !    endif
-      !    !
-      !  enddo
-      !enddo
-      !
-      !if (allgrids.and.action%fitting) then
-      !  call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
-      !endif 
-      !
-    !endif
-    !
-    !if (Nabi>Ntotalfields) then
-    !    print "(2a,i4,a,i6)",trim(w),": Number of ab initio fields ",iabi," exceeds the total number of fields ",Ntotalfields
-    !    call report ("Too many ab initio fields given in the input for"//trim(w),.true.)
-    !endif
+    fieldmap(Nobjects-2)%Nfields = Nabi
+    allgrids = .true.
     !
     if (.not.symmetry_defined) then
          !
@@ -3512,8 +3458,8 @@ module diatom_module
          if (alloc/=0)  stop 'input, isym_do - out of memory'
          !
          job%isym_do = .true.
-    !
-    write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
+         !
+         write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
          !
     endif 
     ! !I think the following message should be outputed only if line intensity
@@ -3662,6 +3608,28 @@ module diatom_module
          !
     end subroutine set_field_refs
     !
+
+    subroutine transfer_field_quantum_numbers(src,dst)
+      !
+      type(fieldT),pointer,intent(in)  :: src
+      type(fieldT),pointer,intent(out)  :: dst
+         !
+         dst%lambda= src%lambda
+         dst%lambdaj= src%lambdaj
+         dst%spini= src%spini
+         dst%spinj= src%spinj
+         dst%sigmai= src%sigmai
+         dst%sigmaj= src%sigmaj
+         dst%omegai= src%omegai
+         dst%omegaj= src%omegaj
+         dst%iomega= src%iomega
+         dst%jomega= src%jomega
+         dst%ix_lz_y= src%ix_lz_y
+         dst%jx_lz_y= src%jx_lz_y
+         !
+    end subroutine transfer_field_quantum_numbers
+
+
     !
     subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
         !
@@ -3727,7 +3695,7 @@ module diatom_module
         !
         if (action%fitting) then 
            if (trim(field%class)=='DIPOLE') then 
-             write(out,"('Warning: move DIPOLE before FITTING. This wil become soon compulsory.')")
+             write(out,"('Warning: move DIPOLE before FITTING. This will become soon compulsory.')")
            else
              call report (trim(field%class)//" cannot appear after FITTING; move FITTING to the end of input",.true.)
            endif
@@ -4345,7 +4313,7 @@ subroutine map_fields_onto_grid(iverbose)
      integer(ik),intent(in) :: iverbose
      !
      integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
-     integer(ik)             :: ifterm,iobject,ifield,iabi
+     integer(ik)             :: ifterm,iobject,ifield,iabi,inac
      real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
      real(rk),allocatable    :: f(:)
      !
@@ -4772,8 +4740,13 @@ subroutine map_fields_onto_grid(iverbose)
             end select
             !
             ! for dummy fields not used in fittings
-            !
+            !j
           case("DUMMY")
+            !
+            nterms = field%Nterms
+            field%gridvalue = 0._rk
+            !
+          case("NAC")
             !
             nterms = field%Nterms
             field%gridvalue = 0._rk
@@ -4849,6 +4822,27 @@ subroutine map_fields_onto_grid(iverbose)
             field => spinrot(iterm)
           case (9)
             field => diabatic(iterm)
+            !
+            ! For NACs, construct the diabatic diagonal curve as a nac^2 if diabatic is not given explicitly
+            ! and combine into single corrections in case the same state is coupled to different states via different NACs
+            if (trim(field%type)=="NAC") then
+              !
+              do iNAC = 1,Nnac
+                 !
+                 ! diagonal diabatic #1 
+                 if ( nac(iNAC)%iref==field%iref .and. nac(iNAC)%iref==field%jref) then
+                      field%gridvalue = field%gridvalue + 1.0_rk/scale*nac(iNAC)%gridvalue**2
+                 endif 
+                 !
+                 ! diagonal diabatic #2
+                 if ( nac(iNAC)%jref==field%iref .and. nac(iNAC)%jref==field%jref) then
+                      field%gridvalue = field%gridvalue + 1.0_rk/scale*nac(iNAC)%gridvalue**2
+                 endif 
+                 !
+              enddo
+              !
+            endif
+            !
           case (10)
             field => lambdaopq(iterm)
           case (11)
