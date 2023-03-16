@@ -1,6 +1,6 @@
 Specification of curves and couplings (Duo objects)
 ***************************************************
-: .. _Fields:
+.. _Fields:
 
 Once the main global parameters have been specified as described in the
 previous sections, it is necessary to introduce the PECs and the various coupling

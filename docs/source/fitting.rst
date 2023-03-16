@@ -62,7 +62,7 @@ When state labels are used as potential IDs, i.e.
 
 
 The same labels must be used to identify the electronic states in the energy part of the ``FITTING`` section: 
-
+::
 
   FITTING
   JLIST 2.5,0.5, 1.5 - 11.5, 22.5 - 112.5
