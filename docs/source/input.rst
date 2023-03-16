@@ -235,6 +235,16 @@ where the strings X, A, B, a and C^Pi are also used to label ``Potential`` Duo o
  
 Historically, Duo used numbers to label potentials, which is currently extended to simple strings. 
 
+
+.. note::`When using this option with the ``fitting`` application, it is recommended to keep the lowest PEC included. This is becasue the 'experimetnal' energies are commonly defined relative to the zer-point-energy of the ground electronic state, while Duo (by default) defined the calculated energies relative to the lowets energy that appear in the calculation. That is, without the ground electrinic state it would not be able to make the correct energy shift. This will lead to huge obs-calc differences.` 
+
+For example, to fit the B state only, one should include both the B abd X states (where X is assumed to label the ground electronic state):
+:: 
+      
+      States  X B
+
+
+
 * jrot: specifies the set of total angular momentum quantum numbers to be computed.
 
 These must be integers or half-integers, depending on whether there is an even or odd number of electrons.
