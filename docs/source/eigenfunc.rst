@@ -55,8 +55,7 @@ to ``filename``. The default name is ``eigen_vectors.chk``.
 
 The option ``density save`` is to compute the vibrational reduced density for all eigenfuncitons on a grid of bond length points, computed as follows 
 
-:math:`\rho(r)_i = \sum_{v,v'} \sum_{\rm State},\Lambda,\Sigma} [C_{v,{\rm State},\Lambda,\Sigma}^{i}]* C_{v',{\rm State},\Lambda,\Sigma}^i 
-\phi_{v}(r)^* \phi_{v'}(r) \Delta r`
+:math:`\rho(r)_i = \sum_{v,v'} \sum_{{\rm State},\Lambda,\Sigma} [C_{v,{\rm State},\Lambda,\Sigma}^{i}]* C_{v',{\rm State},\Lambda,\Sigma}^i \phi_{v}(r)^* \phi_{v'}(r) \Delta r`
 
 
 
