@@ -759,14 +759,14 @@ module refinement
                                 !
                                 if (energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1)<0) cycle
                                 !
-                                do jener = max(iener-10,1),iener-1
-                                  !
-                                  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
-                                      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
-                                  !
-                                  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
-                                  !
-                                enddo
+                                !do jener = max(iener-10,1),iener-1
+                                !  !
+                                !  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
+                                !      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
+                                !  !
+                                !  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
+                                !  !
+                                !enddo
                                 !
                                 if ( abs( fitting%obs(iener)%energy-( energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1) )  )<= & 
                                                             & lock_factor*abs(fitting%threshold_lock).and.&
