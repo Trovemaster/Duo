@@ -6909,7 +6909,7 @@ end subroutine map_fields_onto_grid
             Omega_grid(iomega)%basis(i)%ilambda = quanta(i)%ilambda
             Omega_grid(iomega)%basis(i)%spin = quanta(i)%spin
             Omega_grid(iomega)%basis(i)%omega = omega
-            Omega_grid(iomega)%basis(i)%ilevel = ilambdasigma
+            Omega_grid(iomega)%basis(i)%ilevel = i
             !
           enddo
           !
@@ -7972,9 +7972,9 @@ end subroutine map_fields_onto_grid
        !!    call check_point_dipoles('SAVE',iverbose,totalroots) 
        !endif
        !
+       if (iverbose>=4) call TimerStop('Compute vibrational matrix elements')
+       !
      end select 
-     !
-     if (iverbose>=4) call TimerStop('Compute vibrational matrix elements')
      !
      ! First we start a loop over J - the total angular momentum quantum number
      !
@@ -8126,7 +8126,6 @@ end subroutine map_fields_onto_grid
          ! allocate the book keeping array to manage the mapping between
          ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
          allocate(icontr(Ntotal),stat=alloc)
-         printout = ''
          !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
          if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
@@ -11240,7 +11239,7 @@ end subroutine map_fields_onto_grid
                ! BOB centrifugal (rotational) term, i.e. a correction to f_rot
                !
                do ibobrot = 1,Nbobrot
-                 if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==jstate.and.istate==jstate) then
+                 if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==istate) then
                    field => bobrot(ibobrot)
                    f_rot = f_rot + field%gridvalue(igrid)*sc
                    exit
@@ -11764,7 +11763,7 @@ end subroutine map_fields_onto_grid
                      ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
                      if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
                          abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
-                                    .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
+                                    .and.(ilambda==-jlambda).and.nint(spini-spinj)==0) then
                         !
                         f_s2 = sigmai-sigmaj
                         f_s1 = sign(1.0_rk,f_s2)
@@ -13227,6 +13226,8 @@ end subroutine map_fields_onto_grid
                jlevel_ = field%jlevel
                !
                if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+               !
+               f_t = 0
                !
                do isigmav = 0,1
                  !

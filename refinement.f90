@@ -1307,7 +1307,7 @@ module refinement
                  !
                  if (ifield_==0) cycle 
                  !
-                 !ifield_ = ifield_ + 1
+                 !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
                  do i = 1,abinitio(ifield_)%Nterms
