@@ -2,7 +2,7 @@ module refinement
   !
   use accuracy
   use timer
-  !use functions,only : define_analytical_field
+  !use functions,only : define_fanalytic_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
                            Nlambdap2q,Nlambdaq,Nnac,&
@@ -410,7 +410,7 @@ module refinement
               !
               abinitio(ifield_)%grid(1) = req
               !
-              !f = analytical_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
+              !f = fanalytic_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
               !
               abinitio(ifield_)%gridvalue(1) = objects(iobject,ifield)%field%gridvalue(ipotmin)
               !
@@ -1324,7 +1324,7 @@ module refinement
                      !
                    else
                      !
-                     f = objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                     f = objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                      !
                    endif
                    !
@@ -1378,11 +1378,11 @@ module refinement
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t + delta
                         !
-                        fR =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                        fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t - delta
                         !
-                        fL =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                        fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                         !
                         rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)**objects(iobject,ifield)%field%factor
                         !

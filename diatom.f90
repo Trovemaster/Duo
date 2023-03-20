@@ -2,7 +2,7 @@ module diatom_module
   !
   use accuracy
   use timer
-  use functions, only : analytical_fieldT
+  use functions, only : fanalytic_fieldT
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
   use me_numer,  only : ME_numerov
@@ -146,6 +146,7 @@ module diatom_module
     character(len=cl)    :: name='(unnamed)' ! Identifying name of the function (default to avoid garbled outputs)
     character(len=cl)    :: type='NONE'  ! Identifying type of the function
     character(len=cl)    :: class='NONE' ! Identifying class of the function (poten, spinorbit,dipole,abinitio etc)
+    character(len=cl)    :: sub_type(1:3)='NONE'  ! Identifying type of sub-functions (used for coupled representations)
     !
     ! variable used for GRID curves to specify interpolation and extrapolation  options
     ! 
@@ -160,6 +161,7 @@ module diatom_module
     character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
     character(len=cl)    :: jTAG         ! reference State TAG of the term as given in input (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
+    integer(ik)          :: Nsub_terms(3)  ! Number of terms of sub-functions, used for coupled representations 
     integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
     integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
     integer(ik)          :: multi        ! identification of the electronic spin (bra for the coupling)
@@ -211,7 +213,7 @@ module diatom_module
     real(rk)             :: Omega_min  !  pecs only: minimum physically possible value for |Omega|=|Lambda+Sigma|
     real(rk)             :: approxEJ0    !  pecs only: approximate J=0, v=0 energy (no couplings)
     real(rk)             :: approxEJmin  !  pecs only: approximate J=Jmin, v=0 energy (no couplings)
-    procedure (analytical_fieldT),pointer, nopass :: analytical_field => null()
+    procedure (fanalytic_fieldT),pointer, nopass :: fanalytic_field => null()
     type(linkT),pointer   :: link(:)       ! address to link with the fitting parameter in a different object in the fit
     logical               :: morphing = .false.    ! When morphing is the field is used to morph the ab initio couterpart
     !                                                towards the final object
@@ -2283,6 +2285,14 @@ module diatom_module
               !
               field%type = trim(w)
               !
+            case("SUB-TYPES","SUB-TYPE")
+              !
+              if (nitems<=2) call report ("Too few entries in "//trim(w),.true.)
+              !
+              call readu(field%sub_type(1))
+              call readu(field%sub_type(2))
+              call readu(field%sub_type(3))
+              !
             case("NAME")
               !
               call reada(w)
@@ -2703,7 +2713,7 @@ module diatom_module
                 field%spinj = real(field%jmulti-1,rk)*0.5_rk
               endif
               !
-            case("NPARAM","N","NPOINTS")
+            case("NPARAM","N","NPOINTS","NPARAMETERS")
               !
               ! Obsolete
               !
@@ -2714,6 +2724,18 @@ module diatom_module
               endif
               !
               field%Nterms = Nparam
+              !
+              ! this is for multiple entries of the number of paramters used for coupled representaitons
+              if (Nitems>=4) then
+                !
+                field%Nsub_terms(1) = Nparam
+                !
+                call readi(field%Nsub_terms(2)) 
+                call readi(field%Nsub_terms(3)) 
+                !
+                field%Nterms = sum(field%Nsub_terms(1:3))
+                !
+              endif
               !
             case("VALUES")
               !
@@ -2851,7 +2873,7 @@ module diatom_module
                    !
                    if (nitems<2) then
                       !
-                      write(out,"(a,i4)") "wrong number of records for an analytical field-type," // &
+                      write(out,"(a,i4)") "wrong number of records for an Analytic field-type," // &
                                       "must be two at least (name value)",nitems
                       call report ("illegal number of records (<2) in the current field-line "//trim(w),.true.)
                       !
@@ -4309,7 +4331,7 @@ end subroutine define_gns_factor
 
 subroutine map_fields_onto_grid(iverbose)
      !
-     use functions,only : define_analytical_field
+     use functions,only : define_fanalytic_field
      !
      character(len=130)     :: my_fmt  !text variable containing formats for reads/writes
      ! 
@@ -4320,7 +4342,7 @@ subroutine map_fields_onto_grid(iverbose)
      real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
      real(rk),allocatable    :: f(:)
      !
-     integer             :: np   ! tmp variable for extrapolation
+     integer(ik)             :: np   ! tmp variable for extrapolation
      real(kind=rk)       :: x1, x2, y1, y2, aa, bb ! tmp variables used for extrapolation
      !
      real(rk),allocatable    :: spline_wk_vec(:) ! working vector needed for spline interpolation
@@ -4335,6 +4357,12 @@ subroutine map_fields_onto_grid(iverbose)
      integer(ik) :: imin
      !
      type(fieldT),pointer      :: field
+     !
+     procedure (fanalytic_fieldT),pointer :: function_V1 => null()
+     procedure (fanalytic_fieldT),pointer :: function_V2 => null()
+     procedure (fanalytic_fieldT),pointer :: function_VD => null()
+     integer(ik) :: N1,N2,N3,icomponent
+     real(rk)  :: V1,V2,VD,E(2),discr
      !
      ngrid = grid%npoints
      !
@@ -4754,9 +4782,60 @@ subroutine map_fields_onto_grid(iverbose)
             nterms = field%Nterms
             field%gridvalue = 0._rk
             !
+          case("COUPLED")
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            !
+            call define_fanalytic_field(field%sub_type(1),function_V1)
+            call define_fanalytic_field(field%sub_type(2),function_V2)
+            call define_fanalytic_field(field%sub_type(3),function_VD)
+            !
+            N1 =field%Nsub_terms(1)
+            N2 =field%Nsub_terms(2)
+            N3 =field%Nsub_terms(3)
+            !
+            !$omp parallel do private(i,V1,V2,VD) schedule(guided)
+            do i=1,ngrid
+              !
+              V1 = function_V1(r(i),field%value(1:N1))
+              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
+              VD = function_VD(r(i),field%value(N1+N2+1:N1+N2+N3))
+              !
+              ! to diagobalize the 2x2 matrix 
+              !/     \
+              ! V1 VD |
+              ! VD V2 |
+              !\     /
+              ! we solve a quadratic equation with the discriminant 
+              !
+              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+              !
+              if (discr<-small_) then
+                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
+                stop 'COUPLED: discriminant is negative'
+              endif
+              !
+              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+              !
+              ! we use the component as specified in the last parameter:
+              !
+              icomponent = field%value(field%Nterms)
+              !
+              field%gridvalue(i) = E(icomponent)              
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            if (action%fitting) then
+              itotal = itotal + field%Nterms
+            endif
+            !
           case default
             !
-            call define_analytical_field(field%type,field%analytical_field)
+            call define_fanalytic_field(field%type,field%fanalytic_field)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
@@ -4771,7 +4850,7 @@ subroutine map_fields_onto_grid(iverbose)
             !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
               !
-              field%gridvalue(i) = field%analytical_field(r(i),field%value)
+              field%gridvalue(i) = field%fanalytic_field(r(i),field%value)
               !
             enddo
             !$omp end parallel do
@@ -4900,7 +4979,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
           endif
           !
-          ! Generate weights if an analytical expression is given
+          ! Generate weights if an Analytic expression is given
           !
           if (trim(field%weighting%wtype)=="PS1997") then 
             !
@@ -5025,13 +5104,13 @@ subroutine map_fields_onto_grid(iverbose)
           x0  = r(poten(istate)%imin)
           find_minimum: do i=1, max_iter_min_search
       
-               fmmm = poten(istate)%analytical_field( x0-1.5_rk*h, poten(istate)%value )
-               fmm  = poten(istate)%analytical_field( x0-h       , poten(istate)%value )
-               fm   = poten(istate)%analytical_field( x0-h/2._rk , poten(istate)%value )
-               f0   = poten(istate)%analytical_field( x0         , poten(istate)%value )
-               fp   = poten(istate)%analytical_field( x0+h/2._rk , poten(istate)%value )
-               fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
-               fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
+               fmmm = poten(istate)%fanalytic_field( x0-1.5_rk*h, poten(istate)%value )
+               fmm  = poten(istate)%fanalytic_field( x0-h       , poten(istate)%value )
+               fm   = poten(istate)%fanalytic_field( x0-h/2._rk , poten(istate)%value )
+               f0   = poten(istate)%fanalytic_field( x0         , poten(istate)%value )
+               fp   = poten(istate)%fanalytic_field( x0+h/2._rk , poten(istate)%value )
+               fpp  = poten(istate)%fanalytic_field( x0+h       , poten(istate)%value )
+               fppp = poten(istate)%fanalytic_field( x0+1.5_rk*h, poten(istate)%value )
       
                der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
                der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
@@ -6554,8 +6633,8 @@ subroutine map_fields_onto_grid(iverbose)
        r1 = grid%rmin
        r2 = grid%rmax
        !
-       f1 =  poten(iref1)%analytical_field(r1,poten(iref1)%value)
-       f2 =  poten(iref2)%analytical_field(r2,poten(iref2)%value)
+       f1 =  poten(iref1)%fanalytic_field(r1,poten(iref1)%value)
+       f2 =  poten(iref2)%fanalytic_field(r2,poten(iref2)%value)
        !
        ! find crossing point between f1 and f2
        !
@@ -6569,8 +6648,8 @@ subroutine map_fields_onto_grid(iverbose)
        do 
           !
           r_ = (r1+r2)*0.5_rk
-          f1 =  poten(iref1)%analytical_field(r_,poten(iref1)%value)
-          f2 =  poten(iref2)%analytical_field(r_,poten(iref2)%value)
+          f1 =  poten(iref1)%fanalytic_field(r_,poten(iref1)%value)
+          f2 =  poten(iref2)%fanalytic_field(r_,poten(iref2)%value)
           !
           if (f2>f1) then 
            !
