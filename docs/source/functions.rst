@@ -664,40 +664,42 @@ Example
    BINF         1.0
    end
 
-
-
-
-``CO_X_UBOS`` 
-^^^^^^^^^^^^^
-
-This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
-of CO in its ground electronic state.  All parameters are predefined internally.  
-
-
-
-
-
-Coupled functions with adiabatic avoided crossings
---------------------------------------------------
-
        
-``TWO_COUPLED_EMOS``
-^^^^^^^^^^^^^^^^^^^^
-             
-This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
-Only one of the two EMOS is requested via the last parameter ``COMPON``.
 
-
-Example:
-::
-
-
-     poten 1
-     name "X1Sigmag+"
-     symmetry g +
-     type   TWO_COUPLED_EMOs
-     lambda 0
-     mult   1
+            
+``EHH``: Ext
+^^^^^^^^^^^^
+            ``CO_X_UBOS`` 
+This form ui^^^^^^^^^^^^^
+            
+:math:`V^{\rThis CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
+            of CO in its ground electronic state.  All parameters are predefined internally.  
+where :math:
+See  Medvede
+            
+            
+Example:    
+::          Coupled functions with adiabatic avoided crossings
+            --------------------------------------------------
+            
+    poten 1        
+    name "X1``TWO_COUPLED_EMOS``
+    symmetry^^^^^^^^^^^^^^^^^^^^
+    lambda 0             
+    mult   1This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
+    type   EOnly one of the two EMOS is requested via the last parameter ``COMPON``.
+    values  
+      TE    
+      RE    Example:
+      AE    ::
+      alpha 
+      c     
+      B1         poten 1
+      B2         name "X1Sigmag+"
+      B3         symmetry g +
+    end          type   TWO_COUPLED_EMOs
+                 lambda 0
+                 mult   1
      N 17
      values
       V0           0.00000000000000E+00
@@ -845,37 +847,100 @@ Example:
     end
  
 
-``EHH``: Extended Hulburt-Hirschfelde
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ended Hulburt-Hirschfelde
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This form uis used for PEFs given by 
+s used for PEFs given by 
 
-:math:`V^{\rm EHH}(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e}) \left[\left(1-e^{-q}\right)^2 + cq^3\left(1+\sum_{i=1}^N b_i q^i \right) e^{-2q}\right]`,
+m EHH}(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e}) \left[\left(1-e^{-q}\right)^2 + cq^3\left(1+\sum_{i=1}^N b_i q^i \right) e^{-2q}\right]`,
 
-where :math:`q = \alpha \left(r-r_\textrm{e}\right)`. 
-See  Medvedev and Ushakov J. Quant. Spectrosc. Radiat. Transfer 288, 108255 (2022).
+`q = \alpha \left(r-r_\textrm{e}\right)`. 
+v and Ushakov J. Quant. Spectrosc. Radiat. Transfer 288, 108255 (2022).
 
 
-Example:
+
+
+
+
+
+Sigma+"
+ +
+
+
+HH
+
+    0.00000000000000E+00
+    0.149086580348419329D+01
+    0.519274276353915047D+05   
+    0.221879954515301936D+01 
+    0.948616297258670499D-01 
+    0.100084121923090996D+01 
+    0.470612349534084318D+00 
+    0.890787339171956738D-01 
+
+
+
+
+Generic two-state coupled adiabatic potential 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any three single funcitons implemented in Duo can be used to form a coupled 2x2 system to form PEC with avoiding crossings. This is done using the type ``Coupled`` 
+together with sub-types specifying three functions required to form a coupled system, PEC1, PEC2 and Coupling12. This form also requires that the 
+corresponding numbers of paramters are specified using ``Nparameters``. As abobe, the last paramter is reserved for the component index (1,2) referring to  
+teh adiabatic potential. Here is an example of an adibatic potential with an avoiding crossing formed from a 2x2 'diabatic' system, an EMO potenial, a repulsive 
+potential and an (inverted) EMO used as a coupling (from an AlH model): 
 ::
 
- 
-    poten 1
-    name "X1Sigma+"
-    symmetry +
-    lambda 0
-    mult   1
-    type   EHH
-    values
-      TE        0.00000000000000E+00
-      RE        0.149086580348419329D+01
-      AE        0.519274276353915047D+05   
-      alpha     0.221879954515301936D+01 
-      c         0.948616297258670499D-01 
-      B1        0.100084121923090996D+01 
-      B2        0.470612349534084318D+00 
-      B3        0.890787339171956738D-01 
-    end
+      poten A
+      name "A1Pi"
+      lambda 1
+      mult   1
+      type  coupled
+      sub-types EMO repulsive EMO
+      Nparameters 13  12 13
+      values
+      V0           2.36706506146433e+04 
+      RE           1.64813484193969e+00 
+      DE           50915.756
+      RREF        -1.00000000000000E+00
+      PB           4.00000000000000E+00
+      PU           4.00000000000000E+00
+      NSPHI        4.00000000000000E+00
+      NLPHI        4.00000000000000E+00
+      B0           2.23877956276444e+00 
+      B1           0.000000000000000000 
+      B2          -2.55686572909604e-01 
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      NREP         11
+      V0           2.55900000000000E+04
+      B1           0.00000000000000E+00
+      B2           0.00000000000000E+00
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      B5           0.00000000000000E+00
+      B6           3.56560923385944e+05 
+      B7           0.00000000000000E+00
+      B8           0.00000000000000E+00
+      B9           0.00000000000000E+00
+      B10          0.00000000000000E+00
+      V0           6.38813113973348e+03 
+      RE           2.02137412627653e+00 
+      AE           0.000000000000000000
+      RREF        -1.00000000000000E+00
+      PB           4.00000000000000E+00
+      PU           4.00000000000000E+00
+      NSPHI        4.00000000000000E+00
+      NLPHI        4.00000000000000E+00
+      B0           1.84063793349509e+00 
+      B1           0.000000000000000000
+      B2           3.33171505629389e-03 
+      B3           0.00000000000000E+00
+      B4           0.00000000000000E+00
+      COMPON       1
+      end
+
+
 
 
 
