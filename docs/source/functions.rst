@@ -666,40 +666,38 @@ Example
 
        
 
-            
-``EHH``: Ext
-^^^^^^^^^^^^
-            ``CO_X_UBOS`` 
-This form ui^^^^^^^^^^^^^
-            
-:math:`V^{\rThis CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
-            of CO in its ground electronic state.  All parameters are predefined internally.  
-where :math:
-See  Medvede
-            
-            
-Example:    
-::          Coupled functions with adiabatic avoided crossings
-            --------------------------------------------------
-            
-    poten 1        
-    name "X1``TWO_COUPLED_EMOS``
-    symmetry^^^^^^^^^^^^^^^^^^^^
-    lambda 0             
-    mult   1This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
-    type   EOnly one of the two EMOS is requested via the last parameter ``COMPON``.
-    values  
-      TE    
-      RE    Example:
-      AE    ::
-      alpha 
-      c     
-      B1         poten 1
-      B2         name "X1Sigmag+"
-      B3         symmetry g +
-    end          type   TWO_COUPLED_EMOs
-                 lambda 0
-                 mult   1
+
+``CO_X_UBOS`` 
+^^^^^^^^^^^^^
+
+This CO PEC was used in `Meshkov et. al, JQSRT, 217, 262 (2017) <https://doi.org/10.1016/j.jqsrt.2018.06.001>`_ to compute energies 
+of CO in its ground electronic state.  All parameters are predefined internally.  
+
+
+Coupled functions with adiabatic avoided crossings
+--------------------------------------------------
+
+
+
+
+       
+``TWO_COUPLED_EMOS``
+^^^^^^^^^^^^^^^^^^^^
+             
+This is a combination of two coupled diabatic EMOs coupled with a function given ``COSH-POLY`` into adiabatic potentials.
+Only one of the two EMOS is requested via the last parameter ``COMPON``.
+
+
+Example:
+::
+
+
+     poten 1
+     name "X1Sigmag+"
+     symmetry g +
+     type   TWO_COUPLED_EMOs
+     lambda 0
+     mult   1
      N 17
      values
       V0           0.00000000000000E+00
@@ -847,37 +845,37 @@ Example:
     end
  
 
-ended Hulburt-Hirschfelde
-^^^^^^^^^^^^^^^^^^^^^^^^^
+``EHH``: Extended Hulburt-Hirschfelde
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-s used for PEFs given by 
+This form uis used for PEFs given by 
 
-m EHH}(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e}) \left[\left(1-e^{-q}\right)^2 + cq^3\left(1+\sum_{i=1}^N b_i q^i \right) e^{-2q}\right]`,
+:math:`V^{\rm EHH}(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e}) \left[\left(1-e^{-q}\right)^2 + cq^3\left(1+\sum_{i=1}^N b_i q^i \right) e^{-2q}\right]`,
 
-`q = \alpha \left(r-r_\textrm{e}\right)`. 
-v and Ushakov J. Quant. Spectrosc. Radiat. Transfer 288, 108255 (2022).
-
-
+where :math:`q = \alpha \left(r-r_\textrm{e}\right)`. 
+See  Medvedev and Ushakov J. Quant. Spectrosc. Radiat. Transfer 288, 108255 (2022).
 
 
+Example:
+::
 
-
-
-Sigma+"
- +
-
-
-HH
-
-    0.00000000000000E+00
-    0.149086580348419329D+01
-    0.519274276353915047D+05   
-    0.221879954515301936D+01 
-    0.948616297258670499D-01 
-    0.100084121923090996D+01 
-    0.470612349534084318D+00 
-    0.890787339171956738D-01 
-
+ 
+    poten 1
+    name "X1Sigma+"
+    symmetry +
+    lambda 0
+    mult   1
+    type   EHH
+    values
+      TE        0.00000000000000E+00
+      RE        0.149086580348419329D+01
+      AE        0.519274276353915047D+05   
+      alpha     0.221879954515301936D+01 
+      c         0.948616297258670499D-01 
+      B1        0.100084121923090996D+01 
+      B2        0.470612349534084318D+00 
+      B3        0.890787339171956738D-01 
+    end
 
 
 
@@ -939,6 +937,8 @@ potential and an (inverted) EMO used as a coupling (from an AlH model):
       B4           0.00000000000000E+00
       COMPON       1
       end
+
+
 
 
 
