@@ -171,6 +171,10 @@ module functions
       !
       fanalytic_field => poten_two_coupled_EMOs_Lorentz
       !
+    case("DIABATIC_LORENTZ_TWO_EMOS")
+      !
+      fanalytic_field => poten_diabatic_Lorentz_TWO_EMOS
+      !
     case("TWO_COUPLED_EMOS_SQRTLORENTZ")
       !
       fanalytic_field => poten_two_coupled_EMOs_SqrtLorentz
@@ -199,6 +203,11 @@ module functions
       !
       fanalytic_field => poten_sqrt_lorentzian_polynom
       !
+      !
+    case("BETA_LORENTZ")
+      !
+      fanalytic_field => beta_diabatic_lorentzian
+      !
     case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
       !
       fanalytic_field => polynomial_dimensionless
@@ -220,7 +229,7 @@ module functions
       write(out,'(//"Analytic: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytic: Unknown function type "
       !
-    case("COUPLED")
+    case("COUPLED-PEC","COUPLED-DIABATIC")
       !
       fanalytic_field => function_dummy
       !
@@ -1713,6 +1722,33 @@ module functions
   end function poten_two_coupled_EMOs_Lorentz
 
 
+  recursive function poten_diabatic_Lorentz_TWO_EMOS(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,gamma,r0,f
+    integer(ik)            :: nparams1,nparams2,nparams0
+    !
+    nparams0 = 2
+    nparams1 = parameters(2+8)+9
+    nparams2 = parameters(2+nparams1+8)+9
+    !
+    f1 = poten_EMO(r,parameters(2+1:2+nparams1))
+    f2 = poten_EMO(r,parameters(2+nparams1+1:2+nparams1+nparams2))
+    !
+    gamma = parameters(1)
+    r0 =  parameters(2)
+    !
+    if (abs(r-r0)>sqrt(small_)) then 
+      !
+      f = gamma/(r-r0)*0.5_rk*(f2-f1)
+    else
+      f=0.5_rk*( poten_diabatic_Lorentz_TWO_EMOS(r+0.001_rk,parameters)+poten_diabatic_Lorentz_TWO_EMOS(r-0.001_rk,parameters) )
+    endif
+    !
+  end function poten_diabatic_Lorentz_TWO_EMOS
+
+
   function poten_two_coupled_EMOs_SqrtLorentz(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -1930,6 +1966,27 @@ module functions
   end function poten_sqrt_lorentzian_polynom
 
 
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the lorentzian case
+  !
+  function beta_diabatic_lorentzian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: gamma0,r0,f,t
+    integer(ik)            :: k,N
+    !
+    N = size(parameters)
+    !
+    gamma0 = parameters(1)
+    r0 = parameters(2)
+    !
+    t = (r-r0)/gamma0
+    !
+    f=0.5_rk*atan(t)+pi/4.0_rk;
+    !
+  end function beta_diabatic_lorentzian
 
 
   function polynomial_dimensionless(r,parameters) result(f)

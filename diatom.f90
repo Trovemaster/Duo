@@ -4361,6 +4361,7 @@ subroutine map_fields_onto_grid(iverbose)
      procedure (fanalytic_fieldT),pointer :: function_V1 => null()
      procedure (fanalytic_fieldT),pointer :: function_V2 => null()
      procedure (fanalytic_fieldT),pointer :: function_VD => null()
+     procedure (fanalytic_fieldT),pointer :: function_beta => null()
      integer(ik) :: N1,N2,N3,icomponent
      real(rk)  :: V1,V2,VD,E(2),discr
      !
@@ -4782,7 +4783,7 @@ subroutine map_fields_onto_grid(iverbose)
             nterms = field%Nterms
             field%gridvalue = 0._rk
             !
-          case("COUPLED")
+          case("COUPLED-PEC")
             !
             call define_fanalytic_field(field%type,field%fanalytic_field) 
             !
@@ -4794,7 +4795,7 @@ subroutine map_fields_onto_grid(iverbose)
             N2 =field%Nsub_terms(2)
             N3 =field%Nsub_terms(3)
             !
-            !$omp parallel do private(i,V1,V2,VD) schedule(guided)
+            !$omp parallel do private(i,V1,V2,VD,Discr,E,icomponent) schedule(guided)
             do i=1,ngrid
               !
               V1 = function_V1(r(i),field%value(1:N1))
@@ -4833,13 +4834,58 @@ subroutine map_fields_onto_grid(iverbose)
               itotal = itotal + field%Nterms
             endif
             !
+          case("COUPLED-DIABATIC")
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            !
+            call define_fanalytic_field(field%sub_type(1),function_beta)
+            call define_fanalytic_field(field%sub_type(2),function_V1)
+            call define_fanalytic_field(field%sub_type(3),function_V2)
+            !
+            N1 =field%Nsub_terms(1)
+            N2 =field%Nsub_terms(2)
+            N3 =field%Nsub_terms(3)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            !
+            field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
+            !
+            !$omp parallel do private(i,beta,V1,V2,VD) schedule(guided)
+            do i=1,ngrid
+              !
+              beta = function_beta(r(i),field%value(1:N1))
+              V1 = function_V1(r(i),field%value(N1+1:N1+N2))
+              V2 = function_V2(r(i),field%value(N1+N2+1:N1+N2+N3))
+              !
+              ! VD = 0.5*tan(2*gamma)*(V2-V1)
+              !
+              if (abs(beta-pi*0.5_rk)>sqrt(small_)) then 
+                !
+                field%gridvalue(i) = 0.5_rk*tan(2.0_rk*beta)*(V2-V1)
+                !
+              else
+                !
+                field%gridvalue(i) = field%gridvalue(i-1) 
+                !
+              endif
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            if (action%fitting) then
+              itotal = itotal + field%Nterms
+            endif            
+            !
           case default
             !
             call define_fanalytic_field(field%type,field%fanalytic_field)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            if (field%class=="DIABATIC".and.trim(field%type)/="GRID") then 
+            if (field%class=="DIABATIC".and.any(trim(field%type)==&
+                            (/"LORENTZ","DIABATIC_LORENTZ_TWO_EMOS"/))) then 
               !
               ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
               !
@@ -4986,7 +5032,7 @@ subroutine map_fields_onto_grid(iverbose)
             istate = field%iref
             beta = field%weighting%alpha
             Vtop = field%weighting%Vtop
-            imin = (field%grid(1)-rmin) / real( np-1, rk)
+            !imin = (field%grid(1)-rmin) / real( np-1, rk)
             Vmin = minval(poten(istate)%gridvalue(:))
             !
             DeltaR = (rmax-rmin)/real(ngrid-1,rk)
