@@ -1958,7 +1958,7 @@ module refinement
        !
        do ifield =1,Nfields
          !
-         ifield_ = ifield_ + 1
+         !ifield_ = ifield_ + 1
          !
          do iterm = 1,objects(iobject,ifield)%field%Nterms
            !
