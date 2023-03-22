@@ -203,10 +203,13 @@ module functions
       !
       fanalytic_field => poten_sqrt_lorentzian_polynom
       !
-      !
     case("BETA_LORENTZ")
       !
       fanalytic_field => beta_diabatic_lorentzian
+      !
+    case("BETA_LAPLACIAN")
+      !
+      fanalytic_field => beta_diabatic_laplacian
       !
     case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
       !
@@ -1988,6 +1991,32 @@ module functions
     !
   end function beta_diabatic_lorentzian
 
+
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the Laplacian case
+  !
+  function beta_diabatic_laplacian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: gamma0,r0,f,t
+    integer(ik)            :: k,N
+    !
+    N = size(parameters)
+    !
+    gamma0 = parameters(1)
+    r0 = parameters(2)
+    !
+    if (r<r0-small_) then 
+      f= Pi/4.0_rk*exp( (r-r0)/gamma0 )
+    elseif (r>r0+small_) then 
+      f= Pi/2.0_rk-Pi/4.0_rk*exp(-(r-r0)/gamma0 )
+    else
+      f= Pi/4.0_rk
+    endif
+    !
+  end function beta_diabatic_laplacian
 
   function polynomial_dimensionless(r,parameters) result(f)
     !
