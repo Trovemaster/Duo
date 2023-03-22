@@ -211,6 +211,10 @@ module functions
       !
       fanalytic_field => beta_diabatic_laplacian
       !
+    case("BETA_LORENTZ_LAPLACE")
+      !
+      fanalytic_field => beta_diabatic_lorentzian_laplacian
+      !
     case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
       !
       fanalytic_field => polynomial_dimensionless
@@ -1978,9 +1982,6 @@ module functions
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
     real(rk)               :: gamma0,r0,f,t
-    integer(ik)            :: k,N
-    !
-    N = size(parameters)
     !
     gamma0 = parameters(1)
     r0 = parameters(2)
@@ -2001,9 +2002,6 @@ module functions
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
     real(rk)               :: gamma0,r0,f,t
-    integer(ik)            :: k,N
-    !
-    N = size(parameters)
     !
     gamma0 = parameters(1)
     r0 = parameters(2)
@@ -2017,6 +2015,45 @@ module functions
     endif
     !
   end function beta_diabatic_laplacian
+
+
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the Laplacian case
+  !
+  function beta_diabatic_lorentzian_laplacian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,tLor,tLap,gammaLap,gammaLor,betaLor,betaLap
+    !
+    gammaLor = parameters(1)
+    r0 = parameters(2)
+    gammaLap = parameters(3)
+    !
+    ! special case of the option ratio between gammas; 
+    ! it is used to define gammaLap for gammaLap=0
+    if (gammaLap<small_) gammaLap = 1.397_rk*gammaLor
+    !
+    tLor = (r-r0)/gammaLor
+    tLap = (r-r0)/gammaLap
+    !
+    betaLor=0.5_rk*atan(tLor)+pi/4.0_rk
+    !
+    if (r<r0-small_) then 
+      betaLap= Pi/4.0_rk*exp( tLap )
+    elseif (r>r0+small_) then 
+      betaLap= Pi/2.0_rk-Pi/4.0_rk*exp(-tLap )
+    else
+      betaLap= Pi/4.0_rk
+    endif
+    !
+    ! beta is a geometric average of betaLor and betaLap
+    !
+    f = 0.5_rk*asin(sqrt(betaLor*betaLap))
+    !
+  end function beta_diabatic_lorentzian_laplacian
+
 
   function polynomial_dimensionless(r,parameters) result(f)
     !
