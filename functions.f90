@@ -203,11 +203,11 @@ module functions
       !
       fanalytic_field => poten_sqrt_lorentzian_polynom
       !
-    case("BETA_LORENTZ")
+    case("BETA_LORENTZ","BETA_LORENTZIAN")
       !
       fanalytic_field => beta_diabatic_lorentzian
       !
-    case("BETA_LAPLACIAN")
+    case("BETA_LAPLACIAN","BETA_LAPLACE")
       !
       fanalytic_field => beta_diabatic_laplacian
       !
@@ -2050,7 +2050,7 @@ module functions
     !
     ! beta is a geometric average of betaLor and betaLap
     !
-    f = 0.5_rk*asin(sqrt(betaLor*betaLap))
+    f = 0.5_rk*asin(sqrt(sin(2.0_rk*betaLor)*sin(2.0_rk*betaLap)))
     !
   end function beta_diabatic_lorentzian_laplacian
 
