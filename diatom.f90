@@ -4339,7 +4339,7 @@ subroutine map_fields_onto_grid(iverbose)
      !
      integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
      integer(ik)             :: ifterm,iobject,ifield,iabi,inac
-     real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
+     real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai, r_cross
      real(rk),allocatable    :: f(:)
      !
      integer(ik)             :: np   ! tmp variable for extrapolation
@@ -4830,9 +4830,86 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! counting the total number of parameters when the fitting is on
             !
-            if (action%fitting) then
-              itotal = itotal + field%Nterms
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
+            !
+            ! Diabatic 2x2 representation with the coupling defined as 1/2 tan(2 beta) (V1-V2)
+            !
+          case("COUPLED-PEC-BETA")
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            !
+            call define_fanalytic_field(field%sub_type(1),function_V1)
+            call define_fanalytic_field(field%sub_type(2),function_V2)
+            call define_fanalytic_field(field%sub_type(3),function_beta)
+            !
+            N1 =field%Nsub_terms(1)
+            N2 =field%Nsub_terms(2)
+            N3 =field%Nsub_terms(3)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            ! and add it to the second parameter of the beta functionm if it was found < rmax
+            ! 
+            r_cross = find_crossing_point_of_PECs(field%value(1:N1),field%value(N1+1:N1+N2),function_V1,function_V2)
+            !
+            if (r_cross<rmax-sqrt(small_)) then 
+              !
+              field%value(N1+N2+2) = r_cross
+              !
             endif
+            !
+            !$omp parallel do private(i,V1,V2,beta,VD,Discr,E,icomponent) schedule(guided)
+            do i=1,ngrid
+              !
+              V1 = function_V1(r(i),field%value(1:N1))
+              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
+              !
+              beta = function_beta(r(i),field%value(N1+N2+1:N1+N2+N3))
+              !
+              ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
+              !
+              if (abs(beta-pi*0.5_rk)>sqrt(small_)) then 
+                !
+                VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
+                !
+              else
+                !
+                VD = field%gridvalue(i-1) 
+                !
+              endif
+              !
+              ! to diagobalize the 2x2 matrix 
+              !/     \
+              ! V1 VD |
+              ! VD V2 |
+              !\     /
+              ! we solve a quadratic equation with the discriminant 
+              !
+              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+              !
+              if (discr<-small_) then
+                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
+                stop 'COUPLED: discriminant is negative'
+              endif
+              !
+              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+              !
+              ! we use the component as specified in the last parameter:
+              !
+              icomponent = field%value(field%Nterms)
+              !
+              field%gridvalue(i) = E(icomponent)              
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
             !
           case("COUPLED-DIABATIC")
             !
@@ -4840,17 +4917,26 @@ subroutine map_fields_onto_grid(iverbose)
             !
             call define_fanalytic_field(field%sub_type(1),function_beta)
             !
+            call define_fanalytic_field(poten(field%iref)%type,function_V1)
+            call define_fanalytic_field(poten(field%jref)%type,function_V2)
+            !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
+            r_cross = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
+            !
+            if (r_cross<rmax-sqrt(small_)) then 
+              !
+              field%value(2) = r_cross
+              !
+            endif
             !
             !$omp parallel do private(i,beta,V1,V2,VD) schedule(guided)
             do i=1,ngrid
               !
               beta = function_beta(r(i),field%value)
               !
-              V1 =  poten(field%iref)%fanalytic_field(r(i),poten(field%iref)%value)
-              V2 =  poten(field%jref)%fanalytic_field(r(i),poten(field%jref)%value)
+              V1 =  function_V1(r(i),poten(field%iref)%value)
+              V2 =  function_V2(r(i),poten(field%jref)%value)
               !
               ! VD = 0.5*tan(2*gamma)*(V2-V1)
               !
@@ -4869,9 +4955,9 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! counting the total number of parameters when the fitting is on
             !
-            if (action%fitting) then
-              itotal = itotal + field%Nterms
-            endif            
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif            
             !
           case default
             !
@@ -4884,7 +4970,18 @@ subroutine map_fields_onto_grid(iverbose)
               !
               ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
               !
-              field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
+              call define_fanalytic_field(poten(field%iref)%type,function_V1)
+              call define_fanalytic_field(poten(field%jref)%type,function_V2)
+              !
+              ! find a crossing point between two PECS required for diabatic cases
+              !
+              r_cross = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
+              !
+              if (r_cross<rmax-sqrt(small_)) then 
+                !
+                field%value(2) = r_cross
+                !
+              endif
               !
             endif
             !
@@ -4898,11 +4995,17 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! counting the total number of parameters when the fitting is on
             !
-            if (action%fitting) then
-              itotal = itotal + field%Nterms
-            endif
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
             !
           end select
+          !
+          ! counting the total number of parameters when the fitting is on
+          !
+          if (action%fitting) then
+            itotal = itotal + field%Nterms
+          endif
           !
           field%gridvalue =  field%gridvalue*field%factor
           !
@@ -6656,10 +6759,11 @@ subroutine map_fields_onto_grid(iverbose)
      !
      ! This funciton finds a crossing point between tow PECs
      !
-     function find_crossing_point_of_PECs(iref1,iref2) result(r)
+     function find_crossing_point_of_PECs(values_V1,values_V2,function_V1,function_V2) result(r)
        !
-       integer(ik),intent(in) :: iref1,iref2
-       real(rk)               :: re1,re2    
+       real(rk),intent(in) :: values_V1(:),values_V2(:)
+       procedure (fanalytic_fieldT),pointer,optional :: function_V1,function_V2
+       !
        real(rk)               :: f1,f2,r_,r,r1,r2,diff
        integer(ik)            :: i
        !
@@ -6674,8 +6778,8 @@ subroutine map_fields_onto_grid(iverbose)
        r1 = grid%rmin
        r2 = grid%rmax
        !
-       f1 =  poten(iref1)%fanalytic_field(r1,poten(iref1)%value)
-       f2 =  poten(iref2)%fanalytic_field(r2,poten(iref2)%value)
+       f1 =  function_V1(r1,values_V1)
+       f2 =  function_V2(r2,values_V2)
        !
        ! find crossing point between f1 and f2
        !
@@ -6689,8 +6793,8 @@ subroutine map_fields_onto_grid(iverbose)
        do 
           !
           r_ = (r1+r2)*0.5_rk
-          f1 =  poten(iref1)%fanalytic_field(r_,poten(iref1)%value)
-          f2 =  poten(iref2)%fanalytic_field(r_,poten(iref2)%value)
+          f1 =  function_V1(r_,values_V1)
+          f2 =  function_V2(r_,values_V2)
           !
           if (f2>f1) then 
            !

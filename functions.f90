@@ -236,7 +236,7 @@ module functions
       write(out,'(//"Analytic: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytic: Unknown function type "
       !
-    case("COUPLED-PEC","COUPLED-DIABATIC")
+    case("COUPLED-PEC","COUPLED-PEC-BETA","COUPLED-DIABATIC")
       !
       fanalytic_field => function_dummy
       !
