@@ -4869,7 +4869,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
               !
-              if (abs(beta-pi*0.5_rk)>sqrt(small_)) then 
+              if (abs(beta-pi*0.4_rk)>sqrt(small_)) then 
                 !
                 VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
                 !
@@ -4930,7 +4930,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
             endif
             !
-            !$omp parallel do private(i,beta,V1,V2,VD) schedule(guided)
+            !$omp parallel do private(i,beta,V1,V2) schedule(guided)
             do i=1,ngrid
               !
               beta = function_beta(r(i),field%value)
@@ -4940,7 +4940,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               ! VD = 0.5*tan(2*gamma)*(V2-V1)
               !
-              if (abs(beta-pi*0.5_rk)>sqrt(small_)) then 
+              if (abs(beta-pi*0.4_rk)>sqrt(small_)) then 
                 !
                 field%gridvalue(i) = -0.5_rk*tan(2.0_rk*beta)*(V2-V1)
                 !
