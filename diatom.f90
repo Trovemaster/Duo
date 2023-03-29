@@ -4851,13 +4851,7 @@ subroutine map_fields_onto_grid(iverbose)
             ! find a crossing point between two PECS required for diabatic cases
             ! and add it to the second parameter of the beta functionm if it was found < rmax
             ! 
-            r_cross = find_crossing_point_of_PECs(field%value(1:N1),field%value(N1+1:N1+N2),function_V1,function_V2)
-            !
-            if (r_cross<rmax-sqrt(small_)) then 
-              !
-              field%value(N1+N2+2) = r_cross
-              !
-            endif
+            field%value(N1+N2+2) = find_crossing_point_of_PECs(field%value(1:N1),field%value(N1+1:N1+N2),function_V1,function_V2)
             !
             !$omp parallel do private(i,V1,V2,beta,VD,Discr,E,icomponent) schedule(guided)
             do i=1,ngrid
@@ -4922,13 +4916,7 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            r_cross = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
-            !
-            if (r_cross<rmax-sqrt(small_)) then 
-              !
-              field%value(2) = r_cross
-              !
-            endif
+            field%value(2) = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
             !
             !$omp parallel do private(i,beta,V1,V2) schedule(guided)
             do i=1,ngrid
@@ -6778,14 +6766,11 @@ subroutine map_fields_onto_grid(iverbose)
        r1 = grid%rmin
        r2 = grid%rmax
        !
-       f1 =  function_V1(r1,values_V1)
-       f2 =  function_V2(r2,values_V2)
-       !
        ! find crossing point between f1 and f2
        !
        if (r2<r1) then
          write(out,"(a,a,a,3f12.8)") 'r1>r2 error','find_crossing_point_of_PECs','r1,r2 = ',r1,r2
-         stop 'r1>r2 error find_crossing_point_of_PECs imax reached'
+         stop 'r1>r2 error find_crossing_point_of_PECs'
        endif
        !
        i = 0
