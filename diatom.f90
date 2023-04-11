@@ -129,7 +129,7 @@ module diatom_module
     !
     character(len=cl)  :: dscr       ! file with fingeprints and descriptions of each levels + energy values
     character(len=cl)  :: primitives ! file with the primitive quantum numbres   
-    character(len=cl)  :: vectors    ! eigenvectors stored here 
+    character(len=cl)  :: vectors = 'eigen'    ! eigenvectors stored here 
     !
   end type  eigenfileT 
   !
@@ -994,9 +994,17 @@ module diatom_module
          !
        case("CHECK_POINT","CHECKPOINT","CHECKPOINTS")
          !
-         job%eigenfile%vectors  = 'eigen'
-         !
-         call readu(w)
+         ! skip if checkpoint NONE
+         if (Nitems>1) then
+            call readu(w)
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
+               do while (trim(w)/="".and.trim(w)/="END")
+                 call read_line(eof,iut) ; if (eof) exit
+                 call readu(w)
+               enddo
+               cycle
+            endif
+         endif
          !
          call read_line(eof,iut) ; if (eof) exit
          call readu(w)
@@ -1007,6 +1015,8 @@ module diatom_module
            !
            case('EIGENFUNC','EIGENVECT','EIGENVECTORS')
              !
+             !job%eigenfile%vectors  = 'eigen'
+             !
              call readu(w)
              !
              job%IO_eigen = trim(w)
@@ -1014,22 +1024,20 @@ module diatom_module
              if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
              endif 
-           !
+             !
            case('DENSITY','DENS')
              !
              call readu(w)
              !
              job%IO_density = trim(w)
-             !
              job%IO_eigen = 'SAVE'
-             !
              job%basis_set='KEEP'
              !
              if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
              endif 
              !
-           case('VECTOR-FILENAME','VECTOR','FILENAME')
+           case('VECTOR-FILENAME','VECTOR','FILENAME','NAME','FILE')
              !
              call reada(w)
              !
@@ -4863,7 +4871,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
               !
-              if (abs(beta-pi*0.4_rk)>sqrt(small_)) then 
+              if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
                 !
                 VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
                 !
@@ -4928,7 +4936,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               ! VD = 0.5*tan(2*gamma)*(V2-V1)
               !
-              if (abs(beta-pi*0.4_rk)>sqrt(small_)) then 
+              if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
                 !
                 field%gridvalue(i) = -0.5_rk*tan(2.0_rk*beta)*(V2-V1)
                 !

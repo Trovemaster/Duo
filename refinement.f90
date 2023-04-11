@@ -524,9 +524,11 @@ module refinement
             !
             if (fit_factor<0) rjacob(1:en_npts,:) = 0
             !
-            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
-            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer
-            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer-1
+            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer-1
+            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer-1
+            if (do_print.and.fititer-1==0) write(out,"(a)") 'Straight through calculations with initial parameters...'
+            if (do_print.and.fititer-1==0.and.itmax>0) write(out,"(a)") '  Generating derivatives for the least-squares fit...'
             !
             ! Reconstruct the potential expansion from the local to linearized coords.
             !
@@ -1404,9 +1406,13 @@ module refinement
             ssq=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))
             rms=sqrt(sum(eps(1:npts)*eps(1:npts))/npts)
             !
+            if (do_print.and.fititer==1) write(out,"(/a)") 'Refinement using the least-squared fitting ...'
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
             if (itmax>=1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then
+               !
                !----- form the a and b matrix ------c
                ! form A matrix 
                do irow=1,numpar       
