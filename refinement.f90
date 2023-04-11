@@ -524,11 +524,11 @@ module refinement
             !
             if (fit_factor<0) rjacob(1:en_npts,:) = 0
             !
-            if (do_print) write(out,"(/'Iteration = ',i8)") fititer-1
+            !if (do_print) write(out,"(/'Iteration = ',i8)") fititer-1
             if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer-1
             if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer-1
-            if (do_print.and.fititer-1==0) write(out,"(a)") 'Straight through calculations with initial parameters...'
-            if (do_print.and.fititer-1==0.and.itmax>0) write(out,"(a)") '  Generating derivatives for the least-squares fit...'
+            if (do_print.and.fititer-1==0) write(out,"(/a)") 'Straight through calculations with initial parameters...'
+            if (do_print.and.fititer-1==0.and.itmax>0) write(out,"(/a)") 'Generating derivatives for the least-squares fit...'
             !
             ! Reconstruct the potential expansion from the local to linearized coords.
             !
