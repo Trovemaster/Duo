@@ -1309,6 +1309,7 @@ module refinement
                  !
                  if (ifield_==0) cycle 
                  !
+                 field => objects(iobject,ifield)%field
                  !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
@@ -1386,7 +1387,7 @@ module refinement
                         !
                         fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                         !
-                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)**objects(iobject,ifield)%field%factor
+                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t
                         !
