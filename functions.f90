@@ -119,6 +119,10 @@ module functions
       !
       fanalytic_field => poten_cheb
       !
+    case("IRREG_CHEBYSHEV")
+      !
+      fanalytic_field => irreg_chebyshev_DMC
+      !
     case("POLYNOM", "POLYNOMIAL")
       !
       fanalytic_field => poten_polynom
@@ -1381,6 +1385,47 @@ module functions
       poten_cheb=y*d-dd+0.5_rk*c(3) ! Last step is different.
       !
   end function poten_cheb
+  !
+  function irreg_chebyshev_DMC(x,c) result(f)        ! based on eq.(3) of https://doi.org/10.1016/j.jqsrt.2022.108255
+  real(rk),intent(in) :: x,c(:)                      ! x = bond length, c = functional parameters  
+  integer(ik) ::  m,j                                ! Chebyshev expansion order, iterable 
+  real(rk)    ::  d,dd,sv,z,z2,cheb_expansion,chi,f  ! d,dd,sv = appear in Clenshaw's recurrence, z = damped polynomial coordinate,
+                                                     ! cheb_expansion = sum_k=0^size
+    
+    ! c_1,c_2,...,c_7 are the chebyshev expansion coefficients, c_9,...,c_(13) are additional parameters for chi below
+    ! for chi and c_8 enters the damped polynomial coordinate z.
+    m = size(c)-6 ! expansion order
+    !
+    ! check if number of parameters is correct
+    if (size(c).gt.13) stop 'Too many parameters, should have 7 expansion coeficients and 6 fitting parameters.'
+    if (size(c).lt.13) stop 'Too few parameters, should have 7 expansion coeficients and 6 fitting parameters.'
+    !
+    ! Change of variable, the damped polynomial coordinate, z, which maps the r E [0,infty] -> z E [-1,+1] interval
+    z = 1-2*exp(-c(8)*x) 
+    !
+    ! check to see if the c0 is > 0
+    if (c(8).lt.0.) stop 'c1 is unphysical. c1 should never be < 0!'
+    !
+    ! Initialise parameters for the Clenshaw reccurance formaular: see http://www.foo.be/docs-free/Numerical_Recipe_In_C/c5-8.pdf
+    d=0
+    dd=0
+    z2=2.0_rk*z
+    do j=7,2,-1  ! Clenshaw's recurrence.
+      sv=d
+      d=z2*d-dd+c(j)
+      dd=sv
+    enddo
+    !
+    ! Compute the Chebyshev expansion as a fucntion of z
+    cheb_expansion=z*d-dd+c(1) ! not correct so far
+    ! Compute the r-dependent, empirical term chi that multiplies the Chebyshev expansion
+    chi=(1-exp(-c(9)*x))**3/(sqrt((x**2-c(10)**2)**2+c(11)**2)*sqrt((x**2-c(12)**2)**2+c(13)**2)) ! correct
+    !
+    ! Compute the irregular Chebysehv expansion DMC
+    f=chi*cheb_expansion
+    !
+  end function irreg_chebyshev_DMC
+  !
   !
  function poten_exponential(r, parameters) result(fun)
   ! expansion in powers of y = e^(-a(r-re)),
