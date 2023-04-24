@@ -556,6 +556,14 @@ Example:
     end
 
 
+
+
+``irreg_chebyshev_DMC`` 
+^^^^^^^^^^^^^
+
+based on eq.(3) of https://doi.org/10.1016/j.jqsrt.2022.108255
+
+
     
 ``COSH-POLY`` 
 ^^^^^^^^^^^^^
@@ -882,10 +890,11 @@ Example:
 Generic two-state coupled adiabatic potential 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Any three single funcitons implemented in Duo can be used to form a coupled 2x2 system to form PEC with avoiding crossings. This is done using the type ``Coupled`` 
-together with sub-types specifying three functions required to form a coupled system, PEC1, PEC2 and Coupling12. This form also requires that the 
+
+Any three single funcitons implemented in Duo can be used to form a coupled 2x2 system to form PEC with avoiding crossings. This is done using the types ``Coupled-PEC`` or 
+``COUPLED-PEC-BETA``, together with sub-types specifying three functions required to form a coupled system, PEC1, PEC2 and Coupling12. This form also requires that the 
 corresponding numbers of paramters are specified using ``Nparameters``. As abobe, the last paramter is reserved for the component index (1,2) referring to  
-teh adiabatic potential. Here is an example of an adibatic potential with an avoiding crossing formed from a 2x2 'diabatic' system, an EMO potenial, a repulsive 
+the adiabatic potential. Here is an example of an adibatic potential with an avoiding crossing formed from a 2x2 'diabatic' system, an EMO potenial, a repulsive 
 potential and an (inverted) EMO used as a coupling (from an AlH model): 
 ::
 
@@ -941,6 +950,59 @@ potential and an (inverted) EMO used as a coupling (from an AlH model):
 
 
 
+Here, the keyword `sub-type` is used to specify the corresponding functions  in the form of PEC1 PEC2 COUPLING (``COUPLED-PEC``) or `PEC1 PEC2 BETA` (``COUPLED-PEC-BETA``), where 
+`PEC1`, `PEC2`, `COUPLING` and `BETA` are any functions implemented in Duo, e.g. `EMO`, `Lorentzian` etc. 
+In the case of the type ``COUPLED-PEC``, the coupling :math:`D(r)` is defined explicitely, while for ``COUPLED-PEC-BETA``, it is generated using the transformatoin angle 
+:math:`\beta(r)`:
+
+:math:`D(r) = \frac{1}{2}\tan(2\beta(r)) (V_2(r)-V_1(r))`, 
+
+where :math:`V_1(r)` and `V_2(r)` are PEC1 and PEC2, respectively. 
+
+An example of the `COUPLED-PEC-BETA` input for a potential, produced by the coupling of an EMO, REPULSIVE and a diabatic coupling function :math:`D(r)` defined via
+the :math:`\beta(r)` from a Lorentzian form `BETA_LORENTZ`: 
+:
+     
+     poten A
+     name "A1Pi"
+     lambda 1
+     mult   1
+     type  coupled-pec-beta
+     sub-types EMO repulsive BETA_LORENTZ
+     Nparameters 13  12 2
+     values
+     V0           2.36706506146433e+04   fit    (  2.36695116221313e+04)  
+     RE           1.64813484193969e+00   fit    (  1.64805055140387e+00)  
+     DE           50915.756
+     RREF        -1.00000000000000E+00
+     PB           4.00000000000000E+00
+     PU           4.00000000000000E+00
+     NSPHI        4.00000000000000E+00
+     NLPHI        4.00000000000000E+00
+     B0           2.23877956276444e+00   fit    (  2.23878305838811e+00)  
+     B1           0.000000000000000000             (  3.41737763224365e-01)
+     B2          -2.55686572909604e-01   fit    ( -2.59129061999807e-01)  
+     B3           0.00000000000000E+00
+     B4           0.00000000000000E+00
+     NREP         11
+     V0           2.55900000000000E+04
+     B1           0.00000000000000E+00
+     B2           0.00000000000000E+00
+     B3           0.00000000000000E+00
+     B4           0.00000000000000E+00
+     B5           0.00000000000000E+00
+     B6           3.56560923385944e+05   fit    (  3.56503862575298e+05)  
+     B7           0.00000000000000E+00
+     B8           0.00000000000000E+00
+     B9           0.00000000000000E+00
+     B10          0.00000000000000E+00
+     gamma        0.025    
+     RE           2.0452           
+     COMPON       1.00000000000000E+00
+     end
+     
+
+Here, the first (lowest) component is produced. 
 
 
 
@@ -1265,6 +1327,30 @@ Example:
 
 
 
+Generic diabatic coupling using the angle :math:`\beta` 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As discussed above, a diabatic coupling funciton can be generated from two diabatic PECs and a transformation angle :math:`\beta(r)` type as given by
+
+:math:`D(r) = \frac{1}{2}\tan(2\beta(r)) (V_2(r)-V_1(r))`, 
+
+using the `COUPLED-DIABATIC`, where :math:`\beta(r)` can be any function sub-type. For example:
+:
+     
+     diabatic A C
+     name "<A|diab|C>"
+     lambda 1
+     mult   2
+     factor 1.0
+     type   coupled-diabatic
+     sub-types BETA_Lorentz
+     factor 1.0
+     values
+     gamma        2.75474715845893e-03 
+     RE           2.02
+     end
+     
+is to generate a diabatic coupling generated from PEC A, PEC B (defined in the corresponding POTENTIAL secitons) and a `BETA_Lorentz` function. 
 
 
 
