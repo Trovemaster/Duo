@@ -192,7 +192,6 @@ symmetry g
 lambda 1
 mult 3
 type grid
-units angstrom hartree
 values
 0.90000000 1.10098364E+05
 0.90420000 1.09380586E+05
