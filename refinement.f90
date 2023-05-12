@@ -2,7 +2,7 @@ module refinement
   !
   use accuracy
   use timer
-  !use functions,only : define_analytical_field
+  !use functions,only : define_fanalytic_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
                            Nlambdap2q,Nlambdaq,Nnac,&
@@ -79,6 +79,7 @@ module refinement
       character(len=1),parameter    :: pm(1:2) = (/"+","-"/)
       character(len=1)  :: mark_
       character(len=3)  :: mark_f
+      character(len=3) :: iTAG,iTAGC,iTAG_,iTAGC_
       !
       integer(ik)  :: ifield,jfield,ifield_,iobject,Nfields,iterm,ifitpar,istate,ilambda,ivib,istate_,ilambda_,ivib_,ngrid,Nterms
       integer(ik)  :: maxNfields,ipotmin,i_,nchar,k,k_
@@ -409,7 +410,7 @@ module refinement
               !
               abinitio(ifield_)%grid(1) = req
               !
-              !f = analytical_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
+              !f = fanalytic_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
               !
               abinitio(ifield_)%gridvalue(1) = objects(iobject,ifield)%field%gridvalue(ipotmin)
               !
@@ -523,9 +524,11 @@ module refinement
             !
             if (fit_factor<0) rjacob(1:en_npts,:) = 0
             !
-            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
-            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer
-            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer
+            !if (do_print) write(out,"(/'Iteration = ',i8)") fititer-1
+            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer-1
+            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer-1
+            if (do_print.and.fititer-1==0) write(out,"(/a)") 'Straight through calculations with initial parameters...'
+            if (do_print.and.fititer-1==0.and.itmax>0) write(out,"(/a)") 'Generating derivatives for the least-squares fit...'
             !
             ! Reconstruct the potential expansion from the local to linearized coords.
             !
@@ -758,14 +761,14 @@ module refinement
                                 !
                                 if (energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1)<0) cycle
                                 !
-                                do jener = max(iener-10,1),iener-1
-                                  !
-                                  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
-                                      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
-                                  !
-                                  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
-                                  !
-                                enddo
+                                !do jener = max(iener-10,1),iener-1
+                                !  !
+                                !  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
+                                !      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
+                                !  !
+                                !  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
+                                !  !
+                                !enddo
                                 !
                                 if ( abs( fitting%obs(iener)%energy-( energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1) )  )<= & 
                                                             & lock_factor*abs(fitting%threshold_lock).and.&
@@ -824,6 +827,7 @@ module refinement
                  omega   = sigmai + real(ilambda,rk)
                  spin    = fitting%obs(iener)%quanta%spin
                  ivib    = fitting%obs(iener)%quanta%v
+                 iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                  !
                  Jrot_   = fitting%obs(iener)%Jrot_
                  irot_   = fitting%obs(iener)%irot_
@@ -833,6 +837,7 @@ module refinement
                  omega_  = fitting%obs(iener)%quanta_%omega
                  spin_   = fitting%obs(iener)%quanta_%spin
                  ivib_   = fitting%obs(iener)%quanta_%v
+                 iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                  !
                  itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                  itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -857,6 +862,7 @@ module refinement
                     omegaC   = sigmaC+real(ilambdaC,rk)
                     spinC    = calc(irot,itau,i)%spin
                     ivibC    = calc(irot,itau,i)%v
+                    iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                     !
                     JrotC_   = calc(irot_,itau_,i_)%Jrot
                     istateC_ = calc(irot_,itau_,i_)%istate
@@ -865,14 +871,15 @@ module refinement
                     omegaC_  = sigmaC_+real(ilambdaC_,rk)
                     spinC_   = calc(irot_,itau_,i_)%spin
                     ivibC_   = calc(irot_,itau_,i_)%v
+                    iTAGC_   = calc(irot_,itau_,i_)%iTAG(1:3)
                     
                     write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')', " &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')',a)") &
                            iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                            wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
-                           istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                           istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                           iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                           iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                            mark(iener)
                 endif
                 !
@@ -892,6 +899,7 @@ module refinement
                     omega   = fitting%obs(iener)%quanta%omega
                     spin    = fitting%obs(iener)%quanta%spin
                     ivib    = fitting%obs(iener)%quanta%v
+                    iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                     !
                     Jrot_   = fitting%obs(iener)%Jrot_
                     irot_   = fitting%obs(iener)%irot_
@@ -901,6 +909,7 @@ module refinement
                     omega_  = fitting%obs(iener)%quanta_%omega
                     spin_   = fitting%obs(iener)%quanta_%spin
                     ivib_   = fitting%obs(iener)%quanta_%v
+                    iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                     !
                     itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                     itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -928,6 +937,7 @@ module refinement
                           omegaC   = sigmaC+real(ilambdaC,rk)
                           spinC    = calc(irot,itau,k)%spin
                           ivibC    = calc(irot,itau,k)%v
+                          iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                           !
                           JrotC_   = calc(irot_,itau_,k_)%Jrot
                           istateC_ = calc(irot_,itau_,k_)%istate
@@ -936,16 +946,17 @@ module refinement
                           omegaC_  = sigmaC_+real(ilambdaC_,rk)
                           spinC_   = calc(irot_,itau_,k_)%spin
                           ivibC_   = calc(irot_,itau_,k_)%v
+                          iTAGC_   = calc(irot_,itau_,i_)%iTAG
                           !
                           write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
-                                 &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
-                                 // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
+                                 &'(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )" &
+                                 // "(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )',a)") &
                                  iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
                                  fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
                                  fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
                                  wtall(iener),energy_(irot,itau,k)-ezero(1),energy_(irot_,itau_,k_)-ezero(1),&
-                                 istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                                 istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                                 iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                                 iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                                  mark_
                        enddo
                        !
@@ -985,6 +996,7 @@ module refinement
                                    omega  = fitting%obs(jener)%quanta%omega
                                    spin   = fitting%obs(jener)%quanta%spin
                                    ivib   = fitting%obs(jener)%quanta%v
+                                   iTAG    = fitting%obs(jener)%quanta%iTAG(1:3)
                                    !
                                    Jrot_   = fitting%obs(jener)%Jrot_
                                    istate_ = fitting%obs(jener)%quanta_%istate
@@ -993,26 +1005,20 @@ module refinement
                                    omega_  = fitting%obs(jener)%quanta_%omega
                                    spin_   = fitting%obs(jener)%quanta_%spin
                                    ivib_   = fitting%obs(jener)%quanta_%v
-                                   !
-                                   istateC = calc(irot,itau,i)%istate
-                                   sigmaC = calc(irot,itau,i)%sigma
-                                   ilambdaC= calc(irot,itau,i)%ilambda
-                                   omegaC  = sigmaC + real(ilambdaC,rk)
-                                   spinC   = calc(irot,itau,i)%spin
-                                   ivibC   = calc(irot,itau,i)%v
+                                   iTAG_   = fitting%obs(jener)%quanta_%iTAG(1:3)
                                    !
                                    i_ = fitting%obs(jener)%N_
                                    irot_ = fitting%obs(jener)%irot_
                                    itau_ = fitting%obs(jener)%iparity_+1
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
-                                         &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )', &
+                                         &'(',1x,a3,1x,2i4,2f7.1,' )',a1,2x,a)") & 
                                       i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                       enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
                                       energy_(irot,itau,i)-ezero(1),&
                                       energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
-                                      istate, ivib, ilambda ,sigmai ,omega ,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,&
+                                      iTAG, ivib, ilambda ,sigmai ,omega ,&
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,&
                                       mark(jener),trim( poten(istate)%name )
                                    !
                                 endif 
@@ -1028,10 +1034,11 @@ module refinement
                                    omega_   = calc(irot,itau,i)%omega
                                    spin_    = calc(irot,itau,i)%spin
                                    ivib_    = calc(irot,itau,i)%v
+                                   iTAG_    = calc(irot,itau,i)%iTAG(1:3)
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )',2x,a)") &
                                       i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
                                    !
                               endif
                               !
@@ -1155,6 +1162,7 @@ module refinement
                    omega   = fitting%obs(iener)%quanta%omega
                    spin = fitting%obs(iener)%quanta%spin
                    ivib = fitting%obs(iener)%quanta%v
+                   iTAG = fitting%obs(iener)%quanta%iTAG(1:3)
                    !
                    JrotC   = calc(irot,itau,i)%Jrot
                    istateC = calc(irot,itau,i)%istate
@@ -1163,13 +1171,14 @@ module refinement
                    omegaC  = sigmaC + real(ilambdaC,rk)
                    spinC   = calc(irot,itau,i)%spin
                    ivibC   = calc(irot,itau,i)%v
+                   iTAGC = calc(irot,itau,i)%iTAG(1:3)
                    !
                    write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
-                          &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                          &'(',1x,a3,1x,2i4,2f8.1,' )','(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                           iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                           wtall(iener),&
-                          istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                          istate ,ivib ,ilambda ,sigmai,omega ,&
+                          iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                          iTAG ,ivib ,ilambda ,sigmai,omega ,&
                           mark(iener)
                  endif
               enddo
@@ -1211,21 +1220,23 @@ module refinement
                              omega  = fitting%obs(jener)%quanta%omega
                              spin   = fitting%obs(jener)%quanta%spin
                              ivib   = fitting%obs(jener)%quanta%v
+                             iTAG   = fitting%obs(jener)%quanta%iTAG(1:3)
                              !
                              istateC = calc(irot,itau,i)%istate
-                             sigmaC = calc(irot,itau,i)%sigma
+                             sigmaC  = calc(irot,itau,i)%sigma
                              ilambdaC= calc(irot,itau,i)%ilambda
                              omegaC  = sigmaC + real(ilambdaC,rk)
                              spinC   = calc(irot,itau,i)%spin
                              ivibC   = calc(irot,itau,i)%v
+                             iTAGC   = calc(irot,itau,i)%iTAG(1:3)
                              !
-                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
-                                          & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )', &
+                                          & '(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                                 i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                 enercalc(jener)+eps(jener),&
                                 enercalc(jener),eps(jener),wtall(jener),&
-                                istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                                istate,ivib  ,ilambda,sigmai,omega,&
+                                iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                                iTAG ,ivib  ,ilambda,sigmai,omega,&
                                 mark(jener)
                             !
                           else
@@ -1237,10 +1248,11 @@ module refinement
                             omega_ = calc(irot,itau,i)%omega
                             spin_ = calc(irot,itau,i)%spin
                             ivib_ = calc(irot,itau,i)%v
+                            iTAG_ = calc(irot,itau,i)%iTAG(1:3)
                             !
-                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
+                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )')") &
                                i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
-                               istate_,ivib_,ilambda_,sigmai_,omega_
+                               iTAG_,ivib_,ilambda_,sigmai_,omega_
                                !
                           endif 
                           !
@@ -1275,6 +1287,11 @@ module refinement
             !
             call TimerStart('Grid points')
             !
+            rewind(abinitunit)
+            !
+            write(abinitunit,"(' Grid points '/&
+            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
+            !
             ! this will count different ab initio fields one by one 
             ifield_ = 0
             !
@@ -1292,7 +1309,9 @@ module refinement
                  !
                  if (ifield_==0) cycle 
                  !
-                 !ifield_ = ifield_ + 1
+                 field => objects(iobject,ifield)%field
+                 !
+                 if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
@@ -1308,7 +1327,7 @@ module refinement
                      !
                    else
                      !
-                     f = objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                     f = objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                      !
                    endif
                    !
@@ -1328,6 +1347,13 @@ module refinement
                       fshift = objects(iobject,ifield)%field%value(1)-abinitio(ifield_)%refvalue
                       eps(en_npts+j) = eps(en_npts+j)+fshift
                    endif
+                   !
+                   ! print out into .pot
+                   !
+                   write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
+                          ifield,r_t, &
+                          abinitio(ifield_)%value(i)*abinitio(ifield_)%factor,f, &
+                          eps(en_npts+j),wtall(en_npts+j) 
                    !
                    ! calculate the derivative of the potential function wrt the fitting parameters
                    !
@@ -1355,13 +1381,13 @@ module refinement
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t + delta
                         !
-                        fR =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                        fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t - delta
                         !
-                        fL =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                        fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                         !
-                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)**objects(iobject,ifield)%field%factor
+                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
                         !
                         objects(iobject,ifield)%field%value(iterm) = param_t
                         !
@@ -1376,44 +1402,18 @@ module refinement
             !
             call TimerStop('Grid points')
             !
-            ! print out the potential energy corrections at the 'ab initio' geometries
-            !
-            rewind(abinitunit)
-            !
-            write(abinitunit,"(' Grid points '/&
-            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
-            !
-            j = 0 
-            do ifield =1,Nabi
-              !
-              field => abinitio(ifield)
-              !
-              if (field%type=="DUMMY") cycle
-              !
-              write(abinitunit,'(a)') field%name
-              !
-              do i=1,field%Nterms
-                 !
-                 j = j + 1
-                 !
-                 f = field%value(i)*field%factor-eps(j+en_npts)
-                 !
-                 write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
-                        ifield,field%grid(i), &
-                        field%value(i)*field%factor,f, &
-                        eps(en_npts+j),wtall(en_npts+j) 
-                !
-              enddo
-            enddo
-            !
             ! ssq  - weighted rms**2, rms  - root mean square deviation. 
             !
             ssq=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))
             rms=sqrt(sum(eps(1:npts)*eps(1:npts))/npts)
             !
+            if (do_print.and.fititer==1) write(out,"(/a)") 'Refinement using the least-squared fitting ...'
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
             if (itmax>=1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then
+               !
                !----- form the a and b matrix ------c
                ! form A matrix 
                do irow=1,numpar       
@@ -1784,15 +1784,10 @@ module refinement
                   write(out,'(/)') 
 
                   nchar = len_trim(objects(iobject,ifield)%field%class)
-                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,2i7)"
-                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),objects(iobject,ifield)%field%iref,& 
-                                    objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,*) adjustl(trim(objects(iobject,ifield)%field%class)),objects(iobject,ifield)%field%iref,& 
-                  !objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,'(/tl1,a20,2i4)') adjustl(trim(objects(iobject,ifield)%field%class)), &
-                  !  objects(iobject,ifield)%field%iref, objects(iobject,ifield)%field%jref
+                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,a,1x,a)"
+                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),&
+                                    trim(objects(iobject,ifield)%field%itag),&
+                                    trim(objects(iobject,ifield)%field%jtag)
                   !
                   write(out,'(a4,4x,a)') "name",adjustl(trim(objects(iobject,ifield)%field%name))
                   write(out,'(a4,4x,a20)') "type",adjustl(trim(objects(iobject,ifield)%field%type))
@@ -1970,7 +1965,7 @@ module refinement
        !
        do ifield =1,Nfields
          !
-         ifield_ = ifield_ + 1
+         !ifield_ = ifield_ + 1
          !
          do iterm = 1,objects(iobject,ifield)%field%Nterms
            !

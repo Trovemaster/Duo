@@ -926,7 +926,7 @@ module timer
                t%name, t%size
       end do scan
       write (out,"(t2,'Total memory   = ',t49,f17.3,' MB')") memory_now
-      write (out,"(t2,'Maximal memory = ',t49,f17.3,' MB (',f16.1,')')") maxmemory,memory_limit
+      write (out,"(t2,'Maximal memory = ',t49,f17.3,' MB (',f17.3,')')") maxmemory,memory_limit*1000.0_rk
 
 
       if (omitted>0) then

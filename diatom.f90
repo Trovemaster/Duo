@@ -2,7 +2,7 @@ module diatom_module
   !
   use accuracy
   use timer
-  use functions, only : analytical_fieldT
+  use functions, only : fanalytic_fieldT
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
   use me_numer,  only : ME_numerov
@@ -55,7 +55,7 @@ module diatom_module
   !        case (10) lambdaopq(iterm)
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
-  !        case (13) nac
+  !        case (13) nac(iterm)
   !        case (14 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a
@@ -129,7 +129,7 @@ module diatom_module
     !
     character(len=cl)  :: dscr       ! file with fingeprints and descriptions of each levels + energy values
     character(len=cl)  :: primitives ! file with the primitive quantum numbres   
-    character(len=cl)  :: vectors    ! eigenvectors stored here 
+    character(len=cl)  :: vectors = 'eigen'    ! eigenvectors stored here 
     !
   end type  eigenfileT 
   !
@@ -146,6 +146,7 @@ module diatom_module
     character(len=cl)    :: name='(unnamed)' ! Identifying name of the function (default to avoid garbled outputs)
     character(len=cl)    :: type='NONE'  ! Identifying type of the function
     character(len=cl)    :: class='NONE' ! Identifying class of the function (poten, spinorbit,dipole,abinitio etc)
+    character(len=cl)    :: sub_type(1:3)='NONE'  ! Identifying type of sub-functions (used for coupled representations)
     !
     ! variable used for GRID curves to specify interpolation and extrapolation  options
     ! 
@@ -160,6 +161,7 @@ module diatom_module
     character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
     character(len=cl)    :: jTAG         ! reference State TAG of the term as given in input (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
+    integer(ik)          :: Nsub_terms(3)  ! Number of terms of sub-functions, used for coupled representations 
     integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
     integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
     integer(ik)          :: multi        ! identification of the electronic spin (bra for the coupling)
@@ -211,7 +213,7 @@ module diatom_module
     real(rk)             :: Omega_min  !  pecs only: minimum physically possible value for |Omega|=|Lambda+Sigma|
     real(rk)             :: approxEJ0    !  pecs only: approximate J=0, v=0 energy (no couplings)
     real(rk)             :: approxEJmin  !  pecs only: approximate J=Jmin, v=0 energy (no couplings)
-    procedure (analytical_fieldT),pointer, nopass :: analytical_field => null()
+    procedure (fanalytic_fieldT),pointer, nopass :: fanalytic_field => null()
     type(linkT),pointer   :: link(:)       ! address to link with the fitting parameter in a different object in the fit
     logical               :: morphing = .false.    ! When morphing is the field is used to morph the ab initio couterpart
     !                                                towards the final object
@@ -257,6 +259,7 @@ module diatom_module
       real(rk),pointer    :: j_list(:)     ! J values processed
       integer(ik)         :: nJ = 1        ! Number of J values processed 
       character(len=cl)   :: IO_eigen = 'NONE'   ! we can either SAVE to or READ from the eigenfunctions from an external file
+      character(len=cl)   :: IO_density = 'NONE'  ! we can SAVE reduced density to an external file
       character(len=cl)   :: IO_dipole = 'NONE'  ! we can either SAVE to or READ from an external file the dipole moment 
       character(len=cl)   :: basis_set = 'NONE'   ! we can keep the vibrational basis functions for further usage 
       !                                                matrix elements on the contr. basis 
@@ -269,7 +272,7 @@ module diatom_module
       logical             :: print_vibrational_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_rovibronic_energies_to_file = .false. ! if .true. prints to file
       logical             :: print_pecs_and_couplings_to_file = .false. ! if .true. prints to file
-      logical             :: assign_v_by_count = .false.
+      logical             :: assign_v_by_count = .true.
       logical             :: legacy_version = .false.
       !
   end type jobT
@@ -307,6 +310,7 @@ module diatom_module
     integer(ik)  :: iomega = 1   ! countig number of omega
     character(len=cl) :: name    ! Identifying name of the  function
     logical :: bound = .true.    ! is this state bound or unbound 
+    character(len=cl) :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
   end type quantaT
   !
   type eigenT
@@ -365,6 +369,7 @@ module diatom_module
                                         ! taken into account in the matrix elements evaluation.
      real(rk) :: bound_density = sqrt(small_)   ! threshold defining the unbound state density 
                                                 !calculated at the edge of the box whioch must be small for bound states
+     real(rk) :: deltaR_dens = -1e0     ! small interval for computing the state density 
      !
   end type thresholdsT
   !
@@ -482,9 +487,11 @@ module diatom_module
   !
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
-  type(fieldT),pointer :: poten(:),spinorbit(:),l2(:),lxly(:),abinitio(:),dipoletm(:)=>null(),&
-                          spinspin(:),spinspino(:),bobrot(:),spinrot(:),diabatic(:),lambdaopq(:),lambdap2q(:),lambdaq(:),nac(:)
-  type(fieldT),pointer :: brot(:),quadrupoletm(:)
+  integer,parameter  :: states_max = 50
+  type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
+                          dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
+                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
+  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null()
   !
   ! Fields in the Omega representation
   !
@@ -506,7 +513,7 @@ module diatom_module
   type(IntensityT)            :: Intensity
   !type(symmetryT)             :: sym
   !
-  integer(ik)   :: nestates,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
+  integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
                    Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
@@ -547,22 +554,22 @@ module diatom_module
     integer(ik)  :: iobject(Nobjects)
     integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
-                    iterm,iobj,iclass_,ielement
+                    iterm,iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
-    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_
+    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_,inac
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     !
-    character(len=cl) :: w,ioname,iTAG,jTAG
+    character(len=cl) :: w,ioname,iTAG,jTAG,States_list(states_max)
     character(len=wl) :: large_fmt
     !
     integer(ik)       :: iut !  iut is a unit number. 
     !
-    type(fieldT),pointer      :: field
+    type(fieldT),pointer      :: field,field_
     logical :: eof,include_state,allgrids
-    logical :: symmetry_defined=.false.
+    logical :: symmetry_defined=.false.,skip_diabatic
     integer :: ic,ierr
     !
     ! -----------------------------------------------------------
@@ -604,6 +611,8 @@ module diatom_module
     ! To count objects
     iobject = 0
     !
+    nstate_listed = 0
+    !
     if( job%zEchoInput) then
       write(out,"('(Transcript of the input --->)')")
       call input_options(echo_lines=.true.,error_flag=1)
@@ -621,38 +630,7 @@ module diatom_module
           !
           exit
           !
-        case("HYPERFINE")
-          ! skip if hyperfine NONE
-          if (Nitems>1) then
-            call readu(w)
-            if (trim(w)=="NONE".or.trim(w)=="OFF") then
-              action%hyperfine = .false.
-              do while (trim(w)/="".and.trim(w)/="END")
-                call read_line(eof,iut) ; if (eof) exit
-                call readu(w)
-              enddo
-              cycle
-            endif
-          endif
-          !
-          action%save_eigen_J = .true.
-          action%hyperfine = .True.
-          !
-          job%basis_set = 'KEEP'
-          !
-          do while (trim(w)/="".and.trim(w)/="END")
-            call read_line(eof,iut) ; if (eof) exit
-            call readu(w)
-            select case(w)
-            case("I")
-              call readf(F1_hyperfine_setup%I1)
-            case default
-              call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
-            end select
-
-            call read_line(eof,iut) ; if (eof) exit
-            call readu(w)
-         end do
+        case("") ! do nothing in case of blank lines
          !
         case("PRINT_PECS_AND_COUPLINGS_TO_FILE")
           job%print_pecs_and_couplings_to_file = .true.
@@ -673,11 +651,13 @@ module diatom_module
           ! 
           job%zExclude_JS_coupling = .true.
           !
-        case("") ! do nothing in case of blank lines
-          !
         case("ASSIGN_V_BY_COUNT")
           !
           job%assign_v_by_count = .true.
+          !
+        case("ASSIGN_V_BY_CONTRIBUTION")
+          !
+          job%assign_v_by_count = .false.
           !
         case("LEGACY","OLD-VERSION","VERSION")
           !
@@ -848,9 +828,36 @@ module diatom_module
         !    !
         !  endif
         !  !
-        case ("NSTATES","NESTATES")
+        case ("NSTATES","NESTATES","STATES")
           !
-          call readi(nestates)
+          if (nestates>-1) then 
+            !
+            call report("Conflicting input: Nstates and States cannot be used at the same time: ",.true.)
+            !
+          endif 
+          !
+          select case (w)
+            !
+          case ("STATES")
+            !
+            i = 0
+            !
+            do while (item<Nitems.and.i<states_max)
+               !
+               i = i + 1
+               call readu(States_list(i))
+               !
+            enddo
+            !
+            nestates = i
+            !
+            nstate_listed = i
+            !
+          case default 
+            !
+            call readi(nestates)
+            !
+          end select 
           !
           if (nestates<1) call report("nestates cannot be 0 or negative",.true.)
           !
@@ -993,9 +1000,17 @@ module diatom_module
          !
        case("CHECK_POINT","CHECKPOINT","CHECKPOINTS")
          !
-         job%eigenfile%vectors  = 'eigen'
-         !
-         call readu(w)
+         ! skip if checkpoint NONE
+         if (Nitems>1) then
+            call readu(w)
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
+               do while (trim(w)/="".and.trim(w)/="END")
+                 call read_line(eof,iut) ; if (eof) exit
+                 call readu(w)
+               enddo
+               cycle
+            endif
+         endif
          !
          call read_line(eof,iut) ; if (eof) exit
          call readu(w)
@@ -1006,6 +1021,8 @@ module diatom_module
            !
            case('EIGENFUNC','EIGENVECT','EIGENVECTORS')
              !
+             !job%eigenfile%vectors  = 'eigen'
+             !
              call readu(w)
              !
              job%IO_eigen = trim(w)
@@ -1014,7 +1031,19 @@ module diatom_module
                call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
              endif 
              !
-           case('VECTOR-FILENAME','VECTOR','FILENAME')
+           case('DENSITY','DENS')
+             !
+             call readu(w)
+             !
+             job%IO_density = trim(w)
+             job%IO_eigen = 'SAVE'
+             job%basis_set='KEEP'
+             !
+             if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then 
+               call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
+             endif 
+             !
+           case('VECTOR-FILENAME','VECTOR','FILENAME','NAME','FILE')
              !
              call reada(w)
              !
@@ -1150,6 +1179,39 @@ module diatom_module
             stop 'input - illigal last line in DIAGONALIZER'
             !
          endif
+          !
+        case("HYPERFINE")
+          ! skip if hyperfine NONE
+          if (Nitems>1) then
+            call readu(w)
+            if (trim(w)=="NONE".or.trim(w)=="OFF") then
+              action%hyperfine = .false.
+              do while (trim(w)/="".and.trim(w)/="END")
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+              enddo
+              cycle
+            endif
+          endif
+          !
+          action%save_eigen_J = .true.
+          action%hyperfine = .True.
+          !
+          job%basis_set = 'KEEP'
+          !
+          do while (trim(w)/="".and.trim(w)/="END")
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+            select case(w)
+            case("I")
+              call readf(F1_hyperfine_setup%I1)
+            case default
+              call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
+            end select
+
+            call read_line(eof,iut) ; if (eof) exit
+            call readu(w)
+         end do
          !
        case("FITTING")
          !
@@ -1496,6 +1558,7 @@ module diatom_module
                 call StateStart(iTAG,iref)
                 !
                 fitting%obs(iobs)%quanta%istate = iref
+                fitting%obs(iobs)%quanta%iTAG   = iTAG                
                 !
                 !call readi(fitting%obs(iobs)%quanta%istate)
                 !
@@ -1533,6 +1596,7 @@ module diatom_module
                   call StateStart(iTAG,iref)
                   !
                   fitting%obs(iobs)%quanta_%istate = iref
+                  fitting%obs(iobs)%quanta_%iTAG   = iTAG
                   !
                   !call readi(fitting%obs(iobs)%quanta_%istate)
                   !
@@ -1613,9 +1677,22 @@ module diatom_module
              !
              iobject(1) = iobject(1) + 1
              !
-             if (iobject(1)>nestates) then
-                 print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
+             call reada(w)
+             !
+             include_state = .true.
+             if (nstate_listed>0) include_state = .false.
+             loop_istate_pot : do istate=1,nstate_listed
+                 if (trim(w)==trim(States_list(istate))) then
+                   include_state = .true.
+                   !                   
+                   exit loop_istate_pot
+                 endif
+             enddo loop_istate_pot
+             !
+             if (.not.include_state.or.iobject(1)>nestates) then
+                 !print "(a,i4,a,i6)","The state # ",iobject(1)," is not included for the total number of states",nestates
                  !call report ("Too many potentials given in the input",.true.)
+                 !
                  iobject(1) = iobject(1) - 1
                  !
                  do while (trim(w)/="".and.trim(w)/="END")
@@ -1623,8 +1700,6 @@ module diatom_module
                    call readu(w)
                  enddo
                  !
-                 !call read_line(eof,iut) ; if (eof) exit
-                 !call readu(w)
                  cycle
              endif
              !
@@ -1634,7 +1709,9 @@ module diatom_module
              field%istate = iobject(1)
              field%jstate = iobject(1)
              !
-             call reada(field%iTAG)
+             field%iTAG = w
+             !
+             !call reada(field%iTAG)
              !
              field%jTAG = field%iTAG
              !
@@ -2172,7 +2249,7 @@ module diatom_module
              !
              include_state = .false.
              !
-             ielement = which_element(iref,jref,iobject_,iobject,field,ierr)
+             ielement = which_element(iref,jref,iobject_,iobject,field_,ierr)
              !
              if (ierr > 0) then 
                 iabi = iabi - 1
@@ -2185,14 +2262,17 @@ module diatom_module
              !
              ! assign the abinitio counter 
              !
-             field%iabi = iabi
+             field_%iabi = iabi
              !
              iabi_ = iabi
              !
-             abinitio(iabi) = field 
+             !abinitio(iabi) = field 
              !
              field => abinitio(iabi_)
+             call set_field_refs(field,field_%iref,field_%iref,field_%istate,field_%jstate,field_%iTAG,field_%jTAG)
+             call transfer_field_quantum_numbers(field_,field)
              !
+             field%name = field_%name
              field%class = "ABINITIO-"//trim(w)
              !
           case default
@@ -2218,6 +2298,14 @@ module diatom_module
               call readu(w)
               !
               field%type = trim(w)
+              !
+            case("SUB-TYPES","SUB-TYPE")
+              !
+              !if (nitems<=2) call report ("Too few entries in "//trim(w),.true.)
+              !
+              call readu(field%sub_type(1))
+              if (nitems>2) call readu(field%sub_type(2))
+              if (nitems>3) call readu(field%sub_type(3))
               !
             case("NAME")
               !
@@ -2328,10 +2416,10 @@ module diatom_module
                   !
                   unit_r = bohr
                   !
-                  if(trim(field%class(1:3))=="NAC") then
-                    write(out,"('Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert')")
-                    call report ("nput error: NAC must be given in 1/Angstrom, not 1/bohr, please convert",.true.)
-                  endif
+                  !if(trim(field%class(1:3))=="NAC") then
+                  !  write(out,"('Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert')")
+                  !  call report ("Input error: NAC must be given in 1/Angstrom, not 1/bohr, please convert",.true.)
+                  !endif
                   !
                 case ('ANG','ANGSTROM','ANGSTROMS')
                   !
@@ -2359,6 +2447,11 @@ module diatom_module
                 case ('DEBYE')
                   !
                   unit_field = 1.0_rk
+                  !
+                case ('1/BOHR')
+                  ! used for NAC
+                  !
+                  unit_field = 1.0_rk/bohr
                   !
                 case default
                   !
@@ -2634,7 +2727,7 @@ module diatom_module
                 field%spinj = real(field%jmulti-1,rk)*0.5_rk
               endif
               !
-            case("NPARAM","N","NPOINTS")
+            case("NPARAM","N","NPOINTS","NPARAMETERS")
               !
               ! Obsolete
               !
@@ -2645,6 +2738,18 @@ module diatom_module
               endif
               !
               field%Nterms = Nparam
+              !
+              ! this is for multiple entries of the number of paramters used for coupled representaitons
+              if (Nitems>=4) then
+                !
+                field%Nsub_terms(1) = Nparam
+                !
+                call readi(field%Nsub_terms(2)) 
+                call readi(field%Nsub_terms(3)) 
+                !
+                field%Nterms = sum(field%Nsub_terms(1:3))
+                !
+              endif
               !
             case("VALUES")
               !
@@ -2782,7 +2887,7 @@ module diatom_module
                    !
                    if (nitems<2) then
                       !
-                      write(out,"(a,i4)") "wrong number of records for an analytical field-type," // &
+                      write(out,"(a,i4)") "wrong number of records for an Analytic field-type," // &
                                       "must be two at least (name value)",nitems
                       call report ("illegal number of records (<2) in the current field-line "//trim(w),.true.)
                       !
@@ -3084,6 +3189,10 @@ module diatom_module
              !
              call readf(intensity%threshold%bound_density)
              !
+           case('THRESH_DELTA_R')
+             !
+             call readf(intensity%threshold%deltaR_dens)
+             !
            case('TEMPERATURE')
              !
              call readf(intensity%temperature)
@@ -3279,6 +3388,22 @@ module diatom_module
     !
     if (Nestates<1) call report ("At least one POTEN object must be present (abinitio poten does not count)",.true.)
     !
+    if (nstate_listed/=Nestates) then 
+        loop_istate_pot_check: do istate=1,nstate_listed
+          !
+          do jstate=1,Nestates
+            !
+            if (trim( poten(jstate)%iTAG )==trim( States_list(istate) ) ) then
+              cycle loop_istate_pot_check
+            endif
+          enddo 
+          !
+          write(out,"('Input error: State ',a,' was not found in the input, check the STATES line')"),trim(States_list(istate))
+          stop "Input error: State not found in the input, check STATES line"
+          !
+        enddo loop_istate_pot_check 
+    endif 
+    !
     Nspinorbits = iobject(2)
     Nl2   = iobject(3)
     Nlxly = iobject(4)
@@ -3295,132 +3420,76 @@ module diatom_module
     Ndipoles = iobject(Nobjects)
     Nabi  = iabi
     !
+    ! For each NAC field, the second order NAC can be defined and added to a diabatic field,
+    ! unless it is already present in the input as a diagonal diabatic field
+    lool_NAC: do iNAC = 1,Nnac
+      !
+      ! diagonal diabatic #1 
+      !
+      ! Check if it has been defined before 
+      skip_diabatic = .false.
+      do istate=1,Ndiabatic
+         if ( nac(iNAC)%iref==diabatic(istate)%iref ) then
+            skip_diabatic = .true.
+            exit
+         endif
+      enddo
+      !
+      if (.not.skip_diabatic) then 
+        !
+        Ndiabatic = Ndiabatic + 1
+        iobject(9) = Ndiabatic
+        !
+        field  => diabatic(Ndiabatic)
+        field_ => nac(iNAC)
+        !
+        call set_field_refs(field,nac(iNAC)%iref,nac(iNAC)%iref,nac(iNAC)%istate,nac(iNAC)%istate,nac(iNAC)%iTAG,nac(iNAC)%iTAG)
+        call transfer_field_quantum_numbers(field_,field)
+        !
+        field%class = trim(CLASSNAMES(9))
+        field%type = "NAC"
+        field%name = nac(iNAC)%name
+        !
+      endif
+      !
+      ! diagonal diabatic #2
+      !
+      ! Check if it has been defined before 
+      do istate=1,Ndiabatic
+         if ( nac(iNAC)%jref==diabatic(istate)%jref ) then
+            cycle lool_NAC
+         endif
+      enddo
+      !
+      Ndiabatic = Ndiabatic + 1
+      iobject(9) = Ndiabatic
+      !
+      field   => diabatic(Ndiabatic)
+      field_  => nac(iNAC)
+      !
+      call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
+      call transfer_field_quantum_numbers(field_,field)
+      !
+      field%class = trim(CLASSNAMES(9))
+      field%type = "NAC"
+      field%name = nac(iNAC)%name
+      !
+    enddo lool_NAC
+    !
     ! create a map with field distribution
     !
     do i = 1,Nobjects-4
       fieldmap(i)%Nfields = iobject(i)
     enddo
     !
-    !fieldmap(1)%Nfields = Nestates
-    !fieldmap(2)%Nfields = Nspinorbits
-    !fieldmap(3)%Nfields = Nl2
-    !fieldmap(4)%Nfields = Nlxly
-    !fieldmap(5)%Nfields = Nss
-    !fieldmap(6)%Nfields = Nsso
-    !fieldmap(7)%Nfields = Nbobrot
-    !fieldmap(8)%Nfields = Nsr
-    !fieldmap(9)%Nfields = Ndiabatic
-    !fieldmap(10)%Nfields = iobject(10)
-    !
     fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
-    !Ntotalfields = Nestates+Nspinorbits+NL2+NLxLy+Nss+Nsso+Nbobrot+Nsr+Ndiabatic+iobject(10)
-    !
     Ntotalfields = sum(iobject(1:Nobjects-4))
-    !
-    ! check if all abinitio fields are initialized. If not we need to make dummy abinitio fields;
-    ! we also check whether not all fields are given on a grid and thus can be varied.
-    !
-    !if (action%fitting .eqv. .true.) then
-      !
-      !Nabi = Ntotalfields
-      fieldmap(Nobjects-2)%Nfields = Nabi
-      !
-      ! we also check whether not all fields are given on a grid and thus can be varied.
-      !
-      allgrids = .true.
-      !
-      !iabi = 0
-      !!
-      !do iobj = 1,0 !,Nobjects-3
-      !  !
-      !  do iterm = 1,fieldmap(iobj)%Nfields
-      !    !
-      !    select case (iobj)
-      !    case (1)
-      !      field => poten(iterm)
-      !    case (2)
-      !      field => spinorbit(iterm)
-      !    case (3)
-      !      field => l2(iterm)
-      !    case (4)
-      !      field => lxly(iterm)
-      !    case (5)
-      !      field => spinspin(iterm)
-      !    case (6)
-      !      field => spinspino(iterm)
-      !    case (7)
-      !      field => bobrot(iterm)
-      !    case (8)
-      !      field => spinrot(iterm)
-      !    case (9)
-      !      field => diabatic(iterm)
-      !    case (10)
-      !      field => lambdaopq(iterm)
-      !    case (11)
-      !      field => lambdap2q(iterm)
-      !    case (12)
-      !      field => lambdaq(iterm)
-      !    case (13)
-      !      field => nac(iterm)
-      !    case (21, 22, 23, 24, 25, 26, 27)
-      !      field => hfcc1(iobj - 20)%field(iterm)
-      !    case (Nobjects-3)
-      !      field => quadrupoletm(iterm)
-      !    case (Nobjects-2)
-      !      field => abinitio(iterm)
-      !    case default
-      !       print "(a,i0)", "iobject = ",iobj
-      !       stop "illegal iobject  "
-      !    end select
-      !    !
-      !    iabi = iabi + 1
-      !    !
-      !    if (trim(field%type)/="GRID") allgrids = .false.
-      !    !
-      !    !field => abinitio(iabi)
-      !    !
-      !    if (.not.associated(abinitio(iabi)%value)) then
-      !      !
-      !      Nparam = 1 ; abinitio(iabi)%Nterms = 0
-      !      !
-      !      allocate(abinitio(iabi)%value(Nparam),abinitio(iabi)%forcename(Nparam),abinitio(iabi)%grid(Nparam), & 
-      !               abinitio(iabi)%weight(Nparam),stat=alloc)
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%value))
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%grid))
-      !      call ArrayStart(trim(abinitio(iabi)%type),alloc,Nparam,kind(abinitio(iabi)%weight))
-      !      !
-      !      abinitio(iabi)%value = 0
-      !      abinitio(iabi)%grid = 1.0_rk
-      !      abinitio(iabi)%weight = 0
-      !      abinitio(iabi)%type = 'DUMMY'  ! dummy field
-      !      abinitio(iabi)%name    = field%name
-      !      abinitio(iabi)%spini   = field%spini
-      !      abinitio(iabi)%spinj   = field%spinj
-      !      abinitio(iabi)%sigmai  = field%sigmai
-      !      abinitio(iabi)%sigmaj  = field%sigmaj
-      !      abinitio(iabi)%multi   = field%multi
-      !      abinitio(iabi)%lambda  = field%lambda
-      !      abinitio(iabi)%lambdaj = field%lambdaj
-      !      !
-      !    endif
-      !    !
-      !  enddo
-      !enddo
-      !
-      !if (allgrids.and.action%fitting) then
-      !  call report ("Fitting is not possible: No field of not the GRID-type!",.true.)
-      !endif 
-      !
-    !endif
-    !
-    !if (Nabi>Ntotalfields) then
-    !    print "(2a,i4,a,i6)",trim(w),": Number of ab initio fields ",iabi," exceeds the total number of fields ",Ntotalfields
-    !    call report ("Too many ab initio fields given in the input for"//trim(w),.true.)
-    !endif
+    fieldmap(Nobjects-2)%Nfields = Nabi
+    allgrids = .true.
     !
     if (.not.symmetry_defined) then
          !
@@ -3436,8 +3505,8 @@ module diatom_module
          if (alloc/=0)  stop 'input, isym_do - out of memory'
          !
          job%isym_do = .true.
-    !
-    write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
+         !
+         write(out,"('Symmetry was not specified. ',a,' is assumed based on the masses/atoms', /)") trim(job%symmetry)
          !
     endif 
     ! !I think the following message should be outputed only if line intensity
@@ -3586,6 +3655,28 @@ module diatom_module
          !
     end subroutine set_field_refs
     !
+
+    subroutine transfer_field_quantum_numbers(src,dst)
+      !
+      type(fieldT),pointer,intent(in)  :: src
+      type(fieldT),pointer,intent(out)  :: dst
+         !
+         dst%lambda= src%lambda
+         dst%lambdaj= src%lambdaj
+         dst%spini= src%spini
+         dst%spinj= src%spinj
+         dst%sigmai= src%sigmai
+         dst%sigmaj= src%sigmaj
+         dst%omegai= src%omegai
+         dst%omegaj= src%omegaj
+         dst%iomega= src%iomega
+         dst%jomega= src%jomega
+         dst%ix_lz_y= src%ix_lz_y
+         dst%jx_lz_y= src%jx_lz_y
+         !
+    end subroutine transfer_field_quantum_numbers
+
+
     !
     subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
         !
@@ -3651,7 +3742,7 @@ module diatom_module
         !
         if (action%fitting) then 
            if (trim(field%class)=='DIPOLE') then 
-             write(out,"('Warning: move DIPOLE before FITTING. This wil become soon compulsory.')")
+             write(out,"('Warning: move DIPOLE before FITTING. This will become soon compulsory.')")
            else
              call report (trim(field%class)//" cannot appear after FITTING; move FITTING to the end of input",.true.)
            endif
@@ -4262,18 +4353,18 @@ end subroutine define_gns_factor
 
 subroutine map_fields_onto_grid(iverbose)
      !
-     use functions,only : define_analytical_field
+     use functions,only : define_fanalytic_field
      !
      character(len=130)     :: my_fmt  !text variable containing formats for reads/writes
      ! 
      integer(ik),intent(in) :: iverbose
      !
      integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
-     integer(ik)             :: ifterm,iobject,ifield,iabi
-     real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai
+     integer(ik)             :: ifterm,iobject,ifield,iabi,inac
+     real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai, r_cross
      real(rk),allocatable    :: f(:)
      !
-     integer             :: np   ! tmp variable for extrapolation
+     integer(ik)             :: np   ! tmp variable for extrapolation
      real(kind=rk)       :: x1, x2, y1, y2, aa, bb ! tmp variables used for extrapolation
      !
      real(rk),allocatable    :: spline_wk_vec(:) ! working vector needed for spline interpolation
@@ -4288,6 +4379,13 @@ subroutine map_fields_onto_grid(iverbose)
      integer(ik) :: imin
      !
      type(fieldT),pointer      :: field
+     !
+     procedure (fanalytic_fieldT),pointer :: function_V1 => null()
+     procedure (fanalytic_fieldT),pointer :: function_V2 => null()
+     procedure (fanalytic_fieldT),pointer :: function_VD => null()
+     procedure (fanalytic_fieldT),pointer :: function_beta => null()
+     integer(ik) :: N1,N2,N3,icomponent
+     real(rk)  :: V1,V2,VD,E(2),discr
      !
      ngrid = grid%npoints
      !
@@ -4696,41 +4794,228 @@ subroutine map_fields_onto_grid(iverbose)
             end select
             !
             ! for dummy fields not used in fittings
-            !
+            !j
           case("DUMMY")
             !
             nterms = field%Nterms
             field%gridvalue = 0._rk
             !
-          case default
+          case("NAC")
             !
-            call define_analytical_field(field%type,field%analytical_field)
+            nterms = field%Nterms
+            field%gridvalue = 0._rk
             !
-            ! find a crossing point between two PECS required for diabatic cases
+          case("COUPLED-PEC")
             !
-            if (field%class=="DIABATIC".and.trim(field%type)/="GRID") then 
-              !
-              ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
-              !
-              field%value(2) = find_crossing_point_of_PECs(field%iref,field%jref)
-              !
-            endif
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
             !
-            !$omp parallel do private(i) schedule(guided)
+            call define_fanalytic_field(field%sub_type(1),function_V1)
+            call define_fanalytic_field(field%sub_type(2),function_V2)
+            call define_fanalytic_field(field%sub_type(3),function_VD)
+            !
+            N1 =field%Nsub_terms(1)
+            N2 =field%Nsub_terms(2)
+            N3 =field%Nsub_terms(3)
+            !
+            !$omp parallel do private(i,V1,V2,VD,Discr,E,icomponent) schedule(guided)
             do i=1,ngrid
               !
-              field%gridvalue(i) = field%analytical_field(r(i),field%value)
+              V1 = function_V1(r(i),field%value(1:N1))
+              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
+              VD = function_VD(r(i),field%value(N1+N2+1:N1+N2+N3))
+              !
+              ! to diagobalize the 2x2 matrix 
+              !/     \
+              ! V1 VD |
+              ! VD V2 |
+              !\     /
+              ! we solve a quadratic equation with the discriminant 
+              !
+              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+              !
+              if (discr<-small_) then
+                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
+                stop 'COUPLED: discriminant is negative'
+              endif
+              !
+              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+              !
+              ! we use the component as specified in the last parameter:
+              !
+              icomponent = field%value(field%Nterms)
+              !
+              field%gridvalue(i) = E(icomponent)              
               !
             enddo
             !$omp end parallel do
             !
             ! counting the total number of parameters when the fitting is on
             !
-            if (action%fitting) then
-              itotal = itotal + field%Nterms
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
+            !
+            ! Diabatic 2x2 representation with the coupling defined as 1/2 tan(2 beta) (V1-V2)
+            !
+          case("COUPLED-PEC-BETA")
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            !
+            call define_fanalytic_field(field%sub_type(1),function_V1)
+            call define_fanalytic_field(field%sub_type(2),function_V2)
+            call define_fanalytic_field(field%sub_type(3),function_beta)
+            !
+            N1 =field%Nsub_terms(1)
+            N2 =field%Nsub_terms(2)
+            N3 =field%Nsub_terms(3)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            ! and add it to the second parameter of the beta functionm if it was found < rmax
+            ! 
+            field%value(N1+N2+2) = find_crossing_point_of_PECs(field%value(1:N1),field%value(N1+1:N1+N2),function_V1,function_V2)
+            !
+            !$omp parallel do private(i,V1,V2,beta,VD,Discr,E,icomponent) schedule(guided)
+            do i=1,ngrid
+              !
+              V1 = function_V1(r(i),field%value(1:N1))
+              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
+              !
+              beta = function_beta(r(i),field%value(N1+N2+1:N1+N2+N3))
+              !
+              ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
+              !
+              if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
+                !
+                VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
+                !
+              else
+                !
+                VD = field%gridvalue(i-1) 
+                !
+              endif
+              !
+              ! to diagobalize the 2x2 matrix 
+              !/     \
+              ! V1 VD |
+              ! VD V2 |
+              !\     /
+              ! we solve a quadratic equation with the discriminant 
+              !
+              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+              !
+              if (discr<-small_) then
+                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
+                stop 'COUPLED: discriminant is negative'
+              endif
+              !
+              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+              !
+              ! we use the component as specified in the last parameter:
+              !
+              icomponent = field%value(field%Nterms)
+              !
+              field%gridvalue(i) = E(icomponent)              
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
+            !
+          case("COUPLED-DIABATIC")
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            !
+            call define_fanalytic_field(field%sub_type(1),function_beta)
+            !
+            call define_fanalytic_field(poten(field%iref)%type,function_V1)
+            call define_fanalytic_field(poten(field%jref)%type,function_V2)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            !
+            field%value(2) = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
+            !
+            !$omp parallel do private(i,beta,V1,V2) schedule(guided)
+            do i=1,ngrid
+              !
+              beta = function_beta(r(i),field%value)
+              !
+              V1 =  function_V1(r(i),poten(field%iref)%value)
+              V2 =  function_V2(r(i),poten(field%jref)%value)
+              !
+              ! VD = 0.5*tan(2*gamma)*(V2-V1)
+              !
+              if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
+                !
+                field%gridvalue(i) = -0.5_rk*tan(2.0_rk*beta)*(V2-V1)
+                !
+              else
+                !
+                field%gridvalue(i) = field%gridvalue(i-1) 
+                !
+              endif
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif            
+            !
+          case default
+            !
+            call define_fanalytic_field(field%type,field%fanalytic_field)
+            !
+            ! find a crossing point between two PECS required for diabatic cases
+            !
+            if (field%class=="DIABATIC".and.any(trim(field%type)==&
+                            (/"LORENTZ","DIABATIC_LORENTZ_TWO_EMOS"/))) then 
+              !
+              ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
+              !
+              call define_fanalytic_field(poten(field%iref)%type,function_V1)
+              call define_fanalytic_field(poten(field%jref)%type,function_V2)
+              !
+              ! find a crossing point between two PECS required for diabatic cases
+              !
+              r_cross = find_crossing_point_of_PECs(poten(field%iref)%value,poten(field%jref)%value,function_V1,function_V2)
+              !
+              if (r_cross<rmax-sqrt(small_)) then 
+                !
+                field%value(2) = r_cross
+                !
+              endif
+              !
             endif
             !
+            !$omp parallel do private(i) schedule(guided)
+            do i=1,ngrid
+              !
+              field%gridvalue(i) = field%fanalytic_field(r(i),field%value)
+              !
+            enddo
+            !$omp end parallel do
+            !
+            ! counting the total number of parameters when the fitting is on
+            !
+            !if (action%fitting) then
+            !  itotal = itotal + field%Nterms
+            !endif
+            !
           end select
+          !
+          ! counting the total number of parameters when the fitting is on
+          !
+          if (action%fitting) then
+            itotal = itotal + field%Nterms
+          endif
           !
           field%gridvalue =  field%gridvalue*field%factor
           !
@@ -4773,6 +5058,27 @@ subroutine map_fields_onto_grid(iverbose)
             field => spinrot(iterm)
           case (9)
             field => diabatic(iterm)
+            !
+            ! For NACs, construct the diabatic diagonal curve as a nac^2 if diabatic is not given explicitly
+            ! and combine into single corrections in case the same state is coupled to different states via different NACs
+            if (trim(field%type)=="NAC") then
+              !
+              do iNAC = 1,Nnac
+                 !
+                 ! diagonal diabatic #1 
+                 if ( nac(iNAC)%iref==field%iref .and. nac(iNAC)%iref==field%jref) then
+                      field%gridvalue = field%gridvalue + 1.0_rk/scale*nac(iNAC)%gridvalue**2
+                 endif 
+                 !
+                 ! diagonal diabatic #2
+                 if ( nac(iNAC)%jref==field%iref .and. nac(iNAC)%jref==field%jref) then
+                      field%gridvalue = field%gridvalue + 1.0_rk/scale*nac(iNAC)%gridvalue**2
+                 endif 
+                 !
+              enddo
+              !
+            endif
+            !
           case (10)
             field => lambdaopq(iterm)
           case (11)
@@ -4827,14 +5133,14 @@ subroutine map_fields_onto_grid(iverbose)
             !
           endif
           !
-          ! Generate weights if an analytical expression is given
+          ! Generate weights if an Analytic expression is given
           !
           if (trim(field%weighting%wtype)=="PS1997") then 
             !
             istate = field%iref
             beta = field%weighting%alpha
             Vtop = field%weighting%Vtop
-            imin = (field%grid(1)-rmin) / real( np-1, rk)
+            !imin = (field%grid(1)-rmin) / real( np-1, rk)
             Vmin = minval(poten(istate)%gridvalue(:))
             !
             DeltaR = (rmax-rmin)/real(ngrid-1,rk)
@@ -4952,13 +5258,13 @@ subroutine map_fields_onto_grid(iverbose)
           x0  = r(poten(istate)%imin)
           find_minimum: do i=1, max_iter_min_search
       
-               fmmm = poten(istate)%analytical_field( x0-1.5_rk*h, poten(istate)%value )
-               fmm  = poten(istate)%analytical_field( x0-h       , poten(istate)%value )
-               fm   = poten(istate)%analytical_field( x0-h/2._rk , poten(istate)%value )
-               f0   = poten(istate)%analytical_field( x0         , poten(istate)%value )
-               fp   = poten(istate)%analytical_field( x0+h/2._rk , poten(istate)%value )
-               fpp  = poten(istate)%analytical_field( x0+h       , poten(istate)%value )
-               fppp = poten(istate)%analytical_field( x0+1.5_rk*h, poten(istate)%value )
+               fmmm = poten(istate)%fanalytic_field( x0-1.5_rk*h, poten(istate)%value )
+               fmm  = poten(istate)%fanalytic_field( x0-h       , poten(istate)%value )
+               fm   = poten(istate)%fanalytic_field( x0-h/2._rk , poten(istate)%value )
+               f0   = poten(istate)%fanalytic_field( x0         , poten(istate)%value )
+               fp   = poten(istate)%fanalytic_field( x0+h/2._rk , poten(istate)%value )
+               fpp  = poten(istate)%fanalytic_field( x0+h       , poten(istate)%value )
+               fppp = poten(istate)%fanalytic_field( x0+1.5_rk*h, poten(istate)%value )
       
                der1 = (-fmmm + 9._rk*fmm-45._rk*fm+45._rk*fp-9.0_rk*fpp+fppp) /(30._rk*h) ! 6-point, error h^6
                der2 = (2._rk*(fmmm+fppp)-27._rk*(fmm+fpp)+270._rk*(fm+fp)-490._rk*f0 )/(45._rk*h**2) ! 7-point, error h^6
@@ -6330,10 +6636,13 @@ subroutine map_fields_onto_grid(iverbose)
            !
            write(out, '(A18)',advance='no') "der4, cm-1/ang^4 ="
            do istate=1,N
-              if(fl(istate)%zHasMinimum) then
-                write(out,'(F22.10)',advance='no') fl(istate)%V4
-              else
-                write(out, '(a22)', advance='no') 'N.A.'
+              !
+              if (abs(fl(istate)%V4)<1e14) then 
+                if(fl(istate)%zHasMinimum) then
+                  write(out,'(F22.8)',advance='no') fl(istate)%V4
+                else
+                  write(out, '(a22)', advance='no') 'N.A.'
+                endif
               endif
            enddo
            write(out,*)
@@ -6460,10 +6769,11 @@ subroutine map_fields_onto_grid(iverbose)
      !
      ! This funciton finds a crossing point between tow PECs
      !
-     function find_crossing_point_of_PECs(iref1,iref2) result(r)
+     function find_crossing_point_of_PECs(values_V1,values_V2,function_V1,function_V2) result(r)
        !
-       integer(ik),intent(in) :: iref1,iref2
-       real(rk)               :: re1,re2    
+       real(rk),intent(in) :: values_V1(:),values_V2(:)
+       procedure (fanalytic_fieldT),pointer,optional :: function_V1,function_V2
+       !
        real(rk)               :: f1,f2,r_,r,r1,r2,diff
        integer(ik)            :: i
        !
@@ -6478,14 +6788,11 @@ subroutine map_fields_onto_grid(iverbose)
        r1 = grid%rmin
        r2 = grid%rmax
        !
-       f1 =  poten(iref1)%analytical_field(r1,poten(iref1)%value)
-       f2 =  poten(iref2)%analytical_field(r2,poten(iref2)%value)
-       !
        ! find crossing point between f1 and f2
        !
        if (r2<r1) then
          write(out,"(a,a,a,3f12.8)") 'r1>r2 error','find_crossing_point_of_PECs','r1,r2 = ',r1,r2
-         stop 'r1>r2 error find_crossing_point_of_PECs imax reached'
+         stop 'r1>r2 error find_crossing_point_of_PECs'
        endif
        !
        i = 0
@@ -6493,8 +6800,8 @@ subroutine map_fields_onto_grid(iverbose)
        do 
           !
           r_ = (r1+r2)*0.5_rk
-          f1 =  poten(iref1)%analytical_field(r_,poten(iref1)%value)
-          f2 =  poten(iref2)%analytical_field(r_,poten(iref2)%value)
+          f1 =  function_V1(r_,values_V1)
+          f2 =  function_V2(r_,values_V2)
           !
           if (f2>f1) then 
            !
@@ -6584,6 +6891,7 @@ end subroutine map_fields_onto_grid
      type(fieldT),pointer       :: field
      !
      real(ark),allocatable      :: psipsi_ark(:)
+     real(rk),allocatable       :: psipsi(:)
      real(rk),allocatable       :: mu_rr(:)
      !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
      !real(rk)                  :: f_rk
@@ -6603,7 +6911,9 @@ end subroutine map_fields_onto_grid
      !
      type(contract_solT),allocatable :: contracted(:)
      real(rk),allocatable            :: vect_i(:),vect_j(:)
-     real(rk),allocatable            :: nacvib_(:)
+     real(rk),allocatable            :: nacmat_(:,:)
+     real(rk) :: ddot
+     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0
      !
      !
      ! open file for later (if option is set)
@@ -6830,7 +7140,7 @@ end subroutine map_fields_onto_grid
             Omega_grid(iomega)%basis(i)%ilambda = quanta(i)%ilambda
             Omega_grid(iomega)%basis(i)%spin = quanta(i)%spin
             Omega_grid(iomega)%basis(i)%omega = omega
-            Omega_grid(iomega)%basis(i)%ilevel = ilambdasigma
+            Omega_grid(iomega)%basis(i)%ilevel = i
             !
           enddo
           !
@@ -7289,11 +7599,11 @@ end subroutine map_fields_onto_grid
        !
        if (Nnac>0) then 
          !
-         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
+         call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
          !
        else
          !
-         call kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs)
+         call kinetic_energy_grid_points(ngrid,kinmat)
          !
        endif
        !
@@ -7636,6 +7946,8 @@ end subroutine map_fields_onto_grid
        !
        if (iverbose>=4) call TimerStop('Solve vibrational part')
        !
+       if (iverbose>=4) call TimerStart('Compute vibrational matrix elements')
+       !
        ! Now we need to compute all vibrational matrix elements of all field of the Hamiltonian, except for the potentials V,
        ! which together with the vibrational kinetic energy operator are diagonal on the contracted basis developed
        !
@@ -7778,32 +8090,38 @@ end subroutine map_fields_onto_grid
             !
             ! a special case of a NAC
             !
-            if (iobject==13) then 
+            if (iobject==13) then
               !
-              !$omp parallel private(nacvib_,alloc_p)
-              allocate(nacvib_(ngrid),stat = alloc_p)
-              if (alloc_p/=0) then
-                  write (out,"(' error: ',i9,' trying to allocate array - nacvib_')") alloc_p
-                  stop 'nacvib_ - out of memory'
-              end if
+              if (iverbose>=4) call TimerStart('Compute kinmat1 nac')
               !
-              !$omp do private(ilevel,jlevel) schedule(guided)
-              do ilevel = 1,totalroots
-                do jlevel = 1,ilevel
-                   !
-                   nacvib_ =  matmul(kinmat1,contrfunc(1:,jlevel))
-                   field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*nacvib_(:))
-                   field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-                   !
-                enddo
+              allocate(nacmat_(totalroots,ngrid),stat=alloc)
+              call ArrayStart('nacmat_',alloc,size(nacmat_),kind(nacmat_))
+              !
+              !$omp parallel do private(i) shared(kinmat1) schedule(guided)
+              do i = 1,ngrid
+                 kinmat1(i,:) = field%gridvalue(i)*kinmat1(i,:)
               enddo
-              !$omp enddo
+              !$omp end parallel do
               !
-              deallocate(nacvib_)
-              !$omp end parallel
+              call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,& 
+                          kinmat1,ngrid,beta_,nacmat_,totalroots)
+              call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,& 
+                         contrfunc,ngrid,beta_,field%matelem,totalroots)
               !
-              deallocate(kinmat1)
-              call ArrayStop('kinmat1')
+              !omp parallel do private(ilevel,jlevel) schedule(guided)
+              !do ilevel = 1,totalroots
+              !  do jlevel = ilevel+1,totalroots
+              !     !
+              !     field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
+              !     !
+              !  enddo
+              !enddo
+              !omp end parallel do
+              !
+              deallocate(nacmat_)
+              call ArrayStop('nacmat_')
+              !
+              if (iverbose>=4) call TimerStop('Compute kinmat1 nac')
               ! 
             endif
             !
@@ -7881,6 +8199,11 @@ end subroutine map_fields_onto_grid
        !deallocate(matelem_rk)
        !call ArrayStop('matelem_rk')
        !
+       if (allocated(kinmat1)) then 
+            deallocate(kinmat1)
+            call ArrayStop('kinmat1')
+       endif
+       !
        if (allocated(psipsi_ark)) then 
          deallocate(psipsi_ark)
          call ArrayStop('psipsi_ark')
@@ -7900,6 +8223,8 @@ end subroutine map_fields_onto_grid
        !if (trim(job%IO_dipole=='SAVE')) then 
        !!    call check_point_dipoles('SAVE',iverbose,totalroots) 
        !endif
+       !
+       if (iverbose>=4) call TimerStop('Compute vibrational matrix elements')
        !
      end select 
      !
@@ -7959,6 +8284,7 @@ end subroutine map_fields_onto_grid
         enddo
         !
         write(vibunit,"('End of contracted basis')")
+        !
         if (trim(solution_method)=="LOBATTO") then 
           write(vibunit,"('Start of Lobatto Weights - needed for internal testing in RmatReact code')")
            do k=1, grid%npoints
@@ -7970,6 +8296,19 @@ end subroutine map_fields_onto_grid
         close(unit = vibunit, status='keep')
         !
      endif
+     !
+     if (job%IO_density=='SAVE') then
+        !
+        ! Reduced vibrational (bond-length) density 
+        !
+        filename =  trim(job%eigenfile%vectors)//'_dens.chk'
+        write(ioname, '(a, i4)') 'Reduced density file '
+        call IOstart(trim(ioname),vibunit)
+        open(unit = vibunit, action = 'write',status='replace' , file = filename)
+        !
+        write(vibunit,"('Start of Densities')")
+        !
+     endif 
      !
      if (trim(solution_method)=="LOBATTO") then 
        deallocate(LobDerivs,LobAbs,LobWeights,vibTmat)
@@ -8039,7 +8378,6 @@ end subroutine map_fields_onto_grid
          ! allocate the book keeping array to manage the mapping between
          ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
          allocate(icontr(Ntotal),stat=alloc)
-         printout = ''
          !
          if (iverbose>=4) write(out,'(/"Contracted basis set:")')
          if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
@@ -8599,12 +8937,36 @@ end subroutine map_fields_onto_grid
               !
               do idiab = 1,Ndiabatic
                 !
-                if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
-                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
-                  field => diabatic(idiab)
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
+                !
+                field => diabatic(idiab) 
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate
+                    jstate_ = field%jstate
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate
+                    istate_ = field%jstate
+                    !
+                  endif
+                  !
+                  ! the permutation makes sense only for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
                   f_diabatic = field%matelem(ivib,jvib)*sc
                   hmat(i,j) = hmat(i,j) + f_diabatic
                   !
+                  ! print out the internal matrix at the first grid point
                   ! print out the internal matrix at the first grid point
                   if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
                       !
@@ -8614,17 +8976,45 @@ end subroutine map_fields_onto_grid
                       printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                      !
                   endif
+                  !
                   exit
-                endif
+                  !
+                enddo
                 !
               enddo
               !
               ! NAC non-diagonal contribution  term
               !
               do iNAC = 1,Nnac
-                if (nac(iNAC)%istate==istate.and.nac(iNAC)%jstate==jstate.and.&
-                    abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
-                  field => nac(iNAC) 
+                !
+                !selection rules
+                !
+                if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
+                !
+                field => nac(iNAC) 
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate
+                    jstate_ = field%jstate
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate
+                    istate_ = field%jstate
+                    !
+                  endif
+                  !
+                  ! the permutation makes sense only for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_) cycle
+                  !
+                  ! check if we are at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
                   f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))
                   hmat(i,j) = hmat(i,j) + f_nac
                   !
@@ -8639,7 +9029,8 @@ end subroutine map_fields_onto_grid
                   endif
                   !
                   exit
-                endif
+                  !
+                enddo
               enddo
               !
               !  Non-diagonal spin-spin term
@@ -8733,7 +9124,7 @@ end subroutine map_fields_onto_grid
                   do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
                     !
                     ! Sigmas from Wigner-Eckart
-                    sigmai_ = real(isigma2,rk)*0.5 
+                    sigmai_ = real(isigma2,rk)*0.5_rk
                     sigmaj_ = sigmai_ - q_we
                     !
                     ! three_j for current Sigmas
@@ -9999,7 +10390,6 @@ end subroutine map_fields_onto_grid
           allocate(vib_count(Nroots),stat=alloc)
           call ArrayStart('vib_count',alloc,size(vib_count),kind(vib_count))
           vib_count = 0
-          v = 0
           !
           !omp parallel do private(i,mterm,f_t,plusminus) shared(maxTerm) schedule(dynamic)
           do i=1,Nroots
@@ -10049,6 +10439,7 @@ end subroutine map_fields_onto_grid
             ilambda = icontr(mterm)%ilambda
             omega = icontr(mterm)%omega
             spini = icontr(mterm)%spin
+            v = 0
             !
             ! assign vibrational QN v based on the increasing energy for the same State-Sigma-Lambda 
             if (job%assign_v_by_count) then
@@ -10111,6 +10502,7 @@ end subroutine map_fields_onto_grid
                   quantaout(irot,irrep,nener_total)%Jrot = Jval
                   quantaout(irot,irrep,nener_total)%irot = irot
                   quantaout(irot,irrep,nener_total)%istate = istate
+                  quantaout(irot,irrep,nener_total)%iTAG = poten(istate)%iTAG
                   quantaout(irot,irrep,nener_total)%sigma = sigma
                   quantaout(irot,irrep,nener_total)%imulti = imulti
                   quantaout(irot,irrep,nener_total)%ilambda = ilambda
@@ -10176,6 +10568,13 @@ end subroutine map_fields_onto_grid
                call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
                call ArrayStart('psi_vib',alloc,size(vec0),kind(vec0))               
                psi_vib = 0
+            endif
+            !
+            if (job%IO_density=='SAVE') then
+                if (.not.allocated(psi_vib)) then 
+                   allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
+                   call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
+                endif
             endif
             !
             if (intensity%renorm) then
@@ -10319,7 +10718,12 @@ end subroutine map_fields_onto_grid
                       !
                       if (iverbose>=4) call TimerStart('Find unbound states')
                       !
-                      npoints_last = max(10,grid%npoints/50) 
+                      ! small interval at the edge of the box
+                      !
+                      npoints_last = int(intensity%threshold%deltaR_dens/hstep)
+                      !
+                      npoints_last = max(10,grid%npoints/50,npoints_last)
+                      !
                       if (npoints_last>=grid%npoints) then
                         write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
                         stop 'wavefunciton unboud check error: too few grid points'
@@ -10442,7 +10846,7 @@ end subroutine map_fields_onto_grid
                       !
                       if (sum_wv>sqrt(small_)) then 
                          !
-                         if (iverbose>=4) call TimerStart('Find aplitudes of unbound wavefuncs')
+                         if (iverbose>=4) call TimerStart('Find amlitudes of unbound wavefuncs')
                          !
                          ! energy of the unbound state aboove the asympote energy
                          !
@@ -10565,6 +10969,21 @@ end subroutine map_fields_onto_grid
                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                   enddo
                   !
+                  if (job%IO_density=='SAVE') then                  
+                      !
+                      !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                      do k= 1,grid%npoints
+                        psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                        vec,psi_vib)
+                      enddo
+                      !$omp end parallel do
+                      !
+                      do k = 1,grid%npoints
+                        write(vibunit,'(e20.12," ||",1x,f8.1,1x,i2,i8)') psi_vib(k),J_list(irot),irrep-1,i
+                      enddo
+                      !
+                  endif
+                  !
                 endif
                 !
               endif
@@ -10637,6 +11056,14 @@ end subroutine map_fields_onto_grid
        write(iunit,"('End of eigenvector')")
        !
        close(unit = iunit, status='keep')
+       !
+     endif
+     !
+     if (job%IO_density=='SAVE') then 
+       !
+       write(vibunit,"('End of Densities')")
+       !
+       close(unit = vibunit, status='keep')       
        !  
      endif
      !
@@ -10802,7 +11229,7 @@ end subroutine map_fields_onto_grid
     end function vibrational_reduced_density
     !
     !
-    subroutine kinetic_energy_grid_points(ngrid,kinmat,vibTmat,LobWeights,LobDerivs,kinmat1)
+    subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
         !
         integer(ik),intent(in)  :: ngrid
         real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
@@ -10844,7 +11271,7 @@ end subroutine map_fields_onto_grid
             if (Nnac>0) then
               !
               ! f'(0) = [ f(h) - f(-h) ] / (2 h) 
-              ! kinetic factor is  12*h**2/(2*h)/1e-8 = 6*h/1e-8 
+              ! kinetic factor is  12*h**2/(2*h) = 6*h 
               ! where 1e-8 is because of one d/dr not d^2/dr^2
               !
               if (igrid>1) then
@@ -10873,8 +11300,7 @@ end subroutine map_fields_onto_grid
              if (Nnac>0) then
                !
                ! f'(0) = (-1)^(i+j)/(i-j)/h
-               ! kinetic factor is  12*h**2/(h)/1e-8 
-               ! where 1e-8 is because of one d/dr not d^2/dr^2
+               ! kinetic factor is  12*h**2/(h)
                !
                do jgrid =igrid+1, ngrid
                  kinmat1(igrid,jgrid) = -(12._rk)*real( (-1)**(igrid+jgrid), rk)*hstep/ real(igrid - jgrid, rk)
@@ -10885,6 +11311,10 @@ end subroutine map_fields_onto_grid
              !
            case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
                            ! Requires the Lobatto nonuniform grid to work
+             !
+             write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
+             stop 'The Lobatto DVR method is temporally disabled'
+             !
              if(grid%nsub /= 6) then
                write(out, '(A)') 'The Lobatto DVR method only works with the'
                write(out, '(A)') 'Lobatto grid (grid type 6).'
@@ -11061,7 +11491,7 @@ end subroutine map_fields_onto_grid
                ! BOB centrifugal (rotational) term, i.e. a correction to f_rot
                !
                do ibobrot = 1,Nbobrot
-                 if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==jstate.and.istate==jstate) then
+                 if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==istate) then
                    field => bobrot(ibobrot)
                    f_rot = f_rot + field%gridvalue(igrid)*sc
                    exit
@@ -11585,7 +12015,7 @@ end subroutine map_fields_onto_grid
                      ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
                      if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
                          abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
-                                    .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
+                                    .and.(ilambda==-jlambda).and.nint(spini-spinj)==0) then
                         !
                         f_s2 = sigmai-sigmaj
                         f_s1 = sign(1.0_rk,f_s2)
@@ -13048,6 +13478,8 @@ end subroutine map_fields_onto_grid
                jlevel_ = field%jlevel
                !
                if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+               !
+               f_t = 0
                !
                do isigmav = 0,1
                  !

@@ -1,5 +1,6 @@
 Specification of curves and couplings (Duo objects)
 ***************************************************
+.. _Fields:
 
 Once the main global parameters have been specified as described in the
 previous sections, it is necessary to introduce the PECs and the various coupling
@@ -26,13 +27,13 @@ specifying the two indexes of the two electronic states involved (bra and ket).
 The indexes are the numbers specified after the \texttt{poten} keyword.
 
 Currently Duo supports the following types of objects: ``potential``, ``spinorbit``, ``L2``, ``Lx``, ``spinspin``, ``spinspino``, ``bobrot``, 
-``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``.
+``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``, ``nac``.
 
 
-``poten`` (alias: potential) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``potential`` 
+^^^^^^^^^^^^^
 
-Objects of type ``poten`` represent potential energy curves (PECs) and are
+Alias: ``poten``.  Objects of type ``poten`` represent potential energy curves (PECs) and are
 the most fundamental objects underlying each calculation.
 From the point of view of theory each PEC is the solution of the electronic
 Schoedinger equation with clamped nuclei, possibly complemented with the
@@ -99,17 +100,18 @@ Integers 1,2,3 from before 2023 will continue working.
 
 
 
-``L2`` (alias: ``L**2``)
-^^^^^^^^^^^^^^^^^^^^^^
+``L2``
+^^^^^^
 
-These objects represent matrix elements between electronic states of the molecule-fixed
+Alias: ``L**2``. These objects represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-``L+``  (aliases: ``Lplus``, ``LxLy`` and  ``Lx``) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``Lx``  and ``L+``  
+^^^^^^^^^^^^^^^^^^
 
 
+Aliases: ``Lplus``, ``LxLy`` and  ``L+``. 
 It represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}_+ = \hat{L}_x + i \hat{L}_y` and
   :math:`\hat{L}_x` in the :math:`\Lambda`- and Cartesian-representations, respectively.
@@ -212,21 +214,74 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
 
 
 
-``spin-spin-p`` and ``spin-spin-o`` 
+``spin-spin``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Parametrised phenomenological spin-spin operator (diagonal and off-diagonal. 
+Parametrised phenomenological spin-spin operator (diagonal and off-diagonal). 
+The diagonal spin-spin matrix elements are given by
+
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm SS}| v^\prime \rangle \left[ 3 \Sigma^2- S(S+1) \right]`.
+
+
+.. note:: The definition of :math:`f_{\rm SS}` is different from the spectroscopic spin-spin constant :math:`\lambda`:
+
+  :math:`\langle v| f_{\rm SS}| v^\prime \rangle = \frac{2}{3} \lambda`.
+
+
+The nono-diagonal spin-spin matrix elements are given by
+
+  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}{ccc}  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}{ccc}    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right)`
+
+
+where :math:`\Sigma_{\rm ref}` is a refence value of the projection of spin used to specify the spin-spin field in the Duo input, e.g. 
+::
+
+     spin-spin A a 
+     name "<A|SS|a>"
+     spin   2.5 1.5
+     factor  1.0
+     lambda 0 0
+     sigma 0.5 0.5 
+     type  BOBLEROY
+     values
+     RE           0.16500000000000E+01
+     RREF        -0.10000000000000E+01
+     P            0.10000000000000E+01
+     NT           0.20000000000000E+01
+     B0           0.74662463783234E-01 
+     B1           0.73073583911575E+01 
+     B2           0.00000000000000E+00
+     BINF         0.00000000000000E+00
+     end
+
+
+
 
 ``spin-rot`` 
-^^^^^^^^^^^^^^
+^^^^^^^^^^^^
 
-Matrix elements of the spin-rotational operator .
+The diagonal matrix elements of the spin-rotational operator are given by 
+
+   :math:`\langle v,S,\Sigma |H^{\rm S-R}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm S-R}| v^\prime \rangle \left[ \Sigma^2- S(S+1) \right]`.
+
+The nonzero off-diagonal matrix elements are  
+
+   :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda \rangle (r) |v^\prime, S,\Sigma\pm 1,\Omega\pm 1 \rangle = \frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle \left[ J(J+1)- \Omega(\Omega\pm1) \right]`.
+
+and 
+
+  :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda\mp1 \rangle |v^\prime, S,\Sigma\pm 1,\Omega \rangle = -\frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle   \langle \Lambda | L_{\pm}|\Lambda \mp1 \rangle     \left[ S(S+1)- \Sigma(\Sigma\pm1) \right]`.
+
 
 ``bob-rot``   
 ^^^^^^^^^^^
 
-Alias: ``bobrot``. Specifies the rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
-which can be interpreted as a position-dependent modification to the rotational mass.
+Alias: ``bobrot``. Specifies the (diagonal) rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
+which can be interpreted as a position-dependent modification to the rotational mass and is introduced as follows
+
+  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + {\rm BobRot}(r)\right).` 
+  
+
 
 ``diabatic``
 ^^^^^^^^^^^^
@@ -261,8 +316,16 @@ Non-adiabatic coupling: ``NAC``
 Non-adiabatic coupling (NAC). It is a non-diagonal coupling element used for adiabatic representation. It appears in the kinetic energy operator as 
 a linear momentum term: 
 
-  :math:`H^{\rm NAC}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ -\left(\frac{d^{\gets}}{d r} w^{(1)}- w^{(1)} \frac{d^{\to}}{d r }\right)  \right]`.
+  :math:`H^{\rm NAC}_{12}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ -\left(\frac{d^{\gets}}{d r} w^{(12)}- w^{(12)} \frac{d^{\to}}{d r }\right)  \right]`,
   
+where 12 stands for the coupling between states 1 and 2. 
+By default, a NAC field trigers the "second order NAC" corrections to the corresponding potential energies defined as 
+
+  :math:`H^{\rm NAC2}_{i}(r) = \frac{h}{8 \pi^2 c \mu}  \left(H^{\rm NAC}_{12}(r) \right)^2,`
+
+where :math:`i=1,2`. In Duo, the diagonal ``diabatic'' fields are used to store :math:`H^{\rm NAC2}_{i}(r)`. If however, the corresponding diabatic fields are
+directly specified, these second order NAC correction are ignored. 
+
 A typical NAC is a Lorentz- or Gaussian-type functions. NAC should be centred about the crossing point of the correpsonding diabatic potential curves.
 
 Example:
@@ -283,6 +346,60 @@ Example:
      end
 
 
+The second order NAC corrections can be provided as two diagonal diabatic fields, e.g. (from the YO spectroscopic model)
+
+Example:
+::
+
+     diabatic B B
+     name "<B2Sigma+|NAC2|B2Sigma+>"
+     lambda     0 0 
+     spin   0.5 0.5
+     type  grid
+     factor  1.243548973
+     values
+      1.81020          0.0731621425
+      1.81040          0.0735930439
+      1.81060          0.0740271189
+      1.81080          0.0744643954
+      1.81100          0.0749049019
+      1.81120          0.0753486669
+      1.81140          0.0757957194
+      1.81160          0.0762460887
+      1.81180          0.0766998042
+      1.81200          0.0771568959
+      1.81220          0.0776173938
+      1.81240          0.0780813285
+      1.81260          0.0785487308
+      1.81280          0.0790196317
+     end
+:
+
+     diabatic D D
+     name "<D2Sigma+|NAC2|D2Sigma+>"
+     lambda     0 0 
+     spin   0.5 0.5
+     type  grid
+     factor  1.243548973
+     values
+      1.81020          0.0731621425
+      1.81040          0.0735930439
+      1.81060          0.0740271189
+      1.81080          0.0744643954
+      1.81100          0.0749049019
+      1.81120          0.0753486669
+      1.81140          0.0757957194
+      1.81160          0.0762460887
+      1.81180          0.0766998042
+      1.81200          0.0771568959
+      1.81220          0.0776173938
+      1.81240          0.0780813285
+      1.81260          0.0785487308
+      1.81280          0.0790196317
+     end
+
+
+Here ``factor 1.243548973`` is :math:`\frac{h}{8 \pi^2 c \mu}` for YO.
 
 
 ``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  

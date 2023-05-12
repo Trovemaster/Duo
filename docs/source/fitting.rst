@@ -31,6 +31,8 @@ Example of a fitting section:
   fit_factor  1e6
   output alo_01
   fit_type dgelss
+  fit_scale 0.001
+  linear_search 5
   lock      5.0
   robust      0.001
   energies   (J parity NN  energy ) (e-state v ilambda isigma omega  weight)
@@ -44,10 +46,44 @@ Example of a fitting section:
   end
 
 
+When state labels are used as potential IDs, i.e. 
+::
+
+    potential X
+      ......
+      ...
+    end
+     
+    potential A
+      ......
+      ...
+    end
+
+
+
+The same labels must be used to identify the electronic states in the energy part of the ``FITTING`` section: 
+::
+
+  FITTING
+  JLIST 2.5,0.5, 1.5 - 11.5, 22.5 - 112.5
+  itmax 30
+  fit_factor  1e6
+  lock      5.0
+  energies   (J parity NN  energy ) (e-state v ilambda isigma omega  weight)
+   0.5   +   1     0.0000  X  0  0   0.5   0.5    100.000
+   0.5   +   2   965.4519  X  1  0   0.5   0.5      7.071
+   0.5   +   3  1916.8596  X  2  0   0.5   0.5      5.774
+   0.5   +   6  4686.7136  X  5  0   0.5   0.5      4.082
+   0.5   +   7  5346.1146  A  0  1  -0.5   0.5    100.000
+  end
+
+
+.. note::`When using STATES option to select the electronic states, it is recommended to keep the lowest PEC included, even if it is not used. Without the ground electrinic state Duo would not get thee ZPE to make the correct energy shift. This will lead to huge obs-calc differences.` 
+
+
 
 Keywords
 ^^^^^^^^
-
 
 
 * ``FITTING``  
@@ -203,15 +239,15 @@ col. 3  is a running number :math:`N` couting levels in ascending order of the e
 
 col. 4  is the energy term value :math:`\tilde{E}`, in cm\ :sup:`-1`;
 
-col. 5  is the electronic state index `state`, as numbered in the ``poten`` sections;
+col. 5  is the electronic state index `state`, as labelled in the ``potential`` sections, e.g. 1 or X;
 
 col. 6  is the vibrational quantum number :math:`v`;
 
-col. 7  is the projection of the electronic angular momentum :math:`\Lambda` for the state in question (an integer);
+col. 7  is the projection of the electronic angular momentum :math:`\Lambda` for the state in question (an integer); only the absolute value is used to match to the calculated value;
 
-col. 8  is the projection of the total electronic spin :math:`\Sigma` (integer of half integer);
+col. 8  is the projection of the total electronic spin :math:`\Sigma` (integer of half integer); only the absolute value is used to match to the calculated value;
 
-col. 9  is the projection of the total angular momentum :math:`\Omega` (integer of half integer);
+col. 9  is the projection of the total angular momentum :math:`\Omega` (integer of half integer); only the absolute value is used to match to the calculated value;
 
 col. 10 is the weight :math:`W` of the experimental energy in question (a real and positive number  usually given by :math:`\sigma^{-2}`, where :math:`\sigma` is the uncertainty of the energy level).
 
