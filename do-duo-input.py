@@ -281,7 +281,7 @@ class IterationReader(OutputReader):
             return True
         else:
             self.input_transcript.lines.append(line)
-            if any(re.search(rf"^\s*{obj}", line.upper()) for obj in object_type_ids):
+            if any(re.search(rf"^\s*{re.escape(obj)}", line.upper()) for obj in object_type_ids):
                 obj_id = self._determine_id(line)
                 self.input_objects[obj_id] = objBlock(num-self.input_transcript.start_line, init_lines=[line])
                 self._new_waiting(self._read_input_objects, {'obj_id' : obj_id})
@@ -292,7 +292,7 @@ class IterationReader(OutputReader):
         if line == "Fitted paramters (rounded):":
             return True
         else:
-            if any(re.search(rf"^\s*{obj}", line.upper()) for obj in object_type_ids):
+            if any(re.search(rf"^\s*{re.escape(obj)}", line.upper()) for obj in object_type_ids):
                 obj_id = self._determine_id(line)
                 self.iter_objects[-1][obj_id] = objBlock(num, init_lines=[line])
                 self._new_waiting(self._read_fitting_objects, {'obj_id' : obj_id})

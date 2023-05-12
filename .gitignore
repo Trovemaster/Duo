@@ -13,6 +13,8 @@
 /*.trans
 /*.en
 /*.pot
+/*.chk
+/*.freq
 
 # Windows image file caches
 Thumbs.db

@@ -9,7 +9,7 @@
       "type": "python",
       "request": "launch",
       "program": "${file}",
-      "args": ["-f test.inp", "OH_8.out"],
+      "args": ["-f 16O2_4states_002.inp", "16O2_4states_001.out"],
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -45,9 +45,9 @@
       "program": "${workspaceFolder}/j-duo-v218v1.x",
       "args": [
         "<",
-        "MD_debugging_5states.inp",
+        "16O2_3states_001.inp",
         ">",
-        "MD_debugging_5states.out"
+        "16O2_3states_001.txt"
       ], // Possible input args for a.out
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
