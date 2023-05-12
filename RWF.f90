@@ -1046,7 +1046,7 @@ contains
     !
     real(rk),allocatable :: crosssections(:)
     !
-    real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:),hmat_n(:,:,:)
+    real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:),hmat_n(:,:,:),kinmat1(:,:)
     !
     integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2),Nvib_l
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
@@ -1268,7 +1268,10 @@ contains
     allocate(kinmat(ngrid,ngrid),stat=info)
     call ArrayStart('kinmat',info,size(kinmat),kind(kinmat))
     !
-    call kinetic_energy_grid_points(ngrid,kinmat)
+    allocate(kinmat1(ngrid,ngrid),stat=info)
+    call ArrayStart('kinmat1',info,size(kinmat1),kind(kinmat1))
+    !
+    call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
     !
     ! ---------------------------------
     ! Dipole moment matrix elements
@@ -1782,6 +1785,9 @@ contains
     !
     deallocate(kinmat)
     call ArrayStop('kinmat')
+    !
+    deallocate(kinmat1)
+    call ArrayStop('kinmat1')
     !
     if (trim(intensity%linelist_file)/="NONE") close(transunit,status="keep")
     !

@@ -72,6 +72,7 @@ module accuracy
     end subroutine accuracyInitialize
     !
     subroutine print_physical_constants ! (to be completed)
+      
       write(out,'(A)') 'Values of physical constants used by DUO:'
       write(out,'(A40,ES20.12,2x,a12)') 'Planck constant h = ', planck, 'erg*second'
       write(out,'(A40,F20.4,2x,a12)')   'Speed of light c = ', vellgt, 'cm/second'

@@ -33,6 +33,9 @@ $RECYCLE.BIN/
 .vscode/launch.json
 .vscode/tasks.json
 
+# Pythong venv
+*venv/
+
 # Vim files
 *.swp
 
