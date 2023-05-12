@@ -2,10 +2,9 @@ goal:   duo
 
 tarball:
 	tar cfz duo$(PLAT).tar.gz makefile *.f90
-        
+        z
 checkin:
 	ci -l Makefile *.f90
-
 
 #FPATH = 
 
@@ -76,6 +75,7 @@ OBJ = F1_hyperfine.o F1_intensity.o grids.o accuracy.o lapack.o timer.o input.o 
 diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o me_numer.o
 dipole.o: timer.o accuracy.o diatom.o symmetry.o
 quadrupole.o: timer.o accuracy.o diatom.o symmetry.o
+magnetic_dipole.o: timer.o accuracy.o diatom.o symmetry.o
 duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o F1_hyperfine.o F1_intensity.o
 functions.o: accuracy.o timer.o
 grids.o: accuracy.o Lobatto.o
@@ -99,6 +99,9 @@ RWF.o: accuracy.o diatom.o timer.o symmetry.o lapack.o
 
 duo:	$(OBJ) duo.o
 	$(FOR) -o $(EXE) $(OBJ) $(FFLAGS) duo.o $(LIB)
+
+RWF.o: RWF.f90 accuracy.o diatom.o timer.o symmetry.o lapack.o
+	$(FOR) -c RWF.f90 $(FFLAGS)
 
 clean:
 	rm -f $(OBJ) *.mod *__genmod.f90 duo.o duo_test_0* eigen_vectors.chk eigen_vib.chk Bob-Rot_centrifugal_functions.dat  _Lp__functions.dat       Spin-Orbit.dat               Spin-spin_functions.dat Dipole_moment_functions.dat        Potential_functions.dat  Spin-rotation_functions.dat Spin-spin-o__non-diagonal__functions.dat

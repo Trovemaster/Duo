@@ -1562,8 +1562,10 @@ contains
         integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
         real(rk)               :: nu_if
         logical,intent(out)    :: passed
+        real(rk), dimension(4)  :: local_sym
 
           passed = .false.
+          local_sym = Intensity%isym_pairs
           !
           nu_if = energyF - energyI
           !

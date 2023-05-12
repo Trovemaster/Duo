@@ -5,6 +5,7 @@
     use refinement
     use dipole
     use quadrupole
+    use magnetic_dipole
     use RWF
     !use polarizability
 !    use compilation_details, only: write_compilation_details
@@ -107,6 +108,10 @@
        !call define_jlist
        if (action%quadrupole) then
          call qm_tranint
+         write(out, '(a)') '--End--'
+         stop
+       elseif (action%magdipole) then
+         call md_tranint
          write(out, '(a)') '--End--'
          stop
        elseif(action%RWF) then

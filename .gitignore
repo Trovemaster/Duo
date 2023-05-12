@@ -2,6 +2,9 @@
 *.o
 *.mod
 /*j-duo*.x
+/*.x
+/debug.log
+*genmod.f90
 
 # Stray I/O files
 /*.inp
@@ -10,10 +13,8 @@
 /*.trans
 /*.en
 /*.pot
-
-# Dev files
-*makefile_LINUXgfortran_debug
-
+/*.chk
+/*.freq
 
 # Windows image file caches
 Thumbs.db
@@ -27,7 +28,10 @@ $RECYCLE.BIN/
 
 # VSCode files
 *.code-workspace
-*.vscode/
+.vs/
+.vscode/
+.vscode/launch.json
+.vscode/tasks.json
 
 # Pythong venv
 *venv/
@@ -43,6 +47,12 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Directories
+/Duo.und/
+
+# Environment files
+venv/
 
 # =========================
 # Operating System Files
