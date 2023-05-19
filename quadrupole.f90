@@ -248,7 +248,7 @@ contains
 
     ! filenames, identifiers, etc.
     character(len=cl)         :: filename, ioname
-    integer(ik)               :: enUnit, transUnit, info
+    integer(ik)               :: enunit, transUnit, info
     integer(ik), allocatable  :: richUnit(:, :)
     character(len=130)        :: myFmt
     character(len=12)         :: char_Jf, char_Ji, char_LF
@@ -271,23 +271,23 @@ contains
     real(rk), allocatable     :: vecI(:), vecF(:)
     type(quantaT), pointer    :: quantaI, quantaF
     real(rk)                  :: j_, jI, jF
-    integer(ik)               :: vibI, vibF, vI, vF, lambdaI, lambdaF,parityI
-    integer(ik)               :: vF_, lambdaF_
+    integer(ik)               :: ivibI, ivibF, vI, vF, ilambdaI, ilambdaF,parityI
+    integer(ik)               :: vF_, ilambdaF_
     real(rk)                  :: spinI, spinF, sigmaI, sigmaF, &
                                  omegaI, omegaF
-    real(rk)                  :: spinF_, sigmaF_, omegaF_
+    real(rk)                  :: spinF_, sigmaF_, iomegaF_
     character(len=10)         :: statename
     character(len=1)          :: ef, pm, branch
 
     ! calculation variables
     real(rk)                  :: energyI, energyF
-    integer(ik)               :: stateI, stateF
+    integer(ik)               :: istateI, istateF
     integer(ik)               :: nRepresen, dimenMax, dimenI, dimenF, &
                                  iGammaPair(sym%nRepresen)
     real(hik)                 :: matSize
-    real(rk)                  :: beta, inten_cm_mol, emcoef, coefA_s1, &
-                                 einA, boltz_fc, absInt, unitConv, vacPerm
-    real(rk)                  :: lande, nu, lineStr, lineStrSq, tm, ddot
+    real(rk)                  :: beta, inten_cm_mol, emcoef, A_coef_s_1, &
+                                 A_einst, boltz_fc, absorption_int, unitConv, vacPerm
+    real(rk)                  :: lande, nu_if, lineStr, linestr2, tm, ddot
     real(rk), allocatable     :: halfLineStr(:)
 
     ! logicals
@@ -300,7 +300,6 @@ contains
     beta         = planck * vellgt / (boltz * Intensity%temperature)
     inten_cm_mol = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef       = planck*vellgt/(4.0_rk*pi)
-    coefA_s1     = 64.0d-36 * pi**4  / (3.0_rk * planck)
 
     !
     ! vacuum permittivity (NIST 2018) - needs to be
@@ -308,11 +307,11 @@ contains
     vacPerm = 8.8541878128d-12
 
     ! conversion factor for Q[a.u] -> Q[S.I],
-    ! h[erg.s] -> h[J.s] and nu[/cm] -> nu[/m]
+    ! h[erg.s] -> h[J.s] and nu_if[/cm] -> nu_if[/m]
     unitConv = 2.012914458d-62
 
     ! calculate the common factor for the Einstein coefficient
-    coefA_s1 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
+    A_coef_s_1 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
     !
 
     if ( sym%maxdegen > 2) then
@@ -332,7 +331,7 @@ contains
       ! prepare and open the .states file
       filename = trim(Intensity%linelist_file)//'.states'
       write(ioname, '(a, i4)') 'Energy file'
-      call IOStart(trim(ioname), enUnit)
+      call IOStart(trim(ioname), enunit)
       open(unit = enunit, action='write', &
            status='replace', file=filename)
 
@@ -475,8 +474,8 @@ contains
           energyI = eigen(indI, indGammaI)%val(indLevelI)
 
           ! obtain the symmetry of the initial state
-          stateI = eigen(indI, indGammaI)%quanta(indLevelI)%iState
-          guParity = poten(stateI)%parity%gu
+          istateI = eigen(indI, indGammaI)%quanta(indLevelI)%iState
+          guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
 
           ! check energy of lower state is in range and > ZPE
@@ -499,9 +498,9 @@ contains
                 energyF = eigen(indF, indGammaF)%val(indLevelF)
 
                 ! obtain the symmetry of the final state
-                stateF = eigen(indF, indGammaF)&
+                istateF = eigen(indF, indGammaF)&
                             %quanta(indLevelF)%iState
-                guParity = poten(stateF)%parity%gu
+                guParity = poten(istateF)%parity%gu
                 indSymF = correlate_to_Cs(indGammaF, guParity)
 
                 ! check the Intensity of the transition passes filter
@@ -554,8 +553,8 @@ contains
           energyI = eigen(indI, indGammaI)%val(indLevelI)
 
           ! obtain the symmetry of the state
-          stateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
-          guParity = poten(stateI)%parity%gu
+          istateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
+          guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
 
           ! ignore states with zero nuclear spin statistical weighting
@@ -569,11 +568,11 @@ contains
 
             ! assign quantum numbers for initial state
             quantaI   => eigen(indI, indGammaI)%quanta(indLevelI)
-            vibI      = quantaI%ivib
+            ivibI      = quantaI%ivib
             vI        = quantaI%v
             spinI     = quantaI%spin
             sigmaI    = quantaI%sigma
-            lambdaI   = quantaI%ilambda
+            ilambdaI   = quantaI%ilambda
             omegaI    = quantaI%omega
             parityI   = quantaI%iparity
             statename = trim(quantaI%name)
@@ -622,7 +621,7 @@ contains
 
                   spinF   = basis(indI)%icontr(k)%spin
                   sigmaF  = basis(indI)%icontr(k)%sigma
-                  lambdaF = basis(indI)%icontr(k)%ilambda
+                  ilambdaF = basis(indI)%icontr(k)%ilambda
                   omegaF  = basis(indI)%icontr(k)%omega
                   vF    = basis(indI)%icontr(k)%ivib
 
@@ -630,18 +629,18 @@ contains
 
                     spinF_   = basis(indI)%icontr(k)%spin
                     sigmaF_  = basis(indI)%icontr(k)%sigma
-                    lambdaF_ = basis(indI)%icontr(k)%ilambda
-                    omegaF_  = basis(indI)%icontr(k)%omega
+                    ilambdaF_ = basis(indI)%icontr(k)%ilambda
+                    iomegaF_  = basis(indI)%icontr(k)%omega
                     vF_    = basis(indI)%icontr(k)%ivib
                     !!!!!
-                    if (     lambdaF /= lambdaF_ &
+                    if (     ilambdaF /= ilambdaF_ &
                         .or. nint(spinF - spinF_) /= 0 &
                         .or. vF /= vF_ ) cycle
 
                     if ( k == k_ ) then
 
                       lande = lande + vecI(k)*vecI(k)*omegaF &
-                              *(real(lambdaF, rk) + 2.0023_rk*sigmaF)
+                              *(real(ilambdaF, rk) + 2.0023_rk*sigmaF)
 
                     elseif ( nint(abs(sigmaF_ - sigmaF)) == 1 ) then
 
@@ -652,7 +651,7 @@ contains
                               ) &
                               *sqrt( &
                                 jI*(jI + 1.0_rk) &
-                                - omegaF*(omegaF + omegaF_ - omegaF) &
+                                - omegaF*(omegaF + iomegaF_ - omegaF) &
                               ) &
                               * (2.002319_rk/2.0_rk)
                     endif
@@ -668,21 +667,21 @@ contains
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,&
                   &a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   indRoot, energyI - Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   nint(jI), lande, pm, ef, statename, &
-                  vI, lambdaI, nint(sigmaI), nint(omegaI)
+                  vI, ilambdaI, nint(sigmaI), nint(omegaI)
               ! if not then write quantum numbers as reals
               else
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,&
                   &a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   indRoot, (energyI - Intensity%ZPE), &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
                   jI, lande, pm, ef, statename, &
-                  vI, lambdaI, sigmaI, omegaI
+                  vI, ilambdaI, sigmaI, omegaI
               endif
 
             ! alternative format for RichMol matrix elements
@@ -704,19 +703,19 @@ contains
                 write(myFmt, '(a)') &
                   "(i6,1x,i8,1x,i2,1x,i2,3x,e21.14,5x,a4,i3,1x,a2,i4,&
                   &1x,a2,f8.4,1x,i6,1x,i6,1x,i4,1x,i6,1x,a1,1x,a10)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   nint(j_), IDj, parityI+1, 1, energyI-Intensity%ZPE, &
                   'tau:', parityI, 'j:', nint(j_), 'c', 1.000_rk, &
-                  nint(omegaI), vI, lambdaI, nint(sigmaI), pm, statename
+                  nint(omegaI), vI, ilambdaI, nint(sigmaI), pm, statename
 
               ! if not then write quantum numbers as reals
               else
                 write(myFmt, '(A,i0,a)') &
                   "(i7,1x,i12,1x,i1,1x,i2,1x,f12.",ndecimals,&
                   ",1x,f7.1,1x,i6,1x,i4,1x,f7.1,1x,a1,1x,a10)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   nint(j_), IDj, parityI+1, 1, energyI-Intensity%ZPE, &
-                  omegaI, vI, lambdaI, sigmaI, pm, statename
+                  omegaI, vI, ilambdaI, sigmaI, pm, statename
               endif
 
             ! standard output format if matelem or lande not required
@@ -730,10 +729,10 @@ contains
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.", ndecimals, &
                   ",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   indRoot, energyI-Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  nint(jI), pm, ef, statename, vI, lambdaI, &
+                  nint(jI), pm, ef, statename, vI, ilambdaI, &
                   nint(sigmaI), nint(omegaI)
 
               ! if not then write quantum numbers as reals
@@ -741,10 +740,10 @@ contains
                 write(myFmt, '(A,i0,a)') &
                   "(i12,1x,f12.", ndecimals, &
                   ",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enUnit, myFmt) &
+                write(enunit, myFmt) &
                   indRoot, energyI-Intensity%ZPE, &
                   nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  jI, pm, ef, statename, vI, lambdaI, sigmaI, omegaI
+                  jI, pm, ef, statename, vI, ilambdaI, sigmaI, omegaI
 
               endif
             endif
@@ -756,8 +755,8 @@ contains
           if (      .not. passed &
               .and. .not. passed_) cycle
 
-          stateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
-          guParity = poten(stateI)%parity%gu
+          istateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
+          guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
 
           nLevelsG(indSymI) = nLevelsG(indSymI) + 1
@@ -770,11 +769,11 @@ contains
     call ArrayStop('intensity-vecI')
 
     if ( trim(Intensity%linelist_file) /= "NONE") then
-      close(enUnit, status='keep')
+      close(enunit, status='keep')
     endif
 
     write(myFmt, '(a,i0,a)') &
-      "('Number of states for each sym = ',", sym%Nrepresen, "i8)"
+      "('number of states for each sym = ',", sym%Nrepresen, "i8)"
     write(out, myFmt) nLevelsG(:)
 
     matSize = int( sum(nLevelsG(:)), hik )
@@ -797,7 +796,7 @@ contains
 
     !!! why is this duplicated from above?
     write(myFmt, '(a,i0,a)') &
-      "('Number of states for each sym = ',", sym%Nrepresen, "i8)"
+      "('number of states for each sym = ',", sym%Nrepresen, "i8)"
     write(out, myFmt) nLevelsG(:)
 
     if ( iVerbose >= 0 ) then
@@ -837,16 +836,24 @@ contains
       'Einstein coefficient A(if) [1/s],', &
       'and Intensities [cm/mol]'
 
-    ! sepending on the case we have different file formats
+    ! depending on the case we have different file formats
     select case ( trim(intensity%action) )
 
       ! absorption lines
       case('ABSORPTION')
         write(out, &
+          ! Fixed width output
           "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
           &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
           &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
           &lambda sigma  omega ')" &
+          !
+          ! CSV output
+          ! "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
+          ! & E_i, Ef, nu_if,&
+          ! & S_fi, A_if, I_fi,&
+          ! & state_f, v_f, lambda_f, sigma_f, omega_f,&
+          ! & state_i, v_i, lambda_i, sigma_i, omega_i')"&
         )
         dir = '<-'
 
@@ -911,16 +918,16 @@ contains
               energyI =  eigen(indI, indGammaI)%val(indLevelI)
               quantaI => eigen(indI, indGammaI)%quanta(indLevelI)
 
-              stateI  = quantaI%istate  ! electronic state
-              vibI    = quantaI%ivib    ! vibrational (contracted)
+              istateI  = quantaI%istate  ! electronic state
+              ivibI    = quantaI%ivib    ! vibrational (contracted)
               vI      = quantaI%v       ! vibrational
               spinI   = quantaI%spin    ! electron spin
               sigmaI  = quantaI%sigma   ! spin projection
-              lambdaI = quantaI%ilambda ! e- orb. ang. mom. projection
+              ilambdaI = quantaI%ilambda ! e- orb. ang. mom. projection
               omegaI  = quantaI%omega   ! tot. ang. mom. proj. mol. ax.
 
               ! reconstruct symmetry for C2v case
-              guParity = poten(stateI)%parity%gu
+              guParity = poten(istateI)%parity%gu
               indSymI = correlate_to_Cs(indGammaI, guParity)
 
               ! apply energy filter to initial (lower) state
@@ -944,16 +951,16 @@ contains
                 energyF =  eigen(indF, indGammaF)%val(indLevelF)
                 quantaF => eigen(indF, indGammaF)%quanta(indLevelF)
 
-                stateF  = quantaF%istate  ! electronic state
-                vibF    = quantaF%ivib    ! vibrational (contracted)
+                istateF  = quantaF%istate  ! electronic state
+                ivibF    = quantaF%ivib    ! vibrational (contracted)
                 vF      = quantaF%v       ! vibrational
                 spinF   = quantaF%spin    ! electron spin
                 sigmaF  = quantaF%sigma   ! spin projection
-                lambdaF = quantaF%ilambda ! e- orb. ang. mom. projection
+                ilambdaF = quantaF%ilambda ! e- orb. ang. mom. projection
                 omegaF  = quantaF%omega   ! tot. ang. mom. proj. mol. ax
 
                 ! reconstruct symmetry for C2v case
-                guParity = poten(stateF)%parity%gu
+                guParity = poten(istateF)%parity%gu
                 indSymF  = correlate_to_Cs(indGammaF, guParity)
 
                 ! apply transition intensity filter, result of which is
@@ -1007,8 +1014,8 @@ contains
                 stop 'quadrupole-vecF - out of memory'
               endif
 
-              !$omp  do private(indLevelF, energyF, quantaF, stateF, vibF, vF, spinF, sigmaF, lambdaF, omegaF, &
-              !$omp&  dimenF, guParity, indSymF, passed, branch, nu, lineStr, lineStrSq, einA, boltz_fc, absInt, tm) &
+              !$omp  do private(indLevelF, energyF, quantaF, istateF, ivibF, vF, spinF, sigmaF, ilambdaF, omegaF, &
+              !$omp&  dimenF, guParity, indSymF, passed, branch, nu_if, lineStr, linestr2, A_einst, boltz_fc, absorption_int, tm) &
               !$omp&  schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
@@ -1017,18 +1024,18 @@ contains
                 energyF =  eigen(indF, indGammaF)%val(indLevelF)
                 quantaF => eigen(indF, indGammaF)%quanta(indLevelF)
 
-                stateF  = quantaF%istate  ! electronic state
-                vibF    = quantaF%ivib    ! vibrational (contracted)
+                istateF  = quantaF%istate  ! electronic state
+                ivibF    = quantaF%ivib    ! vibrational (contracted)
                 vF      = quantaF%v       ! vibrational
                 spinF   = quantaF%spin    ! electron spin
                 sigmaF  = quantaF%sigma   ! spin projection
-                lambdaF = quantaF%ilambda ! e- orb. ang. mom. projection
+                ilambdaF = quantaF%ilambda ! e- orb. ang. mom. projection
                 omegaF  = quantaF%omega   ! tot. ang. mom. proj. mol. ax
 
                 dimenF  = eigen(indF, indgammaF)%Ndimen
 
                 ! reconstruct symmetry for C2v case
-                guParity = poten(stateF)%parity%gu
+                guParity = poten(istateF)%parity%gu
                 indSymF  = correlate_to_Cs(indGammaF, guParity)
 
                 ! apply energy filter to final (upper) state
@@ -1051,8 +1058,8 @@ contains
                 branch = OQS_branch(jI, jF)
 
                 ! transitions should have energy change > 0
-                nu = energyF - energyI
-                if ( nu < small_) cycle
+                nu_if = energyF - energyI
+                if ( nu_if < small_) cycle
 
                 ! increment transition counter for valid transition
                 indTrans = indTrans + 1
@@ -1069,29 +1076,29 @@ contains
 
                   case('ABSORPTION', 'EMISSION')
                     lineStr = ddot(dimenF, halfLineStr, 1, vecF, 1)
-                    lineStrSq = lineStr**2
+                    linestr2 = lineStr**2
 
                     ! calculate the Einstein A coefficient
-                    !einA = unitConv * (2.0_rk*jI + 1.0_rk) * lineStrSq &
-                    !  * (8.0_rk * pi**5 * abs(nu)**5) / (5.0_rk * vacPerm * planck)
+                    !A_einst = unitConv * (2.0_rk*jI + 1.0_rk) * linestr2 &
+                    !  * (8.0_rk * pi**5 * abs(nu_if)**5) / (5.0_rk * vacPerm * planck)
 
                     ! calculate the Einstein A coefficient
-                    einA =  coefA_s1 * (2.0_rk*jI + 1.0_rk) * lineStrSq*abs(nu)**5
+                    A_einst =  A_coef_s_1 * (2.0_rk*jI + 1.0_rk) * linestr2*abs(nu_if)**5
 
-                    lineStrSq = lineStrSq * Intensity%gns(indSymI) &
+                    linestr2 = linestr2 * Intensity%gns(indSymI) &
                     ! linestrength times transition degeneracy
                       * (2.0_rk*jI + 1.0_rk) * (2.0_rk*jF + 1.0_rk)
 
                     if ( trim(Intensity%action) == 'ABSORPTION') then
 
                       boltz_fc = exp(-(energyI - Intensity%ZPE) * beta)&
-                        * (1.0_rk - exp(-abs(nu) * beta)) &
-                        / (Intensity%part_func * nu**2)
+                        * (1.0_rk - exp(-abs(nu_if) * beta)) &
+                        / (Intensity%part_func * nu_if**2)
 
                       ! intensity in cm/mol
-                      absInt = 1.0_rk / (8.0_rk * pi * vellgt) &
+                      absorption_int = 1.0_rk / (8.0_rk * pi * vellgt) &
                         * Intensity%gns(indSymF)*(2.0_rk*jF + 1.0_rk) &
-                        * einA * boltz_fc
+                        * A_einst * boltz_fc
 
                     else
                       stop 'EMISSION has not yet been coded for the &
@@ -1101,17 +1108,18 @@ contains
                       ! emissivity in ergs/mol/sr
                       boltz_fc = exp(-(energyF - Intensity%ZPE) * beta)
 
-                      absInt = emcoef * einA * boltz_fc * nu &
+                      absorption_int = emcoef * A_einst * boltz_fc * nu_if &
                         * Intensity%gns(indSymI)*(2.0_rk*jF + 1.0_rk) &
                         / Intensity%part_func
 
                     endif
 
-                    if ( lineStrSq >= Intensity%threshold%linestrength &
-                        .and. absInt >= Intensity%threshold%intensity &
+                    if ( linestr2 >= Intensity%threshold%linestrength &
+                        .and. absorption_int >= Intensity%threshold%intensity &
                       ) then
                       !$omp critical
                       write(out, &
+                        ! Fixed width output
                         "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
                         &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
                         & 3(1x, es16.8),&
@@ -1120,10 +1128,22 @@ contains
                         jF, sym%label(indSymF), dir, &
                         jI, sym%label(indSymI), branch, &
                         energyF - Intensity%ZPE, dir, &
-                        energyI - Intensity%ZPE, nu, &
-                        lineStrSq, einA, absInt, &
-                        stateF, vF, lambdaF, sigmaF, omegaF, dir, &
-                        stateI, vI, lambdaI, sigmaI, omegaI
+                        energyI - Intensity%ZPE, nu_if, &
+                        linestr2, A_einst, absorption_int, &
+                        istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
+                        istateI, vI, ilambdaI, sigmaI, omegaI
+                        !
+                        ! CSV output
+                        ! "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
+                        ! &f11.4,',',f11.4,',',f11.4,',',&
+                        ! &es16.8,',',es16.8,',',es16.8,',',&
+                        ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
+                        ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
+                        ! dir, jF, sym%label(indSymF), jI, sym%label(indSymI), branch, &
+                        ! energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                        ! linestr2, A_einst, absorption_int, &
+                        ! istateF, vF, ilambdaF, sigmaF, omegaF, &
+                        ! istateI, vI, ilambdaI, sigmaI, omegaI
 
                       if ( trim(Intensity%linelist_file) /= 'NONE') then
 
@@ -1137,7 +1157,7 @@ contains
 
                           write(transUnit, &
                             "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
-                            quantaF%iroot, quantaI%iroot, einA, nu
+                            quantaF%iroot, quantaI%iroot, A_einst, nu_if
 
                         endif
                       endif
@@ -1352,16 +1372,15 @@ contains
     real(rk), intent(out)   :: half_ls(:)
 
     ! quantum numbers
-    integer(ik)             :: stateI, stateF, vibI, vibF, &
-                                lambdaI, lambdaF
+    integer(ik)             :: istateI, istateF, ivibI, ivibF, &
+                                ilambdaI, ilambdaF
     real(rk)                :: omegaI, omegaF, spinI, spinF, &
                                 sigmaI, sigmaF
 
     ! psuedo quantum numbers and indexes
-    integer(ik)             :: omegaI_, omegaF_, stateI_, stateF_, &
-                                lambdaI_, lambdaF_
+    integer(ik)             :: iomegaI_, iomegaF_, istateI_, istateF_, &
+                                ilambdaI_, ilambdaF_
     real(rk)                :: spinI_, spinF_
-    integer(ik)             :: dSpin, dSigma, dLambda, dOmega
     integer(ik)             :: icontrI, icontrF, indQuad, indPermute, &
                                 indSigmaV
 
@@ -1379,67 +1398,37 @@ contains
     ! loop over final states
     loop_F : do icontrF = 1, dimenF
 
-      stateF  = basis(indF)%icontr(icontrF)%istate
-      vibF    = basis(indF)%icontr(icontrF)%ivib
-      lambdaF = basis(indF)%icontr(icontrF)%ilambda
+      istateF  = basis(indF)%icontr(icontrF)%istate
+      ivibF    = basis(indF)%icontr(icontrF)%ivib
+      ilambdaF = basis(indF)%icontr(icontrF)%ilambda
       omegaF  = basis(indF)%icontr(icontrF)%omega
       spinF   = basis(indF)%icontr(icontrF)%spin
       sigmaF  = basis(indF)%icontr(icontrF)%sigma
 
       ! remove imaginary factor (-1)^Omega when J is half-int
-      if ( mod(nint(2.0_rk*omegaF) + 1, 2) == 0 ) then
-        omegaF_ = nint(omegaF + 0.5_rk)
-      else
-        omegaF_ = nint(omegaF)
-      endif
+      iomegaF_ = nint(omegaF)
+      if (mod(nint(2.0_rk*omegaF+1.0_rk),2)==0 ) iomegaF_ = nint((2.0_rk*omegaF-1.0_rk)*0.5_rk)         
 
       loop_I : do icontrI = 1, dimenI
 
-        stateI  = basis(indI)%icontr(icontrI)%istate
-        vibI    = basis(indI)%icontr(icontrI)%ivib
-        lambdaI = basis(indI)%icontr(icontrI)%ilambda
+        istateI  = basis(indI)%icontr(icontrI)%istate
+        ivibI    = basis(indI)%icontr(icontrI)%ivib
+        ilambdaI = basis(indI)%icontr(icontrI)%ilambda
         omegaI  = basis(indI)%icontr(icontrI)%omega
         spinI   = basis(indI)%icontr(icontrI)%spin
         sigmaI  = basis(indI)%icontr(icontrI)%sigma
 
         if (abs(nint(omegaF - omegaI))>2.or.nint(spinI-spinF)/=0.or.nint(sigmaI-sigmaF)/=0) cycle loop_I
-        if (abs(nint(omegaF - omegaI))==0.and.lambdaI/=lambdaF) cycle loop_I
-        if (abs(nint(omegaF - omegaI))==2.and.abs(lambdaI-lambdaF)/=2) cycle loop_I
+        if (abs(nint(omegaF - omegaI))/=abs(ilambdaI-ilambdaF)) cycle loop_I
         
-        omegaI_ = int(omegaI)
-        if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) omegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
+        iomegaI_ = int(omegaI)
+        if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
 
         !remove imaginary factor (-1)^Omega when J is half-int
-        if ( mod(nint(2.0_rk*omegaI) + 1, 2) ==0 ) then
-         omegaI_ = nint(omegaI + 0.5_rk)
-        else
-         omegaI_ = nint(omegaI)
-        endif
+        iomegaI_ = int(omegaI)
+        if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
 
-        dSpin   = nint(spinF - spinI)
-        dSigma  = nint(sigmaF - sigmaI)
-        dLambda = lambdaF - lambdaI
-        dOmega  = nint(omegaF - omegaI)
-
-        !spin selection rules
-        if (     dSpin /= 0 &
-           .or. dSigma /= 0 &
-           ) cycle loop_I
-
-        !electron orbit selection rules
-        if (     lambdaF + lambdaI < 2 &
-           .or. abs(dLambda) > 2 &
-           .or. abs(dOmega) /= abs(dLambda) &
-           ) cycle loop_I
-
-        ! alternative selection rules if lambdaF + lambdaI < 2 allowed
-        ! if (     abs(dLambda) > 2 &
-        !     .or. abs(dOmega) /= abs(dLambda) &
-        !     ) cycle loop_I
-        !if (     abs(dOmega) > 2 &
-        !    .or. abs(dOmega) /= abs(dLambda)) cycle loop_I
-
-        f3j = three_j(jI, 2.0_rk, jF, omegaI, real(dOmega, rk), -omegaF)
+        f3j = three_j(jI, 2.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
         if ( abs(f3j) < Intensity%threshold%coeff ) cycle loop_I
 
         ls = 0
@@ -1452,28 +1441,25 @@ contains
           do indPermute =  0, 1
 
             if  ( indPermute == 0 ) then
-              stateI_  = field%istate  ; stateF_  = field%jstate
-              lambdaI_ = field%lambda  ; lambdaF_ = field%lambdaj
+              istateI_  = field%istate  ; istateF_  = field%jstate
+              ilambdaI_ = field%lambda  ; ilambdaF_ = field%lambdaj
               spinI_   = field%spini   ; spinF_   = field%spinj
             else
-              stateI_  = field%jstate  ; stateF_  = field%istate
-              lambdaI_ = field%lambdaj ; lambdaF_ = field%lambda
+              istateI_  = field%jstate  ; istateF_  = field%istate
+              ilambdaI_ = field%lambdaj ; ilambdaF_ = field%lambda
               spinI_   = field%spinj   ; spinF_   = field%spini
             endif
 
             ! do not double count diagonal elements
             if (      indPermute == 1 &
-                .and. stateI_  == stateF_ &
-                .and. lambdaI_ == lambdaF_ &
+                .and. istateI_  == istateF_ &
+                .and. ilambdaI_ == ilambdaF_ &
                 .and. nint(spinI_ - spinF_) == 0 &
                 ) cycle
 
-            ! unlike the user input states, the numerical indices
-            ! stateI/F run over all states, thus we want each of the
-            ! unitary and inverted stateI/F_  values to be equal to only
-            ! one of the stateI/F indices.
-            if (     stateI_ /= stateI &
-                .or. stateF_ /= stateF &
+            ! check the field I and F states match the basis loop
+            if (     istateI_ /= istateI &
+                .or. istateF_ /= istateF &
                 ) cycle
 
             ! since only one of Lambda > or < 0 is given as input, we
@@ -1483,27 +1469,23 @@ contains
 
               ! skip if both lambda = 0, else double counting
               if ( indSigmaV == 1 &
-                  .and. abs(lambdaF_) + abs(lambdaI_) == 0 &
+                  .and. abs(ilambdaF_) + abs(ilambdaI_) == 0 &
                   ) cycle
 
               ! apply sigmav transformation to build Lambda < 0 states
-              lambdaI_ = lambdaI_ * (-1)**indSigmaV
-              lambdaF_ = lambdaF_ * (-1)**indSigmaV
+              ilambdaI_ = ilambdaI_ * (-1)**indSigmaV
+              ilambdaF_ = ilambdaF_ * (-1)**indSigmaV
 
-              ! unlike the user input states (i.e the lambdaI/F_) the
-              ! numerical indices lambdaI/F run over all lambda values
-              ! (inc. negative) - thus, we want each of the unitary and
-              ! inverted lambdaI/F_  values to be equal to only one of
-              ! +/- lambdaI/F
-              if (     lambdaI_ /= lambdaI &
-                  .or. lambdaF_ /= lambdaF &
+              ! check field states match basis states
+              if (     ilambdaI_ /= ilambdaI &
+                  .or. ilambdaF_ /= ilambdaF &
                   ) cycle
 
               ! reinforce lambda selection rule
-              if  ( abs(lambdaF - lambdaI) > 2 ) cycle
+              if  ( abs(ilambdaF - ilambdaI) > 2 ) cycle
 
               ! vibrational matrix element
-              vibME = field%matelem(vibI, vibF)
+              vibME = field%matelem(ivibI, ivibF)
 
               ! the Sigma electronic states (with lambda = 0) have
               ! definite +/- parities - thus, if one of the mat.
@@ -1514,20 +1496,20 @@ contains
 
                 itau = 0
 
-                if (      lambdaI_ == 0 &
-                    .and. poten(stateI)%parity%pm == -1 &
+                if (      ilambdaI_ == 0 &
+                    .and. poten(istateI)%parity%pm == -1 &
                     ) itau = itau + 1
 
-                if (      lambdaF_ == 0 &
-                    .and. poten(stateF)%parity%pm == -1 &
+                if (      ilambdaF_ == 0 &
+                    .and. poten(istateF)%parity%pm == -1 &
                     ) itau = itau + 1
 
-                vibME = vibME * (-1)**itau
+                vibME = vibME * (-1.0_rk)**itau
               endif
 
               ! calculate linestrength and add to sum
               ls =  vibME * f3j * vector(icontrI)
-              half_ls(icontrF) = half_ls(icontrF) + (-1)**(omegaI_) * ls
+              half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_) * ls
 
             enddo
           enddo
@@ -1554,12 +1536,18 @@ contains
 
       case ('ABSORPTION','EMISSION')
 
-        if ( jI>jF ) then
+        if ( nint(jF-jI)==-2 ) then
           X = 'O'
-        elseif( nint(jI-jF)/=0 ) then
+        elseif ( nint(jF-jI)==-1) then
+          X = 'P'
+        elseif( nint(jF-jI)==0 ) then
+          X = 'Q'
+        elseif( nint(jF-jI)==1) then
+          X = 'R'
+        elseif( nint(jF-jI)==2) then
           X = 'S'
         else
-          X = 'Q'
+          X = 'X'
         endif
 
     end select
@@ -1582,6 +1570,25 @@ contains
       ! count number of hits
       ngamma = 0
       igamma_pair(igammaI) = igammaI
+
+      ! do igammaF = 1,sym%Nrepresen
+      !   !
+      !   if (igammaI/=igammaF.and.intensity%isym_pairs(igammaI)==intensity%isym_pairs(igammaF)) then 
+      !     !
+      !     igamma_pair(igammaI) = igammaF
+      !     !
+      !     ngamma = ngamma + 1 
+      !     !
+      !     if (ngamma>1) then 
+      !       !
+      !       write(out,"('qm_intensity: Assumption that selection rules come in pairs is wrong!')")
+      !       stop 'qm_intensity: Assumption that all selection rules work in pairs is wrong!'
+      !       !
+      !     endif   
+      !     !
+      !   endif
+      !   !
+      ! enddo
 
       if ( nint(intensity%gns(igammaI) &
           - intensity%gns(igamma_pair(igammaI))) /= 0 &
@@ -1635,9 +1642,10 @@ contains
     integer(ik), intent(in) :: igamma_pair(sym%Nrepresen)
     real(rk)                :: nu_if
     logical, intent(out)    :: passed
+    real(rk), dimension(4)  :: local_sym
 
     passed = .false.
-
+    local_sym = Intensity%isym_pairs
     nu_if = energyF - energyI
 
     if ( &
@@ -1847,7 +1855,7 @@ contains
 
     if (iverbose >= 4) then
       write(out, &
-        "('   Number of selected eigenvectors: ',i8)") Neigenlevels
+        "('   number of selected eigenvectors: ',i8)") Neigenlevels
     end if
 
     ! Now we can read and store the energies and their description.
