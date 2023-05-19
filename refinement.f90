@@ -2105,10 +2105,10 @@ module refinement
 
   !----- begin ----!
   
-    do i1=1,dimen
-    do i2=1,dimen 
-       a0(i1,i2)=coeff(i1,i2)
-    enddo
+    do i2 = 1, dimen
+      do i1 = 1, dimen
+          a0(i1, i2) = coeff(i1, i2)
+      enddo
     enddo
 
     do i=1,dimen
@@ -2116,11 +2116,8 @@ module refinement
     enddo
     error=0
     do i=1,dimen
-      c=0
-      k8=i-1
-      do k=1,k8
-        c=c+a0(k,i)*a0(k,i)
-      enddo
+
+      c = dot_product(a0(1:i-1, i), a0(1:i-1, i))
 
       if (c.ge.a0(i,i)) then
       !      write(6,*) '(',i,'-th adj. parameter is wrong )'
@@ -2135,30 +2132,18 @@ module refinement
          return
       endif
       k8=i+1
-      do l=k8,dimen
-         k9=i-1
-         c=0
-         do k=1,k9 
-            c=c+a0(k,i)*a0(k,l)
-         enddo
+      do l = i+1, dimen
+        c = dot_product(a0(1:i-1, i), a0(1:i-1, l))
          a0(i,l)=(a0(l,i)-c)/a0(i,i)
       enddo
     enddo
     do i=1,dimen
-      k8=i-1
-      c=0
-      do k=1,k8
-         c=c+a0(k,i)*solution(k)
-      enddo
+      c = dot_product(a0(1:i-1, i), solution(1:i-1))
       solution(i)=(solution(i)-c)/a0(i,i)
     enddo
     do i1=1,dimen
       i=1+dimen-i1
-      k8=i+1
-      c=0
-      do k=k8,dimen
-          c=c+a0(i,k)*solution(k)
-      enddo
+      c = dot_product(a0(i+1:dimen, i), solution(i+1:dimen))
       solution(i)=(solution(i)-c)/a0(i,i)
     enddo
   return
@@ -2200,17 +2185,12 @@ module refinement
         enddo 
       enddo 
       ai(dimen,dimen)=1.0/p
-      do i=2,dimen
-        k8=i-1
-        ai(dimen,k8)=h(i)
-      enddo 
+      ai(dimen, 1:dimen - 1) = h(2:dimen)
    end do 
-   do i=1,dimen
-     k8=i-1
-     do j=1,k8
-       ai(j,i)=ai(i,j)
-     enddo 
-   enddo 
+   do i = 1, dimen
+    k8 = i - 1
+    ai(1:k8, i) = ai(i, 1:k8)
+   end do
    return
  end subroutine MLinvmat
 
@@ -2228,10 +2208,7 @@ module refinement
       !
       npts = size(sigma)
       !
-      nused = 0 
-      do i=1,npts
-        if (wt(i)>small_) nused=nused+1
-      enddo
+      nused = count(wt(1:npts) > small_)
       !
       !Watson alpha-parameter
       ! 
@@ -2241,14 +2218,13 @@ module refinement
       ! 
       !  adjusting the weights  
       ! 
-      do nrow=1,npts
-         if (wt(nrow)>small_) wt(nrow) = 1.0_rk/( sigma(nrow)**2 + a_wats*eps(nrow)**2 )
-      enddo 
+      where (wt(1:npts) > small_)
+        wt(1:npts) = 1.0_rk / (sigma(1:npts)**2 + a_wats * eps(1:npts)**2)
+      end where
       ! 
       ! "re-normalizing" the weight factors
       !
-      wtsum = sum(wt(1:npts))
-      wt(1:npts) = wt(1:npts)/wtsum
+      wt(1:npts) = wt(1:npts) / sum(wt(1:npts))
       !
       if (verbose>=4) write(out,"('... done!')")
       !
@@ -2261,13 +2237,7 @@ module refinement
        !
        ! Count J-s
        !
-       nj = 0 
-       !
-       do j = 1, size(fitting%J_list)
-          !
-          if (fitting%J_list(j)>-0.5_rk) nj = nj + 1
-          !
-       end do
+       nj =  count(fitting%J_list > -0.5_rk)
        !
        iJmax = int(maxval(fitting%J_list(:)))
        iJmin = nint(minval(fitting%J_list(:),mask=fitting%J_list.gt.-1))
@@ -2276,21 +2246,27 @@ module refinement
        !
        allocate(Jval(nJ),Jindex(0:ijmax),stat = info)
        if (info /= 0) stop 'refinement_by_fit allocation error: Jval - out of memory'
-       !
-       Jval = 0 
-       jind = 0
-       !
-       do j = 1, size(fitting%J_list)
-          !
-          if (fitting%J_list(j)>=0) then
-            !
-            jind = jind + 1
-            Jval(jind) = fitting%J_list(j)
-            Jindex( int(Jval(jind)) ) = jind  ! round down half integer J, don't change integer J
-            !
-          endif 
-          !
-       end do
+
+       where (fitting%J_list >= 0)
+        Jval = fitting%J_list
+        Jindex(int(Jval)) = jind
+       end where
+
+      !
+      !Jval = 0 
+      ! jind = 0
+      !
+      !  do j = 1, size(fitting%J_list)
+      !     !
+      !     if (fitting%J_list(j)>=0) then
+      !       !
+      !       jind = jind + 1
+      !       Jval(jind) = fitting%J_list(j)
+      !       Jindex( int(Jval(jind)) ) = jind  ! round down half integer J, don't change integer J
+      !       !
+      !     endif 
+      !     !
+      !  end do
   end subroutine define_jlist
   !
 end module refinement
