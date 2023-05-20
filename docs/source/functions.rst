@@ -1254,12 +1254,6 @@ Example:
 
 
                     
-           
-           
-
-
-
- 
 
 
 
@@ -1281,7 +1275,7 @@ Example:
 ::
 
 
-    diabatic 3 5 
+    diabatic A C 
     name "<A|diab|C>"
     lambda 1
     mult   2
@@ -1291,6 +1285,35 @@ Example:
      RE           1.98                
      gamma        0.05               
      a0           1.58
+    end
+
+
+``LORENTZ-SURKUS`` 
+^^^^^^^^^^^^^^^^^^
+
+Alias is ``LORENTZIAN-SURKUS``. A slightly different Lorentzian function combined with a Sukruk expansio as follows: 
+                 
+:math:`f(r) = \frac{1}{2}  \frac{\gamma}(r)}{\gamma}{(r-r_0)^2+\gamma^2} f_{\rm S`, 
+
+where
+
+:math:`f_0(r) = 1 + \sum_{i=1}^N a_i \left[\frac{(r^p-r_0^p)}{(r^p+r_0^p)}\right]^i.`
+
+Example:
+::
+
+
+    diabatic A C
+    name "<A|diab|C>"
+    lambda 1
+    mult   2
+    type  Lorentz-Surkus
+    values
+     gamma        0.05               
+     RE           1.98                
+     p            4
+     a1           0.1
+     a2           0.004
     end
 
 

@@ -5,12 +5,19 @@ module functions
   !
   implicit none
   !
+  public fanalytic_fieldT
+  !
   ! Different 1D functions (potential, spin-orbit etc)
   !
   integer(ik),parameter :: verbose=5
   !
-  public fanalytic_fieldT
+  !logical,save :: defined_complex_field = .false.
+  integer(ik),save  :: N1,N2,N3
   !
+  procedure (fanalytic_fieldT),pointer :: function_V1 => null()
+  procedure (fanalytic_fieldT),pointer :: function_V2 => null()
+  procedure (fanalytic_fieldT),pointer :: function_VD => null()
+  procedure (fanalytic_fieldT),pointer :: function_beta => null()
   !
   abstract interface
     !
@@ -25,14 +32,28 @@ module functions
     !
   end interface
   !
+  abstract interface
+    !
+    function fanalytic_complex_fieldT(r,parameters,sub_type,Nsub_terms)
+      use accuracy
+      !
+      real(rk)                      :: fanalytic_complex_fieldT !NB: NAG Fortran 6.0 doesn't like in-line declaration
+      real(rk),intent(in)           :: r                 ! geometry (Ang)
+      real(rk),intent(in)           :: parameters(:)     ! potential parameters
+      character(len=cl),intent(in)  :: sub_type(:)
+      integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+      !
+    end function fanalytic_complex_fieldT
+    !
+  end interface
   !
   contains
   !
   !
   subroutine define_fanalytic_field(ftype,fanalytic_field)
     !
-    character(len=cl),intent(in)      :: ftype
-                                            ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
     procedure(fanalytic_fieldT),pointer :: fanalytic_field !=> null()
     !
     select case(ftype)
@@ -203,6 +224,10 @@ module functions
       !
       fanalytic_field => poten_lorentzian_polynom
       !
+    case("LORENTZ-SURKUS","LORENTZIAN-SURKUS")
+      !
+      fanalytic_field => poten_lorentzian_surkus_polynom
+      !
     case("SQRT(LORENTZ)","SQRT(LORENTZIAN)")
       !
       fanalytic_field => poten_sqrt_lorentzian_polynom
@@ -240,7 +265,13 @@ module functions
       write(out,'(//"Analytic: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytic: Unknown function type "
       !
-    case("COUPLED-PEC","COUPLED-PEC-BETA","COUPLED-DIABATIC")
+    case("COUPLED-PEC")
+      !
+      !fanalytic_complex_field => polynomial_coupled_PECs!
+      !
+      fanalytic_field => function_dummy
+      !
+    case("COUPLED-PEC-BETA","COUPLED-DIABATIC")
       !
       fanalytic_field => function_dummy
       !
@@ -253,6 +284,50 @@ module functions
     !
   end subroutine define_fanalytic_field
   !
+  !
+  subroutine define_complex_analytic_field(ftype,fanalytic_field,sub_type,Nsub_terms)
+    !
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    procedure(fanalytic_fieldT),pointer :: fanalytic_field !=> null()
+    character(len=cl),intent(in)  :: sub_type(:)
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    !
+    select case(ftype)
+      !
+    case("COUPLED-PEC")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_VD)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+      fanalytic_field => polynomial_coupled_PECs
+      !
+    case("COUPLED-PEC-BETA")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+      fanalytic_field => polynomial_coupled_PECs_beta
+      !
+    case default
+      !
+      write(out,'(//"Complex Analytic: Unknown function type ",a)') trim(ftype)
+      stop "Complex Analytic: Unknown field type "
+      !
+    end select
+    !
+  end subroutine define_complex_analytic_field
+  !  
   !
   function poten_morse(r,parameters) result(f)
     !
@@ -707,7 +782,7 @@ module functions
     real(rk),intent(in)    :: parameters(:) ! potential parameters
     real(rk)               :: v0,r0,de,f,rref,beta_,yp,uLR,uLR0,uLR1,B,A,D_LR
     real(rk)               :: beta(0:100),C(1:100)
-    integer(ik)            :: k,p,Nstruc,Ntot,Npot,NLR,NL,NS
+    integer(ik)            :: k,p,Nstruc,Ntot,NLR,NL,NS
     !
     v0 = parameters(1)
     r0 = parameters(2)
@@ -1985,7 +2060,34 @@ module functions
     f = y0+2.0_rk*f0/pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) )
     !
   end function poten_lorentzian_polynom
-
+  !
+  !
+  function poten_lorentzian_surkus_polynom(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,gamma,z,f0,f
+    integer(ik)            :: k,p,N
+    !
+    N = size(parameters)
+    !
+    gamma = parameters(1)
+    r0 = parameters(2)
+    z = 0.0_rk
+    !
+    if (N>3) then 
+       p = int(parameters(3),ik)
+       z = (r**p-r0**p)/(r**p+r0**p)
+    endif
+    !
+    f0 = 1.0
+    do k=4,N
+     f0 = f0 + parameters(k)*z**(k-3)
+    enddo
+    !
+    f = 0.5_rk*gamma*f0/( (r-r0)**2+gamma**2 )
+    !
+  end function poten_lorentzian_surkus_polynom
 
   !
   ! A sqrt(lorentzian) function for the couplings between diabatic curves
@@ -2046,7 +2148,7 @@ module functions
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: gamma0,r0,f,t
+    real(rk)               :: gamma0,r0,f
     !
     gamma0 = parameters(1)
     r0 = parameters(2)
@@ -2277,6 +2379,107 @@ module functions
     f = 0
     !
   end function function_dummy
+  !
+  !
+  function polynomial_coupled_PECs(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: V1,V2,VD,Discr,E(2)
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    V1 = function_V1(r,parameters(1:N1))
+    V2 = function_V2(r,parameters(N1+1:N1+N2))
+    VD = function_VD(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! to diagobalize the 2x2 matrix 
+    !/     \
+    ! V1 VD |
+    ! VD V2 |
+    !\     /
+    ! we solve a quadratic equation with the discriminant 
+    !
+    Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+    !
+    if (discr<-small_) then
+      write(out,"('COUPLED: discriminant is negative for polynomial_coupled_PECs, r= ',f17.8)") r
+      stop 'COUPLED: discriminant is negative'
+    endif
+    !
+    E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+    E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = E(icomponent)              
+    !
+  end function polynomial_coupled_PECs
+  !
+  !
+  recursive function polynomial_coupled_PECs_beta(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: V1,V2,VD,Discr,E(2),beta
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    V1 = function_V1(r,parameters(1:N1))
+    V2 = function_V2(r,parameters(N1+1:N1+N2))
+    !
+    beta = function_beta(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
+    !
+    if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
+      !
+      VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
+      !
+    else
+      !
+      VD = polynomial_coupled_PECs_beta(r-sqrt(small_),parameters) 
+      !
+    endif
+    !
+    ! to diagobalize the 2x2 matrix 
+    !/     \
+    ! V1 VD |
+    ! VD V2 |
+    !\     /
+    ! we solve a quadratic equation with the discriminant 
+    !
+    Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+    !
+    if (discr<-small_) then
+      write(out,"('COUPLED: discriminant is negative in polynomial_coupled_PECs_beta r=',f15.8)") r
+      stop 'COUPLED: discriminant is negative in polynomial_coupled_PECs_beta'
+    endif
+    !
+    E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+    E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = E(icomponent)              
+    !
+  end function polynomial_coupled_PECs_beta
 
   !
 end module functions

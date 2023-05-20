@@ -2,7 +2,7 @@ module diatom_module
   !
   use accuracy
   use timer
-  use functions, only : fanalytic_fieldT
+  use functions, only : fanalytic_fieldT,define_complex_analytic_field
   use symmetry,  only : sym,SymmetryInitialize
   use Lobatto,   only : LobattoAbsWeights,derLobattoMat
   use me_numer,  only : ME_numerov
@@ -4376,17 +4376,14 @@ subroutine map_fields_onto_grid(iverbose)
      real(rk),allocatable    :: spline_wk_vec_F(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: xx(:), yy(:), ww(:)! tmp vectors for extrapolation
      type(linkT),allocatable :: link_(:) ! tmp link values for extrapolation
-     real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR
-     integer(ik) :: imin
+     real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR,V1,V2
+     integer(ik) :: N1,N2
      !
      type(fieldT),pointer      :: field
      !
      procedure (fanalytic_fieldT),pointer :: function_V1 => null()
      procedure (fanalytic_fieldT),pointer :: function_V2 => null()
-     procedure (fanalytic_fieldT),pointer :: function_VD => null()
      procedure (fanalytic_fieldT),pointer :: function_beta => null()
-     integer(ik) :: N1,N2,N3,icomponent
-     real(rk)  :: V1,V2,VD,E(2),discr
      !
      ngrid = grid%npoints
      !
@@ -4808,45 +4805,12 @@ subroutine map_fields_onto_grid(iverbose)
             !
           case("COUPLED-PEC")
             !
-            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            call define_complex_analytic_field(field%type,field%fanalytic_field,field%sub_type,field%Nsub_terms)
             !
-            call define_fanalytic_field(field%sub_type(1),function_V1)
-            call define_fanalytic_field(field%sub_type(2),function_V2)
-            call define_fanalytic_field(field%sub_type(3),function_VD)
-            !
-            N1 =field%Nsub_terms(1)
-            N2 =field%Nsub_terms(2)
-            N3 =field%Nsub_terms(3)
-            !
-            !$omp parallel do private(i,V1,V2,VD,Discr,E,icomponent) schedule(guided)
+            !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
               !
-              V1 = function_V1(r(i),field%value(1:N1))
-              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
-              VD = function_VD(r(i),field%value(N1+N2+1:N1+N2+N3))
-              !
-              ! to diagobalize the 2x2 matrix 
-              !/     \
-              ! V1 VD |
-              ! VD V2 |
-              !\     /
-              ! we solve a quadratic equation with the discriminant 
-              !
-              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
-              !
-              if (discr<-small_) then
-                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
-                stop 'COUPLED: discriminant is negative'
-              endif
-              !
-              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
-              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
-              !
-              ! we use the component as specified in the last parameter:
-              !
-              icomponent = field%value(field%Nterms)
-              !
-              field%gridvalue(i) = E(icomponent)              
+              field%gridvalue(i) = field%fanalytic_field(r(i),field%value)
               !
             enddo
             !$omp end parallel do
@@ -4861,63 +4825,24 @@ subroutine map_fields_onto_grid(iverbose)
             !
           case("COUPLED-PEC-BETA")
             !
-            call define_fanalytic_field(field%type,field%fanalytic_field) 
+            call define_complex_analytic_field(field%type,field%fanalytic_field,field%sub_type,field%Nsub_terms)
             !
             call define_fanalytic_field(field%sub_type(1),function_V1)
             call define_fanalytic_field(field%sub_type(2),function_V2)
-            call define_fanalytic_field(field%sub_type(3),function_beta)
+            !call define_fanalytic_field(field%sub_type(3),function_beta)
             !
             N1 =field%Nsub_terms(1)
             N2 =field%Nsub_terms(2)
-            N3 =field%Nsub_terms(3)
             !
             ! find a crossing point between two PECS required for diabatic cases
             ! and add it to the second parameter of the beta functionm if it was found < rmax
             ! 
             field%value(N1+N2+2) = find_crossing_point_of_PECs(field%value(1:N1),field%value(N1+1:N1+N2),function_V1,function_V2)
             !
-            !$omp parallel do private(i,V1,V2,beta,VD,Discr,E,icomponent) schedule(guided)
+            !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
               !
-              V1 = function_V1(r(i),field%value(1:N1))
-              V2 = function_V2(r(i),field%value(N1+1:N1+N2))
-              !
-              beta = function_beta(r(i),field%value(N1+N2+1:N1+N2+N3))
-              !
-              ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
-              !
-              if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
-                !
-                VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
-                !
-              else
-                !
-                VD = field%gridvalue(i-1) 
-                !
-              endif
-              !
-              ! to diagobalize the 2x2 matrix 
-              !/     \
-              ! V1 VD |
-              ! VD V2 |
-              !\     /
-              ! we solve a quadratic equation with the discriminant 
-              !
-              Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
-              !
-              if (discr<-small_) then
-                write(out,"('COUPLED: discriminant is negative for',3a)") field%sub_type(1:3)
-                stop 'COUPLED: discriminant is negative'
-              endif
-              !
-              E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
-              E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
-              !
-              ! we use the component as specified in the last parameter:
-              !
-              icomponent = field%value(field%Nterms)
-              !
-              field%gridvalue(i) = E(icomponent)              
+              field%gridvalue(i) = field%fanalytic_field(r(i),field%value)
               !
             enddo
             !$omp end parallel do
@@ -5226,7 +5151,9 @@ subroutine map_fields_onto_grid(iverbose)
        if( poten(istate)%zHasMinimum .eqv. .false. ) cycle loop_pecs ! exit if pec has no minimum
 
        ! For not if we have a spline interpolant we don't go on... (to be fixed)
-       if( poten(istate)%type == 'GRID') then
+       select case (poten(istate)%type)
+         !
+       case ('GRID','COUPLED-PEC-BETA','COUPLED-PEC')
           !
           if( poten(istate)%imin-4<1 .or. poten(istate)%imin+4>grid%npoints) cycle loop_pecs ! exit if the minimum is too close to the border
           !
@@ -5247,7 +5174,8 @@ subroutine map_fields_onto_grid(iverbose)
           der3 = (fmmm-8._rk*fmm+13._rk*fm -13._rk*fp+8._rk*fpp-fppp) / (h**3*8.0_rk)        ! 6-point, error h^4
           der4 = (-fmmm+12._rk*fmm-39._rk*fm+56._rk*f0-39._rk*fp+12._rk*fpp-fppp )/( 6._rk* h**4)   !7-point, error h^4
           !
-       else 
+       case default  
+          !
           ! Find miminum of each PEC using Newton-type search
           ! Note: computing derivatives by finite differences is an intrinsically ill-conditioned problem
           ! because of cancellation errors. It gets worse with higher order, so
@@ -5291,7 +5219,7 @@ subroutine map_fields_onto_grid(iverbose)
           !
           if( i >= max_iter_min_search) poten(istate)%zHasMinimum = .false.
           !
-       endif
+       end select
        !
        if( der2 < 0._rk ) poten(istate)%zHasMinimum = .false.
        poten(istate)%re  = x0
@@ -5337,12 +5265,12 @@ subroutine map_fields_onto_grid(iverbose)
      !
      if(iverbose >= 6 )  write(out, '(A, F30.6, A)')   'The lowest lying energy point has energy ', job%potmin, ' cm^-1'
      if( job%zShiftPECsToZero ) then ! shift all PECs relative to the lowest point in all electronic curves
-      if(iverbose >= 6)  write(out, '(A, F30.6, A)') 'Shifting all potential energy curves by  ', job%potmin, ' cm^-1'
+       if(iverbose >= 6)  write(out, '(A, F30.6, A)') 'Shifting all potential energy curves by  ', job%potmin, ' cm^-1'
        do istate=1,Nestates
-          poten(istate)%gridvalue(:) = poten(istate)%gridvalue(:)-job%potmin
+           poten(istate)%gridvalue(:) = poten(istate)%gridvalue(:)-job%potmin
        enddo
      else
-       if(iverbose >= 6) write(out, '(A, F30.6, A)') 'Potential energy curves not shifted.'
+         if(iverbose >= 6) write(out, '(A, F30.6, A)') 'Potential energy curves not shifted.'
      endif
      !
      call check_and_print_field(Nestates,iverbose,poten,"Potential functions:")
