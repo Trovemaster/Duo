@@ -3,7 +3,6 @@
 # extensible, such that new actions to perform on an output file can easily be
 # added.
 
-import re
 
 ### Internal Duo object IDs ###
 
@@ -54,6 +53,27 @@ object_type_ids = {
         "DIPOLE-MOMENT": 33,
         "DIPOLE-X": 34
         }
+
+
+### Command line argument parser ###
+
+import argparse, re
+
+# Define runtime arguments that can be passed to the script
+parser = argparse.ArgumentParser(description="Duo fitting input iterator")
+parser.add_argument(
+    'input', metavar='duo_output.out', type=str,
+    help="Reference file to generate new input from."
+    )
+parser.add_argument(
+    '-f', '--file', metavar='my_input.inp', type=str,
+    help="Name of the Duo '.inp' file to write output to, if not console." 
+)
+parser.add_argument(
+    '-n', '--number', metavar='n', type=int, default=-1,
+    help="The iteration number (zero indexed) from which to take the fitted parameters. Defaults to the last iteration. Can also be specified from the end using negative numbers, i.e -n -2 uses the penultimate iteration."
+)
+args = parser.parse_args() #parse arguments
 
 
 ### File block classes ###
@@ -261,7 +281,7 @@ class IterationReader(OutputReader):
             return True
         else:
             self.input_transcript.lines.append(line)
-            if any(re.search(rf"^\s*{obj}", line.upper()) for obj in object_type_ids):
+            if any(re.search(rf"^\s*{re.escape(obj)}", line.upper()) for obj in object_type_ids):
                 obj_id = self._determine_id(line)
                 self.input_objects[obj_id] = objBlock(num-self.input_transcript.start_line, init_lines=[line])
                 self._new_waiting(self._read_input_objects, {'obj_id' : obj_id})
@@ -272,7 +292,7 @@ class IterationReader(OutputReader):
         if line == "Fitted paramters (rounded):":
             return True
         else:
-            if any(re.search(rf"^\s*{obj}", line.upper()) for obj in object_type_ids):
+            if any(re.search(rf"^\s*{re.escape(obj)}", line.upper()) for obj in object_type_ids):
                 obj_id = self._determine_id(line)
                 self.iter_objects[-1][obj_id] = objBlock(num, init_lines=[line])
                 self._new_waiting(self._read_fitting_objects, {'obj_id' : obj_id})
@@ -334,27 +354,6 @@ class IterationReader(OutputReader):
             l_id, r_id = int(keys[1]), int(keys[2])
         obj_id = (abinitio, obj_type, l_id, r_id)
         return obj_id
-    
-
-### Command line argument parser ###
-
-import argparse
-
-# Define runtime arguments that can be passed to the script
-parser = argparse.ArgumentParser(description="Duo fitting input iterator")
-parser.add_argument(
-    'input', metavar='duo_output.out', type=str,
-    help="Reference file to generate new input from."
-    )
-parser.add_argument(
-    '-f', '--file', metavar='my_input.inp', type=str,
-    help="Name of the Duo '.inp' file to write output to, if not console." 
-)
-parser.add_argument(
-    '-n', '--number', metavar='n', type=int, default=-1,
-    help="The iteration number (zero indexed) from which to take the fitted parameters. Defaults to the last iteration. Can also be specified from the end using negative numbers, i.e -n -2 uses the penultimate iteration."
-)
-args = parser.parse_args() #parse arguments
 
 if __name__ == "__main__":
     gen = IterationReader()
