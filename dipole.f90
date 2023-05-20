@@ -1116,6 +1116,8 @@ contains
                   !
                 end select
                 !
+                !loop over final states
+                !
                 ! allocating all different arrays to keep the data in RAM in the exomol and matelem format
                 if (trim(intensity%linelist_file)/="NONE") then
                   !
@@ -1130,8 +1132,6 @@ contains
                   acoef_RAM = 0
                   !
                 endif
-                !
-                !loop over final states
                 !
                 !$omp parallel private(vecF,alloc_p) shared(nu_ram,acoef_RAM,indexi_RAM,indexf_RAM)
                 allocate(vecF(dimenmax),stat = alloc_p)
@@ -1562,10 +1562,8 @@ contains
         integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
         real(rk)               :: nu_if
         logical,intent(out)    :: passed
-        real(rk), dimension(4)  :: local_sym
 
           passed = .false.
-          local_sym = Intensity%isym_pairs
           !
           nu_if = energyF - energyI
           !
