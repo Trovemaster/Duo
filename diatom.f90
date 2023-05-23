@@ -2857,6 +2857,10 @@ module diatom_module
                        !
                        if (nitems>=4) call readu(w)
                        !
+                       ! Counting paramaters to fit
+                       !
+                       fitting%parmax = fitting%parmax + 1
+                       !
                      elseif(trim(field%class(1:4))=="ABIN") then 
                        !
                        read(w,*) field%weight(iparam)
@@ -2915,6 +2919,9 @@ module diatom_module
                        field%weight(iparam) = 1.0_rk
                        !
                        if (nitems>=4) call readu(w)
+                       !
+                       ! counting "paramters" (or here grid points) to fit
+                       fitting%parmax = fitting%parmax + 1
                        !
                      elseif(trim(w(1:1))/="L") then
                        !
@@ -4360,7 +4367,7 @@ subroutine map_fields_onto_grid(iverbose)
      ! 
      integer(ik),intent(in) :: iverbose
      !
-     integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate,itotal
+     integer(ik)             :: ngrid,alloc,j,nsub,Nmax,iterm,nterms,i,ipotmin,istate,jstate
      integer(ik)             :: ifterm,iobject,ifield,iabi,inac
      real(rk)                :: rmin, rmax, re, alpha, h,sc,h12,scale,check_ai, r_cross
      real(rk),allocatable    :: f(:)
@@ -4467,7 +4474,6 @@ subroutine map_fields_onto_grid(iverbose)
      !
      if (action%fitting) then
        !
-       itotal = 0
        ifterm = 0
        !
      endif
@@ -4815,12 +4821,6 @@ subroutine map_fields_onto_grid(iverbose)
             enddo
             !$omp end parallel do
             !
-            ! counting the total number of parameters when the fitting is on
-            !
-            !if (action%fitting) then
-            !  itotal = itotal + field%Nterms
-            !endif
-            !
             ! Diabatic 2x2 representation with the coupling defined as 1/2 tan(2 beta) (V1-V2)
             !
           case("COUPLED-PEC-BETA")
@@ -4847,11 +4847,6 @@ subroutine map_fields_onto_grid(iverbose)
             enddo
             !$omp end parallel do
             !
-            ! counting the total number of parameters when the fitting is on
-            !
-            !if (action%fitting) then
-            !  itotal = itotal + field%Nterms
-            !endif
             !
           case("COUPLED-DIABATIC")
             !
@@ -4889,12 +4884,6 @@ subroutine map_fields_onto_grid(iverbose)
             enddo
             !$omp end parallel do
             !
-            ! counting the total number of parameters when the fitting is on
-            !
-            !if (action%fitting) then
-            !  itotal = itotal + field%Nterms
-            !endif            
-            !
           case default
             !
             call define_fanalytic_field(field%type,field%fanalytic_field)
@@ -4929,19 +4918,9 @@ subroutine map_fields_onto_grid(iverbose)
             enddo
             !$omp end parallel do
             !
-            ! counting the total number of parameters when the fitting is on
-            !
-            !if (action%fitting) then
-            !  itotal = itotal + field%Nterms
-            !endif
-            !
           end select
           !
           ! counting the total number of parameters when the fitting is on
-          !
-          if (action%fitting) then
-            itotal = itotal + field%Nterms
-          endif
           !
           field%gridvalue =  field%gridvalue*field%factor
           !
@@ -5119,10 +5098,6 @@ subroutine map_fields_onto_grid(iverbose)
         enddo
         !
      enddo object_loop2
-     !
-     if (action%fitting) then
-       fitting%parmax = itotal
-     endif
      !
      if (iverbose>=3) write(out,'("...done!"/)')
      !
