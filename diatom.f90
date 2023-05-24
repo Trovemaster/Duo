@@ -2843,7 +2843,7 @@ module diatom_module
                    field%link(iparam)%ifield = 0
                    field%link(iparam)%iparam = 0
                    !
-                   write(field%forcename(iparam),"(f18.6)") field%grid(iparam)
+                   write(field%forcename(iparam),"(f8.4)") field%grid(iparam)
                    !
                    field%weight(iparam) = 0
                    !
@@ -4383,6 +4383,7 @@ subroutine map_fields_onto_grid(iverbose)
      real(rk),allocatable    :: spline_wk_vec_F(:) ! working vector needed for spline interpolation
      real(rk),allocatable    :: xx(:), yy(:), ww(:)! tmp vectors for extrapolation
      type(linkT),allocatable :: link_(:) ! tmp link values for extrapolation
+     character(len=cl),allocatable :: forcename_(:)   ! tmp forcename 
      real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR,V1,V2
      integer(ik) :: N1,N2
      !
@@ -4561,9 +4562,15 @@ subroutine map_fields_onto_grid(iverbose)
                  call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
                  allocate( link_(nterms+np),stat=alloc)
                  if (alloc/=0) then 
-                   write(out,"('allocation problem: extrap_tmp')")
-                   stop 'allocation problem'
+                   write(out,"('allocation problem: link_')")
+                   stop 'allocation problem link_'
                  endif
+                 allocate( forcename_(nterms+np),stat=alloc)
+                 if (alloc/=0) then 
+                   write(out,"('allocation problem: forcename_')")
+                   stop 'allocation problem forcename_'
+                 endif
+                 !
                  xx=0._rk
                  yy=0._rk
                  do i=1, np
@@ -4601,6 +4608,12 @@ subroutine map_fields_onto_grid(iverbose)
                   yy(i) =  field%value(i-np)
                enddo
                !
+               do i=1, np
+                  write(forcename_(i),"(f8.4)") xx(i)
+               enddo
+               !
+               forcename_(np+1:) = field%forcename(1:)
+               !
                ww(np+1:) = field%weight(1:) ; ww(1:np) = 0
                !
                link_(1:np)%iobject = 0
@@ -4629,9 +4642,9 @@ subroutine map_fields_onto_grid(iverbose)
                field%link(:) = link_(:)
                field%grid  = xx
                field%value = yy
-               field%forcename= 'dummy'
+               field%forcename(:)= forcename_(:)
                field%weight = ww
-               deallocate(xx, yy, ww,link_)
+               deallocate(xx, yy, ww,link_,forcename_)
                call ArrayStop('extrap_tmp')
                !
             endif
@@ -4655,6 +4668,12 @@ subroutine map_fields_onto_grid(iverbose)
                if (alloc/=0) then 
                  write(out,"('allocation problem: extrap_tmp')")
                  stop 'allocation problem'
+               endif
+               !
+               allocate( forcename_(nterms+np),stat=alloc)
+               if (alloc/=0) then 
+                 write(out,"('allocation problem: forcename_')")
+                 stop 'allocation problem forcename_'
                endif
                !
                xx=0._rk
@@ -4696,6 +4715,12 @@ subroutine map_fields_onto_grid(iverbose)
                !
                ww(1:nterms) = field%weight(1:nterms) ; ww(nterms+1:) = 0
                !
+               do i=nterms+1, nterms+np
+                  write(forcename_(i),"(f8.4)") xx(i)
+               enddo
+               !
+               forcename_(1:nterms) = field%forcename(1:nterms)
+               !
                link_(1:np)%iobject = 0
                link_(1:np)%ifield = 0
                link_(1:np)%iparam = 0
@@ -4722,9 +4747,9 @@ subroutine map_fields_onto_grid(iverbose)
                field%link(:) = link_(:)
                field%grid  = xx
                field%value = yy
-               field%forcename= 'dummy'
+               field%forcename(:)= forcename_(:)
                field%weight = ww
-               deallocate(xx, yy, ww,link_)
+               deallocate(xx, yy, ww,link_,forcename_)
                call ArrayStop('extrap_tmp')
                !
             endif

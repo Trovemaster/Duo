@@ -23,10 +23,9 @@
         integer(c_int) :: isatty
       end function
     end interface
-
     !
-     if (verbose>=3) call write_logo
- !    if (verbose>=3) call write_compilation_details
+    if (verbose>=3) call write_logo
+    !    if (verbose>=3) call write_compilation_details
     !
     if (isatty(0) /= 0) then
       write(out, *) "DUO was called without an input file. Exiting..."

@@ -96,6 +96,8 @@ module refinement
       type(fieldT),allocatable      :: object0(:,:)
       character(len=130)  :: my_fmt ! contains format specification for intput/output
       logical :: printed ! used to print frequencies
+      real(rk),allocatable    :: spline_wk_vec(:) ! working vector needed for spline interpolation
+      real(rk) :: yp1, ypn
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
@@ -467,8 +469,7 @@ module refinement
                  !
                  j = j + 1
                  !
-                 if (nint(objects(iobject,ifield)%field%weight(iterm)) > 0.and. & 
-                     trim(objects(iobject,ifield)%field%type)/='GRID') then 
+                 if (nint(objects(iobject,ifield)%field%weight(iterm))) then 
                    !
                    numpar=numpar+1
                    !
@@ -1359,39 +1360,93 @@ module refinement
                    !
                    if (itmax.ge.1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then 
                       !
-                      do ifitpar = 1,numpar
+                      select case (trim(objects(iobject,ifield)%field%type)) 
                         !
-                        rjacob(en_npts+j,ifitpar) = 0
+                      case('GRID')
                         !
-                        !if (objects(iobject,ifield)%field%type=='GRID') cycle
+                        allocate(spline_wk_vec(field%Nterms),stat=info)
+                        call ArrayStart('spline_wk_vec-fit',info,ngrid,kind(spline_wk_vec))
                         !
-                        jfield = fit_index(ifitpar)%ifield
-                        iterm = fit_index(ifitpar)%iterm
+                        yp1= 0._rk ; ypn =0._rk  ! 1nd derivatives at the first and last point (ignored)
                         !
-                        ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
-                        if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                        do ifitpar = 1,numpar
+                          !
+                          rjacob(en_npts+j,ifitpar) = 0
+                          !
+                          jfield = fit_index(ifitpar)%ifield
+                          iterm = fit_index(ifitpar)%iterm
+                          !
+                          ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
+                          if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                          !
+                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          !
+                          param_t = field%value(iterm)
+                          !
+                          delta = 1e-3*abs(param_t)
+                          !
+                          if (delta < small_) delta = sqrt(small_)*10.0
+                          !
+                          field%value(iterm) = param_t + delta
+                          !
+                          call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
+                          !
+                          ! evaluate spline interpolant
+                          call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r_t,FR)
+                          !
+                          field%value(iterm) = param_t - delta
+                          !
+                          call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
+                          !
+                          ! evaluate spline interpolant
+                          call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r_t,FL)
+                          !
+                          rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*field%factor
+                          !
+                          field%value(iterm) = param_t
+                          !
+                        enddo
                         !
-                        if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                        deallocate(spline_wk_vec)
+                        call ArrayStop('spline_wk_vec-fit')
                         !
-                        param_t = objects(iobject,ifield)%field%value(iterm)
+                      case default 
                         !
-                        delta = 1e-4*abs(param_t)
+                        do ifitpar = 1,numpar
+                          !
+                          rjacob(en_npts+j,ifitpar) = 0
+                          !
+                          !if (objects(iobject,ifield)%field%type=='GRID') cycle
+                          !
+                          jfield = fit_index(ifitpar)%ifield
+                          iterm = fit_index(ifitpar)%iterm
+                          !
+                          ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
+                          if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                          !
+                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          !
+                          param_t = objects(iobject,ifield)%field%value(iterm)
+                          !
+                          delta = 1e-4*abs(param_t)
+                          !
+                          if (delta < small_) delta = sqrt(small_)*10.0
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t + delta
+                          !
+                          fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t - delta
+                          !
+                          fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
+                          !
+                          rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t
+                          !
+                        enddo
                         !
-                        if (delta < small_) delta = sqrt(small_)*10.0
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t + delta
-                        !
-                        fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t - delta
-                        !
-                        fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
-                        !
-                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t
-                        !
-                      enddo
+                      end select 
                       !
                    endif 
                    !
