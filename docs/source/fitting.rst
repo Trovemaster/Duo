@@ -448,9 +448,9 @@ For example, a weighting function of a potential field can be given by
    0.6   610516.16994  0
    0.7   294361.15182  0
    
-Here :math:`\beta = 1e-3 1/\AA` and :math:`V_{\rm top} = 20000` cm\ :sup:`-1`.
+Here :math:`\beta = 0.001 \frac{1}{\AA}` and :math:`V_{\rm top} = 20000` cm\ :sup:`-1`.
 
-The ``Weighting`` feature can be used for couplings as well. In this case the values of :math:`(V(r) - V_{\rm min})}` are taken from the potential that corresponds to the coupling in question. Here is an example for a diagonal spin-orbit field:
+The ``Weighting`` feature can be used for couplings as well. In this case the values of :math:`(V(r) - V_{\rm min})` are taken from the potential that corresponds to the coupling in question. Here is an example for a diagonal spin-orbit field:
 ::
 
      abinitio spin-orbit-x  A A
