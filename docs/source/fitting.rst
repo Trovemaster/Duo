@@ -470,7 +470,7 @@ The ``Weighting`` feature can be used for couplings as well. In this case the va
      end
      
 
-For a non-diagonal coupling between :math:`i` and :math:`j` states, Duo will use the potential corresponding to the first index :math:`i` to define :math:`(V(r) - V_{\rm min})}`  to calculate the weights according with the equation above.
+For a non-diagonal coupling between :math:`i` and :math:`j` states, Duo will use the potential corresponding to the first index :math:`i` to define :math:`(V(r) - V_{\rm min})`  to calculate the weights according with the equation above.
 
 
 Example: Refinement of the BeH PEC curve
