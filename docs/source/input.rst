@@ -444,8 +444,6 @@ Here is an example of its general structure:
     thresh_coeff   1e-15
     temperature   300.0
     qstat         10.0
-    ZPE  931.418890
-    selection (rules) 1 1
     J,  0.5, 1.5
     freq-window  -0.001,  25000.0
     energy low   -0.001, 6000.00, upper   -0.00, 30000.0

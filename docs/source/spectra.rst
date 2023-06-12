@@ -15,9 +15,6 @@ Here is an example of its general structure:
     thresh_intens  1e-15
     thresh_coeff   1e-15
     temperature   300.0
-    qstat         10.0
-    ZPE  931.418890
-    selection (rules) 1 1
     J,  0.5, 1.5
     freq-window  -0.001,  25000.0
     energy low   -0.001, 6000.00, upper   -0.00, 30000.0
@@ -386,8 +383,7 @@ the ExoMol-I_ paper by Yadin et. al (2011)
      thresh_intes  1e-30
      thresh_line   1e-30
      temperature   300.0
-     nspin         1.5  0.5 (see Wikipedia isotope Be)
-     selection (rules) 1 1
+     nspin         1.5  0.5 (obsolete)
      linelist   BeH
      J,  0.5, 10.5
      freq-window   0.0,  7000.0
