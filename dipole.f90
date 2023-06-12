@@ -942,8 +942,8 @@ contains
     if (iverbose>=5) call MemoryReport
     !
     if (trim(intensity%linelist_file)/="NONE") then 
-       write(out,"(/'This is a line list poduction only, intensity print-out is swtitched off')")
-       write(out,"('To see intensities in the standard out remove the keyword LINELIST from INTENSITY'/)")
+       write(out,"(/'This is a line list production only, intensity print-out is swtitched off')")
+       write(out,"('To see intensities in the standard output remove the keyword LINELIST from INTENSITY'/)")
     else 
       !
       write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'& 
