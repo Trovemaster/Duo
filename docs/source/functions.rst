@@ -1017,7 +1017,7 @@ Surkus-polynomial expansion ``Surkus`` (``BobLeroy``)
 
 (alias ``BobLeroy``)
 
-:math:`V(r) = T_{\rm e} + (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf},`
+:math:`V(r) = (1-y_p^{\textrm{eq}}) \sum_{i\ge 0} a_i [y_p^{\textrm{eq}}]^i + y_p^{\textrm{eq}} a_{\rm inf},`
 
 
 where :math:`y_p^{\textrm{eq}}` is the Surkus variable with :math:`r_\textrm{ref} = r_\textrm{eq}`

@@ -506,7 +506,7 @@ module me_numer
         !
      enddo
      !
-     icslots(0:maxslots) = npoints-2 !/2
+     icslots(0:maxslots) = npoints/2
      enerupp=enermax
      !
      !if (imin==npoints) imin = npoints/2
@@ -1274,8 +1274,8 @@ module me_numer
      !
      if (trim(boundary_condition)=='UNBOUND') then 
        !
-       !phi_f(0:ic)=phi_f(0:ic)/pcout*pcin
-       !phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+       phi_f(0:ic)=phi_f(0:ic)/pcout*pcin
+       phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
        !
     else
        phi_f(0:ic)=phi_f(0:ic)/pcout

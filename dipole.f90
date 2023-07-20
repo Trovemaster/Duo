@@ -373,7 +373,7 @@ contains
     integer(ik)  :: enunit,transunit
     character(len=cl) :: filename,ioname
     !
-    logical     :: integer_spin = .true.
+    logical     :: integer_spin = .true.,intensity_do = .true.
     !
     integer(ik) :: alloc_p
     !
@@ -400,6 +400,9 @@ contains
     A_coef_s_1     =64.0d-36 * pi**4  / (3.0_rk * planck)
     !
     nJ = size(Jval)
+    !
+    !
+    if (trim(intensity%action) == 'TM') intensity_do = .false.  
     !
     ! Prepare the list of units with the stored eigenvectors
     !
@@ -1010,7 +1013,8 @@ contains
          do indF = 1, nJ
             !
             jF = jval(indF)
-            if (abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0) cycle 
+            !
+            if (intensity_do.and.(abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0)) cycle 
             !
             do igammaF=1,Nrepresen
               !

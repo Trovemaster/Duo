@@ -7516,8 +7516,8 @@ end subroutine map_fields_onto_grid
        !
        allocate(icontrvib(ngrid*Nestates),stat=alloc)
        allocate(contrfunc(ngrid,ngrid*Nestates),stat=alloc)
-       call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
-       call ArrayStart('icontrvib',alloc,ngrid*Nestates*(14+6*2),ik)
+       call ArrayStart('contrfunc',alloc,1_ik,kind(contrfunc),size(contrfunc,kind=hik))
+       call ArrayStart('icontrvib',alloc,1_ik,ik,int(ngrid*Nestates*(14+6*2),kind=hik))
        !
        allocate(vibmat(ngrid,ngrid),vibener(ngrid),contrenergy(ngrid*Nestates),vec(ngrid),stat=alloc)
        call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
@@ -7630,6 +7630,8 @@ end subroutine map_fields_onto_grid
            !iverbose
            !
            nroots = min(nroots,ngrid-2)
+           !
+           job%vibenermax(istate) = maxval(poten(istate)%gridvalue)
            !
            call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
                            job%vibenermax(istate),iverbose,vibener(1:nroots+1),vibmat)
@@ -8713,6 +8715,13 @@ end subroutine map_fields_onto_grid
              icontr(i)%ivib = ivib
              icontr(i)%ilevel = ilevel
              icontr(i)%v = icontrvib(ivib)%v
+             icontr(i)%istate = istate
+             !
+             icontr(i)%sigma = sigma
+             icontr(i)%imulti = imulti
+             icontr(i)%ilambda = ilambda
+             icontr(i)%omega = omega
+             icontr(i)%spin = spini
              !
              ilambdasigmas_v_icontr(ivib,ilevel) = i
              !
@@ -10817,7 +10826,7 @@ end subroutine map_fields_onto_grid
                          enddo loop_gid_dens
                          !omp end parallel do
                          !
-                         if (iverbose>=4) call TimerStop('Find aplitudes of unbound wavefuncs')
+                         if (iverbose>=4) call TimerStop('Find amlitudes of unbound wavefuncs')
                          !
                          if (all((/amplit1,amplit2,amplit3/)>1000*small_)) then
                            !
@@ -10893,7 +10902,7 @@ end subroutine map_fields_onto_grid
                 if (job%IO_eigen=='SAVE') then 
                   !
                   do k = 1,Ntotal
-                    write(iunit,'(2x,i8,1x,f8.1,1x,i2,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                    write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
                           total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                   enddo
