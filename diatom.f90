@@ -367,9 +367,10 @@ module diatom_module
      real(rk) :: quadrupole   = -1e0    ! threshold defining the output linestrength
      real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
                                         ! taken into account in the matrix elements evaluation.
-     real(rk) :: bound_density = sqrt(small_)   ! threshold defining the unbound state density 
-                                                !calculated at the edge of the box whioch must be small for bound states
-     real(rk) :: deltaR_dens = -1e0     ! small interval for computing the state density 
+     real(rk) :: bound_density      = sqrt(small_) ! threshold defining the unbound state density 
+                                                   ! calculated at the edge of the box whioch must be small for bound states
+     real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
+     real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density 
      !
   end type thresholdsT
   !
@@ -561,6 +562,7 @@ module diatom_module
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
+    real(rk)     :: bound_density
     !
     character(len=cl) :: w,ioname,iTAG,jTAG,States_list(states_max)
     character(len=wl) :: large_fmt
@@ -3193,9 +3195,13 @@ module diatom_module
              !
              call readf(intensity%threshold%coeff)
              !
-           case('THRESH_BOUND')
+           case('THRESH_BOUND','THRESH_DENSITY')
              !
              call readf(intensity%threshold%bound_density)
+             !
+           case('THRESH_AVERAGE_DENSITY')
+             !
+             call readf(intensity%threshold%bound_aver_density)
              !
            case('THRESH_DELTA_R')
              !
@@ -3563,6 +3569,11 @@ module diatom_module
     !jmin_ = abs( real(lambda_)-abs(spin_) ) ! ; if (.not.integer_spin) jmin_ = jmin_-0.5_rk
     !
     !if (.not.integer_spin) jmin_ = abs(jmin_- 0.5_rk)
+    !
+    ! redefine the bound_aver_density and bound_denisty into a single criterium
+    !
+    bound_density = intensity%threshold%bound_aver_density*intensity%threshold%deltaR_dens
+    intensity%threshold%bound_density = max(intensity%threshold%bound_density,bound_density)
     !
     jmin = omega_
     if (jmax<jmin) jmax = jmin
@@ -4834,7 +4845,7 @@ subroutine map_fields_onto_grid(iverbose)
             nterms = field%Nterms
             field%gridvalue = 0._rk
             !
-          case("COUPLED-PEC")
+          case("COUPLED-PEC","COUPLED-TRANSIT-BETA")
             !
             call define_complex_analytic_field(field%type,field%fanalytic_field,field%sub_type,field%Nsub_terms)
             !
@@ -4898,7 +4909,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
                 !
-                field%gridvalue(i) = -0.5_rk*tan(2.0_rk*beta)*(V2-V1)
+                field%gridvalue(i) = 0.5_rk*tan(2.0_rk*beta)*(V2-V1)
                 !
               else
                 !
@@ -6828,7 +6839,7 @@ end subroutine map_fields_onto_grid
      character(len=cl)          :: filename,ioname
      integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,k_
      !
-     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr
+     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
      integer(ik)                :: npoints_last,icount_max
      !
      ! Lambda-Sigma-> State-Omega contraction
@@ -8735,6 +8746,47 @@ end subroutine map_fields_onto_grid
            enddo
          enddo
          !
+         if (intensity%bound.or.intensity%unbound) then
+            !
+            ! finding unboud states
+            ! small interval at the edge of the box
+            !
+            i = grid%npoints
+            !
+            do while(i>1)
+              !
+              i = i - 1
+              !
+              if (grid%rmax-grid%r(i)>intensity%threshold%deltaR_dens) exit
+              !
+            enddo
+            !
+            npoints_last = grid%npoints-i 
+            !
+            !npoints_last = int(intensity%threshold%deltaR_dens/hstep)
+            !
+            npoints_last = max(10,grid%npoints/50,npoints_last)
+            !
+            ! get the actual value of the integration range
+            !
+            intensity%threshold%deltaR_dens = grid%rmax-grid%r(i)
+            !
+            if (npoints_last>=grid%npoints) then
+              write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
+              stop 'wavefunciton unboud check error: too few grid points'
+            endif
+            !
+            if (iverbose>=3) then 
+               write(out,'(/"Finding unbound state:")')
+               write(out,'("  Density threshold = ",e12.5)') intensity%threshold%bound_density 
+               write(out,'("  The integration box = ",f15.8,"-",f15.8," Ang")') &
+                           grid%r(grid%npoints-npoints_last+1),grid%rmax
+               write(out,'("  Number of ingegration points = ",i8)') npoints_last
+               write(out,'("  Delta R = ",f9.2," grid size = ",f13.6)') intensity%threshold%deltaR_dens,hstep
+            endif
+            !
+         endif 
+         !
          ! allocate the hamiltonian matrix and an array for the energies of this size Ntotal
          allocate(hmat(Ntotal,Ntotal),stat=alloc)
          call ArrayStart('hmat',alloc,size(hmat),kind(hmat))
@@ -10455,7 +10507,7 @@ end subroutine map_fields_onto_grid
           !
           if (iverbose>=4) call TimerStop('Assignment')
           !
-          if (action%save_eigen_J.or.job%IO_eigen=='SAVE') then
+          if (action%save_eigen_J.or.job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE') then
             !
             ! total number of levels for given J,gamma selected for the intensity calculations
             total_roots = 0
@@ -10656,16 +10708,6 @@ end subroutine map_fields_onto_grid
                       !
                       if (iverbose>=4) call TimerStart('Find unbound states')
                       !
-                      ! small interval at the edge of the box
-                      !
-                      npoints_last = int(intensity%threshold%deltaR_dens/hstep)
-                      !
-                      npoints_last = max(10,grid%npoints/50,npoints_last)
-                      !
-                      if (npoints_last>=grid%npoints) then
-                        write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
-                        stop 'wavefunciton unboud check error: too few grid points'
-                      endif
                       !
                       !$omp parallel do private(k) shared(psi_vib) schedule(guided)
                       do k= grid%npoints-npoints_last+1,grid%npoints
@@ -10676,11 +10718,14 @@ end subroutine map_fields_onto_grid
                       !
                       sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
                       !
+                      sum_wv_average = sum_wv/intensity%threshold%deltaR_dens
+                      !
                       ! condition for the unbound state
                       !
                       bound_state = .true.
                       !
-                      if (sum_wv>intensity%threshold%bound_density) then 
+                      if (sum_wv>intensity%threshold%bound_density.or.&
+                          sum_wv_average>intensity%threshold%bound_aver_density) then 
                          !
                          eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                          bound_state = .false.

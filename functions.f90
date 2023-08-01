@@ -271,7 +271,7 @@ module functions
       !
       fanalytic_field => function_dummy
       !
-    case("COUPLED-PEC-BETA","COUPLED-DIABATIC")
+    case("COUPLED-PEC-BETA","COUPLED-DIABATIC","COUPLED-TRANSIT-BETA")
       !
       fanalytic_field => function_dummy
       !
@@ -318,6 +318,18 @@ module functions
       N3 =Nsub_terms(3)
       !
       fanalytic_field => polynomial_coupled_PECs_beta
+      !
+    case("COUPLED-TRANSIT-BETA")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+      fanalytic_field => coupled_transition_curves_beta
       !
     case default
       !
@@ -2480,6 +2492,40 @@ module functions
     f = E(icomponent)              
     !
   end function polynomial_coupled_PECs_beta
+
+
+  !
+  recursive function coupled_transition_curves_beta(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: f1,f2,g(2),beta
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    f1 = function_V1(r,parameters(1:N1))
+    f2 = function_V2(r,parameters(N1+1:N1+N2))
+    !
+    beta = function_beta(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! unitary transforamtion of one state in the transition property (e.g. a dipole between a diabatised and single states)
+    !
+    g(1) = cos(beta)*f1+sin(beta)*f2
+    g(2) =-sin(beta)*f1+cos(beta)*f2
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = g(icomponent)              
+    !
+  end function coupled_transition_curves_beta
 
   !
 end module functions
