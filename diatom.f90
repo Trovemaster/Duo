@@ -847,7 +847,7 @@ module diatom_module
             do while (item<Nitems.and.i<states_max)
                !
                i = i + 1
-               call readu(States_list(i))
+               call reada(States_list(i))
                !
             enddo
             !
@@ -4909,7 +4909,7 @@ subroutine map_fields_onto_grid(iverbose)
               !
               if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
                 !
-                field%gridvalue(i) = -0.5_rk*tan(2.0_rk*beta)*(V2-V1)
+                field%gridvalue(i) = 0.5_rk*tan(2.0_rk*beta)*(V2-V1)
                 !
               else
                 !

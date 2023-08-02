@@ -2458,7 +2458,7 @@ module functions
     !
     if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
       !
-      VD = 0.5_rk*tan(2.0_rk*beta)*(V1-V2)
+      VD = 0.5_rk*tan(2.0_rk*beta)*(V2-V1)
       !
     else
       !
@@ -2514,8 +2514,8 @@ module functions
     !
     ! unitary transforamtion of one state in the transition property (e.g. a dipole between a diabatised and single states)
     !
-    g(1) = cos(beta)*f1+sin(beta)*f2
-    g(2) =-sin(beta)*f1+cos(beta)*f2
+    g(1) = cos(beta)*f1-sin(beta)*f2
+    g(2) = sin(beta)*f1+cos(beta)*f2
     !
     ! we use the component as specified in the last parameter:
     !
