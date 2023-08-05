@@ -800,7 +800,7 @@ Example:
 ``TWO_COUPLED_BOBS``
 ^^^^^^^^^^^^^^^^^^^^
 
-This form is used to couple two Surkus-like expansion into one adibatic representation
+This form is used to couple two Surkus-like expansion into one adiabatic representation
 using two diabatic functions :math:`f_1(r)` and :math:`f_2(r)` coupled by a switching function. The two diabatic curves
 are give by ``BobLeroy`` while the switching function is given by
 
@@ -891,7 +891,7 @@ Generic two-state coupled adiabatic potential
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-Any three single functions implemented in Duo can be used to form a coupled 2x2 system to form PEC with avoiding crossings. This is done using the types ``Coupled-PEC`` or ``COUPLED-PEC-BETA``, together with sub-types specifying three functions required to form a coupled system, PEC1, PEC2 and Coupling12. This form also requires that the corresponding numbers of parameters are specified using ``Nparameters``. As above, the last parameter is reserved for the component index (1,2) referring to the adiabatic potential. Here is an example of an adibatic potential with an avoiding crossing formed from a 2x2 'diabatic' system, an EMO potential, a repulsive potential and an (inverted) EMO used as a coupling (from an AlH model):
+Any three single functions implemented in Duo can be used to form a coupled 2x2 system to form PEC with avoiding crossings. This is done using the types ``Coupled-PEC`` or ``COUPLED-PEC-BETA``, together with sub-types specifying three functions required to form a coupled system, PEC1, PEC2 and Coupling12. This form also requires that the corresponding numbers of parameters are specified using ``Nparameters``. As above, the last parameter is reserved for the component index (1,2) referring to the adiabatic potential. Here is an example of an adiabatic potential with an avoiding crossing formed from a 2x2 'diabatic' system, an EMO potential, a repulsive potential and an (inverted) EMO used as a coupling (from an AlH model):
 ::
 
       poten A
@@ -957,8 +957,8 @@ where :math:`V_1(r)` and `V_2(r)` are PEC1 and PEC2, respectively.
 
 An example of the `COUPLED-PEC-BETA` input for a potential, produced by the coupling of an EMO, REPULSIVE and a diabatic coupling function :math:`D(r)` defined via
 the :math:`\beta(r)` from a Lorentzian form `BETA_LORENTZ`:
-:
-
+::
+     
      poten A
      name "A1Pi"
      lambda 1
@@ -996,11 +996,9 @@ the :math:`\beta(r)` from a Lorentzian form `BETA_LORENTZ`:
      RE           2.0452
      COMPON       1.00000000000000E+00
      end
-
+     
 
 Here, the first (lowest) component is produced.
-
-
 
 
 
@@ -1039,7 +1037,7 @@ the last parameter is reserved for the component-index (1,2) referring to the ad
      end
      
 
-Here, the first (lowest) component is produced. The keyword `sub-type` is used to specify the corresponding functions  in the form of ``DMC1 DMC2 BETA``, where ``DMC1``, ``DMC2`` and ``BETA`` are any functions implemented in Duo, e.g. `boblery`, `beta_Lorentzian` etc.
+Here, the first (lowest) component is produced. The keyword ``sub-type`` is used to specify the corresponding functions  in the form of ``DMC1 DMC2 BETA``, where ``DMC1``, ``DMC2`` and ``BETA`` are any functions implemented in Duo, e.g. ``boblery``, ``beta_Lorentzian`` etc.
 The transformation from :math:`f_1^{\rm 1}` and :math:`f_2^{\rm a}` from :math:`f_1^{\rm d}` and :math:`f_2^{\rm d}`  is via the transformation angle :math:`\beta(r)` is defined as follows
 
 .. math::
@@ -1049,7 +1047,7 @@ The transformation from :math:`f_1^{\rm 1}` and :math:`f_2^{\rm a}` from :math:`
     f_2^{\rm a}(r) &= \sin\beta f_1^{\rm d}+\cos\beta f_2^{\rm d},
    \end{split}
 
-and ``COMPON``=1,2 is to select :math:`f_1^{\rm 1}` or :math:`f_2^{\rm a}`, respectively. 
+and ``COMPON`` =1,2 is to select :math:`f_1^{\rm 1}` or :math:`f_2^{\rm a}`, respectively. 
 
 
 
@@ -1245,7 +1243,7 @@ Example:
 Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-BOB-cirrection.
+BOB-correction.
 
 :math:`F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},`
 
@@ -1337,13 +1335,13 @@ Example:
 ``LORENTZ-SURKUS``
 ^^^^^^^^^^^^^^^^^^
 
-Alias is ``LORENTZIAN-SURKUS``. A slightly different Lorentzian function combined with a Sukruk expansio as follows:
+Alias is ``LORENTZIAN-SURKUS``. A slightly different Lorentzian function combined with a Sukrus expansion as follows:
 
-:math:`f(r) = \frac{1}{2}  \frac{\gamma}(r)}{\gamma}{(r-r_0)^2+\gamma^2} f_{\rm S`,
+:math:`f(r) = \frac{1}{2}  \frac{\gamma }{(r-r_0)^2+\gamma^2} f_{\rm S}(r)`,
 
 where
 
-:math:`f_0(r) = 1 + \sum_{i=1}^N a_i \left[\frac{(r^p-r_0^p)}{(r^p+r_0^p)}\right]^i.`
+:math:`f_{\rm S}(r) = 1 + \sum_{i=1}^N a_i \left[\frac{(r^p-r_0^p)}{(r^p+r_0^p)}\right]^i.`
 
 Example:
 ::
@@ -1419,7 +1417,7 @@ using the `COUPLED-DIABATIC`, where :math:`\beta(r)` can be any function sub-typ
      RE           2.02
      end
 
-is to generate a diabatic coupling generated from PEC A, PEC B (defined in the corresponding POTENTIAL secitons) and a `BETA_Lorentz` function.
+is to generate a diabatic coupling generated from PEC A, PEC B (defined in the corresponding POTENTIAL sections) and a ``BETA_Lorentz`` function.
 
 
 
