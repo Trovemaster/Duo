@@ -265,7 +265,7 @@ module functions
       write(out,'(//"Analytic: Some fields are not properly defined and produce function type ",a)') trim(ftype)
       stop "Analytic: Unknown function type "
       !
-    case("COUPLED-PEC")
+    case("COUPLED-PEC","GRID")
       !
       !fanalytic_complex_field => polynomial_coupled_PECs!
       !
