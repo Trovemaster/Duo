@@ -4960,8 +4960,8 @@ subroutine map_fields_onto_grid(iverbose)
             !
             ! find a crossing point between two PECS required for diabatic cases
             !
-            if (field%class=="DIABATIC".and.any(trim(field%type)==&
-                            (/"LORENTZ","DIABATIC_LORENTZ_TWO_EMOS"/))) then 
+            if (field%class=="DIABATIC".and.&
+              ((trim(field%type)=="LORENTZ").or.(trim(field%type)=="DIABATIC_LORENTZ_TWO_EMOS"))) then 
               !
               ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
               !

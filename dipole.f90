@@ -892,7 +892,7 @@ contains
     !
     if (Ntransit==0) then 
          write(out,"('dm_intensity: the transition filters are too tight: no transitions selected')") 
-         return 'dm_intensity: the filters are too tight, zero transitions' 
+         return
     endif 
     !
     if (intensity%states_only) then 
