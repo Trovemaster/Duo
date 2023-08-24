@@ -81,7 +81,7 @@ module diatom_module
                                                              "HFCC-CI-1", &
                                                              "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
                                                              "", & ! reserved
-                                                             "ABINITIO","QUADRUPOLE","BROT","DIPOLE"/)
+                                                             "QUADRUPOLE", "ABINITIO", "BROT","DIPOLE"/)
   !
   ! Lorenzo Lodi
   ! What follows is a bunch of temporary variables needed for computation of derivatives of pecs and other curves
@@ -2444,7 +2444,13 @@ module diatom_module
                   !
                 case ('EA0')
                   !
-                  unit_field = todebye
+                  if (trim(field%class)=="DIPOLE") unit_field = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
+                  !
+                case ('EA02')
+                  !
+                  if (trim(field%class)=="DIPOLE") unit_field = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
                   !
                 case ('DEBYE')
                   !
@@ -2541,7 +2547,13 @@ module diatom_module
                   !
                 case ('EA0')
                   !
-                  unit_adjust = todebye
+                  if (trim(field%class)=="DIPOLE") unit_adjust = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_adjust = 1.0_rk
+                  !
+                case ('EA02')
+                  !
+                  if (trim(field%class)=="DIPOLE") unit_adjust = todebye
+                  if (trim(field%class)=="QUADRUPOLE") unit_adjust = 1.0_rk
                   !
                 case ('DEBYE')
                   !
@@ -7930,7 +7942,8 @@ end subroutine map_fields_onto_grid
           !
           if (iobject==Nobjects-2) cycle
           !
-          if ( action%intensity.and.(iobject==Nobjects.and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then 
+          if ( action%intensity.and.(((iobject==Nobjects).or.(iobject==Nobjects-3))&
+            .and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then 
              !
              write(out,'(/"Vibrational transition moments: ")')
              ! write(out,'("    State    TM   State"/)')

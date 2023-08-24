@@ -11,7 +11,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "make -f makefile_LINUXgfortran_debug",
+            "command": "make -f MAKEFILES/makefile_LINUXgfortran_debug",
             "dependsOn": ["clean"],
             "group": {
                 "kind": "build",

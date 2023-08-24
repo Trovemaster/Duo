@@ -20,9 +20,9 @@
       "program": "${workspaceFolder}/j-duo-v218v1.x",
       "args": [
         "<",
-        "MD_debugging_5states.inp",
+        "16O2_abinitio.inp",
         ">",
-        "MD_debugging_5states.out"
+        "16O2_abinitio.out"
       ], // Possible input args for a.out
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -45,9 +45,9 @@
       "program": "${workspaceFolder}/j-duo-v218v1.x",
       "args": [
         "<",
-        "16O2_3states_001.inp",
+        "16O2_abinitio.inp",
         ">",
-        "16O2_3states_001.txt"
+        "16O2_abinitio.out"
       ], // Possible input args for a.out
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
