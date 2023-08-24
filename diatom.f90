@@ -4975,7 +4975,7 @@ subroutine map_fields_onto_grid(iverbose)
             if (field%class=="DIABATIC".and.&
               ((trim(field%type)=="LORENTZ").or.(trim(field%type)=="DIABATIC_LORENTZ_TWO_EMOS"))) then 
               !
-              ! assumeing that the second parameter in analytic diabaric field values is always the crossing-point 
+              ! assuming that the second parameter in analytic diabaric field values is always the crossing-point 
               !
               call define_fanalytic_field(poten(field%iref)%type,function_V1)
               call define_fanalytic_field(poten(field%jref)%type,function_V2)
