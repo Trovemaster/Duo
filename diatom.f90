@@ -115,6 +115,16 @@ module diatom_module
     !
   end type linkT
   !
+  ! type describing the parameter fitting range
+  !
+  type rangeT
+    !
+    real(rk) :: min = -safe_max
+    real(rk) :: max =  safe_max
+    logical  :: set = .false.
+    !
+  end type rangeT
+  !
   type braketT
     integer(ik) :: ilambda = 0.0_rk
     integer(ik) :: jlambda = 0.0_rk
@@ -214,6 +224,7 @@ module diatom_module
     real(rk)             :: approxEJ0    !  pecs only: approximate J=0, v=0 energy (no couplings)
     real(rk)             :: approxEJmin  !  pecs only: approximate J=Jmin, v=0 energy (no couplings)
     procedure (fanalytic_fieldT),pointer, nopass :: fanalytic_field => null()
+    !
     type(linkT),pointer   :: link(:)       ! address to link with the fitting parameter in a different object in the fit
     logical               :: morphing = .false.    ! When morphing is the field is used to morph the ab initio couterpart
     !                                                towards the final object
@@ -221,12 +232,14 @@ module diatom_module
     integer(ik)           :: ix_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for i-state, 1000 is for undefined 
     integer(ik)           :: jx_lz_y = 1000        ! The value of the matrix element (-I)<x|Lz|y> for j-state, 1000 is for undefined 
     type(weightT)         :: weighting             ! When morphing is the field is used to morph the ab initio couterpart
+    !
     character(len=cl)     :: integration_method='DVR-SINC' ! Identifying the type of the integration method used specifically for this field, DVR-SINC default
     !
     real(rk)              :: adjust_val = 0.0_rk
     real(rk)              :: asymptote = 0.0_rk      ! reference asymptote energy used e.g. in the renormalisation of the continuum wavefunctions to sin(kr)
     logical               :: adjust = .false.        ! Add constant adjust_val to all fields
     integer(ik)           :: iabi = 0                ! abinitio field's id if associated 
+    type(rangeT),pointer  :: fit_range(:)            ! fitting range\, min..max
     !
   end type fieldT
   !
@@ -540,7 +553,7 @@ module diatom_module
   real(rk),allocatable :: overlap_matelem(:,:)
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
-         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,three_j,quadrupoletm,&
+         jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
          l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
          overlap_matelem      
   !
@@ -2823,9 +2836,14 @@ module diatom_module
               allocate(field%link(Nparam),stat=alloc)
               call ArrayStart(trim(field%type),alloc,3*Nparam,ik)
               !
+              allocate(field%fit_range(Nparam),stat=alloc)
+              call ArrayStart(trim(field%type),alloc,Nparam,rk)
+              !
               field%value = 0
               field%forcename = 'dummy'
               field%weight = 0
+              !
+              ! initialise fitting ranges
               !
               iparam = 0
               !
@@ -2893,6 +2911,14 @@ module diatom_module
                        !
                      endif
                      !
+                     if(trim(w(1:1))=="R".and.Nitems>=item+2) then
+                       !
+                       call readf(field%fit_range(iparam)%min)
+                       call readf(field%fit_range(iparam)%max)
+                       field%fit_range(iparam)%set = .true.
+                       !
+                     endif
+                     !
                    endif 
                    !
                    job%total_parameters = job%total_parameters + 1
@@ -2948,7 +2974,7 @@ module diatom_module
                        !
                      endif
                      !
-                     if(trim(w(1:1))=="L".and.nitems>5) then
+                     if(trim(w(1:1))=="L".and.Nitems>=item+3) then
                        !
                        call readi(field%link(iparam)%iobject)
                        call readi(field%link(iparam)%ifield)
@@ -2957,6 +2983,14 @@ module diatom_module
                        ! set the weight of the linked parameter to zero
                        !
                        field%weight(iparam) = 0
+                       !
+                     endif
+                     !
+                     if(trim(w(1:1))=="R".and.Nitems>=item+2) then
+                       !
+                       call readf(field%fit_range(iparam)%min)
+                       call readf(field%fit_range(iparam)%max)
+                       field%fit_range(iparam)%set = .true.
                        !
                      endif
                      !

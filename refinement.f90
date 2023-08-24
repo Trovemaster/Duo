@@ -8,7 +8,7 @@ module refinement
                            Nlambdap2q,Nlambdaq,Nnac,&
                            grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
                            action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,linkT,vmax,&
-                           l_omega_obj,s_omega_obj
+                           l_omega_obj,s_omega_obj,rangeT
   !
   implicit none
   !
@@ -89,6 +89,7 @@ module refinement
       real(rk)     :: param_t,delta,sigmai,omega,spin,sigmai_,omega_,spin_,f,fR,fL,r_t,req,fshift
       type(fieldT),pointer      :: field
       type(linkT),pointer       :: flink
+      type(rangeT),pointer      :: frange
       real(rk),allocatable      :: EnergyR(:,:,:),EnergyL(:,:,:),params_t(:)
       type(quantaT),allocatable   :: calc(:,:,:),calc_(:,:,:)
       type(fit_indexT),allocatable   :: fit_index(:)
@@ -1600,6 +1601,7 @@ module refinement
                !
                !----- update the parameter values with a scaled correction------!
                !
+               !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) shared(params_t) schedule(dynamic)
                do ncol=1,numpar
                   !
                   iobject = fit_index(ncol)%iobject
@@ -1608,9 +1610,14 @@ module refinement
                   !
                   params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
                   !
-                  objects(iobject,ifield)%field%value(iterm)=objects(iobject,ifield)%field%value(iterm)+dx(ncol)
+                  param_t = params_t(ncol)+dx(ncol)
+                  !
+                  if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle 
+                  !
+                  objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
                   !
                enddo
+               !$omp end parallel do
                !
                !
                ! Robust fit: adjust the fitting weights
@@ -1677,15 +1684,21 @@ module refinement
                  !
                  !----- update the parameter values with a scaled correction------!
                  !
+                 !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) schedule(dynamic)
                  do ncol=1,numpar
                     !
                     iobject = fit_index(ncol)%iobject
                     ifield = fit_index(ncol)%ifield
                     iterm = fit_index(ncol)%iterm
                     !
+                    param_t = params_t(ncol)+dx(ncol)
+                    !
+                    if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
+                    !
                     objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
                     !
                  enddo
+                 !$omp end parallel do 
                  !
                  fititer = fititer - 1
                  ialpha_Armijo = ialpha_Armijo + 1
@@ -1717,15 +1730,21 @@ module refinement
                     !
                     fititer = fititer - 1
                     !
+                    !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) schedule(dynamic)
                     do ncol=1,numpar
                        !
                        iobject = fit_index(ncol)%iobject
                        ifield = fit_index(ncol)%ifield
                        iterm = fit_index(ncol)%iterm
                        !
+                       param_t = params_t(ncol)+dx(ncol)
+                       !
+                       if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
                        objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
                        !
                     enddo
+                    !$omp end parallel do 
+                    !
                     cycle loop_fititer
                  endif
                  !
@@ -1777,6 +1796,7 @@ module refinement
                  do iterm = 1,objects(iobject,ifield)%field%Nterms
                    !
                    flink => objects(iobject,ifield)%field%link(iterm)
+                   frange => objects(iobject,ifield)%field%fit_range(iterm)
                    !
                    mark_f = '' 
                    !
@@ -1790,23 +1810,19 @@ module refinement
                      !
                    else
                      !
-                     write (out,"(a8,3x,es22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
-                           objects(iobject,ifield)%field%value(iterm),mark_f
+                     if (frange%set) then 
+                       !
+                       write (out,"(a8,3x,es22.14,2x,a3,2x,'range',2x,es15.7,',',es15.7)") &
+                                 objects(iobject,ifield)%field%forcename(iterm),&
+                                 objects(iobject,ifield)%field%value(iterm),mark_f,frange%min,frange%max
+                       !
+                     else
+                       !
+                       write (out,"(a8,3x,es22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
+                             objects(iobject,ifield)%field%value(iterm),mark_f
                            !
+                     endif
                    endif
-                   !
-                   !if (flink%iobject/=0) then
-                   !  !
-                   !  write (out,"(a8,1x,f8.1,2x,e22.14,8x,'link',3(1x,i3))") objects(iobject,ifield)%field%forcename(iterm), & 
-                   !        objects(iobject,ifield)%field%weight(iterm),objects(iobject,ifield)%field%value(iterm),&
-                   !        flink%iobject,flink%ifield,flink%iparam
-                   !  !
-                   !else
-                   !  !
-                   !  write (out,"(a8,1x,f8.1,2x,e22.14)") objects(iobject,ifield)%field%forcename(iterm), & 
-                   !        objects(iobject,ifield)%field%weight(iterm),objects(iobject,ifield)%field%value(iterm)
-                   !        !
-                   !endif
                    !
                  enddo
                  !
@@ -1825,7 +1841,7 @@ module refinement
               ncol = 0 
               ifield_ = 0
               !
-              write(out,"(/'Fitted paramters (rounded):')")
+              write(out,"(/'Fitted parameters (rounded):')")
               !
               do iobject =1,Nobjectmax
                 !
