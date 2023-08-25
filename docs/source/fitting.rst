@@ -82,6 +82,44 @@ The same labels must be used to identify the electronic states in the energy par
 
 
 
+Fitting ranges
+--------------
+
+The fitting ``ranges`` can be proved to set bound for the fittnig parameters as follows:
+::
+
+      poten Ap
+      name "Ap2Delta"
+      lambda 2
+      mult   2
+      type   EHH
+      values
+      V0           1.47076002476226e+04  fit
+      RE           1.81413234392416e+00  fit  range 1.7,1.9
+      DE           5.92200000000000E+04       link 1,2,3
+      ALPHA        1.51288898501269E+00  fit
+      C            6.54666674267795E-03  fit
+      B1          -2.63874034064552E+00  fit
+      B2          -4.80709545680641E+00  fit
+      B3           0.000000000000000000
+      end
+      
+
+where the keyword ``range`` is followed by the corresponding bound for the corresponding parameter (using the same units). The keyword ``range`` and ``fit`` are complementary. The input is not sensitive to their order, as long they appear after column 2. 
+
+These bound will prevent the varying parameter :math:`f_{i-}\to f_{i}` at the iteration :math:`i` to get a value  outside its bounds by applying the following conditions:
+.. math::
+   
+   \begin{split}
+    f_{i} &= \max(f_{i-1},f_{\rm min} ) \\
+    f_{i} &= \min(f_{i-1},f_{\rm max} ) \\
+   \end{split}
+    
+
+where :math:`f_{\rm min}` and :math:`f_{\rm max}` are the corresponding bounds. 
+
+
+
 Keywords
 --------
 
@@ -108,7 +146,7 @@ selects the values 1.5, 5.5, all values from 15.5 to 25.5 and the value 112.5.
 * ``itmax`` (alias ``itermax``)  An integer defining the maximum number of fitting iterations.
 
 Setting ``itmax`` to zero implies that no fit will be performed (straight-through  calculation); however, the differences between
-the computed energy levels (or frequences) and the reference (experimental) ones will be printed.
+the computed energy levels (or frequencies) and the reference (experimental) ones will be printed.
 Example:
 ::
 
@@ -146,6 +184,19 @@ on the quantum numbers within 20 cm\ :sup:`-1` use:
 
 * ``thresh_obs-calc``  This keywords triggers switching off states from the fit if the obs.-calc. residuals become larger than the threshold specified.
 This feature is useful in case of multiple  swapping of the states during the fits and even the lock ``option`` does not help. The default value is zero (the feature is off).
+
+* ``range``  This keyword is to specify the fitting bounds for a given fitting parameter and should appear on the same line as the parameter value, normally after the keyword ``fit``:
+::   
+
+      poten Ap
+      .....
+      ....
+      values
+      V0           1.47076002476226e+04  fit
+      RE           1.81413234392416e+00  fit  range 1.7,1.9
+      ......
+      end
+
 
 * ``robust``   This keyword allows the user to switch on
 
@@ -345,7 +396,7 @@ Fitting grid points
 
 Although usually the fitted object has to be represented in some parameterised functional with the parameters varied in a least-squares fit. It is however also possible to vary grid values of a field in the grid representation. The idea behind this approach is based on the fact that Duo uses cubic splines when mapping a (usually smaller) grid (:math:`N_{\rm field}`) of values given in the input to the (usually larger) Duo grid of points :math:`N_{\rm Duo}`. In principle, the functional values :math:`f_i(r_i)` can be treated as parameters defining the function :math:`f(r)` via its values at the corresponding grid points :math:`r_i` (:math:`i=1..N_{\rm field}`) via the cubic splines. This works especially well for a very small number of points :math:`N_{\rm field}`. In Duo input is very analogous to the standard parameterised fit via the keyword ``fit`` after the parameter values, for example
 ::
-      
+
       spin-orbit  1 1
       name   "<X2Delta|SO|X2Delta>"
       spin   0.5 0.5
@@ -360,11 +411,11 @@ Although usually the fitted object has to be represented in some parameterised f
       2.000000000000       -603.9980000     fit
       3.000000000000       -603.0000000     fit
       end
-      
-      
-      
 
-Constrained fit to *ab initio* 
+
+
+
+Constrained fit to *ab initio*
 ------------------------------
 
 If ``abinitio`` fields are provided, the is automatically constrained to the *ab initio* values of a given field. This can be useful, when the number of experimental data is very limited in order to be able all the parameters required to represent the full complexity of the fitted function. This is implemented as a simultaneous of the same parameters both to the experimental energies (frequencies) and to the *ab initio* values. In this case it is necessary to control the relative importance of the experimental and the *ab initio* data using the keyword ``fit_factor`` in the ``fitting`` section, for example:
@@ -378,8 +429,8 @@ If ``abinitio`` fields are provided, the is automatically constrained to the *ab
   itmax 30
   fit_factor  1e6
   .....
-  
-  
+
+
 The (real) value of ``fit_factor`` :math:`s` is a factor used to scale the **experimental** fitting weights :math:`w_i^{\rm exp}`. The *ab initio* weight factors can be also scale individually also using the keyword ``fit_factor`` placed in the corresponding ```abinitio` field, for example:
 ::
 
@@ -395,21 +446,21 @@ The (real) value of ``fit_factor`` :math:`s` is a factor used to scale the **exp
      1.450000       28672.6462
      ....
      end
-     
+
 
 As described in the section about the fitting keywords, when the 'experimental' ``fit_factor`` is very large (e.g.  :math:`10^6`) the penalty for
-deviating from the ```abinitio` (reference) curve is very small, so that only the `obs. - calc.` for energy levels matter. 
+deviating from the ```abinitio` (reference) curve is very small, so that only the `obs. - calc.` for energy levels matter.
 Vice versa, if the experimental factor is very small (e.g.  :math:`10^{-6}`) or if the '*ab initio*' ``fit_factor`` is very larger, the fit favours the reference (``abinitio``) data. When this experimental   ``fit_factor`` is extremely small (smaller than :math:`10^{-16}`) the experimental data are completely ignored and the fit is performed to the *ab initio* values only. Thus this feature also allows one to use the ``FITTING`` section for building analytical representations (see ``type``-s currently available) of different objects by fitting to the corresponding \ai\ or reference data provided in the ``abinitio``-sections of the input.
 
 
-It should be noted that the reference (``abinitio``) curve does not have to be a grid field. Any representation, including analytic ones cane be used to constrained the varying parameters to a reference field. 
+It should be noted that the reference (``abinitio``) curve does not have to be a grid field. Any representation, including analytic ones cane be used to constrained the varying parameters to a reference field.
 
 
-*Ab initio* weights 
+*Ab initio* weights
 ^^^^^^^^^^^^^^^^^^^
 
 For the constrained fit to work, the *ab initio* data must be weighted. This is done by adding a column 3 with the corresponding weights, e.g. :
-:: 
+::
 
       abinitio poten X
       name "X2Sigma"
@@ -417,7 +468,7 @@ For the constrained fit to work, the *ab initio* data must be weighted. This is 
       symmetry +
       mult   2
       type   grid
-      fit_factor 0.1 
+      fit_factor 0.1
       values
       1.400000       40782.9118   0.5
       1.450000       28672.6462   0.6
@@ -425,29 +476,29 @@ For the constrained fit to work, the *ab initio* data must be weighted. This is 
       1.550000       12244.8264   0.8
       1.600000        7101.7478   0.9
       1.650000        3562.3190   1.0
-      
+
 
 Alternatively, the weights can be also defined using the ``WEIGHTING`` keyword, with a predefined weight function ``PS1997`` for :math:`w(r)` according with the weighting form suggested by Partridge and Schwenke (1997):
 
 .. math::
-   
+
   w(r) = \tanh(-\beta [(V(r) - V_{\rm min}) - V_{\rm top}]  + 1.000020000200002  )/2.000020000200002
-      
+
 where :math:`\beta` and :math:`V_{\rm top}` are weighting parameters and :math:`V(r)-V_{\rm min}` is the potential function of the corresponding field, shifted to zero.
-   
-For example, a weighting function of a potential field can be given by 
+
+For example, a weighting function of a potential field can be given by
 ::
 
    abinitio poten 1 name "X 2Pi"
    lambda 1
    mult   2
-   type  grid         
-   Weighting PS1997 1e-3 20000.0 
+   type  grid
+   Weighting PS1997 1e-3 20000.0
    fit_factor  1e-8
    values
    0.6   610516.16994  0
    0.7   294361.15182  0
-   
+
 Here :math:`\beta = 0.001 \frac{1}{\AA}` and :math:`V_{\rm top} = 20000` cm\ :sup:`-1`.
 
 The ``Weighting`` feature can be used for couplings as well. In this case the values of :math:`(V(r) - V_{\rm min})` are taken from the potential that corresponds to the coupling in question. Here is an example for a diagonal spin-orbit field:
@@ -458,7 +509,7 @@ The ``Weighting`` feature can be used for couplings as well. In this case the va
      spin   0.5 0.5
      lambda  1  1
      sigma  0.5 0.5
-     factor    -i 1.175 
+     factor    -i 1.175
      fit_factor 1e-2
      weighting ps1997  0.0001    45000.0
      type  grid
@@ -468,7 +519,7 @@ The ``Weighting`` feature can be used for couplings as well. In this case the va
         1.59          163.82
         ....
      end
-     
+
 
 For a non-diagonal coupling between :math:`i` and :math:`j` states, Duo will use the potential corresponding to the first index :math:`i` to define :math:`(V(r) - V_{\rm min})`  to calculate the weights according with the equation above.
 
