@@ -1611,10 +1611,12 @@ module refinement
                   params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
                   !
                   param_t = params_t(ncol)+dx(ncol)
+                  param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                  param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
                   !
-                  if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle 
+                  !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle 
                   !
-                  objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                  objects(iobject,ifield)%field%value(iterm)=param_t
                   !
                enddo
                !$omp end parallel do
@@ -1692,10 +1694,12 @@ module refinement
                     iterm = fit_index(ncol)%iterm
                     !
                     param_t = params_t(ncol)+dx(ncol)
+                    param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                    param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
                     !
-                    if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
+                    !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
                     !
-                    objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                    objects(iobject,ifield)%field%value(iterm)=param_t
                     !
                  enddo
                  !$omp end parallel do 
@@ -1738,9 +1742,12 @@ module refinement
                        iterm = fit_index(ncol)%iterm
                        !
                        param_t = params_t(ncol)+dx(ncol)
+                       param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                       param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
                        !
-                       if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
-                       objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                       !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
+                       !
+                       objects(iobject,ifield)%field%value(iterm)=param_t
                        !
                     enddo
                     !$omp end parallel do 
