@@ -729,14 +729,14 @@ module refinement
                   jrot_= fitting%obs(iener)%jrot_
                   itau_= fitting%obs(iener)%iparity_+1
                   !
-                  loop_thresh_u : do iter_th = -maxiter_as,maxiter_as
+                  loop_thresh_u : do iter_th = 1,maxiter_as
                     !
                     !if (iter_th == 0) cycle
                     !
-                    !lock_factor = real(iter_th,8)
+                    lock_factor = real(iter_th,8)
                     !if (iter_th<) lock_factor = 10**iter_th
                     !
-                    lock_factor = 10.0**iter_th
+                    !lock_factor = 10.0**iter_th
                     !
                     loop_jrot_u : do irot = 1,nrot
                       !

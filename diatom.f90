@@ -1494,10 +1494,6 @@ module diatom_module
                 !
                 call readi(fitting%obs(iobs)%N)
                 !
-                ! Check if this number has been already used and change it by 1
-                !
-                call check_unique_obs_energies(iobs)
-                !
                 if (action%frequency) then
                   call readf(fitting%obs(iobs)%Jrot_)
                   !
@@ -1564,6 +1560,10 @@ module diatom_module
                   call readf(fitting%obs(iobs)%energy)
                   !
                 else
+                  !
+                  ! Check if this number has been already used and change it by 1
+                  !
+                  call check_unique_obs_energies(iobs)
                   call readf(fitting%obs(iobs)%energy)
                 endif
                 !
