@@ -2963,7 +2963,7 @@ module diatom_module
                        ! counting "paramters" (or here grid points) to fit
                        fitting%parmax = fitting%parmax + 1
                        !
-                     elseif(trim(w(1:1))/="L") then
+                     elseif(trim(w(1:1))/="L".and.trim(w(1:1))/="R") then
                        !
                        ! old input? 
                        !
