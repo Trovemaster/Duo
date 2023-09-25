@@ -1193,7 +1193,7 @@ contains
                    nu_if = energyF - energyI 
                    !
                    ! no zero-frequency transitions should be produced 
-                   if ( nu_if < small_) cycle
+                   if ( intensity_do.and.nu_if < small_) cycle
                    !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if 
                    !
                    ! Count the processed transitions 
@@ -1289,7 +1289,7 @@ contains
                        !
                        absorption_int = 0
                        !
-                       if (linestr>=intensity%threshold%intensity) then 
+                       if (abs(linestr)>=intensity%threshold%intensity) then 
                          !
                          !$omp critical
                          !
@@ -1302,11 +1302,11 @@ contains
                          ! 
                          write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
                                       &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                                      & 3(1x, es16.8),&
+                                      & (1x, es16.8),&
                                       & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
                                       jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
                                       energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
-                                      0.0,tm,absorption_int,&
+                                      tm,&
                                       istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
                                       istateI,ivI,ilambdaI,sigmaI,omegaI
                                       !
@@ -1566,21 +1566,12 @@ contains
         integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
         real(rk)               :: nu_if
         logical,intent(out)    :: passed
-
+          !
           passed = .false.
           !
           nu_if = energyF - energyI
           !
-          !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if 
-          !
           if (                                                             &
-              ! nuclear stat.weight: 
-              !
-              intensity%gns(isymI)>small_.and.                           &
-              !
-              ! absorption/emission go only in one direction
-              !
-              nu_if>small_.and.                                           &
               !
               ! spectroscopic window
               !
@@ -1599,20 +1590,17 @@ contains
               energyF-intensity%ZPE>=intensity%erange_upp(1).and.          &
               energyF-intensity%ZPE<=intensity%erange_upp(2)   ) then 
               !
-
-              !quantaI%istate >= intensity%lower%istate.and.   &
-              !quantaI%v >= intensity%lower%v.and.             &
-              !quantaI%omega >= intensity%lower%omega.and.     &
-              !
-              !quantaF%istate >= intensity%upper%istate.and.   &
-              !quantaF%v >= intensity%upper%v.and.             &
-              !quantaF%omega >= intensity%upper%omega  ) then 
-              !
               passed = .true.
               !
           endif 
           !
+          !
+          if (trim(intensity%action)=='TM') return
+          !
           if (trim(intensity%action)=='ABSORPTION'.or.trim(intensity%action)=='EMISSION') then 
+             !
+             ! nuclear stat.weight; and absorption/emission go only in one direction
+             passed = passed.and.intensity%gns(isymI)>small_.and. nu_if>small_   
              !
              ! In order to avoid double counting of transitions
              ! we exclude jI=jF==intensity%J(2), i.e. Q branch for the highest J is never considered:

@@ -3620,6 +3620,7 @@ module diatom_module
     !
     bound_density = intensity%threshold%bound_aver_density*intensity%threshold%deltaR_dens
     intensity%threshold%bound_density = max(intensity%threshold%bound_density,bound_density)
+    intensity%threshold%bound_aver_density = intensity%threshold%bound_density/intensity%threshold%deltaR_dens
     !
     jmin = omega_
     if (jmax<jmin) jmax = jmin
