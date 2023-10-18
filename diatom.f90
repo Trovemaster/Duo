@@ -3489,7 +3489,7 @@ module diatom_module
       ! Check if it has been defined before 
       skip_diabatic = .false.
       do istate=1,Ndiabatic
-         if ( nac(iNAC)%iref==diabatic(istate)%iref ) then
+         if ( nac(iNAC)%iref==diabatic(istate)%jref ) then
             skip_diabatic = .true.
             exit
          endif
@@ -3510,29 +3510,29 @@ module diatom_module
         field%type = "NAC"
         field%name = nac(iNAC)%name
         !
+        ! diagonal diabatic #2
+        !
+        ! Check if it has been defined before 
+        do istate=1,Ndiabatic
+           if ( nac(iNAC)%jref==diabatic(istate)%jref ) then
+              cycle lool_NAC
+           endif
+        enddo
+        !
+        Ndiabatic = Ndiabatic + 1
+        iobject(9) = Ndiabatic
+        !
+        field   => diabatic(Ndiabatic)
+        field_  => nac(iNAC)
+        !
+        call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
+        call transfer_field_quantum_numbers(field_,field)
+        !
+        field%class = trim(CLASSNAMES(9))
+        field%type = "NAC"
+        field%name = nac(iNAC)%name
+        !
       endif
-      !
-      ! diagonal diabatic #2
-      !
-      ! Check if it has been defined before 
-      do istate=1,Ndiabatic
-         if ( nac(iNAC)%jref==diabatic(istate)%jref ) then
-            cycle lool_NAC
-         endif
-      enddo
-      !
-      Ndiabatic = Ndiabatic + 1
-      iobject(9) = Ndiabatic
-      !
-      field   => diabatic(Ndiabatic)
-      field_  => nac(iNAC)
-      !
-      call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
-      call transfer_field_quantum_numbers(field_,field)
-      !
-      field%class = trim(CLASSNAMES(9))
-      field%type = "NAC"
-      field%name = nac(iNAC)%name
       !
     enddo lool_NAC
     !
