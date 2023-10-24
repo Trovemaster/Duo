@@ -8181,6 +8181,26 @@ end subroutine map_fields_onto_grid
           !
        enddo
        !
+       if (action%overlap) then
+         !
+         if (.not.fields_allocated) then
+           allocate(overlap_matelem(totalroots,totalroots),stat=alloc)
+           call ArrayStart('overlap',alloc,size(overlap_matelem),kind(overlap_matelem))
+         endif
+         do ilevel = 1,totalroots
+           do jlevel = 1,ilevel
+             !
+             overlap_matelem(ilevel,jlevel) = sum(contrfunc(:,ilevel)*contrfunc(:,jlevel))
+             !
+             ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+             if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
+             !
+             overlap_matelem(jlevel,ilevel) = overlap_matelem(ilevel,jlevel)
+             !
+           enddo
+         enddo
+       endif       
+       !
        fields_allocated = .true.
        !
        !deallocate(contrfunc_rk)
