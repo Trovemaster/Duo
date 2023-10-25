@@ -1906,7 +1906,7 @@ contains
             f_t = -(2.0_rk)**(-0.5_rk)*g_s*(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))**(0.5_rk)
           elseif (nint(2*sigmaF_) == nint(2*sigmaI_)) then
             ! ΔΣ = 0
-            f_t = ilambdaI_ + g_s*sigmaI_
+            f_t = real(ilambdaI_,rk) + g_s*sigmaI_
           else
             cycle
           endif
