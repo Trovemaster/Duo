@@ -7536,7 +7536,7 @@ end subroutine map_fields_onto_grid
        deallocate(vect_i,vect_j)
        call ArrayStop('vect_ij')
        !
-!vibrational overlap for spin magnetic dipole
+       !vibrational overlap for spin magnetic dipole
        if (action%overlap) then
          !
          if (.not.fields_allocated) then
