@@ -9,7 +9,7 @@
       "type": "python",
       "request": "launch",
       "program": "${file}",
-      "args": ["-f 16O2_4states_002.inp", "16O2_4states_001.out"],
+      "args": ["-f 16O2_fitting_001.inp", "16O2_fitting.out"],
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -20,9 +20,9 @@
       "program": "${workspaceFolder}/j-duo-v218v1.x",
       "args": [
         "<",
-        "16O2_abinitio.inp",
+        "16O2_abinitio_magdipole.inp",
         ">",
-        "16O2_abinitio.out"
+        "16O2_abinitio_magdipole.out"
       ], // Possible input args for a.out
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -45,11 +45,11 @@
       "program": "${workspaceFolder}/j-duo-v218v1.x",
       "args": [
         "<",
-        "16O2_abinitio.inp",
+        "16O2_abinitio_magdipole.inp",
         ">",
-        "16O2_abinitio.out"
+        "16O2_abinitio_magdipole.out"
       ], // Possible input args for a.out
-      "stopAtEntry": false,
+      "stopAtEntry": true,
       "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": false,

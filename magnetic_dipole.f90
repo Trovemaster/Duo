@@ -1954,7 +1954,7 @@ contains
                     !add spin magnetic moment
                     ls  =  f_t*f3j*vector(icontrI)
                     !
-                    !half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                    half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
                     !
                   enddo
                   !

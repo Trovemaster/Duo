@@ -289,7 +289,7 @@ class IterationReader(OutputReader):
 
     def _read_fitting_parameters(self, num, line):
         """Detects the presence of a Duo object in the fitting section, initialises an `objBlock' and adds the associated method to the waiting list"""
-        if line == "Fitted paramters (rounded):":
+        if line == "Fitted parameters (rounded):":
             return True
         else:
             if any(re.search(rf"^\s*{re.escape(obj)}", line.upper()) for obj in object_type_ids):
