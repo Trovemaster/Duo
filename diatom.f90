@@ -9154,7 +9154,7 @@ end subroutine map_fields_onto_grid
                   !
                   if (zDebug .and. abs(three_j_ref)<small_) then 
                     !
-                    write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
+                    write(out,"('The Spin-spin field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") & 
                           field%istate,field%jstate
                     write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
                     stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
