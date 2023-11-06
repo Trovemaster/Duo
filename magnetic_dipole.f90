@@ -1086,7 +1086,7 @@ contains
                 if (( intensity%J(1)+intensity%J(2)>0 )&
                     .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then
                   !
-                  call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
+                  call do_1st_half_linestrength_sergey(jI,jF,indI,indF,dimenI,dimenF,&
                                                 vecI(1:dimenI),&
                                                 half_linestr)
                   !
@@ -2026,7 +2026,7 @@ contains
     !
   end subroutine do_1st_half_linestrength_wilf
 
-  subroutine do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
+  subroutine do_1st_half_linestrength_sergey(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
 
     implicit none
     real(rk),intent(in)     :: jI,jF
@@ -2242,7 +2242,7 @@ contains
     !
     call TimerStop('do_1st_half_linestr')
     !
-  end subroutine do_1st_half_linestrength
+  end subroutine do_1st_half_linestrength_sergey
 
   subroutine do_1st_half_tm(indI,indF,dimenI,dimenF,vector,half_tm)
 
