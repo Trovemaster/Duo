@@ -373,7 +373,7 @@ Example:
       1.81260          0.0785487308
       1.81280          0.0790196317
      end
-:
+::
 
      diabatic D D
      name "<D2Sigma+|NAC2|D2Sigma+>"
@@ -397,6 +397,7 @@ Example:
       1.81260          0.0785487308
       1.81280          0.0790196317
      end
+
 
 
 Here ``factor 1.243548973`` is :math:`\frac{h}{8 \pi^2 c \mu}` for YO.

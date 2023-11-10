@@ -2118,10 +2118,10 @@ contains
             !spin magnetic moment
             if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
               ! ΔΣ = +1
-              f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
+              f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
             elseif (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI - 1.0_rk))) then
               ! ΔΣ = -1
-              f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
+              f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
             elseif (nint(2*sigmaF) == nint(2*sigmaI)) then
               ! ΔΣ = 0
               f_t = real(ilambdaI,rk) + g_s*sigmaI
