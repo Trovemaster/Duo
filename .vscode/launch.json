@@ -49,7 +49,7 @@
         ">",
         "16O2_abinitio_magdipole.out"
       ], // Possible input args for a.out
-      "stopAtEntry": true,
+      "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": false,
