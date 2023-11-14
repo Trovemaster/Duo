@@ -2002,7 +2002,7 @@ contains
               !
               !f_grid  = field%matelem(ivib,jvib)
               !
-              f_t = -(2.0_rk)**(-0.5_rk)*field%matelem(ivibI,ivibF)
+              f_t = (ilambdaI-ilambdaF)*(2.0_rk)**(-0.5_rk)*field%matelem(ivibI,ivibF)
               !
               ! the result of the symmetry transformation:
               if (isigmav==1) then
