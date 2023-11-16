@@ -1877,70 +1877,70 @@ contains
         !f3j = three_j0(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
         !
         !do isigmav = -spinI,spinI
-          !
-          !nI = jI+real(isigmav,rk)
-          !f3j = Wigner6j(jI, spinI, nI, spinI, jF, 1.0_rk)
-          !
-          ! 3j-symbol selection rule
-          !
-          if (abs(f3j)<intensity%threshold%coeff) cycle loop_I
-          !
-          !compute line strength for S
-          !
-          ls = 0
-          !
-          !do isigmav = 0,1
-          !
-          ! the permutation is only needed if at least some of the quanta ilambda is not zero.
-          ! otherwise it should be skipped to avoid the double counting.
-          !if(isigmav==1.and.abs(ilambdaI)+abs(ilambdaF)==0) cycle
+        !
+        !nI = jI+real(isigmav,rk)
+        !f3j = Wigner6j(jI, spinI, nI, spinI, jF, 1.0_rk)
+        !
+        ! 3j-symbol selection rule
+        !
+        if (abs(f3j)<intensity%threshold%coeff) cycle loop_I
+        !
+        !compute line strength for S
+        !
+        ls = 0
+        !
+        !do isigmav = 0,1
+        !
+        ! the permutation is only needed if at least some of the quanta ilambda is not zero.
+        ! otherwise it should be skipped to avoid the double counting.
+        !if(isigmav==1.and.abs(ilambdaI)+abs(ilambdaF)==0) cycle
        
-          ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-          !ilambdaI_ = ilambdaI*(-1)**isigmav
-          !ilambdaF_ = ilambdaF*(-1)**isigmav
-          !sigmaI_ = sigmaI*(-1)**isigmav
-          !sigmaF_ = sigmaF*(-1)**isigmav
+        ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+        !ilambdaI_ = ilambdaI*(-1)**isigmav
+        !ilambdaF_ = ilambdaF*(-1)**isigmav
+        !sigmaI_ = sigmaI*(-1)**isigmav
+        !sigmaF_ = sigmaF*(-1)**isigmav
+        !
+        !if (ilambdaI_ /= ilambdaF_) cycle
+        !
+        f_t = 0
+        !
+        if ( ilambdaI==ilambdaF .and. istateI==istateF ) then
           !
-          !if (ilambdaI_ /= ilambdaF_) cycle
-          !
-          f_t = 0
-          !
-          if ( ilambdaI==ilambdaF .and. istateI==istateF ) then
-            !
-            !spin magnetic moment
-            if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
-              ! ΔΣ = +1
-              f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
-            elseif (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI - 1.0_rk))) then
-              ! ΔΣ = -1
-              f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
-            elseif (nint(2*sigmaF) == nint(2*sigmaI)) then
-              ! ΔΣ = 0
-              f_t = real(ilambdaI,rk) + g_s*sigmaI
-            else
-              cycle
-            endif
-            !
-            f_t = f_t * overlap_matelem(ivibI,ivibF)
-            !
-            ! the result of the symmetry transformation:
-            !if (isigmav==1) then
-            !  !
-            !  itau = 0
-            !  !
-            !  if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
-            !  if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
-            !  !
-            !  f_t = f_t*(-1.0_rk)**(itau)
-            !  !
-            !endif
-            !
-            !add spin magnetic moment
-            ls  =  f_t*f3j*vector(icontrI)
-            !
-            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
-            !
+          !spin magnetic moment
+          if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
+            ! ΔΣ = +1
+            f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
+          elseif (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI - 1.0_rk))) then
+            ! ΔΣ = -1
+            f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
+          elseif (nint(2*sigmaF) == nint(2*sigmaI)) then
+            ! ΔΣ = 0
+            f_t = real(ilambdaI,rk) + g_s*sigmaI
+          else
+            cycle
           endif
+          !
+          f_t = f_t * overlap_matelem(ivibI,ivibF)
+          !
+          ! the result of the symmetry transformation:
+          !if (isigmav==1) then
+          !  !
+          !  itau = 0
+          !  !
+          !  if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
+          !  if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
+          !  !
+          !  f_t = f_t*(-1.0_rk)**(itau)
+          !  !
+          !endif
+          !
+          !add spin magnetic moment
+          ls  =  f_t*f3j*vector(icontrI)
+          !
+          half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+          !
+        endif
         !enddo
         !
         ls = 0
@@ -1990,7 +1990,7 @@ contains
               if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
               !
               ! check the selection rule Delta Lambda = +/1
-              if (abs(ilambdaI-ilambdaF)>1) cycle
+              if (abs(ilambdaI-ilambdaF)/=1) cycle
               !
               ! double check
               !if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
@@ -2002,7 +2002,7 @@ contains
               !
               !f_grid  = field%matelem(ivib,jvib)
               !
-              f_t = (ilambdaI-ilambdaF)*(2.0_rk)**(-0.5_rk)*field%matelem(ivibI,ivibF)
+              f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*field%matelem(ivibI,ivibF)
               !
               ! the result of the symmetry transformation:
               if (isigmav==1) then
