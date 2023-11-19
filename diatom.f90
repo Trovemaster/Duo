@@ -25,7 +25,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 32  ! number of different terms of the Hamiltonian
+  integer(ik),parameter   :: Nobjects = 33  ! number of different terms of the Hamiltonian
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -65,6 +65,7 @@ module diatom_module
   !        case (26) hfcc1(6) for electric dipole, eQq0
   !        case (27) hfcc1(7) for electric diople, eQq2
   !        case (28) reserved
+  !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
   !        case(Nobjects-1) brot(iterm)
@@ -85,6 +86,7 @@ module diatom_module
     "", "", "", "", "", "", "", & ! reserved
     "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
     "", & ! reserved
+    "MAGNETIC",&
     "QUADRUPOLE", &
     "ABINITIO", &
     "BROT", &
@@ -512,7 +514,7 @@ module diatom_module
   type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
                           dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
                           diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
-  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null()
+  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null()
   !
   ! Fields in the Omega representation
   !
@@ -535,7 +537,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1,nMagneticDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
   real(rk)      :: jmin_global
@@ -561,6 +563,7 @@ module diatom_module
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
+    magnetictm,&
     l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
     overlap_matelem
   !
@@ -573,7 +576,7 @@ contains
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0,imagnetic=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
                     iterm,iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
@@ -591,7 +594,7 @@ contains
     !
     type(fieldT),pointer      :: field,field_
     logical :: eof,include_state,allgrids
-    logical :: symmetry_defined=.false.,skip_diabatic
+    logical :: symmetry_defined=.false.,skip_diabatic,skip_magnetic
     integer :: ic,ierr
     !
     ! -----------------------------------------------------------
@@ -891,7 +894,8 @@ contains
         !
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),stat=alloc)
+                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),&
+                 magnetictm(ncouples),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
           allocate(hfcc1(i)%field(nestates), stat=alloc)
@@ -902,7 +906,7 @@ contains
         job%vibmax = 1e8
         job%vibenermax = enermax
         !
-        allocate(abinitio(nestates*Nobjects+4*ncouples),stat=alloc)
+        allocate(abinitio(nestates*Nobjects+5*ncouples),stat=alloc)
         !
       case ("NREFSTATES")
         !
@@ -1685,7 +1689,7 @@ contains
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
-           "QUADRUPOLE", &
+           "MAGNETIC","QUADRUPOLE", &
            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2")
         !
         ibraket = 0
@@ -1925,6 +1929,29 @@ contains
           if (iquad>ncouples) then
             write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
             call report ("Too many couplings given in the input for"//trim(w),.true.)
+          endif
+          !
+        case("MAGNETIC","MAGNETIC-DIPOLE","MAGNETIC-X")
+          !
+          if (imagnetic==0) then
+            allocate(magnetictm(ncouples),stat=alloc)
+          endif
+          !
+          call input_non_diagonal_field(Nobjects,Nobjects-4,iobject(Nobjects-4),magnetictm,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => magnetictm(iobject(Nobjects))
+          !
+          imagnetic = iobject(Nobjects)
+          !
+          if (imagnetic>ncouples) then
+            write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
+            call report ("Too many couplings given in the input for"//trim(w),.true.)
+          endif
+          !
+          if (trim(w)=='MAGNETIC-X') then
+            field%molpro = .true.
           endif
           !
         case("HFCC-BF")
@@ -2833,7 +2860,7 @@ contains
             !
             field%Nterms = Nparam
             !
-            ! Allocation of the pot. parameters
+            ! Allocation of the grids
             !
             allocate(field%value(Nparam),field%forcename(Nparam),field%grid(Nparam),field%weight(Nparam),stat=alloc)
             call ArrayStart(trim(field%type),alloc,Nparam,kind(field%value))
@@ -3483,6 +3510,7 @@ contains
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
     Nnac = iobject(13)
+    nMagneticDipoles = iobject(Nobjects-4)
     nQuadrupoles = iobject(Nobjects-3)
     Ndipoles = iobject(Nobjects)
     Nabi  = iabi
@@ -3510,6 +3538,8 @@ contains
         field  => diabatic(Ndiabatic)
         field_ => nac(iNAC)
         !
+        ! set it to be a diagonal field for i 
+        !
         call set_field_refs(field,nac(iNAC)%iref,nac(iNAC)%iref,nac(iNAC)%istate,nac(iNAC)%istate,nac(iNAC)%iTAG,nac(iNAC)%iTAG)
         call transfer_field_quantum_numbers(field_,field)
         !
@@ -3532,6 +3562,8 @@ contains
         field   => diabatic(Ndiabatic)
         field_  => nac(iNAC)
         !
+        ! set it to be a diagonalfor j
+        !
         call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
         call transfer_field_quantum_numbers(field_,field)
         !
@@ -3543,12 +3575,48 @@ contains
       !
     enddo lool_NAC
     !
+    ! For the magnetic dipole spectra calculations, use Lx to define the (EAM part of the) magnetic dipole moment
+    ! unless it is defined directly using MAGNETIC field.
+    lool_Lx: do ilxly = 1,Nlxly
+      !
+      ! only needed if action%magdipole is active for magnetic intensities 
+      !
+      if (.not.action%magdipole) cycle  
+      !
+      ! Check if it has been defined before
+      skip_magnetic = .false.
+      do istate=1,nMagneticDipoles
+        if ( magnetictm(ilxly)%iref==magnetictm(istate)%jref ) then
+          skip_magnetic = .true.
+          exit
+        endif
+      enddo
+      !
+      if (.not.skip_magnetic) then
+        !
+        nMagneticDipoles = nMagneticDipoles + 1
+        iobject(Nobjects-4) = nMagneticDipoles
+        !
+        field  => magnetictm(nMagneticDipoles)
+        field_ => LxLy(ilxly)
+        !
+        field = field_
+        !
+        call transfer_field_properties(field_,field)
+        !
+        field%class = trim(CLASSNAMES(Nobjects-4))
+        !
+      endif
+      !
+    enddo lool_Lx
+    !
     ! create a map with field distribution
     !
-    do i = 1,Nobjects-4
+    do i = 1,Nobjects-5
       fieldmap(i)%Nfields = iobject(i)
     enddo
     !
+    fieldmap(Nobjects-4)%Nfields = nMagneticDipoles
     fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
@@ -3749,6 +3817,72 @@ contains
       !
     end subroutine transfer_field_quantum_numbers
 
+
+    subroutine transfer_field_properties(src,dst)
+      !
+      type(fieldT),pointer,intent(in)  :: src
+      type(fieldT),pointer,intent(out)  :: dst
+      !
+      integer(ik) :: Nparam,alloc
+      !
+      dst%lambda= src%lambda
+      dst%lambdaj= src%lambdaj
+      dst%spini= src%spini
+      dst%spinj= src%spinj
+      dst%sigmai= src%sigmai
+      dst%sigmaj= src%sigmaj
+      dst%omegai= src%omegai
+      dst%omegaj= src%omegaj
+      dst%iomega= src%iomega
+      dst%jomega= src%jomega
+      dst%ix_lz_y= src%ix_lz_y
+      dst%jx_lz_y= src%jx_lz_y
+      !
+      dst%molpro= src%molpro
+      !
+      Nparam  = src%Nterms
+      !
+      if (Nparam>0) then 
+         !
+         ! Allocation of the grids
+         !
+         allocate(dst%value(Nparam),dst%forcename(Nparam),dst%grid(Nparam),dst%weight(Nparam),stat=alloc)
+         call ArrayStart(trim(dst%type),alloc,Nparam,kind(dst%value))
+         call ArrayStart(trim(dst%type),alloc,Nparam,kind(dst%grid))
+         call ArrayStart(trim(dst%type),alloc,Nparam,kind(dst%weight))
+         !
+         allocate(dst%link(Nparam),stat=alloc)
+         call ArrayStart(trim(dst%type),alloc,3*Nparam,ik)
+         !
+         allocate(dst%fit_range(Nparam),stat=alloc)
+         call ArrayStart(trim(dst%type),alloc,Nparam,rk)
+         !
+         dst%value = src%value
+         dst%forcename = src%forcename
+         dst%grid = src%grid
+         dst%weight = src%weight
+         dst%link(Nparam) = src%link(Nparam)
+         dst%fit_range = src%fit_range
+         !
+      else
+         !
+         write(out,"('transfer_field_properties  error: zero field length in src')")
+         stop'transfer_field_properties  error: zero field length in src'
+         !
+      endif
+      !
+    end subroutine transfer_field_properties
+
+
+    !subroutine transfer_allocated_property(src,dst)
+    !  type(fieldT),pointer,intent(in)  :: src
+    !  type(fieldT),pointer,intent(out)  :: dst
+    !  !
+    !  !
+    !end subroutine transfer_allocated_property
+
+
+
     !
     subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
       !
@@ -3865,6 +3999,8 @@ contains
             field => lambdaq(ifield)
           case (13)
             field => nac(ifield)
+          case (Nobjects-4)
+            field => magnetictm(ifield)
           case (Nobjects-3)
             field => quadrupoletm(ifield)
           case (Nobjects-2)
@@ -4572,6 +4708,8 @@ contains
           field => nac(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (Nobjects-4)
+          field => magnetictm(iterm)
         case (Nobjects-3)
           field => quadrupoletm(iterm)
         case (Nobjects-2)
@@ -5074,6 +5212,8 @@ contains
           field => nac(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (Nobjects-4)
+          field => magnetictm(iterm)
         case (Nobjects-3)
           field => quadrupoletm(iterm)
         case (Nobjects-2)
@@ -5344,6 +5484,7 @@ contains
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
     if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
     if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
+    if(associated(magnetictm)) call check_and_print_coupling(nMagneticDipoles,iverbose,magnetictm, "Magnetic dipole moment functions:")
     !
   contains
     !
@@ -5496,7 +5637,7 @@ contains
           !
         endif
         !
-      case ('L+','ABINITIO-LX','ABINITIO-L+')
+      case ('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
         !
         !write(out,"('molpro_duo: this L+-part is not implemented')")
         !stop 'molpro_duo: this L+-part is not implemented'
@@ -5551,7 +5692,7 @@ contains
               !
             endif
             !
-          case ('L+','ABINITIO-LX','ABINITIO-L+')
+          case ('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             if (poten(field%jstate)%parity%pm==-1) then
               !
@@ -5621,7 +5762,7 @@ contains
               !
             endif
             !
-          case('L+','ABINITIO-LX','ABINITIO-L+')
+          case('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             ! The following relations are found using the condition <0|LX+iLY|+1> = 0
             ! Regualr case is for <0|LX|Pix> and iregular is for <0|LX|Piy>
@@ -5731,7 +5872,7 @@ contains
             !coupling(2,1) =   c*conjg(a(1,2)/a(2,2))*b(2,2)/b(1,2)
             !coupling(2,2) =  -c*conjg(a(1,2)/a(2,2))
             !
-          case('L+','ABINITIO-LX','ABINITIO-L+')
+          case('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             if (abs(field%lambda-field%lambdaj)/=1) then
               !
@@ -6012,7 +6153,7 @@ contains
           !
         endif
         !
-      case ('L+','ABINITIO-LX','ABINITIO-L+')
+      case ('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
         !
         !write(out,"('molpro_duo: this L+-part is not implemented')")
         !stop 'molpro_duo: this L+-part is not implemented'
@@ -6080,7 +6221,7 @@ contains
               !
             endif
             !
-          case ('L+','ABINITIO-LX','ABINITIO-L+')
+          case ('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             ! eigen-vector 2 is for Lambda
             !
@@ -6152,7 +6293,7 @@ contains
               !
             endif
             !
-          case('L+','ABINITIO-LX','ABINITIO-L+')
+          case('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             ! eigen-vector 1 is for Lambda
             !
@@ -6224,7 +6365,7 @@ contains
             coupling(2,1) = -c*conjg(a(1,2))/conjg(a(2,2))
             coupling(2,2) =  c*b(1,2)*conjg(a(1,2))/(conjg(a(2,2))*b(2,2))
             !
-          case('L+','ABINITIO-LX','ABINITIO-L+')
+          case('L+','ABINITIO-LX','ABINITIO-L+','MAGNETIC')
             !
             if (abs(field%lambda-field%lambdaj)/=1) then
               !
@@ -8016,6 +8157,8 @@ contains
           case (13)
             ! A special case of NAC couplings with 1st derivatives wrt r
             field => nac(iterm)
+          case (Nobjects-4)
+            field => magnetictm(iterm)
           case (Nobjects-3)
             field => quadrupoletm(iterm)
           case (Nobjects-2)

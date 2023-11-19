@@ -1,8 +1,8 @@
 module magnetic_dipole
 
   use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, g_s, safe_min
-  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Nlxly,lxly,duo_j0,fieldT,poten,three_j,&
-                           jmin_global,overlap_matelem
+  use diatom_module,only : job,Intensity,quantaT,eigen,basis,duo_j0,fieldT,poten,three_j,&
+                           jmin_global,overlap_matelem,nMagneticDipoles,magnetictm
   use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
                            TimerReport,memory_limit,memory_now
   use symmetry,     only : sym,correlate_to_Cs
@@ -393,7 +393,7 @@ contains
     unitConv = 8.6007262932d-34
 
     ! calculate the common factor for the Einstein coefficient
-    A_coef_s_1 = unitConv*(16.0_rk * pi**3 * vacPerm)/(3 * planck)
+    A_coef_s_1 = unitConv*(16.0_rk * pi**3 * vacPerm)/(3.0_rk * planck)
     !
     nJ = size(Jval)
     !
@@ -1946,9 +1946,9 @@ contains
         ls = 0
         !
         !orbital magnetic moments
-        loop_iorbdipole : do idip =1,Nlxly
+        loop_iorbdipole : do idip =1,nMagneticDipoles
           !
-          field => lxly(idip)
+          field => magnetictm(idip)
           !
           do ipermute  = 0,1
             !
@@ -2062,10 +2062,10 @@ contains
         !
         !compute TM
         !
-        do idip = 1,Nlxly
+        do idip = 1,nMagneticDipoles
           !
-          if (lxly(idip)%istate/=istateI.or.lxly(idip)%jstate/=istateF) cycle
-          f = lxly(idip)%matelem(ivibI,ivibF)
+          if (magnetictm(idip)%istate/=istateI.or.magnetictm(idip)%jstate/=istateF) cycle
+          f = magnetictm(idip)%matelem(ivibI,ivibF)
           !
           half_tm(icontrF) = half_tm(icontrF) + f*vector(icontrI)
           !
