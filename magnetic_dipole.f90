@@ -1921,7 +1921,7 @@ contains
             cycle
           endif
           !
-          f_t = f_t * overlap_matelem(ivibI,ivibF)
+          !f_t = f_t * overlap_matelem(ivibI,ivibF)
           !
           ! the result of the symmetry transformation:
           !if (isigmav==1) then
