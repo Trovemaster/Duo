@@ -3218,7 +3218,7 @@ contains
           case('MAGDIPOLE')
             !
             action%magdipole = .true.
-            !action%overlap = .true.
+            action%overlap = .true.
             !
           case('OVERLAP')
             !
