@@ -3867,7 +3867,7 @@ contains
       else
          !
          write(out,"('transfer_field_properties  error: zero field length in src')")
-         stop'transfer_field_properties  error: zero field length in src'
+         stop 'transfer_field_properties  error: zero field length in src'
          !
       endif
       !
@@ -5482,9 +5482,12 @@ contains
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
-    if(associated(dipoletm)) call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
-    if(associated(quadrupoletm)) call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
-    if(associated(magnetictm)) call check_and_print_coupling(nMagneticDipoles,iverbose,magnetictm, "Magnetic dipole moment functions:")
+    if(associated(dipoletm)) &
+      call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
+    if(associated(quadrupoletm)) &
+      call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
+    if(associated(magnetictm)) &
+      call check_and_print_coupling(nMagneticDipoles,iverbose,magnetictm, "Magnetic dipole moment functions:")
     !
   contains
     !

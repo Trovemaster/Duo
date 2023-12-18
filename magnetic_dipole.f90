@@ -1905,7 +1905,7 @@ contains
         !
         f_t = 0
         !
-        if ( ilambdaI==ilambdaF .and. istateI==istateF ) then
+        if ( ilambdaI==ilambdaF .and. istateI==istateF .and. ivibI==ivibF) then
           !
           !spin magnetic moment
           if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
