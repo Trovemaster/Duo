@@ -289,7 +289,10 @@ contains
                                  A_einst, boltz_fc, absorption_int, unitConv, vacPerm
     real(rk)                  :: lande, nu_if, lineStr, linestr2, tm, ddot
     real(rk), allocatable     :: halfLineStr(:)
-
+     
+    ! cash transitons
+    real(rk),allocatable :: acoef_RAM(:),nu_ram(:)  
+    integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
     ! logicals
     logical                   :: intSpin = .true.
     logical                   :: passed, passed_
@@ -463,7 +466,7 @@ contains
     do indI =  1, nJ
 
       jI = JVal(indI)
-
+      !
       do indGammaI = 1, nRepresen
 
         nLevelsI = eigen(indI, indGammaI)%Nlevels
@@ -829,55 +832,63 @@ contains
 
     if ( iVerbose >= 5) call MemoryReport
 
-    ! prepare the table header
-    write(out, "(/a,a,a,a)") &
-      'Linestrength S(f<-i) [Debye**2],', &
-      'Transition moments [Debye],', &
-      'Einstein coefficient A(if) [1/s],', &
-      'and Intensities [cm/mol]'
+    !
+    if (trim(intensity%linelist_file)/="NONE") then 
+       write(out,"(/'This is a line list production only, intensity print-out is swtitched off')")
+       write(out,"('To see intensities in the standard output remove the keyword LINELIST from INTENSITY'/)")
+    else 
+    
+      ! prepare the table header
+      write(out, "(/a,a,a,a)") &
+        'Linestrength S(f<-i) [Debye**2],', &
+        'Transition moments [Debye],', &
+        'Einstein coefficient A(if) [1/s],', &
+        'and Intensities [cm/mol]'
+   
+      ! depending on the case we have different file formats
+      select case ( trim(intensity%action) )
+   
+        ! absorption lines
+        case('ABSORPTION')
+          write(out, &
+            ! Fixed width output
+            "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
+            &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
+            &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
+            &lambda sigma  omega ')" &
+            !
+            ! CSV output
+            ! "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
+            ! & E_i, Ef, nu_if,&
+            ! & S_fi, A_if, I_fi,&
+            ! & state_f, v_f, lambda_f, sigma_f, omega_f,&
+            ! & state_i, v_i, lambda_i, sigma_i, omega_i')"&
+          )
+          dir = '<-'
+   
+        ! emission lines
+        case('EMISSION')
+          write(out, &
+            "(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,&
+            &'Ei',t44,'->',t52,'Ef',t64,'nu_if',8x,'S(i->f)',10x,'A(if)',&
+            &12x,'I(i->f)',7x,'State v lambda sigma  omega -> State v &
+            &lambda sigma  omega ')" &
+          )
+          dir = '->'
+   
+        ! Transition moments
+        case('TM')
+          write(out, &
+            "(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,&
+            &'Ei',t42,'<-',t52,'Ef',t65,'nu_if',10x,'TM(f->i)')" &
+          )
+   
+      end select
 
-    ! depending on the case we have different file formats
-    select case ( trim(intensity%action) )
-
-      ! absorption lines
-      case('ABSORPTION')
-        write(out, &
-          ! Fixed width output
-          "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
-          &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
-          &lambda sigma  omega ')" &
-          !
-          ! CSV output
-          ! "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
-          ! & E_i, Ef, nu_if,&
-          ! & S_fi, A_if, I_fi,&
-          ! & state_f, v_f, lambda_f, sigma_f, omega_f,&
-          ! & state_i, v_i, lambda_i, sigma_i, omega_i')"&
-        )
-        dir = '<-'
-
-      ! emission lines
-      case('EMISSION')
-        write(out, &
-          "(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-          &'Ei',t44,'->',t52,'Ef',t64,'nu_if',8x,'S(i->f)',10x,'A(if)',&
-          &12x,'I(i->f)',7x,'State v lambda sigma  omega -> State v &
-          &lambda sigma  omega ')" &
-        )
-        dir = '->'
-
-      ! Transition moments
-      case('TM')
-        write(out, &
-          "(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,&
-          &'Ei',t42,'<-',t52,'Ef',t65,'nu_if',10x,'TM(f->i)')" &
-        )
-
-    end select
+    endif
 
     deallocate(vecF)
-
+    
     ! ------------------------------------------------
     ! now begin the actual line intensity calculations
     ! ------------------------------------------------
@@ -888,7 +899,9 @@ contains
     ! loop over initial J states and assign corresponding J value
     do indI = 1, nJ
       jI = jVal(indI)
-
+      !
+      if (trim(intensity%linelist_file)/="NONE".and.iverbose>=4) write(out,"('J = ',f9.1)") jI
+      !
       ! loop over symmetries
       do indGammaI = 1, nRepresen
 
@@ -1003,8 +1016,24 @@ contains
                   stop 'TM is not yet coded'
 
               end select
+
+              !
+              ! allocating all different arrays to keep the data in RAM in the exomol and matelem format
+              if (trim(intensity%linelist_file)/="NONE") then
+                !
+                allocate(acoef_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:acoef_RAM',info,size(acoef_RAM),kind(acoef_RAM))
+                allocate(nu_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:nu_RAM',info,size(nu_RAM),kind(nu_RAM))
+                allocate(indexf_RAM(nlevelsF),indexi_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
+                call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
+                !
+                acoef_RAM = 0
+                !
+              endif
               
-              !$omp parallel private(vecF, alloc_p)
+              !$omp parallel private(vecF, alloc_p) shared(nu_ram,acoef_RAM,indexi_RAM,indexf_RAM)
               allocate(vecF(dimenMax), stat=alloc_p)
 
               if (alloc_p /= 0) then
@@ -1116,54 +1145,76 @@ contains
 
                     if ( linestr2 >= Intensity%threshold%linestrength &
                         .and. absorption_int >= Intensity%threshold%intensity &
-                      ) then
-                      !$omp critical
-                      write(out, &
-                        ! Fixed width output
-                        "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
-                        &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                        & 3(1x, es16.8),&
-                        & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
-                        &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
-                        jF, sym%label(indSymF), dir, &
-                        jI, sym%label(indSymI), branch, &
-                        energyF - Intensity%ZPE, dir, &
-                        energyI - Intensity%ZPE, nu_if, &
-                        linestr2, A_einst, absorption_int, &
-                        istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
-                        istateI, vI, ilambdaI, sigmaI, omegaI
-                        !
-                        ! CSV output
-                        ! "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
-                        ! &f11.4,',',f11.4,',',f11.4,',',&
-                        ! &es16.8,',',es16.8,',',es16.8,',',&
-                        ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
-                        ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
-                        ! dir, jF, sym%label(indSymF), jI, sym%label(indSymI), branch, &
-                        ! energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
-                        ! linestr2, A_einst, absorption_int, &
-                        ! istateF, vF, ilambdaF, sigmaF, omegaF, &
-                        ! istateI, vI, ilambdaI, sigmaI, omegaI
-
-                      if ( trim(Intensity%linelist_file) /= 'NONE') then
-
-                        if ( Intensity%matelem ) then
-
-                          write(richUnit(indI, indF), &
-                            "(i8,i8,2i3,4x,e24.14)") &
-                            quantaI%iJ_ID, quantaF%iJ_ID, 1, 1, lineStr
-
+                        ) then
+                       !
+                       if (trim(intensity%linelist_file)/="NONE") then
+                          !
+                          if ( intensity%matelem ) then 
+                            !
+                            acoef_RAM(indLevelF) = lineStr 
+                            nu_ram(indLevelF) = nu_if
+                            indexi_RAM(indLevelF) = quantaI%iJ_ID
+                            indexf_RAM(indLevelF) = quantaF%iJ_ID
+                            !
+                          else ! exomol
+                            !
+                            acoef_RAM(indLevelF) = A_einst 
+                            nu_ram(indLevelF) = nu_if
+                            indexi_RAM(indLevelF) = quantaI%iroot
+                            indexf_RAM(indLevelF) = quantaF%iroot
+                            !
+                          endif
+                          !
                         else
-
-                          write(transUnit, &
-                            "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
-                            quantaF%iroot, quantaI%iroot, A_einst, nu_if
-
-                        endif
-                      endif
-                      !$omp end critical
+                          !
+                          !$omp critical
+                          write(out, &
+                            ! Fixed width output
+                            "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
+                            &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                            & 3(1x, es16.8),&
+                            & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
+                            &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
+                            jF, sym%label(indSymF), dir, &
+                            jI, sym%label(indSymI), branch, &
+                            energyF - Intensity%ZPE, dir, &
+                            energyI - Intensity%ZPE, nu_if, &
+                            linestr2, A_einst, absorption_int, &
+                            istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
+                            istateI, vI, ilambdaI, sigmaI, omegaI
+                            !
+                            ! CSV output
+                            ! "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
+                            ! &f11.4,',',f11.4,',',f11.4,',',&
+                            ! &es16.8,',',es16.8,',',es16.8,',',&
+                            ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
+                            ! &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
+                            ! dir, jF, sym%label(indSymF), jI, sym%label(indSymI), branch, &
+                            ! energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                            ! linestr2, A_einst, absorption_int, &
+                            ! istateF, vF, ilambdaF, sigmaF, omegaF, &
+                            ! istateI, vI, ilambdaI, sigmaI, omegaI
+                            !
+                            if ( trim(Intensity%linelist_file) /= 'NONE') then
+                        
+                              if ( Intensity%matelem ) then
+                        
+                                write(richUnit(indI, indF), &
+                                  "(i8,i8,2i3,4x,e24.14)") &
+                                  quantaI%iJ_ID, quantaF%iJ_ID, 1, 1, lineStr
+                        
+                              else
+                        
+                                write(transUnit, &
+                                  "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
+                                  quantaF%iroot, quantaI%iroot, A_einst, nu_if
+                        
+                              endif
+                            endif
+                            !$omp end critical
+                       endif
                     endif
-
+                    !
                   case('TM')
 
                     tm = &
@@ -1187,8 +1238,50 @@ contains
 
               deallocate(vecF)
               !$omp end parallel
+              !
+              ! generate the line list (Transition file)
+              !
+              if (trim(intensity%linelist_file)/="NONE") then
+                 !
+                 do indLevelF=1,nlevelsF
+                   !
+                   if (acoef_RAM(indLevelF)>0.0_rk) then 
+                      !
+                      if ( intensity%matelem ) then 
+                        !
+                        write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
+                                          indexi_RAM(indLevelF),indexf_RAM(indLevelF),1,1,acoef_RAM(indLevelF)
+                        !
+                      else
+                        !
+                        write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                  indexf_RAM(indLevelF),indexi_RAM(indLevelF),acoef_RAM(indLevelF),nu_ram(indLevelF)
+                      endif
+                   endif
+                   !
+                 enddo
+                 !
+                 if (allocated(acoef_RAM)) then 
+                    deallocate(acoef_RAM)
+                    call ArrayStop('swap:acoef_RAM')
+                 endif 
+                 if (allocated(nu_RAM)) then 
+                    deallocate(nu_RAM)
+                    call ArrayStop('swap:nu_RAM')
+                 endif 
+                 if (allocated(indexf_RAM)) then 
+                    deallocate(indexf_RAM)
+                    call ArrayStop('swap:indexf_RAM')
+                 endif 
+                 if (allocated(indexi_RAM)) then 
+                    deallocate(indexi_RAM)
+                    call ArrayStop('swap:indexi_RAM')
+                 endif 
+                 !
+              endif
+              !
               if ( iVerbose >= 5 ) call TimerReport
-
+              !
             enddo loopLevelsI
           enddo
         enddo
@@ -1395,7 +1488,10 @@ contains
 
     half_ls = 0
 
-    ! loop over final states
+    !$omp parallel do private(&
+    !$omp & icontrF,istateF,ivibF,ilambdaF,omegaF,spinF,sigmaF,iomegaF_,&
+    !$omp & icontrI,istateI,ivibI,ilambdaI,omegaI,spinI,sigmaI,iomegaI_,f3j,ls,indQuad,indPermute,&
+    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,indSigmaV,vibME,itau) shared(half_ls) schedule(guided)
     loop_F : do icontrF = 1, dimenF
 
       istateF  = basis(indF)%icontr(icontrF)%istate
@@ -1435,19 +1531,19 @@ contains
 
         loop_quadpole :  do indQuad = 1, nQuadrupoles
 
-          field  => quadrupoletm(indQuad)
+          !field  => quadrupoletm(indQuad)
 
           ! we can calculate opposite matrix elements at same time
           do indPermute =  0, 1
 
             if  ( indPermute == 0 ) then
-              istateI_  = field%istate  ; istateF_  = field%jstate
-              ilambdaI_ = field%lambda  ; ilambdaF_ = field%lambdaj
-              spinI_   = field%spini   ; spinF_   = field%spinj
+              istateI_  = quadrupoletm(indQuad)%istate  ; istateF_  = quadrupoletm(indQuad)%jstate
+              ilambdaI_ = quadrupoletm(indQuad)%lambda  ; ilambdaF_ = quadrupoletm(indQuad)%lambdaj
+              spinI_   = quadrupoletm(indQuad)%spini   ; spinF_   = quadrupoletm(indQuad)%spinj
             else
-              istateI_  = field%jstate  ; istateF_  = field%istate
-              ilambdaI_ = field%lambdaj ; ilambdaF_ = field%lambda
-              spinI_   = field%spinj   ; spinF_   = field%spini
+              istateI_  = quadrupoletm(indQuad)%jstate  ; istateF_  = quadrupoletm(indQuad)%istate
+              ilambdaI_ = quadrupoletm(indQuad)%lambdaj ; ilambdaF_ = quadrupoletm(indQuad)%lambda
+              spinI_   = quadrupoletm(indQuad)%spinj   ; spinF_   = quadrupoletm(indQuad)%spini
             endif
 
             ! do not double count diagonal elements
@@ -1485,7 +1581,7 @@ contains
               if  ( abs(ilambdaF - ilambdaI) > 2 ) cycle
 
               ! vibrational matrix element
-              vibME = field%matelem(ivibI, ivibF)
+              vibME = quadrupoletm(indQuad)%matelem(ivibI, ivibF)
 
               ! the Sigma electronic states (with lambda = 0) have
               ! definite +/- parities - thus, if one of the mat.
@@ -1516,6 +1612,7 @@ contains
         enddo loop_quadpole
       enddo  loop_I
     enddo loop_F
+    !$omp end parallel do
 
     call TimerStop('do_1st_half_linestr')
 

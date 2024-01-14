@@ -576,14 +576,14 @@ contains
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,ibobrot=0,isr=0,idiab=0,iquad=0,imagnetic=0
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,isr=0,idiab=0,iquad=0,imagnetic=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
-                    iterm,iobj,iclass_,ielement,nstate_listed
+                    iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
     integer(ik)  :: itau,lambda_,x_lz_y_,iobject_,inac
     logical      :: integer_spin = .false., matchfound
-    real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2,gns_a,gns_b
+    real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     real(rk)     :: bound_density
     !
@@ -5350,7 +5350,8 @@ contains
         !
       case ('GRID','COUPLED-PEC-BETA','COUPLED-PEC')
         !
-        if( poten(istate)%imin-4<1 .or. poten(istate)%imin+4>grid%npoints) cycle loop_pecs ! exit if the minimum is too close to the border
+        ! exit if the minimum is too close to the border
+        if( poten(istate)%imin-4<1 .or. poten(istate)%imin+4>grid%npoints) cycle loop_pecs 
         !
         x0  = r(poten(istate)%imin)
         fmmm = poten(istate)%gridvalue(poten(istate)%imin-3)
@@ -6985,8 +6986,8 @@ contains
     integer(ik),intent(out),optional  :: nenerout(:,:)
     !
     real(rk)                :: scale,sigma,omega,omegai,omegaj,spini,spinj,sigmaj,sigmai,jval
-    integer(ik)             :: alloc,alloc_p,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
-    integer(ik)             :: ngrid,j,i,igrid,jgrid,kgrid
+    integer(ik)             :: alloc,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
+    integer(ik)             :: ngrid,j,i,igrid
     integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
     integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
     integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v,inac
@@ -7018,17 +7019,15 @@ contains
     real(rk),allocatable       :: psipsi(:)
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
-    !real(rk)                  :: f_rk
-    real(ark)                  :: f_ark
     character(len=cl)          :: filename,ioname
-    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,k_
+    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
     integer(ik)                :: npoints_last,icount_max
     !
     ! Lambda-Sigma-> State-Omega contraction
     integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
-    integer(ik) :: ilambdasigma,Nlambdasigmas_max
+    integer(ik) :: Nlambdasigmas_max
     integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
     real(rk)    :: omega_min,omega_max,spin_min
     logical     :: bound_state = .true.

@@ -926,44 +926,51 @@ contains
     !
     if (iverbose>=5) call MemoryReport
     !
-    write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'&
-                          &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
-    !
-    ! Prepare the table header
-    !
-    select case (trim(intensity%action))
-      !
-    case('ABSORPTION')
-      write(out, &
-        ! Fixed width output
-        ! "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
-        ! &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
-        ! &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
-        ! &lambda sigma  omega ')" &
-        !
-        ! CSV output
-        "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
-        & E_i, Ef, nu_if,&
-        & S_fi, A_if, I_fi,&
-        & state_f, v_f, lambda_f, sigma_f, omega_f,&
-        & state_i, v_i, lambda_i, sigma_i, omega_i')"&
-      )
-      dir = '<-'
-      !
-    case('EMISSION')
-      !
-      write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
-                  &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
-                  &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
-      dir = '->'
-      !
-    case('TM')
-      !
-      write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
-                  &10x,'TM(f->i)')")
-
-      !
-    end select
+    if (trim(intensity%linelist_file)/="NONE") then 
+       write(out,"(/'This is a line list production only, intensity print-out is swtitched off')")
+       write(out,"('To see intensities in the standard output remove the keyword LINELIST from INTENSITY'/)")
+    else 
+       !
+       write(out,"(/a,a,a,a)") 'Linestrength S(f<-i) [Debye**2],',' Transition moments [Debye],'&
+                             &,'Einstein coefficient A(if) [1/s],','and Intensities [cm/mol]'
+       !
+       ! Prepare the table header
+       !
+       select case (trim(intensity%action))
+         !
+       case('ABSORPTION')
+         write(out, &
+           ! Fixed width output
+           ! "(/t5,'J',t7,'Gamma <-',t18,'J',t21,'Gamma',t27,'Typ',t37,&
+           ! &'Ei',t44,'<-',t52,'Ef',t64,'nu_if',8x,'S(f<-i)',10x,'A(if)',&
+           ! &12x,'I(f<-i)',7x,'State v lambda sigma  omega <- State v &
+           ! &lambda sigma  omega ')" &
+           !
+           ! CSV output
+           "('dir, J_i, Gamma_i, J_f, Gamma_f, Branch,&
+           & E_i, Ef, nu_if,&
+           & S_fi, A_if, I_fi,&
+           & state_f, v_f, lambda_f, sigma_f, omega_f,&
+           & state_i, v_i, lambda_i, sigma_i, omega_i')"&
+         )
+         dir = '<-'
+         !
+       case('EMISSION')
+         !
+         write(out,"(/t5,'J',t7,'Gamma ->',t18,'J',t21,'Gamma',t27,'Typ',t37,'Ei',t44,'->',t52,'Ef',t64,'nu_if',&
+                     &8x,'S(i->f)',10x,'A(if)',12x,'I(i->f)', &
+                     &7x,'State v lambda sigma  omega -> State v lambda sigma  omega ')")
+         dir = '->'
+         !
+       case('TM')
+         !
+         write(out,"(/t4,'J',t6,'Gamma <-',t17,'J',t19,'Gamma',t25,'Typ',t35,'Ei',t42,'<-',t52,'Ef',t65,'nu_if',&
+                     &10x,'TM(f->i)')")
+   
+         !
+       end select
+       !
+    endif
     !
     deallocate(vecF)
     !
@@ -986,6 +993,8 @@ contains
     do indI = 1, nJ
       !
       jI = jval(indI)
+      !
+      if (trim(intensity%linelist_file)/="NONE".and.iverbose>=4) write(out,"('J = ',f9.1)") jI
       !
       do igammaI=1,Nrepresen
         !
@@ -1908,7 +1917,7 @@ contains
     integer(ik)             :: icontrF,icontrI, &
                                ivibF,ivibI,idip,istateI,istateF,ilambdaF,ilambdaI
     integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
-    real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI,sigmaF_,sigmaI_,nI
+    real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
     real(rk)                :: spinI_,spinF_,f_t
     !
     !dms_tmp = dipole_me
@@ -1922,7 +1931,7 @@ contains
     !$omp parallel do private &
     !$omp &(icontrF,ivibF,istateF,omegaF,sigmaF,spinF,ilambdaF,iomegaF_,&
     !$omp & icontrI,ivibI,istateI,omegaI,sigmaI,spinI,ilambdaI,iomegaI_,f3j,ls,f_t,idip,ipermute,&
-    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau,) shared(half_ls) schedule(guided)
+    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau) shared(half_ls) schedule(guided)
     loop_F : do icontrF = 1, dimenF
       !
       ivibF = basis(indF)%icontr(icontrF)%ivib

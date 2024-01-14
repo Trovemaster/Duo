@@ -1614,8 +1614,6 @@ module refinement
                   param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
                   param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
                   !
-                  !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle 
-                  !
                   objects(iobject,ifield)%field%value(iterm)=param_t
                   !
                enddo
@@ -1697,8 +1695,6 @@ module refinement
                     param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
                     param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
                     !
-                    !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
-                    !
                     objects(iobject,ifield)%field%value(iterm)=param_t
                     !
                  enddo
@@ -1744,8 +1740,6 @@ module refinement
                        param_t = params_t(ncol)+dx(ncol)
                        param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
                        param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
-                       !
-                       !if (objects(iobject,ifield)%field%fit_range(iterm)%min>param_t.or.param_t>objects(iobject,ifield)%field%fit_range(iterm)%max) cycle
                        !
                        objects(iobject,ifield)%field%value(iterm)=param_t
                        !
