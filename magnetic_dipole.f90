@@ -353,6 +353,8 @@ contains
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
     real(rk)     :: vacPerm, unitConv
+    real(rk),allocatable    :: acoef_RAM(:),nu_ram(:)  
+    integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer :: ndecimals
@@ -1102,7 +1104,22 @@ contains
               !
               !loop over final states
               !
-              !$omp parallel private(vecF,alloc_p)
+              ! allocating all different arrays to keep the data in RAM in the exomol and matelem format
+              if (trim(intensity%linelist_file)/="NONE") then
+                !
+                allocate(acoef_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:acoef_RAM',info,size(acoef_RAM),kind(acoef_RAM))
+                allocate(nu_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:nu_RAM',info,size(nu_RAM),kind(nu_RAM))
+                allocate(indexf_RAM(nlevelsF),indexi_RAM(nlevelsF),stat=info)
+                call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
+                call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
+                !
+                acoef_RAM = 0
+                !
+              endif
+              !
+              !$omp parallel private(vecF,alloc_p) shared(nu_ram,acoef_RAM,indexi_RAM,indexf_RAM)
               allocate(vecF(dimenmax),stat = alloc_p)
               if (alloc_p/=0) then
                 write (out,"(' dipole: ',i9,' trying to allocate array -vecF')") alloc_p
@@ -1204,53 +1221,75 @@ contains
                   !
                   !
                   if (absorption_int>=intensity%threshold%intensity.and.linestr2>=intensity%threshold%linestrength) then
-                    !
-                    !$omp critical
-                    write(out, &
-                    ! Fixed width output
-                    ! "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
-                    ! &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                    ! & 3(1x, es16.8),&
-                    ! & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
-                    ! &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
-                    ! jF, sym%label(indSymF), dir, &
-                    ! jI, sym%label(indSymI), branch, &
-                    ! energyF - Intensity%ZPE, dir, &
-                    ! energyI - Intensity%ZPE, nu_if, &
-                    ! linestr2, A_einst, absorption_int, &
-                    ! istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
-                    ! istateI, vI, ilambdaI, sigmaI, omegaI
-                    !
-                    ! CSV output
-                    "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
-                    &f11.4,',',f11.4,',',f11.4,',',&
-                    &es16.8,',',es16.8,',',es16.8,',',&
-                    &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
-                    &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
-                    dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
-                    energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
-                    linestr2, A_einst, absorption_int, &
-                    istateF, ivF, ilambdaF, sigmaF, omegaF, &
-                    istateI, ivI, ilambdaI, sigmaI, omegaI
-                    !
-                    ! generate the line list (Transition file)
-                    !
-                    if (trim(intensity%linelist_file)/="NONE") then
-                      !
-                      if ( intensity%matelem ) then
+                     !
+                     if (trim(intensity%linelist_file)/="NONE") then
                         !
-                        write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") &
-                          quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
+                        if ( intensity%matelem ) then 
+                          !
+                          acoef_RAM(ilevelF) = linestr 
+                          nu_ram(ilevelF) = nu_if
+                          indexi_RAM(ilevelF) = quantaI%iJ_ID
+                          indexf_RAM(ilevelF) = quantaF%iJ_ID
+                          !
+                        else ! exomol
+                          !
+                          acoef_RAM(ilevelF) = A_einst 
+                          nu_ram(ilevelF) = nu_if
+                          indexi_RAM(ilevelF) = quantaI%iroot
+                          indexf_RAM(ilevelF) = quantaF%iroot
+                          !
+                        endif
                         !
                       else
                         !
-                        write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") &
-                          quantaF%iroot,quantaI%iroot,A_einst,nu_if
-                      endif
-                      !
+                        !$omp critical
+                        write(out, &
+                        ! Fixed width output
+                        ! "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
+                        ! &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
+                        ! & 3(1x, es16.8),&
+                        ! & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
+                        ! &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
+                        ! jF, sym%label(indSymF), dir, &
+                        ! jI, sym%label(indSymI), branch, &
+                        ! energyF - Intensity%ZPE, dir, &
+                        ! energyI - Intensity%ZPE, nu_if, &
+                        ! linestr2, A_einst, absorption_int, &
+                        ! istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
+                        ! istateI, vI, ilambdaI, sigmaI, omegaI
+                        !
+                        ! CSV output
+                        "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
+                        &f11.4,',',f11.4,',',f11.4,',',&
+                        &es16.8,',',es16.8,',',es16.8,',',&
+                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
+                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
+                        dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
+                        energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                        linestr2, A_einst, absorption_int, &
+                        istateF, ivF, ilambdaF, sigmaF, omegaF, &
+                        istateI, ivI, ilambdaI, sigmaI, omegaI
+                        !
+                        ! generate the line list (Transition file)
+                        !
+                        if (trim(intensity%linelist_file)/="NONE") then
+                          !
+                          if ( intensity%matelem ) then
+                            !
+                            write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") &
+                              quantaI%iJ_ID,quantaF%iJ_ID,1,1,linestr
+                            !
+                          else
+                            !
+                            write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") &
+                              quantaF%iroot,quantaI%iroot,A_einst,nu_if
+                          endif
+                          !
+                        endif
+                        !
+                        !$omp end critical
+                        !
                     endif
-                    !
-                    !$omp end critical
                     !
                   endif
                   !
@@ -1279,6 +1318,47 @@ contains
               !
               deallocate(vecF)
               !$omp end parallel
+              !
+              ! generate the line list (Transition file)
+              !
+              if (trim(intensity%linelist_file)/="NONE") then
+                 !
+                 do ilevelF=1,nlevelsF
+                   !
+                   if (acoef_RAM(ilevelF)>0.0_rk) then 
+                      !
+                      if ( intensity%matelem ) then 
+                        !
+                        write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
+                                          indexi_RAM(ilevelF),indexf_RAM(ilevelF),1,1,acoef_RAM(ilevelF)
+                        !
+                      else
+                        !
+                        write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                  indexf_RAM(ilevelF),indexi_RAM(ilevelF),acoef_RAM(ilevelF),nu_ram(ilevelF)
+                      endif
+                   endif
+                   !
+                 enddo
+                 !
+                 if (allocated(acoef_RAM)) then 
+                    deallocate(acoef_RAM)
+                    call ArrayStop('swap:acoef_RAM')
+                 endif 
+                 if (allocated(nu_RAM)) then 
+                    deallocate(nu_RAM)
+                    call ArrayStop('swap:nu_RAM')
+                 endif 
+                 if (allocated(indexf_RAM)) then 
+                    deallocate(indexf_RAM)
+                    call ArrayStop('swap:indexf_RAM')
+                 endif 
+                 if (allocated(indexi_RAM)) then 
+                    deallocate(indexi_RAM)
+                    call ArrayStop('swap:indexi_RAM')
+                 endif 
+                 !
+              endif
               !
               if (iverbose>=5) call TimerReport
               !
@@ -1830,7 +1910,6 @@ contains
     integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
     real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI,sigmaF_,sigmaI_,nI
     real(rk)                :: spinI_,spinF_,f_t
-    type(fieldT),pointer    :: field
     !
     !dms_tmp = dipole_me
     !
@@ -1840,8 +1919,10 @@ contains
     !
     !loop over final state basis components
     !
-    !omp parallel do private(irootF,icontrF,ktau,kF,tauF,cirootI,irootI,icontrI,tauI,sigmaI,sigmaF,kI, &
-    !                   &    irow,icol,cind,f3j,ls) shared(half_ls) schedule(guided)
+    !$omp parallel do private &
+    !$omp &(icontrF,ivibF,istateF,omegaF,sigmaF,spinF,ilambdaF,iomegaF_,&
+    !$omp & icontrI,ivibI,istateI,omegaI,sigmaI,spinI,ilambdaI,iomegaI_,f3j,ls,f_t,idip,ipermute,&
+    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau,) shared(half_ls) schedule(guided)
     loop_F : do icontrF = 1, dimenF
       !
       ivibF = basis(indF)%icontr(icontrF)%ivib
@@ -1948,19 +2029,17 @@ contains
         !orbital magnetic moments
         loop_iorbdipole : do idip =1,nMagneticDipoles
           !
-          field => magnetictm(idip)
-          !
           do ipermute  = 0,1
             !
             if (ipermute==0) then
               !
-              istateI_ = field%istate ; ilambdaI_ = field%lambda  ; spinI_ = field%spini
-              istateF_ = field%jstate ; ilambdaF_ = field%lambdaj ; spinF_ = field%spinj
+              istateI_ = magnetictm(idip)%istate ; ilambdaI_ = magnetictm(idip)%lambda  ; spinI_ = magnetictm(idip)%spini
+              istateF_ = magnetictm(idip)%jstate ; ilambdaF_ = magnetictm(idip)%lambdaj ; spinF_ = magnetictm(idip)%spinj
               !
             else  ! permute
               !
-              istateF_ = field%istate ; ilambdaF_ = field%lambda  ; spinF_ = field%spini
-              istateI_ = field%jstate ; ilambdaI_ = field%lambdaj ; spinI_ = field%spinj
+              istateF_ = magnetictm(idip)%istate ; ilambdaF_ = magnetictm(idip)%lambda  ; spinF_ = magnetictm(idip)%spini
+              istateI_ = magnetictm(idip)%jstate ; ilambdaI_ = magnetictm(idip)%lambdaj ; spinI_ = magnetictm(idip)%spinj
               !
             endif
             !
@@ -1980,7 +2059,7 @@ contains
               !
               ! the permutation is only needed if at least some of the quanta is not zero.
               ! otherwise it should be skipped to avoid the double counting.
-              if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+              if( isigmav==1.and. abs( magnetictm(idip)%lambda ) + abs( magnetictm(idip)%lambdaj )==0 ) cycle
 
               ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
               ilambdaI_ = ilambdaI_*(-1)**isigmav
@@ -2002,7 +2081,7 @@ contains
               !
               !f_grid  = field%matelem(ivib,jvib)
               !
-              f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*field%matelem(ivibI,ivibF)
+              f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
               !
               ! the result of the symmetry transformation:
               if (isigmav==1) then
@@ -2030,7 +2109,7 @@ contains
       end do  loop_I
       !
     end do   loop_F
-    !omp end parallel do
+    !$omp end parallel do
     !
     call TimerStop('do_1st_half_linestr')
     !
