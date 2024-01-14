@@ -892,7 +892,7 @@ contains
         !
         ! allocate all fields representing the hamiltonian: PEC, spin-orbit, L2, LxLy etc.
         !
-        allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(nestates),spinspino(nestates), &
+        allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
                  lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),&
                  magnetictm(ncouples),stat=alloc)
