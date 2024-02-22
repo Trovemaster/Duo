@@ -248,7 +248,7 @@ module diatom_module
     real(rk)              :: asymptote = 0.0_rk      ! reference asymptote energy used e.g. in the renormalisation of the continuum wavefunctions to sin(kr)
     logical               :: adjust = .false.        ! Add constant adjust_val to all fields
     integer(ik)           :: iabi = 0                ! abinitio field's id if associated
-    type(rangeT),pointer  :: fit_range(:)            ! fitting range\, min..max
+    type(rangeT),pointer  :: fit_range(:)            ! fitting range, min..max
     !
   end type fieldT
   !
@@ -4575,6 +4575,7 @@ contains
     real(rk),allocatable    :: spline_wk_vec_F(:) ! working vector needed for spline interpolation
     real(rk),allocatable    :: xx(:), yy(:), ww(:)! tmp vectors for extrapolation
     type(linkT),allocatable :: link_(:) ! tmp link values for extrapolation
+    type(rangeT),pointer  :: frange_(:) ! tmp range for extrapolation
     character(len=cl),allocatable :: forcename_(:)   ! tmp forcename
     real(rk) :: yp1, ypn, Vtop, beta, vmin, DeltaR,V1,V2
     integer(ik) :: N1,N2
@@ -4763,6 +4764,11 @@ contains
               write(out,"('allocation problem: forcename_')")
               stop 'allocation problem forcename_'
             endif
+            allocate( frange_(nterms+np),stat=alloc)
+            if (alloc/=0) then
+              write(out,"('allocation problem: frange_')")
+              stop 'allocation problem frange_'
+            endif
             !
             xx=0._rk
             yy=0._rk
@@ -4814,6 +4820,11 @@ contains
             link_(1:np)%iparam = 0
             link_(np+1:) = field%link(1:)
             !
+            frange_(1:np)%min = 0
+            frange_(1:np)%max = 0
+            frange_(1:np)%set = .false.
+            frange_(np+1:) = field%fit_range(1:)
+            !
             nterms = np+nterms
             field%Nterms = nterms
             !
@@ -4822,22 +4833,24 @@ contains
             call ArrayMinus(trim(field%type),size(field%weight),kind(field%weight))
             !
             deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
-            !
             deallocate(field%link)
+            deallocate(field%fit_range)
             !
             allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
             allocate(field%link(nterms),stat=alloc)
+            allocate(field%fit_range(nterms),stat=alloc); if (alloc/=0) stop 'allocation problem fit_range'
             !
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
             !
             field%link(:) = link_(:)
+            field%fit_range(:) = frange_(:)
             field%grid  = xx
             field%value = yy
             field%forcename(:)= forcename_(:)
             field%weight = ww
-            deallocate(xx, yy, ww,link_,forcename_)
+            deallocate(xx, yy, ww,link_,forcename_,frange_)
             call ArrayStop('extrap_tmp')
             !
           endif
@@ -4859,7 +4872,7 @@ contains
             call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
             allocate( link_(nterms+np),stat=alloc)
             if (alloc/=0) then
-              write(out,"('allocation problem: extrap_tmp')")
+              write(out,"('allocation problem: link_tmp')")
               stop 'allocation problem'
             endif
             !
@@ -4867,6 +4880,12 @@ contains
             if (alloc/=0) then
               write(out,"('allocation problem: forcename_')")
               stop 'allocation problem forcename_'
+            endif
+            !
+            allocate( frange_(nterms+np),stat=alloc)
+            if (alloc/=0) then
+              write(out,"('allocation problem: frange_tmp')")
+              stop 'allocation problem'
             endif
             !
             xx=0._rk
@@ -4919,6 +4938,11 @@ contains
             link_(1:np)%iparam = 0
             link_(np+1:) = field%link(1:)
             !
+            frange_(1:np)%min = 0
+            frange_(1:np)%max = 0
+            frange_(1:np)%set = .false.
+            frange_(np+1:) = field%fit_range(1:)
+            !
             nterms = np+nterms
             field%Nterms = nterms
             !
@@ -4928,21 +4952,22 @@ contains
             !
             deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
             !
-            deallocate(field%link)
+            deallocate(field%link,field%fit_range)
             !
             allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
-            allocate(field%link(nterms),stat=alloc)
+            allocate(field%link(nterms),field%fit_range(nterms),stat=alloc) ; if (alloc/=0) stop 'allocation error link-range'
             !
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
             call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
             !
             field%link(:) = link_(:)
+            field%fit_range(:) = frange_(:)
             field%grid  = xx
             field%value = yy
             field%forcename(:)= forcename_(:)
             field%weight = ww
-            deallocate(xx, yy, ww,link_,forcename_)
+            deallocate(xx, yy, ww,link_,forcename_,frange_)
             call ArrayStop('extrap_tmp')
             !
           endif
