@@ -341,6 +341,16 @@ module functions
   end subroutine define_complex_analytic_field
   !  
   !
+  subroutine define_sub_terms_complex_analytic_field(Nsub_terms)
+    !
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    !
+    N1 =Nsub_terms(1)
+    N2 =Nsub_terms(2)
+    N3 =Nsub_terms(3)
+    !
+  end subroutine define_sub_terms_complex_analytic_field
+  !
   function poten_morse(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)

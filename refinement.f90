@@ -2,13 +2,14 @@ module refinement
   !
   use accuracy
   use timer
-  !use functions,only : define_fanalytic_field
+  use functions,only : define_sub_terms_complex_analytic_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
                            Nlambdap2q,Nlambdaq,Nnac,&
                            grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
                            action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,linkT,vmax,&
                            l_omega_obj,s_omega_obj,rangeT
+  !
   !
   implicit none
   !
@@ -1316,6 +1317,8 @@ module refinement
                  !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
+                 if (trim(field%sub_type(1))/="NONE") call define_sub_terms_complex_analytic_field(field%Nsub_terms)
+                 !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
                    j = j + 1
@@ -1465,7 +1468,7 @@ module refinement
             rms=sqrt(sum(eps(1:npts)*eps(1:npts))/npts)
             !
             if (do_print.and.fititer==1) write(out,"(/a)") 'Refinement using the least-squared fitting ...'
-            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            !if (do_print) write(out,"(/'Iteration = ',i8)") fititer
             !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
