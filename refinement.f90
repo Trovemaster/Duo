@@ -1468,7 +1468,7 @@ module refinement
             rms=sqrt(sum(eps(1:npts)*eps(1:npts))/npts)
             !
             if (do_print.and.fititer==1) write(out,"(/a)") 'Refinement using the least-squared fitting ...'
-            !if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
             !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
