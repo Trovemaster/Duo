@@ -2368,6 +2368,12 @@ contains
             field%lambdaj = field%lambda
             if (nitems>2) call readi(field%lambdaj)
             !
+          case("OMEGA")
+            !
+            call readf(field%omegai)
+            field%omegaj = field%omegai
+            if (nitems>2) call readf(field%omegaj)
+            !
           case("SHIFT","REFVALUE","REF","F1","V0","VE")
             !
             call readf(field%refvalue)
@@ -7478,7 +7484,11 @@ contains
       !
       ! Diagonalise the PECs+SOCs+couplings and transform all other curves to the Omega representation
       !
-      call Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      !call Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      !
+      ! Copy the PECs+SOCs+couplings to the Omega representation
+      !
+      call Copy_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
       !
       deallocate(iLPlus_omega,iSPlus_omega,iSR_omega,iBob_omega,ip2q_omega,iQ_omega,iKin_omega,iBRot_omega)
       call ArrayStop('iLplus_omega')
@@ -12966,6 +12976,1395 @@ contains
     !
     !
   end subroutine Transfrorm_Sigma_Lambda_to_Omega_representation
+  
+  !
+  ! Copy the PECs+SOCs+couplings from the input to the Omega representation
+  !
+  subroutine Copy_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+    !
+    use lapack,only : lapack_syev,lapack_heev,lapack_syevr
+    !
+    implicit none
+    !
+    integer(ik),intent(in) ::iverbose,Nlambdasigmas_max,Nomega_states
+    real(rk),intent(in)    :: sc
+    !
+    integer(ik) :: omega_min,omega_max,iomega,jomega
+    integer(ik) :: igrid,jgrid,istate,jstate,imulti,jmulti,ilambda,jlambda,iL2,ieq,ispin,nspins
+    integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
+    integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
+    integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iKin_omega_,iBRot_omega_
+    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot
+    !
+    real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
+    real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
+    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo
+    !
+    type(fieldT),pointer      :: field
+    !
+    real(rk), allocatable :: mat_1(:,:),mat_2(:,:),vect(:,:,:)
+    real(rk), allocatable :: omegamat(:,:),omegaenergy(:)
+    real(rk), allocatable :: L_LambdaSigma(:,:)
+    integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
+    real(rk),allocatable    :: vibmat(:,:),kinmat(:,:)
+    !
+    ngrid = grid%npoints
+    !
+    b_rot = aston/amass
+    !
+    iomega = 0
+    omega_min = 10000
+    omega_max = -10000
+    multi_max = 1
+    !
+    do istate = 1,nestates
+      multi_max = max(poten(istate)%multi,multi_max)
+    enddo
+    !
+    spin_min = 0
+    if (mod(nint(2.0_rk*multi_max+1.0_rk),2)==1) spin_min = 0.5
+    !
+    Nspins = nint(real(multi_max-1,rk)*0.5_rk)
+    !
+    allocate(L_LambdaSigma(Nomega_states,Nomega_states),stat=alloc)
+    call ArrayStart('L_LambdaSigma',alloc,size(L_LambdaSigma),kind(L_LambdaSigma))
+    !
+    allocate(iomega_state(Nomegas,Nlambdasigmas_max),stat=alloc)
+    call ArrayStart('iomega_state',alloc,size(iomega_state),kind(iomega_state))
+    !
+    iomega_state = 0
+    iomega_count = 0
+    !
+    do iomega=1,Nomegas
+      !
+      Nlambdasigmas = Omega_grid(iomega)%Nstates
+      !
+      do i = 1,Nlambdasigmas
+        !
+        iomega_count = iomega_count + 1
+        iomega_state(iomega,i) = iomega_count
+        !
+      enddo
+      !
+    enddo
+    !
+    allocate(mat_1(Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+    call ArrayStart('mat_1',alloc,size(mat_1),kind(mat_1))
+    allocate(mat_2(Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+    call ArrayStart('mat_2',alloc,size(mat_2),kind(mat_2))
+    !
+    ! Vector at the previous step to keep track of the phase of the wavefunctions
+    allocate(vect(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+    call ArrayStart('vect',alloc,size(vect),kind(vect))
+    !
+    ! index to keep track of the state of the wavefunctions
+    allocate(imax_contr(Nomegas,Nlambdasigmas_max),stat=alloc)
+    call ArrayStart('imax_contr',alloc,size(imax_contr),kind(imax_contr))
+    !
+    ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
+    do igrid =1, ngrid
+      !
+      i = (istate-1)*ngrid + igrid
+      !
+      if (iverbose>=6) write(out,'("igrid = ",i0)') igrid
+      !
+      ! the centrifugal factor will be needed for the L**2 term
+      !
+      f_centrif=b_rot/r(igrid)**2*sc
+      !
+      L_LambdaSigma = 0
+      !
+      do iomega=1,Nomegas
+        !
+        omegai = Omega_grid(iomega)%omega
+        !
+        Nlambdasigmas = Omega_grid(iomega)%Nstates
+        !
+        if (Nlambdasigmas==0) cycle
+        !
+        allocate(omegamat(Nlambdasigmas,Nlambdasigmas),omegaenergy(Nlambdasigmas),stat=alloc)
+        if (alloc/=0) stop 'Cannot allocate omegamat and omegaenergy'
+        omegamat = 0
+        !
+        do i = 1,Nlambdasigmas
+          !
+          istate  = Omega_grid(iomega)%basis(i)%istate
+          sigmai  = Omega_grid(iomega)%basis(i)%sigma
+          imulti  = Omega_grid(iomega)%basis(i)%imulti
+          ilambda = Omega_grid(iomega)%basis(i)%ilambda
+          spini   = Omega_grid(iomega)%basis(i)%spin
+          !
+          if (omegai/=Omega_grid(iomega)%basis(i)%omega) then
+            print*,'something wrong with omegas',omegai,quanta(i)%omega
+            stop 'something wrong with omega'
+          endif
+          !
+          epot = poten(istate)%gridvalue(igrid)*sc
+          !
+          ! Another diagonal term:
+          ! The L^2 term (diagonal): (1) L2(R) is used if provided otherwise
+          ! an approximate value Lambda*(Lamda+1) is assumed.
+          !
+          f_l2 = 0 ! real(ilambda*(ilambda+1),rk)*f_rot
+          do iL2 = 1,Nl2
+            if (L2(iL2)%istate==istate.and.L2(iL2)%jstate==istate) then
+              f_l2 = f_rot*L2(iL2)%gridvalue(igrid)
+              exit
+            endif
+          enddo
+          !
+          erot = f_l2
+          !
+          f_rot=f_centrif
+          !
+          ! BOB centrifugal (rotational) term, i.e. a correction to f_rot
+          !
+          do ibobrot = 1,Nbobrot
+            if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==istate) then
+              field => bobrot(ibobrot)
+              f_rot = f_rot + field%gridvalue(igrid)*sc
+              exit
+            endif
+          enddo
+          !
+          ! rotational diagonal element
+          !                                             ! L Lodi -job%diag_L2_fact is either zero or one
+          !erot = erot + f_rot*(  - omegai**2 -job%diag_L2_fact*real(ilambda**2,rk)  &
+          !         +   spini*(spini+1.0_rk) - sigmai**2 )
+          !
+          erot = erot + f_rot*(  -job%diag_L2_fact*real(ilambda**2,rk)  &
+                               +   spini*(spini+1.0_rk) - sigmai**2 )
+          !
+          ! add the diagonal matrix element to the local spin-rotational matrix hmat
+          !
+          omegamat(i,i) = epot+erot
+          !
+          !
+          ! Diagonal spin-rotation term
+          !
+          do isr = 1,Nsr
+            if (spinrot(isr)%istate==istate.and.spinrot(isr)%jstate==istate) then
+              field => spinrot(isr)
+              f_sr = field%gridvalue(igrid)*(sigmai**2-spini*(spini+1.0_rk))*sc
+              omegamat(i,i) = omegamat(i,i) + f_sr
+              exit
+            endif
+          enddo
+          !
+          ! Diagonal spin-spin term
+          !
+          do iss = 1,Nss
+            if (spinspin(iss)%istate==istate.and.spinspin(iss)%jstate==istate) then
+              field => spinspin(iss)
+              f_ss = field%gridvalue(igrid)*(3.0_rk*sigmai**2-spini*(spini+1.0_rk))*sc
+              omegamat(i,i) = omegamat(i,i) + f_ss
+              exit
+            endif
+          enddo
+          !
+          do j = i,Nlambdasigmas
+            !
+            jstate  = Omega_grid(iomega)%basis(j)%istate
+            sigmaj  = Omega_grid(iomega)%basis(j)%sigma
+            jmulti  = Omega_grid(iomega)%basis(j)%imulti
+            jlambda = Omega_grid(iomega)%basis(j)%ilambda
+            spinj   = Omega_grid(iomega)%basis(j)%spin
+            !
+            if (omegai/=Omega_grid(iomega)%basis(i)%omega) stop 'something wrong with omega'
+            !
+            if (iverbose>=6) write(out,'("i,j = ",2(i0,2x) )') i,j
+            !
+            ! Diabatic non-diagonal contribution  term
+            !
+            do idiab = 1,Ndiabatic
+              if (diabatic(idiab)%istate==istate.and.diabatic(idiab)%jstate==jstate.and.&
+                  abs(nint(sigmaj-sigmai))==0.and.(ilambda==jlambda).and.nint(spini-spinj)==0 ) then
+                field => diabatic(idiab)
+                f_diabatic = field%gridvalue(igrid)*sc
+                omegamat(i,j) = omegamat(i,j) + f_diabatic
+                omegamat(j,i) = omegamat(i,j)
+                exit
+              endif
+            enddo
+            !
+            ! spin-orbit part:
+            loop_iso_omega : do iso =1,Nspinorbits
+              !
+              field => spinorbit(iso)
+              !
+              ! The selection rules are (Lefebvre-Brion and Field, Eq. (3.4.6)):
+              ! Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<->f; Sigma+<->Sigma-;
+              ! Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1
+              !
+              if (nint(spini-spinj)>1 ) cycle
+              if ( ilambda==0.and.jlambda==0.and.poten(istate)%parity%pm==poten(jstate)%parity%pm ) cycle
+              if ( poten(istate)%parity%gu/=0.and.poten(istate)%parity%gu/=poten(jstate)%parity%gu ) cycle
+              !
+              do ipermute  = 0,1
+                !
+                if (ipermute==0) then
+                  !
+                  istate_ = field%istate ; ilambda_we = field%lambda  ; sigmai_we = field%sigmai ; spini_ = field%spini
+                  jstate_ = field%jstate ; jlambda_we = field%lambdaj ; sigmaj_we = field%sigmaj ; spinj_ = field%spinj
+                  !
+                else  ! permute
+                  !
+                  jstate_ = field%istate ; jlambda_we = field%lambda  ; sigmaj_we = field%sigmai ; spinj_ = field%spini
+                  istate_ = field%jstate ; ilambda_we = field%lambdaj ; sigmai_we = field%sigmaj ; spini_ = field%spinj
+                  !
+                endif
+                !
+                ! proceed only if the spins of the field equal the corresponding <i| and |j> spins of the current matrix elements.
+                ! otherwise skip it:
+                if ( nint(spini_-spini)/=0.or.nint(spinj_-spinj)/=0 ) cycle
+                !
+                ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                ! otherwise it will cause a double counting:
+                !
+                if (ipermute==1.and.istate_==jstate_.and.ilambda_we==jlambda_we.and.nint(sigmai_we-sigmaj_we)==0.and. &
+                    nint(spini_-spinj_)==0) cycle
+                !
+                ! check if we at the right electronic states
+                if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                !
+                ! We apply the Wigner-Eckart theorem to reconstruct all combinations of <Lamba Sigma |HSO|Lamba Sigma' >
+                ! connected with the reference (input) <Lamba Sigma_r |HSO|Lamba Sigma_r' > by this theorem.
+                ! Basically, we loop over Sigma (Sigma = -S..S).  The following 3j-symbol for the reference states will
+                ! be conidered:
+                ! / Si      k  Sj     \    k  = 1
+                ! \ -Sigmai q  Sigmaj /    q  = Sigmai - Sigmaj
+                !
+                ! reference q from Wigner-Eckart
+                q_we = sigmai_we-sigmaj_we
+                !
+                ! We should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+                ! This could be imortant providing that we constrain the i,j indexes to be i<=j (or i>=j).
+                ! We also assume that the matrix elements are real!
+                !
+                ! First of all we can check if the input values are not unphysical and consistent with Wigner-Eckart:
+                ! the corresponding three_j should be non-zero:
+                three_j_ref = three_j(spini_, 1.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
+                !
+                if (abs(three_j_ref)<small_) then
+                  !
+                  write(out,"('The Spin-orbit field (J=0) ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
+                    field%istate,field%jstate
+                  write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
+                  stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+                  !
+                end if
+                !
+                ! Also check the that the SO is consistent with the selection rules for SO
+                !
+                if ( ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we)/=0.or.nint(spini_-spinj_)>1.or.&
+                    ( ilambda_we==0 .and. jlambda_we==0 .and. &
+                     poten(field%istate)%parity%pm==poten(field%jstate)%parity%pm ).or. &
+                    ( (ilambda_we-jlambda_we)/=-nint(sigmai_we-sigmaj_we) ).or.&
+                    abs(ilambda_we-jlambda_we)>1.or.abs(nint(sigmai_we-sigmaj_we))>1.or. &
+                    ( poten(field%istate)%parity%gu/=0.and.&
+                     poten(field%istate)%parity%gu/=poten(field%jstate)%parity%gu ) ) then
+                  !
+                  write(out,"('The quantum numbers of the spin-orbit field (J=0) ',2i3,' are inconsistent" // &
+                        " with SO selection rules: ')") field%istate,field%jstate
+                  write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
+                        "Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 " // &
+                        "or Delta Lambda = - Delta Sigma = +/- 1')")
+                  write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
+                    spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                  stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+                  !
+                endif
+                !
+                do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
+                  !
+                  ! Sigmas from Wigner-Eckart
+                  sigmai_ = real(isigma2,rk)*0.5
+                  sigmaj_ = sigmai_ - q_we
+                  !
+                  ! three_j for current Sigmas
+                  three_j_ = three_j(spini_, 1.0_rk, spinj_, -sigmai_, q_we, sigmaj_)
+                  !
+                  ! current value of the SO-matrix element from Wigner-Eckart
+                  SO = (-1.0_rk)**(sigmai_-sigmai_we)*three_j_/three_j_ref*field%gridvalue(igrid)
+                  !
+                  ! We should also take into account that Lambda and Sigma can change sign
+                  ! since in the input we give only a unique combination of matrix elements, for example
+                  ! < 0 0 |  1  1 > is given, but < 0 0 | -1 -1 > is not, assuming that the program will generate the missing
+                  ! combinations.
+                  !
+                  ! In order to recover other combinations we apply the symmetry transformation
+                  ! laboratory fixed inversion which is equivalent to the sigmav operation
+                  !                    (sigmav= 0 correspond to the unitary transformation)
+                  do isigmav = 0,1
+                    !
+                    ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                    ! avoid the double counting.
+                    if( isigmav==1.and.&
+                       nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 &
+                       )cycle
+                    !
+                    ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                    ilambda_ = ilambda_we*(-1)**isigmav
+                    jlambda_ = jlambda_we*(-1)**isigmav
+                    sigmai_ = sigmai_*(-1.0_rk)**isigmav
+                    sigmaj_ = sigmaj_*(-1.0_rk)**isigmav
+                    !
+                    omegai_ = sigmai_+real(ilambda_)
+                    omegaj_ = sigmaj_+real(jlambda_)
+                    !
+                    ! Check So selection rules
+                    if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or. &
+                        abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                    !
+                    ! proceed only if the quantum numbers of the field equal
+                    ! to the corresponding <i| and |j> quantum numbers of the basis set. otherwise skip it:
+                    if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0 &
+                        .or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
+                    !
+                    f_t = SO*sc
+                    !
+                    ! the result of the symmetry transformtaion applied to the <Lambda,Sigma|HSO|Lambda',Sigma'> only
+                    if (isigmav==1) then
+                      !
+                      ! still not everything is clear here: CHECK!
+                      !
+                      itau = -ilambda_-jlambda_ +nint(spini_-sigmai_)+nint(spinj_-sigmaj_) !+nint(jval-omegai)+(jval-omegaj)
+                      !
+                      !itau = nint(spini_-sigmai_)+nint(spinj_-sigmaj_) ! +nint(jval-omegai)+(jval-omegaj)
+                      !
+                      !itau = 0
+                      !
+                      if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                      if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                      !
+                      f_t = f_t*(-1.0_rk)**(itau)
+                      !
+                    endif
+                    !
+                    ! double check
+                    if ( nint(omegai-omegai_)/=0 .or. nint(omegai-omegaj_)/=0 ) then
+                      write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
+                        "SO: reconsrtucted omegai", omegai_,omegaj_,omegai
+                      stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                    endif
+                    !
+                    ! we might end up in eilther parts of the matrix (upper or lower),
+                    ! so it is safer to be general here and
+                    ! don't restrict to lower part as we have done above
+                    !
+                    omegamat(i,j) = omegamat(i,j) + f_t
+                    !
+                    omegamat(j,i) = omegamat(i,j)
+                    !
+                    cycle loop_iso_omega
+                    !
+                  enddo
+                enddo
+              enddo
+            enddo  loop_iso_omega
+            !
+            ! L*S
+            !
+            loop_ilxly_omega : do ilxly =1,Nlxly
+              !
+              field => lxly(ilxly)
+              !
+              ! Also check that L+ is consistent with the selection rules
+              !
+              if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+                !
+                write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
+                      " with L+selection rules: ')") field%istate,field%jstate
+                write(out,"('Delta Lamda = +/-1')")
+                stop "Lx/L+ input is inconsistent with selection rules"
+                !
+              endif
+              !
+              ! the field entry in the input gives only one combination of the quantum numbers for
+              ! the matrix element <State,Lambda,Spin|F|State',Lambda',Spin'>
+              ! LxLy  4 6 ;  lambda  0 1 ; spin   1.0 1.0
+              ! we should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+              ! This could be imortant providing that we constrain the i,j indexes to be i<=j (or i>=j)
+              ! We also assume that the matrix elements are real!
+              !
+              do ipermute  = 0,1
+                !
+                if (ipermute==0) then
+                  !
+                  istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+                  jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+                  !
+                else  ! permute
+                  !
+                  jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+                  istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+                  !
+                endif
+                !
+                ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                ! otherwise it will cause a double counting:
+                !
+                if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_.and.nint(spini_-spinj_)==0) cycle
+                !
+                ! check if we at the right electronic states
+                if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                !
+                ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                ! In order to recover other combinations we apply the symmetry transformation
+                ! laboratory fixed inversion which is equivalent to the sigmav operation
+                !                    (sigmav= 0 correspond to the unitary transformation)
+                do isigmav = 0,1
+                  !
+                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                  ! avoid the double counting.
+                  if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+
+                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                  ilambda_ = ilambda_*(-1)**isigmav
+                  jlambda_ = jlambda_*(-1)**isigmav
+                  !
+                  ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                  if (istate/=istate_.or.jstate_/=jstate.or.ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
+                  !
+                  ! check the selection rule Delta Lambda = +/1
+                  if (abs(ilambda-jlambda)/=1) cycle
+                  !
+                  ! double check
+                  if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                    write(out,&
+                      '("LS: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
+                               & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                    stop 'LS: wrongly reconsrtucted spini or spinj'
+                  endif
+                  !
+                  f_grid  = field%gridvalue(igrid)
+                  !
+                  ! <Lx> and <Ly> don't depend on Sigma
+                  !
+                  ! L*S part (spin-electronic coupling)
+                  !
+                  ! the selection rules are Delta Sigma = - Delta Lambda (Delta Spin = 0)
+                  !
+                  ! factor to switch between <Sigma+1|S+|Sigma> and <Sigma-1|S-|Sigma>:
+                  f_s = real(ilambda-jlambda,rk)
+                  !
+                  ! the bra-component of Sigma (i.e. sigmaj):
+                  sigmaj_ = sigmai+f_s
+                  !
+                  ! make sure that this sigmaj_ is consistent with the current ket-sigmaj
+                  if (nint(2.0_rk*sigmaj_)==nint(2.0*sigmaj)) then
+                    !
+                    f_t = f_grid*f_rot
+                    !
+                    ! the result of the symmetry transformation:
+                    if (isigmav==1) then
+                      !
+                      ! we assume that
+                      ! sigmav <Lamba|L+|Lambda'> => <-Lamba|L-|-Lambda'> == <Lamba|L+|Lambda'>(-1)^(Lamba+Lambda')
+                      ! and <Lamba|L+|Lambda'> is an unique quantity given in the input
+                      ! however we don't apply the sigmav transformation to sigma or omega
+                      ! since we only need to know how <Lamba|L+/-|Lambda'> transforms in order to relate it to the
+                      ! value given in input.
+                      !
+                      itau = 0
+                      !
+                      if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                      if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                      !
+                      f_t = f_t*(-1.0_rk)**(itau)
+                      !
+                    endif
+                    !
+                    ! the matrix element <Sigmai| S+/- |Sigmai+/-1>
+                    !
+                    f_t = sqrt( (spini-f_s*sigmai)*(spini+f_s*sigmai+1.0_rk) )*f_t
+                    !
+                    omegamat(i,j) = omegamat(i,j) + f_t
+                    omegamat(j,i) = omegamat(i,j)
+                    !
+                  endif
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo loop_ilxly_omega
+            !
+            !
+            ! Non-diagonal spin-rotaion term (J-independent part only)
+            !
+            do isr = 1,Nsr
+              !
+              ! non-diagonal part
+              if (i==j) cycle
+              !
+              field => spinrot(isr)
+              !
+              ! Only the part which does not depend on J:
+              !
+              ! 2. <Sigma,Omega,Lambda|HSR|Sigma+/-1,Omega,Lambda-/+>
+              ! with the effective parameter gamma_v including the matrix element <Lambda|L+/-|lambda-/+1>
+              if (spinrot(isr)%istate==istate.and.spinrot(isr)%jstate==jstate.and.&
+                  abs(nint(sigmaj-sigmai))==1.and.abs(ilambda-jlambda)==1.and.nint(spini-spinj)==0) then
+                !
+                do ipermute  = 0,1
+                  !
+                  if (ipermute==0) then
+                    !
+                    istate_ = field%istate ; ilambda_ = field%lambda
+                    jstate_ = field%jstate ; jlambda_ = field%lambdaj
+                    !
+                  else  ! permute
+                    !
+                    jstate_ = field%istate ; jlambda_ = field%lambda
+                    istate_ = field%jstate ; ilambda_ = field%lambdaj
+                    !
+                  endif
+                  !
+                  ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! otherwise it will cause a double counting:
+                  !
+                  if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
+                  !
+                  ! check if we at the right electronic states
+                  if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                  !
+                  ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                  ! In order to recover other combinations we apply the symmetry transformation
+                  ! laboratory fixed inversion which is equivalent to the sigmav operation
+                  !                    (sigmav= 0 correspond to the unitary transformation)
+                  do isigmav = 0,1
+                    !
+                    ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                    ! avoid the double counting.
+                    if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+
+                    ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                    ilambda_ = ilambda_*(-1)**isigmav
+                    jlambda_ = jlambda_*(-1)**isigmav
+                    !
+                    ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                    if (ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
+                    !
+                    !
+                    ! double check
+                    if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                      write(out,'("SR: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
+                                 & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                      stop 'SR: wrongly reconsrtucted spini or spinj'
+                    endif
+                    !
+                    f_grid  = field%gridvalue(igrid)*sc
+                    !
+                    ! <Lx> and <Ly> don't depend on Sigma
+                    !
+                    ! L*S part of the spin-rotation
+                    !
+                    ! the selection rules are Delta Sigma = - Delta Lambda (Delta Spin = 0)
+                    !
+                    ! factor to switch between <Sigma+1|S+|Sigma> and <Sigma-1|S-|Sigma>:
+                    f_s = real(ilambda-jlambda,rk)
+                    !
+                    ! the bra-component of Sigma (i.e. sigmaj):
+                    sigmaj_ = sigmai+f_s
+                    !
+                    ! make sure that this sigmaj_ is consistent with the current ket-sigmaj
+                    if (nint(2.0_rk*sigmaj_)==nint(2.0*sigmaj)) then
+                      !
+                      f_t = f_grid
+                      !
+                      ! the result of the symmetry transformation:
+                      if (isigmav==1) then
+                        !
+                        ! we assume that
+                        ! sigmav <Lamba|L+|Lambda'> => <-Lamba|L-|-Lambda'> == <Lamba|L+|Lambda'>(-1)^(Lamba+Lambda')
+                        ! and <Lamba|L+|Lambda'> is an unique quantity given in the input
+                        ! however we don't apply the sigmav transformation to sigma or omega
+                        ! since we only need to know how <Lamba|L+/-|Lambda'> transforms in order to relate it to the
+                        ! value given in input.
+                        !
+                        itau = 0
+                        !
+                        if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                        if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                        !
+                        f_t = f_t*(-1.0_rk)**(itau)
+                        !
+                      endif
+                      !
+                      ! the matrix element <Sigmai| S+/- |Sigmai+/-1>
+                      !
+                      f_t = sqrt( (spini-f_s*sigmai)*(spini+f_s*sigmai+1.0_rk) )*f_t
+                      !
+                      !f_t = sqrt( spini*(spini+1.0_rk)-sigmai*(sigmai+f_s)  )*f_t
+                      !
+                      omegamat(i,j) = omegamat(i,j) + f_t
+                      omegamat(j,i) = omegamat(i,j)
+                      !
+                    endif
+                    !
+                  enddo
+                  !
+                enddo
+                !
+              endif
+              !
+            enddo
+            !
+            ! Non-diagonal spin-spin term
+            !
+            do isso = 1,Nsso
+              !
+              if (spinspino(isso)%istate==istate.and.spinspino(isso)%jstate==jstate.and.istate==jstate.and.&
+                  abs(nint(sigmaj-sigmai))==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai)) then
+                !
+                field => spinspino(isso)
+                !
+                f_s = sigmaj-sigmai
+                !
+                f_t = sqrt( spini*(spini+1.0_rk)-(sigmai+0.5_rk*f_s)*(sigmai    ) )*&
+                      sqrt( spini*(spini+1.0_rk)-(sigmai+0.5_rk*f_s)*(sigmai+f_s) )
+                !
+                f_ss = field%gridvalue(igrid)*f_t*sc
+                !
+                omegamat(i,j) = omegamat(i,j) + f_ss
+                omegamat(j,i) = omegamat(i,j)
+                !
+              endif
+              !
+            enddo ! S-S
+            !
+            !
+            ! Non-diagonal lambda-opq doubling, J-independent part
+            !
+            do ild = 1,Nlambdaopq
+              !
+              field => lambdaopq(ild)
+              !
+              ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
+              if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
+                  abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
+                  .and.(ilambda==-jlambda).and.nint(spini-spinj)==0) then
+                !
+                f_s2 = sigmai-sigmaj
+                f_s1 = sign(1.0_rk,f_s2)
+                !
+                f_t = sqrt( spini*(spini+1.0_rk)-(sigmaj     )*(sigmaj+f_s1) )*&
+                      sqrt( spini*(spini+1.0_rk)-(sigmaj+f_s1)*(sigmaj+f_s2) )
+                !
+                f_lo = field%gridvalue(igrid)*f_t*sc
+                !
+                omegamat(i,j) = omegamat(i,j) + f_lo*0.5_rk
+                omegamat(j,i) = omegamat(i,j)
+                !
+              endif
+              !
+            enddo
+            !
+          enddo  ! j
+        enddo  ! i
+        !
+        !Solve the Sigma-Lambda-State Hamiltonian at each grid point
+        !
+        call lapack_syev(omegamat,omegaenergy)
+        !
+        N_i = Nlambdasigmas
+        !
+        omega_grid(iomega)%energy(1:N_i,igrid) = omegaenergy/sc
+        omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = omegamat
+        omega_grid(iomega)%Nstates = Nlambdasigmas
+        !
+        deallocate(omegamat,omegaenergy)
+        !
+        if (igrid==1) then
+          vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+        else
+          !
+          mat_1(1:N_i,1:N_i) = &
+            matmul(transpose(vect(iomega,1:N_i,1:N_i)),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          !
+          ! scalar product of vect with the previous step
+          do i = 1,N_i
+            !
+            imaxcontr = maxloc(mat_1(1:N_i,i)**2,dim=1,mask=mat_1(1:N_i,i)**2.ge.small_)
+            !
+            if (mat_1(imaxcontr,i)<-small_) then
+              omega_grid(iomega)%vector(1:N_i,i,igrid) = -omega_grid(iomega)%vector(1:N_i,i,igrid)
+            endif
+            !
+            vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+            !
+          enddo
+          !
+        endif
+        !
+      enddo
+      !
+      ! Now we can use the eigenfunctions to  unitary trnsform different objects to the Omega representation
+      !
+      ! Compute the L+ matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (NLPlus_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(iLplus_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate  = Omega_grid(iomega)%basis(i)%istate
+              ilambda = Omega_grid(iomega)%basis(i)%ilambda
+              spini   = Omega_grid(iomega)%basis(i)%spin
+              sigmai   = Omega_grid(iomega)%basis(i)%sigma
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                !
+                ! Lx is always diagonal in sigma and we also restrict to L+ (omegai = omegaj+1)
+                !
+                if( nint(sigmaj-sigmai)/=0.or.(omegai<omegaj) ) cycle
+                !
+                ! Lplus/Lminus
+                !
+                do ilxly =1,Nlxly
+                  !
+                  field => lxly(ilxly)
+                  !
+                  ! Also check that L+ is consistent with the selection rules
+                  !
+                  if ( field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+                    !
+                    write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
+                          " with L+selection rules: ')") field%istate,field%jstate
+                    write(out,"('Delta Lamda = +/-1')")
+                    stop "Lx/L+ input is inconsistent with selection rules"
+                    !
+                  endif
+                  !
+                  ! the field entry in the input gives only one combination of the quantum numbers for
+                  ! the matrix element <State,Lambda,Spin|F|State',Lambda',Spin'>
+                  ! LxLy  4 6 ;  lambda  0 1 ; spin   1.0 1.0
+                  ! we should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+                  !
+                  do ipermute  = 0,1
+                    !
+                    if (ipermute==0) then
+                      !
+                      istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+                      jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+                      !
+                    else  ! permute
+                      !
+                      jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+                      istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+                      !
+                    endif
+                    !
+                    ! check if we at the right electronic states
+                    if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                    !
+                    ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                    ! In order to recover other combinations we apply the symmetry transformation
+                    ! laboratory fixed inversion which is equivalent to the sigmav operation
+                    !                    (sigmav= 0 correspond to the unitary transformation)
+                    do isigmav = 0,1
+                      !
+                      ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                      ! avoid the double counting.
+                      if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+
+                      ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                      ilambda_ = ilambda_*(-1)**isigmav
+                      jlambda_ = jlambda_*(-1)**isigmav
+                      !
+                      ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                      if (istate/=istate_.or.jstate_/=jstate.or.ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
+                      !
+                      ! check the selection rule Delta Lambda = +/1
+                      if (abs(ilambda-jlambda)/=1) cycle
+                      !
+                      f_grid  = field%gridvalue(igrid)
+                      !
+                      ! <Lx> and <Ly> don't depend on Sigma
+                      !
+                      f_s = real(ilambda-jlambda,rk)
+                      !
+                      f_t = f_grid
+                      !
+                      ! the result of the symmetry transformation:
+                      if (isigmav==1) then
+                        !
+                        ! we assume that
+                        ! sigmav <Lamba|L+|Lambda'> => <-Lamba|L-|-Lambda'> == <Lamba|L+|Lambda'>(-1)^(Lamba+Lambda')
+                        ! and <Lamba|L+|Lambda'> is an unique quantity given in the input
+                        ! however we don't apply the sigmav transformation to sigma or omega
+                        ! since we only need to know how <Lamba|L+/-|Lambda'> transforms in order to relate it to the
+                        ! value given in input.
+                        !
+                        !itau = ilambda-jlambda+nint(spini-sigmai)+nint(spinj-sigmaj)!-nint(omegai+omegaj)
+                        !
+                        ! we try to remove also lambda from the sigmav transformation!!
+                        !
+                        itau = 0
+                        !
+                        if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                        if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                        !
+                        f_t = f_t*(-1.0_rk)**(itau)
+                        !
+                      endif
+                      !
+                      L_LambdaSigma(i,j) = f_t
+                      !
+                    enddo
+                    !
+                  enddo
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                iLplus_omega_ = iLplus_omega(iomega,jomega,i,j)
+                !
+                if (iLplus_omega_==0) cycle
+                !
+                l_omega_obj(iLplus_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
+      ! Compute the S+ matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (NSPlus_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(iSplus_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate  = Omega_grid(iomega)%basis(i)%istate
+              ilambda = Omega_grid(iomega)%basis(i)%ilambda
+              sigmai  = Omega_grid(iomega)%basis(i)%sigma
+              spini   = Omega_grid(iomega)%basis(i)%spin
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                !
+                if (spini/=spini.or.(ilambda/=jlambda).or.nint(sigmai-sigmaj)/=1) cycle
+                !
+                do ispin = 1,Nspins
+                  !
+                  spini_ = real(ispin-1,rk)+spin_min
+                  !
+                  spinj = spini
+                  !
+                  L_LambdaSigma(i,j) = sqrt( (spini-sigmaj)*(spini+sigmaj+1.0_rk) )
+                  !
+                enddo
+                !
+              enddo
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                iSplus_omega_ = iSplus_omega(iomega,jomega,i,j)
+                !
+                if (iSplus_omega_==0) cycle
+                !
+                S_omega_obj(iSplus_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
+      ! Compute the SR (spin-rotation) matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (NSR_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(iSR_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate  = Omega_grid(iomega)%basis(i)%istate
+              ilambda = Omega_grid(iomega)%basis(i)%ilambda
+              spini   = Omega_grid(iomega)%basis(i)%spin
+              sigmai   = Omega_grid(iomega)%basis(i)%sigma
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                !
+                ! Sx,Sy are always diagonal in Lambda and omegai = omegaj+/-1)
+                !
+                if( (ilambda-jlambda)/=0.or.abs(nint(omegai-omegaj))/=1 ) cycle
+                !
+                do iSR =1,NSR
+                  !
+                  field => spinrot(isr)
+                  !
+                  ! 1. <Sigma,Omega,Lambda|HSR|Sigma+/-1,Omega+/-1,Lambda>
+                  if (spinrot(isr)%istate==istate.and.spinrot(isr)%jstate==jstate.and.istate==jstate.and.&
+                      abs(nint(sigmaj-sigmai))==1.and.(ilambda==jlambda).and.nint(spini-spinj)==0) then
+                    !
+                    f_s = sigmaj-sigmai
+                    !
+                    f_t = sqrt( spini*(spini+1.0_rk)-sigmai*(sigmai+f_s) )
+                    !
+                    f_grid  = field%gridvalue(igrid)*f_t
+                    !
+                    L_LambdaSigma(i,j) = f_grid
+                    !
+                    !
+                  endif
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                iSR_omega_ = iSR_omega(iomega,jomega,i,j)
+                !
+                if (iSR_omega_==0) cycle
+                !
+                sr_omega_obj(iSR_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
+      !
+      ! Compute the BobRot (BOB) matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (NBOB_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          if (all(iBOB_omega(iomega,1:N_i,1:N_i)==0)) cycle
+          !
+          L_LambdaSigma = 0
+          !
+          do i = 1,N_i
+            !
+            istate  = Omega_grid(iomega)%basis(i)%istate
+            ilambda = Omega_grid(iomega)%basis(i)%ilambda
+            spini   = Omega_grid(iomega)%basis(i)%spin
+            sigmai  = Omega_grid(iomega)%basis(i)%sigma
+            !
+            do ibob =1,Nbobrot
+              !
+              field => bobrot(ibob)
+              !
+              if (field%istate==istate.and.field%jstate==istate) then
+                !
+                f_grid  = field%gridvalue(igrid)*f_t
+                !
+                L_LambdaSigma(i,i) = f_grid
+                !
+                !
+              endif
+              !
+            enddo
+            !
+          enddo
+          !
+          mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_i))
+          !
+          do i = 1,N_i
+            do j = 1,N_i
+              !
+              iBob_omega_ = iBob_omega(iomega,i,j)
+              !
+              if (iBob_omega_==0) cycle
+              !
+              BOB_omega_obj(iBob_omega_)%gridvalue(igrid) = mat_2(i,j)
+              !
+            enddo
+          enddo
+          !
+        enddo
+        !
+      endif
+      !
+      ! Compute the BobRot (BRot) matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (NBRot_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          if (all(iBRot_omega(iomega,1:N_i,1:N_i)==0)) cycle
+          !
+          L_LambdaSigma = 0
+          !
+          do i = 1,N_i
+            !
+            L_LambdaSigma(i,i) = 1.0_rk
+            !
+          enddo
+          !
+          mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_i))
+          !
+          do i = 1,N_i
+            do j = 1,N_i
+              !
+              iBRot_omega_ = iBRot_omega(iomega,i,j)
+              !
+              if (iBRot_omega_==0) cycle
+              !
+              BRot_omega_obj(iBRot_omega_)%gridvalue(igrid) = mat_2(i,j)
+              !
+            enddo
+          enddo
+          !
+        enddo
+        !
+      endif
+      !
+      !
+      ! Compute the p2q (lambda-doubling) matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (Np2q_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(ip2q_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate   = Omega_grid(iomega)%basis(i)%istate
+              ilambda  = Omega_grid(iomega)%basis(i)%ilambda
+              spini    = Omega_grid(iomega)%basis(i)%spin
+              sigmai   = Omega_grid(iomega)%basis(i)%sigma
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                !
+                if( abs(nint(omegai-omegaj))/=1.or.abs(nint(sigmai-sigmaj))/=1 ) cycle
+                if( abs(ilambda)/=1.or.abs(jlambda)/=1.or.abs(ilambda-jlambda)/=2 ) cycle
+                if (istate/=jstate.or.nint(spini-spinj)/=0.or.nint(sigmaj-sigmai)/=nint(omegai-omegaj) ) cycle
+                !
+                do ip2q =1,Nlambdap2q
+                  !
+                  field => lambdap2q(ip2q)
+                  !
+                  ! <Sigma+/-1,Omega-/+1,Lambda=-/+1|Hp2q|Sigma,Omega,-Lambda>
+                  if (field%istate==istate.and.field%jstate==jstate.and.abs(field%lambda)==1) then
+                    !
+                    f_s = sigmai-sigmaj
+                    !
+                    f_t = sqrt( spini*(spini+1.0_rk)-sigmaj*(sigmaj+f_s) )
+                    !
+                    f_grid = field%gridvalue(igrid)*f_t
+                    !
+                    L_LambdaSigma(i,j) = f_grid
+                    !
+                    !
+                  endif
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                ip2q_omega_ = ip2q_omega(iomega,jomega,i,j)
+                !
+                if (ip2q_omega_==0) cycle
+                !
+                p2q_omega_obj(ip2q_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
+      ! Compute the q (lambda-doubling) matrix elements in the primitive Lambda-Sigma representation
+      !
+      if (Nq_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(iq_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate  = Omega_grid(iomega)%basis(i)%istate
+              ilambda = Omega_grid(iomega)%basis(i)%ilambda
+              spini   = Omega_grid(iomega)%basis(i)%spin
+              sigmai   = Omega_grid(iomega)%basis(i)%sigma
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                !
+                if( abs(nint(omegai-omegaj))/=2.or.nint(sigmai-sigmaj)/=0 ) cycle
+                if( abs(ilambda)/=1.or.abs(jlambda)/=1.or.abs(ilambda-jlambda)/=2 ) cycle
+                if (istate/=jstate.or.(ilambda-jlambda)/=nint(omegai-omegaj).or.nint(spini-spinj)/=0) cycle
+                !
+                do iq =1,Nlambdaq
+                  !
+                  field => lambdaq(iq)
+                  !
+                  ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
+                  if (field%istate==istate.and.field%jstate==jstate.and.abs(field%lambda)==1) then
+                    !
+                    f_grid = field%gridvalue(igrid)
+                    !
+                    L_LambdaSigma(i,j) = f_grid
+                    !
+                    !
+                  endif
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                iq_omega_ = iq_omega(iomega,jomega,i,j)
+                !
+                if (iq_omega_==0) cycle
+                !
+                q_omega_obj(iq_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
+    enddo
+    !
+    !
+    allocate(vibmat(ngrid,ngrid),stat=alloc)
+    call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
+    allocate(kinmat(ngrid,ngrid),stat=alloc)
+    call ArrayStart('kinmat-omega',alloc,size(kinmat),kind(kinmat))
+    !
+    !
+    ! Kinetic energy part
+    !
+    call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
+    !
+    ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
+    do igrid =1, ngrid
+      do jgrid =1,ngrid
+        !
+        ! Compute the Kinetic (Kin) matrix elements in the primitive Lambda-Sigma representation
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          L_LambdaSigma = 0
+          !
+          do i = 1,N_i
+            !
+            istate  = Omega_grid(iomega)%basis(i)%istate
+            ilambda = Omega_grid(iomega)%basis(i)%ilambda
+            spini   = Omega_grid(iomega)%basis(i)%spin
+            sigmai  = Omega_grid(iomega)%basis(i)%sigma
+            !
+            L_LambdaSigma(i,i) = vibmat(igrid,jgrid)
+            !
+          enddo
+          !
+          mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,jgrid)),mat_1(1:N_i,1:N_i))
+          !
+          do i = 1,N_i
+            do j = 1,N_i
+              !
+              iKin_omega_ = iKin_omega(iomega,i,j)
+              !
+              Kin_omega_obj(iKin_omega_)%matelem(igrid,jgrid) = mat_2(i,j)
+              !
+            enddo
+          enddo
+          !
+        enddo
+        !
+      enddo
+    enddo
+    !
+    deallocate(vibmat)
+    call ArrayStop('vibmat-omega')
+    deallocate(kinmat)
+    call ArrayStop('kinmat-omega')
+    !
+    deallocate(L_LambdaSigma)
+    call ArrayStop('L_LambdaSigma')
+    !
+    deallocate(mat_1,mat_2)
+    call ArrayStop('mat_1')
+    call ArrayStop('mat_2')
+    !
+    deallocate(vect)
+    call ArrayStop('vect')
+    !
+    deallocate(imax_contr)
+    call ArrayStop('imax_contr')
+    !
+    deallocate(iomega_state)
+    call ArrayStop('iomega_state')
+    !
+    do iomega=1,Nomegas
+      !
+      omegai = Omega_grid(iomega)%omega
+      !
+      N_i = omega_grid(iomega)%Nstates
+      !
+      do i = 1,N_i
+        !
+        ieq =minloc(omega_grid(iomega)%energy(i,:),dim=1)
+        !
+        imaxcontr = maxloc(omega_grid(iomega)%vector(1:N_i,i,ieq)**2,&
+                           dim=1,mask=omega_grid(iomega)%vector(1:N_i,i,ieq)**2.ge.small_)
+        !
+        Omega_grid(iomega)%qn(i)%istate  = Omega_grid(iomega)%basis(imaxcontr)%istate
+        Omega_grid(iomega)%qn(i)%name    = trim(Omega_grid(iomega)%basis(imaxcontr)%name)
+        Omega_grid(iomega)%qn(i)%sigma   = Omega_grid(iomega)%basis(imaxcontr)%sigma
+        Omega_grid(iomega)%qn(i)%ilambda = Omega_grid(iomega)%basis(imaxcontr)%ilambda
+        Omega_grid(iomega)%qn(i)%spin    = Omega_grid(iomega)%basis(imaxcontr)%spin
+        Omega_grid(iomega)%qn(i)%omega   = omegai
+        Omega_grid(iomega)%qn(i)%ilevel  = Omega_grid(iomega)%basis(imaxcontr)%ilevel
+        !
+      enddo
+      !
+    enddo
+    !
+    !
+  end subroutine Copy_Sigma_Lambda_to_Omega_representation  
+  
+  
 
   subroutine print_fileds_in_Omega_representation(iverbose,Nomega_states)
     !
