@@ -7033,7 +7033,8 @@ contains
     real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
     integer(ik)             :: total_roots,irrep,jrrep,isr,ild
-    real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:),kinmat(:,:),kinmat1(:,:)
+    real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
+    real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatnac(:,:)
     real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
     real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
     integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
@@ -7758,8 +7759,8 @@ contains
       !
       ! only needed if NACs are present
       if (nnac>0) then
-        allocate(kinmat1(ngrid,ngrid),stat=alloc)
-        call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+        allocate(kinmat1(ngrid,ngrid),kinmatnac(ngrid,ngrid),stat=alloc)
+        call ArrayStart('kinmat1',alloc,2_ik*size(kinmat1),kind(kinmat1))
       endif
       !
       if (trim(solution_method)=="LOBATTO") then
@@ -8281,14 +8282,14 @@ contains
             allocate(nacmat_(totalroots,ngrid),stat=alloc)
             call ArrayStart('nacmat_',alloc,size(nacmat_),kind(nacmat_))
             !
-            !$omp parallel do private(i) shared(kinmat1) schedule(guided)
+            !$omp parallel do private(i) shared(kinmatnac) schedule(guided)
             do i = 1,ngrid
-              kinmat1(i,:) = field%gridvalue(i)*kinmat1(i,:)
+              kinmatnac(i,:) = field%gridvalue(i)*kinmat1(i,:)
             enddo
             !$omp end parallel do
             !
             call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
-                       kinmat1,ngrid,beta_,nacmat_,totalroots)
+                       kinmatnac,ngrid,beta_,nacmat_,totalroots)
             call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,&
                        contrfunc,ngrid,beta_,field%matelem,totalroots)
             !
@@ -8383,7 +8384,7 @@ contains
       !call ArrayStop('matelem_rk')
       !
       if (allocated(kinmat1)) then
-        deallocate(kinmat1)
+        deallocate(kinmat1,kinmatnac)
         call ArrayStop('kinmat1')
       endif
       !
