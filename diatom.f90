@@ -894,7 +894,7 @@ contains
         !
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(nestates),quadrupoletm(ncouples),&
+                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),quadrupoletm(ncouples),&
                  magnetictm(ncouples),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
@@ -3480,6 +3480,14 @@ contains
     end do
     !
     Nestates = iobject(1)
+    !
+    ! check if the symmetry is consistent with the type of the molecule 
+    if (m1>0.and.m2>0.or.symbol1==symbol2) then 
+      if (abs(m1-m2)<sqrt(small_).and.trim(job%symmetry)/="C2V(M)") then
+        write (out,'("Symmetry of homonuclear molecule must be C2v")')
+        stop "Symmetry of homonuclear molecule must be C2v"
+      endif
+    endif
     !
     ! make sure job%vibmax is not larger than npoints
     do i = 1,Nestates
