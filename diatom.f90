@@ -13709,7 +13709,7 @@ contains
         !
       enddo
       !
-      ! Now we can use the eigenfunctions to  unitary trnsform different objects to the Omega representation
+      ! Now we can use the eigenfunctions to  unitary transform different objects to the Omega representation
       !
       ! Compute the L+ matrix elements in the primitive Lambda-Sigma representation
       !
@@ -14282,7 +14282,7 @@ contains
     !
     call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
     !
-    ! For each grid point diagonalise the Sigma-Lambda PECs + SOs and transform to the Omega-represenation
+    ! Transform KEO to the Omega-represenation
     do igrid =1, ngrid
       do jgrid =1,ngrid
         !
