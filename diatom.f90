@@ -392,7 +392,7 @@ module diatom_module
     real(rk) :: bound_density      = sqrt(small_) ! threshold defining the unbound state density
     ! calculated at the edge of the box whioch must be small for bound states
     real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
-    real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density
+    real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density (Angstrom)
     !
   end type thresholdsT
   !
