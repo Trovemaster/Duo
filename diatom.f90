@@ -389,7 +389,8 @@ module diatom_module
     real(rk) :: quadrupole   = -1e0    ! threshold defining the output linestrength
     real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
     ! taken into account in the matrix elements evaluation.
-    real(rk) :: bound_density       = sqrt(small_) ! threshold defining the unbound state density
+    real(rk) :: bound_density      = sqrt(small_) ! threshold defining the unbound state density
+    ! calculated at the edge of the box whioch must be small for bound states
     real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
     real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density (Angstrom)
     !
@@ -585,8 +586,6 @@ contains
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
     real(rk)     :: bound_density
-    real(rk)     :: bound_density_ = sqrt(small_) ! threshold defining the unbound state density, 
-                 ! is obsolete but kept for older inputs where density was used as probability, dens = prob/dr, 
     !
     character(len=cl) :: w,ioname,iTAG,jTAG,States_list(states_max)
     character(len=wl) :: large_fmt
@@ -3284,10 +3283,6 @@ contains
             !
           case('THRESH_BOUND','THRESH_DENSITY')
             !
-            call readf(bound_density_)
-            !
-          case('BOUND_THRESHOLD','DENSITY_THRESHOLD')
-            !
             call readf(intensity%threshold%bound_density)
             !
           case('THRESH_AVERAGE_DENSITY')
@@ -3713,15 +3708,7 @@ contains
     ! redefine the bound_aver_density and bound_denisty into a single criterium
     !
     bound_density = intensity%threshold%bound_aver_density*intensity%threshold%deltaR_dens
-    !
     intensity%threshold%bound_density = max(intensity%threshold%bound_density,bound_density)
-    !
-    ! obsolete threshold used to maintain old input files: 
-    if (bound_density_>10*sqrt(small_)) then
-       hstep = (grid%rmax - grid%rmin)/real(grid%npoints-1,rk)
-       intensity%threshold%bound_density = max(intensity%threshold%bound_density,bound_density_*hstep)
-    endif
-    !
     intensity%threshold%bound_aver_density = intensity%threshold%bound_density/intensity%threshold%deltaR_dens
     !
     jmin = omega_
@@ -11248,6 +11235,9 @@ contains
                   enddo
                   !$omp end parallel do
                   !
+                  ! we remove the normalisation factor from the reduced density so that now sum( psi_vib(i)*hstep ) = 1
+                  psi_vib = psi_vib/hstep
+                  !
                   do k = 1,grid%npoints
                     write(vibunit,'(e20.12," ||",1x,f8.1,1x,i2,i8)') psi_vib(k),J_list(irot),irrep-1,i
                   enddo
@@ -11493,9 +11483,6 @@ contains
         !
       enddo
     enddo
-    !
-    ! we remove the normalisation factor from the reduced density so that now sum( psi_vib(i)*hstep ) = 1
-    psi_vib = psi_vib/hstep
     !
   end function vibrational_reduced_density
   !
