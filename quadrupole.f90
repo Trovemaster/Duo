@@ -104,9 +104,19 @@ contains
         jVal_ = jVal(jInd)
 
         do indGamma = 1, sym%NrepresCs
-
+          !
+          irrep = correlate_to_Cs(indGamma, guParity)
+          !
           do indLevel = 1, eigen(jInd, indGamma)%Nlevels
-
+            !            
+            ! for homonuclear Nrepres = 4 and the irrep can be
+            ! reconstructed from parity and g/u
+            !
+            indState = eigen(jInd, indGamma)%quanta(indLevel)%istate
+            guParity = poten(indState)%parity%gu
+            indSym   = correlate_to_Cs(indGamma, guParity)
+            !
+            if (Intensity%gns(indSym)<small_) cycle
             ! if energy of state < ZPE then adjust ZPE
             energy = eigen(jInd, indGamma)%val(indLevel)
             Intensity%ZPE = min(Intensity%ZPE, energy)
