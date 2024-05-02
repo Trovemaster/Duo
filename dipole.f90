@@ -116,6 +116,13 @@ contains
         do igamma = 1,sym%NrepresCs
           !
           do ilevel = 1,eigen(jind,igamma)%Nlevels
+              !            
+              ! for homonuclear symmetries Nrepres = 4 and the irrep can be reconstucted baed on the parity and g/u: 
+              istate  = eigen(jind,igamma)%quanta(ilevel)%istate
+              parity_gu = poten(istate)%parity%gu
+              isym = correlate_to_Cs(igamma,parity_gu)
+              !
+              if (Intensity%gns(isym)<small_) cycle
               !
               energy = eigen(jind,igamma)%val(ilevel)
               !
