@@ -518,13 +518,16 @@ module diatom_module
   !
   ! Fields in the Omega representation
   !
-  integer(ik) :: Nspins,NLplus_omega,NSplus_omega,NSR_omega,NBob_omega,Nomegas,Np2q_omega,Nq_omega,NKin_omega,NBRot_omega
+  integer(ik) :: Nspins,NLplus_omega,NSplus_omega,NSR_omega,NBob_omega,Nomegas,Np2q_omega,Nq_omega,NKin_omega,NBRot_omega,NNAC_omega
+  integer(ik) :: NDiab_omega,NDipole_omega
   type(Omega_gridT),allocatable :: omega_grid(:)
   integer(ik),allocatable :: iLplus_omega(:,:,:,:),iSplus_omega(:,:,:,:),iSR_omega(:,:,:,:),iBOB_omega(:,:,:)
-  integer(ik),allocatable :: iP2Q_omega(:,:,:,:),iQ_omega(:,:,:,:),iKin_omega(:,:,:),iBRot_omega(:,:,:)
+  integer(ik),allocatable :: iP2Q_omega(:,:,:,:),iQ_omega(:,:,:,:),iKin_omega(:,:,:),iBRot_omega(:,:,:),iNAC_omega(:,:,:),&
+                             iDiab_omega(:,:,:),iDipole_omega(:,:,:,:)
   !
   type(fieldT),pointer :: l_omega_obj(:)=>null(),s_omega_obj(:)=>null(),sr_omega_obj(:)=>null(),bob_omega_obj(:)=>null()
   type(fieldT),pointer :: p2q_omega_obj(:)=>null(),q_omega_obj(:)=>null(),kin_omega_obj(:)=>null(),brot_omega_obj(:)=>null()
+  type(fieldT),pointer :: nac_omega_obj(:)=>null(),Diab_omega_obj(:)=>null(),Dipole_omega_obj(:)=>null()
   !
   type(jobT)   :: job
   type(gridT)  :: grid
@@ -563,9 +566,8 @@ module diatom_module
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
-    magnetictm,&
-    l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
-    overlap_matelem
+    magnetictm,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,kin_omega_obj,&
+    nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
@@ -3576,7 +3578,7 @@ contains
         field   => diabatic(Ndiabatic)
         field_  => nac(iNAC)
         !
-        ! set it to be a diagonalfor j
+        ! set it to be a diagonal for j
         !
         call set_field_refs(field,nac(iNAC)%jref,nac(iNAC)%jref,nac(iNAC)%jstate,nac(iNAC)%jstate,nac(iNAC)%jTAG,nac(iNAC)%jTAG)
         call transfer_field_quantum_numbers(field_,field)
@@ -7078,7 +7080,6 @@ contains
     real(rk) :: ddot
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0
     !
-    !
     ! open file for later (if option is set)
     if (job%print_rovibronic_energies_to_file ) &
       open(unit=u2, file='rovibronic_energies.dat',status='replace',action='write')
@@ -7271,6 +7272,21 @@ contains
       call ArrayStart('iKin_omega',alloc,size(iKin_omega),kind(iKin_omega))
       iKin_omega = 0
       !
+      ! counter iNAC_omega
+      allocate(iNAC_omega(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+      call ArrayStart('iNAC_omega',alloc,size(iNAC_omega),kind(iNAC_omega))
+      iNAC_omega = 0
+      !
+      ! counter iDiab_omega
+      allocate(iDiab_omega(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+      call ArrayStart('iDiab_omega',alloc,size(iDiab_omega),kind(iDiab_omega))
+      iDiab_omega = 0
+      !
+      ! counter iDipole_omega
+      allocate(iDipole_omega(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
+      call ArrayStart('iDipole_omega',alloc,size(iDipole_omega),kind(iDipole_omega))
+      iDipole_omega = 0
+      !
       Nomega_states = 0
       omega = omega_min-1.0_rk
       !
@@ -7444,8 +7460,9 @@ contains
         call Q_omega_create(Nq_omega,onlycount=.false.)
         !
       endif
-      ! count the number of different BRot objects
       !
+      ! count the number of different BRot objects
+      ! we probsbly don't need this field 
       call Brot_omega_create(NBRot_omega,onlycount=.true.)
       !
       if (NBRot_omega/=0.and..not.fields_allocated) then
@@ -7464,6 +7481,90 @@ contains
         call Brot_omega_create(NBRot_omega,onlycount=.false.)
         !
       endif
+      !
+      ! count the number of different NAC objects
+      !
+      call NAC_omega_create(NNAC_omega,onlycount=.true.)
+      !
+      if (NNAC_omega/=0.and..not.fields_allocated) then
+        !
+        allocate(NAC_omega_obj(NNAC_omega),stat=alloc)
+        if (alloc/=0) stop 'NAC_omega_obj cannot be allocated'
+        !
+        do i = 1,NNAC_omega
+          NAC_omega_obj(i)%type = "grid"
+          NAC_omega_obj(i)%name = "NAC Omega obj"
+          allocate(NAC_omega_obj(i)%gridvalue(ngrid),stat=alloc)
+          call ArrayStart("NAC Omega obj",alloc,ngrid,kind(NAC_omega_obj(i)%gridvalue))
+          NAC_omega_obj(i)%gridvalue = 0
+        enddo
+        !
+        call NAC_omega_create(NNAC_omega,onlycount=.false.)
+        !
+      endif
+      !
+      ! count the number of different NAC objects
+      !
+      call Diab_omega_create(NDiab_omega,onlycount=.true.)
+      !
+      if (NDiab_omega/=0.and..not.fields_allocated) then
+        !
+        allocate(Diab_omega_obj(NDiab_omega),stat=alloc)
+        if (alloc/=0) stop 'Diab_omega_obj cannot be allocated'
+        !
+        do i = 1,NDiab_omega
+          Diab_omega_obj(i)%type = "grid"
+          Diab_omega_obj(i)%name = "Diab Omega obj"
+          allocate(Diab_omega_obj(i)%gridvalue(ngrid),stat=alloc)
+          call ArrayStart("NAC Omega obj",alloc,ngrid,kind(Diab_omega_obj(i)%gridvalue))
+          Diab_omega_obj(i)%gridvalue = 0
+        enddo
+        !
+        call Diab_omega_create(NDiab_omega,onlycount=.false.)
+        !
+      endif      
+      !
+      ! count the number of different NAC objects
+      !
+      call NAC_omega_create(NNAC_omega,onlycount=.true.)
+      !
+      if (NNAC_omega/=0.and..not.fields_allocated) then
+        !
+        allocate(NAC_omega_obj(NNAC_omega),stat=alloc)
+        if (alloc/=0) stop 'NAC_omega_obj cannot be allocated'
+        !
+        do i = 1,NNAC_omega
+          NAC_omega_obj(i)%type = "grid"
+          NAC_omega_obj(i)%name = "NAC Omega obj"
+          allocate(NAC_omega_obj(i)%gridvalue(ngrid),stat=alloc)
+          call ArrayStart("NAC Omega obj",alloc,ngrid,kind(NAC_omega_obj(i)%gridvalue))
+          NAC_omega_obj(i)%gridvalue = 0
+        enddo
+        !
+        call NAC_omega_create(NNAC_omega,onlycount=.false.)
+        !
+      endif
+      !
+      ! count the number of different Dipole objects
+      !
+      call Dipole_omega_create(NDipole_omega,onlycount=.true.)
+      !
+      if (NDipole_omega/=0.and..not.fields_allocated) then
+        !
+        allocate(Dipole_omega_obj(NDipole_omega),stat=alloc)
+        if (alloc/=0) stop 'Dipole_omega_obj cannot be allocated'
+        !
+        do i = 1,NDipole_omega
+          Dipole_omega_obj(i)%type = "grid"
+          Dipole_omega_obj(i)%name = "Dipole Omega obj"
+          allocate(Dipole_omega_obj(i)%gridvalue(ngrid),stat=alloc)
+          call ArrayStart("NAC Omega obj",alloc,ngrid,kind(Dipole_omega_obj(i)%gridvalue))
+          Dipole_omega_obj(i)%gridvalue = 0
+        enddo
+        !
+        call Dipole_omega_create(NDipole_omega,onlycount=.false.)
+        !
+      endif            
       !
       ! count the number of different Kin objects
       !
@@ -7497,9 +7598,10 @@ contains
       !
       ! Copy the PECs+SOCs+couplings to the Omega representation
       !
-      call Copy_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      call Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
       !
-      deallocate(iLPlus_omega,iSPlus_omega,iSR_omega,iBob_omega,ip2q_omega,iQ_omega,iKin_omega,iBRot_omega)
+      deallocate(iLPlus_omega,iSPlus_omega,iSR_omega,iBob_omega,ip2q_omega,iQ_omega,iKin_omega,iBRot_omega,&
+                 iNAC_omega,iDiab_omega,iDipole_omega)
       call ArrayStop('iLplus_omega')
       call ArrayStop('iSplus_omega')
       call ArrayStop('iSR_omega')
@@ -7508,6 +7610,9 @@ contains
       call ArrayStop('iQ_omega')
       call ArrayStop('iBRot_omega')
       call ArrayStop('iKin_omega')
+      call ArrayStop('iNAC_omega')
+      call ArrayStop('iDiab_omega')
+      call ArrayStop('iDipole_omega')
       !
       ! print out some fields in the new Omega reprsentation
       !
@@ -7556,7 +7661,24 @@ contains
       call ArrayStart('vect_ij',alloc,size(vect_i),kind(vect_i))
       call ArrayStart('vect_ij',alloc,size(vect_j),kind(vect_j))
       !
-      do iobject = 1,7
+      allocate(kinmat(ngrid,ngrid),stat=alloc)
+      call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
+      !
+      ! only needed if NACs are present
+      if (NNAC_omega>0) then
+        !
+        allocate(kinmat1(Ngrid,Ngrid),kinmatnac(Ngrid,Ngrid),stat=alloc)
+        call ArrayStart('kinmat1',alloc,2_ik*size(kinmat1),kind(kinmat1))
+        !
+        call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
+        !
+      else
+        !
+        call kinetic_energy_grid_points(ngrid,kinmat)
+        !
+      endif      
+      !
+      do iobject = 1,10
         !
         select case (iobject)
           !
@@ -7584,6 +7706,13 @@ contains
           !endif
           !field%gridvalue(:) = b_rot/r(:)**2*sc
           !Nmax = 1
+          !
+        case (8)
+          Nmax = NNAC_omega
+        case (9)
+          Nmax = NDiab_omega
+        case (10)
+          Nmax = NDipole_omega
         case default
           Nmax = 0
         end select
@@ -7618,6 +7747,17 @@ contains
             !field => brot(1)
             field => brot_omega_obj(iterm)
             field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
+          case (8)
+            ! A special case of NAC couplings with 1st derivatives wrt r
+            field => NAC_omega_obj(iterm)
+          case (9)
+            ! A special case of Diab couplings with 1st derivatives wrt r
+            field => Diab_omega_obj(iterm)
+            !
+          case (10)
+            ! A special case of Diab couplings with 1st derivatives wrt r
+            field => Dipole_omega_obj(iterm)
+            !
           case default
             stop 'illegal object in LambdaSigma-Omega'
           end select
@@ -7641,11 +7781,6 @@ contains
           !
           ilevel  = field%ilevel
           jlevel  = field%jlevel
-          !
-          !Nlambdasigmas = omega_grid(iomega)%Nstates
-          !Nlambdasigmas_= omega_grid(jomega)%Nstates
-          !
-          !omp parallel do private(ilevel,jlevel) schedule(guided)
           !
           do iroot = 1,totalroots
             !
@@ -7709,12 +7844,48 @@ contains
             enddo
           enddo
           !
+          if (iterm==8) then
+            !
+            !
+            if (iverbose>=4) call TimerStart('Compute kinmat1 nac')
+            !
+            allocate(nacmat_(totalroots,ngrid),stat=alloc)
+            call ArrayStart('nacmat_',alloc,size(nacmat_),kind(nacmat_))
+            !
+            !$omp parallel do private(i) shared(kinmatnac) schedule(guided)
+            do i = 1,ngrid
+              kinmatnac(i,:) = field%gridvalue(i)*kinmat1(i,:)
+            enddo
+            !$omp end parallel do
+            !
+            call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
+                       kinmatnac,ngrid,beta_,nacmat_,totalroots)
+            call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,&
+                       contrfunc,ngrid,beta_,field%matelem,totalroots)
+            !
+            deallocate(nacmat_)
+            call ArrayStop('nacmat_')
+            !
+            if (iverbose>=4) call TimerStop('Compute kinmat1 nac')
+            !
+          endif
+          !
         enddo
         !
       enddo
       !
       deallocate(vect_i,vect_j)
       call ArrayStop('vect_ij')
+      !
+      if (allocated(kinmat1)) then
+        deallocate(kinmat1,kinmatnac)
+        call ArrayStop('kinmat1')
+      endif
+      !
+      if (allocated(kinmat)) then
+        deallocate(kinmat)
+        call ArrayStop('kinmat')
+      endif
       !
       !vibrational overlap for spin magnetic dipole
       if (action%overlap) then
@@ -8301,16 +8472,6 @@ contains
             call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,&
                        contrfunc,ngrid,beta_,field%matelem,totalroots)
             !
-            !omp parallel do private(ilevel,jlevel) schedule(guided)
-            !do ilevel = 1,totalroots
-            !  do jlevel = ilevel+1,totalroots
-            !     !
-            !     field%matelem(jlevel,ilevel) = -field%matelem(ilevel,jlevel)
-            !     !
-            !  enddo
-            !enddo
-            !omp end parallel do
-            !
             deallocate(nacmat_)
             call ArrayStop('nacmat_')
             !
@@ -8322,9 +8483,6 @@ contains
           !
           if (  ( iobject==Nobjects  .and.action%intensity.and.intensity%tdm ).or.&
               ( iobject==Nobjects-3.and.action%intensity.and.intensity%tqm ) ) then
-            !
-            !write(out,'(/"Vibrational transition moments: ")')
-            !write(out,'("    State    TM   State"/)')
             !
             do ilevel = 1,totalroots
               do jlevel = 1,totalroots
@@ -9271,6 +9429,7 @@ contains
                 exit
                 !
               enddo
+              !
             enddo
             !
             !  Non-diagonal spin-spin term
@@ -11152,7 +11311,7 @@ contains
                       ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
                       ! and to the density states, see Le Roy J. Chem. Phys. 65, 1485 (1976)
                       !
-                      vec(:) = vec(:)*sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
+                      vec(:) = vec(:)/sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
                       !
                       eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                       !
@@ -11605,7 +11764,7 @@ contains
     !
   end subroutine kinetic_energy_grid_points
 
-  subroutine Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+  subroutine Transfrorm_Sigma_Lambda_to_Omega_representation_old(iverbose,sc,Nlambdasigmas_max,Nomega_states)
     !
     use lapack,only : lapack_syev,lapack_heev,lapack_syevr
     !
@@ -12987,12 +13146,12 @@ contains
     enddo
     !
     !
-  end subroutine Transfrorm_Sigma_Lambda_to_Omega_representation
+  end subroutine Transfrorm_Sigma_Lambda_to_Omega_representation_old
   
   !
-  ! Copy the PECs+SOCs+couplings from the input to the Omega representation
+  ! Transform the PECs+SOCs+couplings from the input to the Omega representation
   !
-  subroutine Copy_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+  subroutine Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
     !
     use lapack,only : lapack_syev,lapack_heev,lapack_syevr
     !
@@ -13006,11 +13165,11 @@ contains
     integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
     integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iKin_omega_,iBRot_omega_
-    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot
+    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole
     !
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
-    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo
+    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
     !
     type(fieldT),pointer      :: field
     !
@@ -14272,24 +14431,223 @@ contains
         !
       endif
       !
+      ! New Dipole 
+      !
+      ! Transform Dipole to the Omega-represenation
+      if (NDipole_omega/=0) then
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do jomega=1,Nomegas
+            !
+            omegaj = Omega_grid(jomega)%omega
+            N_j = Omega_grid(jomega)%Nstates
+            !
+            if (all(iDipole_omega(iomega,jomega,1:N_i,1:N_j)==0)) cycle
+            !
+            L_LambdaSigma = 0
+            !
+            do i = 1,N_i
+              !
+              istate  = Omega_grid(iomega)%basis(i)%istate
+              ilambda = Omega_grid(iomega)%basis(i)%ilambda
+              spini   = Omega_grid(iomega)%basis(i)%spin
+              sigmai   = Omega_grid(iomega)%basis(i)%sigma
+              !
+              do j = 1,N_j
+                !
+                jstate  = Omega_grid(jomega)%basis(j)%istate
+                jlambda = Omega_grid(jomega)%basis(j)%ilambda
+                spinj   = Omega_grid(jomega)%basis(j)%spin
+                sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+                !
+                if( nint(sigmaj-sigmai)/=0.or.(omegai<omegaj) ) cycle
+                !
+                do iDipole =1,Ndipoles
+                  !
+                  field => dipoletm(iDipole)
+                  !
+                  ! Also check that dipole is consistent with the selection rules
+                  !
+                  if ( abs(field%lambda-field%lambdaj)>1 ) then
+                    !
+                    write(out,"('The quantum numbers of the Dipole field ',2i3,' are inconsistent" // &
+                          " with dipole selection rules: ')") field%istate,field%jstate
+                    write(out,"('Delta Lamda = 0,+/-1')")
+                    stop "Dipole input is inconsistent with selection rules"
+                    !
+                  endif
+                  !
+                  ! we should consider also a permutation <State',Lambda',Spin'|F|State,Lambda,Spin> if this makes a change.
+                  !
+                  do ipermute  = 0,1
+                    !
+                    if (ipermute==0) then
+                      !
+                      istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+                      jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+                      !
+                    else  ! permute
+                      !
+                      jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+                      istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+                      !
+                    endif
+                    !
+                    ! check if we at the right electronic states
+                    if( istate/=istate_.or.jstate/=jstate_ ) cycle
+                    !
+                    ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+                    ! In order to recover other combinations we apply the symmetry transformation
+                    ! laboratory fixed inversion which is equivalent to the sigmav operation
+                    !                    (sigmav= 0 correspond to the unitary transformation)
+                    do isigmav = 0,1
+                      !
+                      ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                      ! avoid the double counting.
+                      if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
+
+                      ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                      ilambda_ = ilambda_*(-1)**isigmav
+                      jlambda_ = jlambda_*(-1)**isigmav
+                      !
+                      ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                      if (istate/=istate_.or.jstate_/=jstate.or.ilambda_/=ilambda.or.jlambda_/=jlambda) cycle
+                      !
+                      ! check the selection rule Delta Lambda = +/1
+                      if (abs(ilambda-jlambda)>1) cycle
+                      !
+                      f_grid  = field%gridvalue(igrid)
+                      !
+                      ! <Lx> and <Ly> don't depend on Sigma
+                      !
+                      f_s = real(ilambda-jlambda,rk)
+                      !
+                      f_t = f_grid
+                      !
+                      ! the result of the symmetry transformation:
+                      if (isigmav==1) then
+                        !
+                        itau = 0
+                        !
+                        if (ilambda_==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+                        if (jlambda_==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+                        !
+                        f_t = f_t*(-1.0_rk)**(itau)
+                        !
+                      endif
+                      !
+                      L_LambdaSigma(i,j) = f_t
+                      !
+                    enddo
+                    !
+                  enddo
+                  !
+                enddo
+                !
+              enddo
+              !
+            enddo
+            !
+            mat_1(1:N_i,1:N_j) =matmul(L_LambdaSigma(1:N_i,1:N_j),omega_grid(jomega)%vector(1:N_j,1:N_j,igrid))
+            mat_2(1:N_i,1:N_j) =matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),mat_1(1:N_i,1:N_j))
+            !
+            do i = 1,N_i
+              do j = 1,N_j
+                !
+                iDipole_omega_ = iDipole_omega(iomega,jomega,i,j)
+                !
+                if (iDipole_omega_==0) cycle
+                !
+                Dipole_omega_obj(iDipole_omega_)%gridvalue(igrid) = mat_2(i,j)
+                !
+              enddo
+            enddo
+            !
+          enddo
+        enddo
+        !
+      endif
+      !
     enddo
-    !
     !
     allocate(vibmat(ngrid,ngrid),stat=alloc)
     call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
     allocate(kinmat(ngrid,ngrid),stat=alloc)
     call ArrayStart('kinmat-omega',alloc,size(kinmat),kind(kinmat))
     !
-    !
     ! Kinetic energy part
     !
     call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
     !
+    ! NAC 
+    !
     ! Transform KEO to the Omega-represenation
     do igrid =1, ngrid
-      do jgrid =1,ngrid
         !
         ! Compute the Kinetic (Kin) matrix elements in the primitive Lambda-Sigma representation
+        !
+        do iomega=1,Nomegas
+          !
+          omegai = Omega_grid(iomega)%omega
+          N_i = Omega_grid(iomega)%Nstates
+          !
+          do i = 1,N_i
+            do j = 1,N_i
+              !
+              if (igrid==ngrid) then
+                !
+                f_p = omega_grid(iomega)%vector(i,j,igrid)
+                f_m = omega_grid(iomega)%vector(i,j,igrid-1)
+                !
+                L_LambdaSigma(i,j) = (f_p-f_m)/(hstep)
+                !
+              elseif (igrid==1) then
+                !
+                f_p = omega_grid(iomega)%vector(i,j,igrid+1)
+                f_m = omega_grid(iomega)%vector(i,j,igrid)
+                !
+                L_LambdaSigma(i,j) = (f_p-f_m)/(hstep)
+                !
+              else
+                !
+                f_p = omega_grid(iomega)%vector(i,j,igrid+1)
+                f_m = omega_grid(iomega)%vector(i,j,igrid-1)
+                !
+                L_LambdaSigma(i,j) = (f_p-f_m)/(2.0_rk*hstep)
+                !
+              endif
+              !
+            enddo
+          enddo
+          !
+          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),L_LambdaSigma(1:N_i,1:N_i))
+          !
+          do i = 1,N_i
+            do j = 1,N_j
+              !
+              iNAC_omega_ = iNAC_omega(iomega,i,j)
+              !
+              if (iNAC_omega_==0) cycle
+              !
+              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid)= mat_2(i,j)
+              !
+            enddo
+          enddo
+          !
+        enddo
+        !
+    enddo
+    !
+    ! New Diabatic from the second order NAC
+    !
+    ! Transform KEO to the Omega-represenation
+    do igrid =1, ngrid
+        !
+        ! Compute the Diabatic (Kin) matrix elements in the primitive Lambda-Sigma representation
         !
         do iomega=1,Nomegas
           !
@@ -14299,33 +14657,78 @@ contains
           L_LambdaSigma = 0
           !
           do i = 1,N_i
-            !
-            istate  = Omega_grid(iomega)%basis(i)%istate
-            ilambda = Omega_grid(iomega)%basis(i)%ilambda
-            spini   = Omega_grid(iomega)%basis(i)%spin
-            sigmai  = Omega_grid(iomega)%basis(i)%sigma
-            !
-            L_LambdaSigma(i,i) = vibmat(igrid,jgrid)
-            !
+            do j = 1,N_j
+              !
+              iDiab_omega_ = iDiab_omega(iomega,i,j)
+              !
+              if (iDiab_omega_==0) cycle
+              !
+              L_LambdaSigma(i,j) = NAC_omega_obj(iDiab_omega_)%gridvalue(igrid)
+              !
+            enddo
           enddo
           !
-          mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
-          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,jgrid)),mat_1(1:N_i,1:N_i))
+          mat_1(1:N_i,1:N_j) =matmul(transpose(L_LambdaSigma(1:N_i,1:N_j)),L_LambdaSigma(1:N_i,1:N_j))
           !
           do i = 1,N_i
-            do j = 1,N_i
+            do j = 1,N_j
               !
-              iKin_omega_ = iKin_omega(iomega,i,j)
+              iDiab_omega_ = iDiab_omega(iomega,i,j)
               !
-              Kin_omega_obj(iKin_omega_)%matelem(igrid,jgrid) = mat_2(i,j)
+              if (iDiab_omega_==0) cycle
+              !
+              ! We will need to  apply the factor (h^2/2mu) later to convert to the right units, when scale is defined
+              !
+              Diab_omega_obj(iDiab_omega_)%gridvalue(igrid)= mat_1(i,j)
               !
             enddo
           enddo
           !
         enddo
         !
-      enddo
     enddo
+    !
+    ! Transform KEO to the Omega-represenation
+    !do igrid =1, ngrid
+    !  do jgrid =1,ngrid
+    !    !
+    !    ! Compute the Kinetic (Kin) matrix elements in the primitive Lambda-Sigma representation
+    !    !
+    !    do iomega=1,Nomegas
+    !      !
+    !      omegai = Omega_grid(iomega)%omega
+    !      N_i = Omega_grid(iomega)%Nstates
+    !      !
+    !      L_LambdaSigma = 0
+    !      !
+    !      do i = 1,N_i
+    !        !
+    !        istate  = Omega_grid(iomega)%basis(i)%istate
+    !        ilambda = Omega_grid(iomega)%basis(i)%ilambda
+    !        spini   = Omega_grid(iomega)%basis(i)%spin
+    !        sigmai  = Omega_grid(iomega)%basis(i)%sigma
+    !        !
+    !        L_LambdaSigma(i,i) = vibmat(igrid,jgrid)
+    !        !
+    !      enddo
+    !      !
+    !      mat_1(1:N_i,1:N_i) = matmul(L_LambdaSigma(1:N_i,1:N_i),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+    !      mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,jgrid)),mat_1(1:N_i,1:N_i))
+    !      !
+    !      do i = 1,N_i
+    !        do j = 1,N_i
+    !          !
+    !          iKin_omega_ = iKin_omega(iomega,i,j)
+    !          !
+    !          Kin_omega_obj(iKin_omega_)%matelem(igrid,jgrid) = mat_2(i,j)
+    !          !
+    !        enddo
+    !      enddo
+    !      !
+    !    enddo
+    !    !
+    !  enddo
+    !enddo
     !
     deallocate(vibmat)
     call ArrayStop('vibmat-omega')
@@ -14374,7 +14777,7 @@ contains
     enddo
     !
     !
-  end subroutine Copy_Sigma_Lambda_to_Omega_representation  
+  end subroutine Transfrorm_Sigma_Lambda_to_Omega_representation  
   
   
 
@@ -14534,7 +14937,6 @@ contains
         !
       endif
       !
-      !
       ! Print lambda-doubling-p2q in Omega
       !
       if (Np2q_omega>0) then
@@ -14597,6 +14999,97 @@ contains
         !
       endif
       !
+      ! Print Dipole in Omega
+      !
+      if (NDipole_omega>0) then
+        !
+        write(out,'(/10x,a)') "Dipole in the Omega representation"
+        write(out,'(10x,a)') "#    Omega State Lambda Sigma State Lambda Sigma"
+
+        do iterm=1,NDipole_omega
+          !
+          i = Dipole_omega_obj(iterm)%ilevel
+          j = Dipole_omega_obj(iterm)%jlevel
+          iomega = Dipole_omega_obj(iterm)%iomega
+          !
+          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,i2,1x,i4,1x,f8.1,1x)') iterm,&
+            Dipole_omega_obj(iterm)%omegai,&
+            Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(iomega)%qn(j)%sigma
+        enddo
+        !
+        write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NDipole_omega, '(i22))'
+        write(out,my_fmt) (i,i=1,NDipole_omega)
+        !
+        write(my_fmt, '(A,I0,A)') '(f18.8,', NDipole_omega, '(es22.8))'
+        do igrid=1,ngrid
+          write(out,my_fmt) r(igrid),(Dipole_omega_obj(iterm)%gridvalue(igrid),iterm=1,NDipole_omega)
+        enddo
+        !
+      endif
+      !
+      ! Print spint-rotation in Omega
+      !
+      if (NNAC_omega>0) then
+        !
+        write(out,'(/10x,a)') "NAC in the Omega representation"
+        write(out,'(10x,a)') "#    Omega State Lambda Sigma <->Omega State Lambda Sigma"
+
+        do iterm=1,NNAC_omega
+          !
+          i = NAC_omega_obj(iterm)%ilevel
+          j = NAC_omega_obj(iterm)%jlevel
+          iomega = NAC_omega_obj(iterm)%iomega
+          jomega = NAC_omega_obj(iterm)%jomega
+          !
+          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
+            NAC_omega_obj(iterm)%omegai,&
+            Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma,&
+            NAC_omega_obj(iterm)%omegaj,&
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
+        enddo
+        !
+        write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NNAC_omega, '(i22))'
+        write(out,my_fmt) (i,i=1,NNAC_omega)
+        !
+        write(my_fmt, '(A,I0,A)') '(f18.8,', NNAC_omega, '(es22.8))'
+        do igrid=1,ngrid
+          write(out,my_fmt) r(igrid),(NAC_omega_obj(iterm)%gridvalue(igrid),iterm=1,NNAC_omega)
+        enddo
+        !
+      endif
+      !
+      ! Print spint-rotation in Omega
+      !
+      if (NDiab_omega>0) then
+        !
+        write(out,'(/10x,a)') "Diabatic in the Omega representation"
+        write(out,'(10x,a)') "#    Omega State Lambda Sigma <->Omega State Lambda Sigma"
+
+        do iterm=1,NDiab_omega
+          !
+          i = Diab_omega_obj(iterm)%ilevel
+          j = Diab_omega_obj(iterm)%jlevel
+          iomega = Diab_omega_obj(iterm)%iomega
+          jomega = Diab_omega_obj(iterm)%jomega
+          !
+          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
+            Diab_omega_obj(iterm)%omegai,&
+            Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma,&
+            Diab_omega_obj(iterm)%omegaj,&
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
+        enddo
+        !
+        write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NDiab_omega, '(i22))'
+        write(out,my_fmt) (i,i=1,NDiab_omega)
+        !
+        write(my_fmt, '(A,I0,A)') '(f18.8,', NDiab_omega, '(es22.8))'
+        do igrid=1,ngrid
+          write(out,my_fmt) r(igrid),(Diab_omega_obj(iterm)%gridvalue(igrid),iterm=1,NDiab_omega)
+        enddo
+        !
+      endif
+      !
     endif
     !
     if (iverbose>=3) write(out,'("...done!")')
@@ -14618,8 +15111,8 @@ contains
     type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
     real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
     !
-    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,Nroots,i,j,istate,u1,iKin,ilevel_,jlevel_
-    integer(ik) :: Ndimen,ielem,imaxcontr
+    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1,iKin,ilevel_,jlevel_
+    integer(ik) :: Ndimen,ielem,jelem,imaxcontr
     real(rk)    :: omega,b_rot,epot,zpe,energy_
     real(rk)    :: psipsi_t,omegai_,energy_j
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:)
@@ -14642,6 +15135,8 @@ contains
     allocate(kinmat(Ngrid,Ngrid),stat=alloc)
     call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
     !
+    call kinetic_energy_grid_points(ngrid,kinmat)
+    !
     do iomega=1,Nomegas
       !
       if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
@@ -14653,47 +15148,58 @@ contains
       call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
       call ArrayStart('vibener',alloc,size(vibener),kind(vibmat))
       !
-      vibmat = 0
+      !do ilevel = 1,Nlambdasigmas
+      !  !
+      !  if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
+      !  !
+      !  omega  = Omega_grid(iomega)%basis(ilevel)%omega
+      !  !
+      !  do jlevel = 1,Nlambdasigmas
+      !    !
+      !    ! Kinetic energy values
+      !    !
+      !    do iKin = 1,NKin_omega
+      !      !
+      !      field => Kin_omega_obj(iKin)
+      !      !
+      !      omegai_ = field%omegai
+      !      ilevel_ = field%ilevel
+      !      jlevel_ = field%jlevel
+      !      !
+      !      if (ilevel_/=ilevel.or.jlevel_/=ilevel.or.nint(omegai_-omega)/=0) cycle
+      !      !
+      !      kinmat = Kin_omega_obj(iKin)%matelem
+      !      !
+      !      exit
+      !      !
+      !    enddo
+      !    !
+      !    vibmat((ilevel-1)*ngrid+1:ilevel*ngrid,(jlevel-1)*ngrid+1:jlevel*ngrid) = kinmat
+      !    !
+      !  enddo
+      !  !
+      !enddo
       !
       do ilevel = 1,Nlambdasigmas
         !
-        if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
-        !
         omega  = Omega_grid(iomega)%basis(ilevel)%omega
         !
-        kinmat = 0
+        if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
         !
-        do jlevel = 1,Nlambdasigmas
-          !
-          ! Kinetic energy values
-          !
-          do iKin = 1,NKin_omega
+        vibmat = 0
+        !
+        do igrid =1, ngrid
+         !
+         ielem = (ilevel-1)*ngrid+igrid
+         !
+         do jgrid =1,ngrid
             !
-            field => Kin_omega_obj(iKin)
+            jelem = (ilevel-1)*ngrid+jgrid
             !
-            omegai_ = field%omegai
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
+            vibmat(ielem,jelem) = kinmat(igrid,jgrid)
             !
-            if (ilevel_/=ilevel.or.jlevel_/=ilevel.or.nint(omegai_-omega)/=0) cycle
-            !
-            kinmat = Kin_omega_obj(iKin)%matelem
-            !
-            exit
-            !
-          enddo
-          !
-          vibmat((ilevel-1)*ngrid+1:ilevel*ngrid,(jlevel-1)*ngrid+1:jlevel*ngrid) = kinmat
-          !
+         enddo
         enddo
-        !
-      enddo
-      !
-      do ilevel = 1,Nlambdasigmas
-        !
-        omega  = Omega_grid(iomega)%basis(ilevel)%omega
-        !
-        if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
         !
         !$omp parallel do private(igrid,epot,ielem) shared(vibmat) schedule(guided)
         do igrid =1, ngrid
@@ -14866,6 +15372,7 @@ contains
       write(out,'(/"Vibrational (contracted) energies: ")')
       write(out,'("    i        Energy/cm    State v"/)')
       do i = 1,totalroots
+        if (icontrvib(i)%omega<0) cycle
         ilevel = icontrvib(i)%ilevel
         write(out,'(i5,f18.6," [ ",2i4,f8.1," ] ",a)') i,( contrenergy(i)-contrenergy(1))/sc,ilevel,icontrvib(i)%v,&
           icontrvib(i)%omega,trim(poten(icontrvib(i)%istate)%name)
@@ -14975,8 +15482,8 @@ contains
     !
     integer(ik) :: i,j,ivib,ilevel,jlevel,istate,jstate,ilambda,jlambda,imulti,jmulti,iomega,jomega,jvib,alloc
     integer(ik) :: iSplus_omega_,iLplus_omega_,iSR_omega_,isigmav,ilevel_,jlevel_,ibobrot,ip2q_omega_,iq_omega_
-    integer(ik) :: ibrot_omega
-    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo
+    integer(ik) :: ibrot_omega,iNAC,idiab
+    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo,f_nac
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
     type(fieldT),pointer  :: field
@@ -15089,7 +15596,7 @@ contains
             ilevel_ = field%ilevel
             jlevel_ = field%jlevel
             !
-            if ( nint(omegai_-omegai)/=0.or.ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+            if ( ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
             !
             f_rot = field%matelem(ivib,jvib)
             !
@@ -15099,6 +15606,76 @@ contains
             !
           enddo
           !
+        endif
+        !
+        if (abs(nint(omegaj-omegai))==0) then
+           !
+           ! Diabatic noncontribution term
+           !
+           do idiab = 1,NDiab_omega
+             !
+             !selection rules
+             !
+             if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
+             !
+             field => Diab_omega_obj(iNAC)
+             !
+             omegai_ = field%omegai
+             omegaj_ = field%omegaj
+             ilevel_ = field%ilevel
+             jlevel_ = field%jlevel
+             !
+             if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+             !
+             hmat(i,j) = hmat(i,j) + field%matelem(ivib,jvib)*sc
+             !
+             ! print out the internal matrix at the first grid point
+             if (iverbose>=4.and.abs(f_nac)>small_) then
+               !
+               write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
+               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+               write(printout_,'(g12.4)') f_nac/sc
+               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+               !
+             endif
+             !
+           enddo
+
+           !
+           ! NAC non-diagonal contribution  term
+           !
+           do iNAC = 1,Nnac_omega
+             !
+             !selection rules
+             !
+             if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
+             !
+             field => nac_omega_obj(iNAC)
+             !
+             omegai_ = field%omegai
+             omegaj_ = field%omegaj
+             ilevel_ = field%ilevel
+             jlevel_ = field%jlevel
+             !
+             if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+             !
+             f_t = 0
+             !
+             f_nac = (field%matelem(ivib,jvib)-field%matelem(jvib,ivib))
+             hmat(i,j) = hmat(i,j) + f_nac
+             !
+             ! print out the internal matrix at the first grid point
+             if (iverbose>=4.and.abs(f_nac)>small_) then
+               !
+               write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
+               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+               write(printout_,'(g12.4)') f_nac/sc
+               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+               !
+             endif
+             !
+           enddo
+           !
         endif
         !
         ! J*S part (S-uncoupling)
@@ -15703,7 +16280,7 @@ contains
     logical,intent(in) :: onlycount
     integer(ik)  :: iBob
     integer(ik)  :: i,j,istate_,jstate_,iBob_
-    real(rk)     :: spini_,spinj_,omegai
+    real(rk)     :: spini_,spinj_,omegai,sigmaj
     real(rk)     :: sigmai
     integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
     type(fieldT),pointer       :: field
@@ -15743,8 +16320,12 @@ contains
               ilambda_ = ilambda_*(-1)**isigmav
               !
               sigmai = omegai - real(ilambda_,rk)
+              sigmaj = omegai - real(jlambda_,rk)
               !
               if (abs(sigmai)>spini_) cycle
+              if (abs(sigmaj)>spinj_) cycle
+              !
+              if (abs(nint(sigmaj-sigmai))/=0) cycle
               !
               NBob_omega = NBob_omega + 1
               !
@@ -16049,6 +16630,301 @@ contains
     enddo
     !
   end subroutine Kin_omega_create
+
+  subroutine NAC_omega_create(NNAC_omega,onlycount)
+    !
+    implicit none
+    !
+    integer(ik),intent(inout) :: NNAC_omega
+    !
+    logical,intent(in) :: onlycount
+    integer(ik)  :: iKin
+    integer(ik)  :: i,j,istate_,jstate_,iNac,jNac
+    real(rk)     :: spini_,spinj_,omegai
+    real(rk)     :: sigmai,sigmaj
+    integer(ik)  :: ilambda_,jlambda_,iomega,ilambda,jlambda,istate,jstate,sigmai_,N_i,isigmav
+    type(fieldT),pointer       :: field
+    !
+    NNAC_omega = 0
+    !
+    if (nestates==0) return
+    !
+    do iomega=1,Nomegas
+      !
+      omegai = Omega_grid(iomega)%omega
+      !
+      N_i = Omega_grid(iomega)%Nstates
+      !
+      do i = 1,N_i
+        !
+        ilambda = Omega_grid(iomega)%basis(i)%ilambda
+        istate =  Omega_grid(iomega)%basis(i)%istate
+        sigmai = Omega_grid(iomega)%basis(i)%sigma
+        !
+        loop_iterm : do iterm = 1,nestates
+          !
+          field => poten(iterm)
+          !
+          ! Nac is diagonal in omega,state,
+          !
+          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+          !
+          if (istate_/=istate) cycle
+          !
+          do isigmav = 0,1
+            !
+            ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+            ! avoid the double counting.
+            if( isigmav==1.and.ilambda_==0 ) cycle
+            !
+            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+            ilambda_ = ilambda_*(-1)**isigmav
+            !
+            if (ilambda_/=ilambda) cycle
+            !
+            sigmai_ = omegai - real(ilambda_,rk)
+            !
+            if (abs(sigmai_)>spini_) cycle
+            !
+            if (sigmai_/=sigmai) cycle
+            !
+            do j = 1,N_i
+              !
+              jlambda = Omega_grid(iomega)%basis(j)%ilambda
+              jstate =  Omega_grid(iomega)%basis(j)%istate
+              sigmaj = Omega_grid(iomega)%basis(j)%sigma
+              !
+              loop_jterm : do jterm = 1,nestates
+                !
+                fieldj => poten(jterm)
+                !
+                jstate_ = fieldj%jstate ; jlambda_ = fieldj%lambdaj ; spinj_ = fieldj%spinj
+                !
+                if (jstate_/=jstate) cycle
+                !
+                do jsigmav = 0,1
+                  !
+                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                  ! avoid the double counting.
+                  if( jsigmav==1.and.jlambda_==0 ) cycle
+                  !
+                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                  jlambda_ = jlambda_*(-1)**jsigmav
+                  !
+                  if (jlambda_/=jlambda) cycle
+                  !
+                  sigmaj_ = omegai - real(jlambda_,rk)
+                  !
+                  if (abs(sigmaj_)>spinj_) cycle
+                  !
+                  if (sigmaj_/=sigmaj) cycle
+                  !
+                  NNAC_omega = NNAC_omega + 1
+                  !
+                  iNAC_omega(iomega,i,j) = NNAC_omega
+                  !
+                  if (.not.onlycount) then
+                    !
+                    NAC_omega_obj(NNAC_omega)%ilevel = i
+                    NAC_omega_obj(NNAC_omega)%omegai  = omegai
+                    NAC_omega_obj(NNAC_omega)%iomega  = iomega
+                    !
+                    NAC_omega_obj(NNAC_omega)%jlevel = j
+                    NAC_omega_obj(NNAC_omega)%omegaj  = omegai
+                    NAC_omega_obj(NNAC_omega)%jomega  = iomega
+                    !
+                  endif
+                  !
+                enddo
+                !
+              enddo loop_iterm
+              !
+            enddo
+            !
+          enddo
+          !
+        enddo
+        !
+      enddo
+      !
+    enddo
+    !
+  end subroutine NAC_omega_create
+
+
+  subroutine Diab_omega_create(NDiab_omega,onlycount)
+    !
+    implicit none
+    !
+    integer(ik),intent(inout) :: NDiab_omega
+    !
+    logical,intent(in) :: onlycount
+    integer(ik)  :: iKin
+    integer(ik)  :: i,j,istate_,jstate_,iKin_
+    real(rk)     :: spini_,spinj_,omegai
+    real(rk)     :: sigmai
+    integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
+    type(fieldT),pointer       :: field
+    !
+    NDiab_omega = 0
+    !
+    if (nestates==0) return
+    !
+    do iomega=1,Nomegas
+      !
+      omegai = Omega_grid(iomega)%omega
+      !
+      N_i = Omega_grid(iomega)%Nstates
+      !
+      do i = 1,N_i
+        !
+        do j = 1,N_i
+          !
+          iKin_ = 0
+          !
+          loop_Kin : do iKin = 1,nestates
+            !
+            field => poten(iKin)
+            !
+            ! Kin is diagonal in everything
+            !
+            istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+            jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+            !
+            do isigmav = 0,1
+              !
+              ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+              ! avoid the double counting.
+              if( isigmav==1.and.field%lambda==0 ) cycle
+              !
+              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+              ilambda_ = ilambda_*(-1)**isigmav
+              !
+              sigmai = omegai - real(ilambda_,rk)
+              !
+              if (abs(sigmai)>spini_) cycle
+              !
+              NDiab_omega = NDiab_omega + 1
+              !
+              iDiab_omega(iomega,i,j) = NDiab_omega
+              !
+              if (.not.onlycount) then
+                !
+                Diab_omega_obj(NDiab_omega)%ilevel = i
+                Diab_omega_obj(NDiab_omega)%omegai  = omegai
+                Diab_omega_obj(NDiab_omega)%iomega  = iomega
+                !
+                Diab_omega_obj(NDiab_omega)%jlevel = j
+                Diab_omega_obj(NDiab_omega)%omegaj  = omegai
+                Diab_omega_obj(NDiab_omega)%jomega  = iomega
+                !
+              endif
+              !
+            enddo
+            !
+          enddo loop_Kin
+          !
+        enddo
+        !
+      enddo
+      !
+    enddo
+    !
+  end subroutine Diab_omega_create
+
+   
+  !
+  subroutine Dipole_omega_create(NDipole_omega,onlycount)
+    !
+    implicit none
+    !
+    integer(ik),intent(inout) :: NDipole_omega
+    !
+    logical,intent(in) :: onlycount
+    integer(ik)  :: iDipole
+    integer(ik)  :: i,j,istate_,jstate_,iDipole_
+    real(rk)     :: spini_,spinj_,omegai,omegaj
+    real(rk)     :: sigmai,sigmaj
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav
+    type(fieldT),pointer       :: field
+    !
+    NDipole_omega = 0
+    !
+    if (Ndipoles==0) return
+    !
+    do iomega=1,Nomegas
+      !
+      omegai = Omega_grid(iomega)%omega
+      !
+      N_i = Omega_grid(iomega)%Nstates
+      !
+      do i = 1,N_i
+        !
+        do jomega=1,Nomegas
+          !
+          omegaj = Omega_grid(jomega)%omega
+          !
+          N_j = Omega_grid(jomega)%Nstates
+          !
+          if ( abs(nint(omegai-omegaj))>1 ) cycle
+          !
+          do j = 1,N_j
+            !
+            iDipole_ = 0
+            !
+            loop_Dipole : do iDipole = 1,Ndipoles
+              !
+              field => dipoletm(iDipole)
+              !
+              ! Dipole is only for Lambda=+/-1,0
+              !
+              istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+              jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+              !
+              do isigmav = 0,1
+                !
+                ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+                ! avoid the double counting. Although this should not happen for opq
+                if( isigmav==1.and.field%lambda==0 ) cycle
+                !
+                ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                ilambda_ = ilambda_*(-1)**isigmav
+                !
+                sigmai = omegai - real(ilambda_,rk)
+                sigmaj = omegaj - real(jlambda_,rk)
+                !
+                if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle
+                if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
+                !
+                NDipole_omega = NDipole_omega + 1
+                !
+                iDipole_omega(iomega,jomega,i,j) = NDipole_omega
+                !
+                if (.not.onlycount) then
+                  !
+                  Dipole_omega_obj(NDipole_omega)%ilevel  = i
+                  Dipole_omega_obj(NDipole_omega)%omegai  = omegai
+                  Dipole_omega_obj(NDipole_omega)%iomega  = iomega
+                  !
+                  Dipole_omega_obj(NDipole_omega)%jlevel  = j
+                  Dipole_omega_obj(NDipole_omega)%omegaj  = omegaj
+                  Dipole_omega_obj(NDipole_omega)%jomega  = jomega
+                  !
+                endif
+              enddo
+              !
+            enddo loop_Dipole
+            !
+          enddo
+          !
+        enddo
+        !
+      enddo
+      !
+    enddo
+    !
+  end subroutine Dipole_omega_create  
+  
 
   subroutine Brot_omega_create(NBrot_omega,onlycount)
     !
