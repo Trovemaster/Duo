@@ -8307,6 +8307,10 @@ contains
         !
         if (iobject==Nobjects-2) cycle
         !
+        Nmax = fieldmap(iobject)%Nfields
+        !
+        if (Nmax==0) cycle 
+        !
         if ( action%intensity.and.(((iobject==Nobjects).or.(iobject==Nobjects-3))&
                                    .and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then
           !
@@ -8315,8 +8319,6 @@ contains
           write(out,"(A8,A20,25X,A8,A19)") 'State', 'TM', 'State', 'Value'
           !
         endif
-        !
-        Nmax = fieldmap(iobject)%Nfields
         !
         ! each field type constits of Nmax terms
         !
@@ -10983,7 +10985,7 @@ contains
             !
             ! energy re-normalisation and converstion of the units from 1/sqrt(Ang) to sqrt(cm-1)
             !
-            rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))*1e4
+            rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))*1e-4
             !
             write(out,"(/'  Renormalization of unbound states (listing non-converged to sin(kr) at large r)...')")
             write(out,"(6x,'|   # |    J | p | last 3 coeffs. | St vib Lambda Spin     Sigma    Omega ivib|')")
@@ -11243,7 +11245,7 @@ contains
                   !
                   if (sum_wv>sqrt(small_)) then
                     !
-                    if (iverbose>=4) call TimerStart('Find amlitudes of unbound wavefuncs')
+                    if (iverbose>=4) call TimerStart('Find amplitudes of unbound wavefuncs')
                     !
                     ! energy of the unbound state aboove the asympote energy
                     !
@@ -11260,22 +11262,29 @@ contains
                     !
                     icount_max = 0
                     !
-                    !omp parallel do private(k,psi1,psi2,amplit1,amplit2,amplit3,diff) schedule(guided)
-                    loop_gid_dens : do k=grid%npoints-2,max(3,grid%npoints/2),-1
+                    !omp parallel do private(k,psi1,psi2,amplit1,amplit2,amplit3,diff) schedule(guided) max(3,grid%npoints/2)
+                    loop_gid_dens : do k=grid%npoints-2,3,-1
                       !
                       psi1=psi2
                       !
                       psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
                                                         npoints_last,vec,psi_vib)
+
+                      if (k<=grid%npoints-npoints_last) then
+                        !
+                        psi_vib(k) = psi2
+                        !
+                      endif
+
                       !psi_vib(k+1)
                       !
-                      if ( psi2>100.0*small_.and.psi1<psi2.and.psi2>psi_vib(k) ) then
+                      if ( psi2>100.0*small_.and.psi1>psi2.and.psi1>psi_vib(k+2) ) then
                         !
                         icount_max = icount_max + 1
                         !
                         amplit1 = amplit2
                         amplit2 = amplit3
-                        amplit3 = psi2
+                        amplit3 = psi1
                         !
                         diff = abs(amplit2-amplit1)
                         !
@@ -11285,23 +11294,23 @@ contains
                     enddo loop_gid_dens
                     !omp end parallel do
                     !
-                    if (iverbose>=4) call TimerStop('Find amlitudes of unbound wavefuncs')
+                    if (iverbose>=4) call TimerStop('Find amplitudes of unbound wavefuncs')
                     !
                     if (all((/amplit1,amplit2,amplit3/)>1000*small_)) then
                       !
                       ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
                       ! and to the density states, see Le Roy J. Chem. Phys. 65, 1485 (1976)
                       !
-                      vec(:) = vec(:)*sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
+                      vec(:) = vec(:)/sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
                       !
                       eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                       !
                       if (diff>1e-3) then
                         !
                         write(out,'(2x,i8,1x,f8.1,1x,i2,1x,3e12.5,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
-                          total_roots,J_list(irot),irrep-1,amplit1,amplit2,amplit3,icontr(k)%istate,&
-                          icontr(k)%v,icontr(k)%ilambda,&
-                          icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
+                          total_roots,J_list(irot),irrep-1,amplit1,amplit2,amplit3 !,icontr(k)%istate,&
+                          !icontr(k)%v,icontr(k)%ilambda,&
+                          !icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                         !
                       endif
                       !
