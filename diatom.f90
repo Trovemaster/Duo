@@ -7462,7 +7462,7 @@ contains
       endif
       !
       ! count the number of different BRot objects
-      ! we probsbly don't need this field 
+      ! we probably don't need this field 
       call Brot_omega_create(NBRot_omega,onlycount=.true.)
       !
       if (NBRot_omega/=0.and..not.fields_allocated) then
@@ -7523,27 +7523,6 @@ contains
         call Diab_omega_create(NDiab_omega,onlycount=.false.)
         !
       endif      
-      !
-      ! count the number of different NAC objects
-      !
-      call NAC_omega_create(NNAC_omega,onlycount=.true.)
-      !
-      if (NNAC_omega/=0.and..not.fields_allocated) then
-        !
-        allocate(NAC_omega_obj(NNAC_omega),stat=alloc)
-        if (alloc/=0) stop 'NAC_omega_obj cannot be allocated'
-        !
-        do i = 1,NNAC_omega
-          NAC_omega_obj(i)%type = "grid"
-          NAC_omega_obj(i)%name = "NAC Omega obj"
-          allocate(NAC_omega_obj(i)%gridvalue(ngrid),stat=alloc)
-          call ArrayStart("NAC Omega obj",alloc,ngrid,kind(NAC_omega_obj(i)%gridvalue))
-          NAC_omega_obj(i)%gridvalue = 0
-        enddo
-        !
-        call NAC_omega_create(NNAC_omega,onlycount=.false.)
-        !
-      endif
       !
       ! count the number of different Dipole objects
       !
@@ -11002,7 +10981,9 @@ contains
           !
           if (intensity%renorm) then
             !
-            rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))
+            ! energy re-normalisation and converstion of the units from 1/sqrt(Ang) to sqrt(cm-1)
+            !
+            rhonorm = sqrt(sqrt(8.0_rk*vellgt*amass*uma/planck))*1e4
             !
             write(out,"(/'  Renormalization of unbound states (listing non-converged to sin(kr) at large r)...')")
             write(out,"(6x,'|   # |    J | p | last 3 coeffs. | St vib Lambda Spin     Sigma    Omega ivib|')")
@@ -11311,7 +11292,7 @@ contains
                       ! now we renormalize wavefunctions that oscilate at large r to 1 at the last amplitude
                       ! and to the density states, see Le Roy J. Chem. Phys. 65, 1485 (1976)
                       !
-                      vec(:) = vec(:)/sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
+                      vec(:) = vec(:)*sqrt(amplit3)*rhonorm/energy_unbound_sqrsqr
                       !
                       eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                       !
@@ -15004,17 +14985,19 @@ contains
       if (NDipole_omega>0) then
         !
         write(out,'(/10x,a)') "Dipole in the Omega representation"
-        write(out,'(10x,a)') "#    Omega State Lambda Sigma State Lambda Sigma"
+        write(out,'(10x,a)') "#    Omega State Lambda Sigma   Omega  State Lambda Sigma"
 
         do iterm=1,NDipole_omega
           !
           i = Dipole_omega_obj(iterm)%ilevel
           j = Dipole_omega_obj(iterm)%jlevel
           iomega = Dipole_omega_obj(iterm)%iomega
+          jomega = Dipole_omega_obj(iterm)%jomega
           !
-          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,i2,1x,i4,1x,f8.1,1x)') iterm,&
+          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,f8.1,1x,i2,1x,i4,1x,f8.1,1x)') iterm,&
             Dipole_omega_obj(iterm)%omegai,&
             Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
+            Dipole_omega_obj(iterm)%omegaj,&
             Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(iomega)%qn(j)%sigma
         enddo
         !
@@ -16639,10 +16622,10 @@ contains
     !
     logical,intent(in) :: onlycount
     integer(ik)  :: iKin
-    integer(ik)  :: i,j,istate_,jstate_,iNac,jNac
+    integer(ik)  :: i,j,istate_,jstate_,iKin_
     real(rk)     :: spini_,spinj_,omegai
-    real(rk)     :: sigmai,sigmaj
-    integer(ik)  :: ilambda_,jlambda_,iomega,ilambda,jlambda,istate,jstate,sigmai_,N_i,isigmav
+    real(rk)     :: sigmai
+    integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
     type(fieldT),pointer       :: field
     !
     NNAC_omega = 0
@@ -16657,92 +16640,24 @@ contains
       !
       do i = 1,N_i
         !
-        ilambda = Omega_grid(iomega)%basis(i)%ilambda
-        istate =  Omega_grid(iomega)%basis(i)%istate
-        sigmai = Omega_grid(iomega)%basis(i)%sigma
-        !
-        loop_iterm : do iterm = 1,nestates
-          !
-          field => poten(iterm)
-          !
-          ! Nac is diagonal in omega,state,
-          !
-          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-          !
-          if (istate_/=istate) cycle
-          !
-          do isigmav = 0,1
-            !
-            ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-            ! avoid the double counting.
-            if( isigmav==1.and.ilambda_==0 ) cycle
-            !
-            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-            ilambda_ = ilambda_*(-1)**isigmav
-            !
-            if (ilambda_/=ilambda) cycle
-            !
-            sigmai_ = omegai - real(ilambda_,rk)
-            !
-            if (abs(sigmai_)>spini_) cycle
-            !
-            if (sigmai_/=sigmai) cycle
-            !
-            do j = 1,N_i
-              !
-              jlambda = Omega_grid(iomega)%basis(j)%ilambda
-              jstate =  Omega_grid(iomega)%basis(j)%istate
-              sigmaj = Omega_grid(iomega)%basis(j)%sigma
-              !
-              loop_jterm : do jterm = 1,nestates
-                !
-                fieldj => poten(jterm)
-                !
-                jstate_ = fieldj%jstate ; jlambda_ = fieldj%lambdaj ; spinj_ = fieldj%spinj
-                !
-                if (jstate_/=jstate) cycle
-                !
-                do jsigmav = 0,1
-                  !
-                  ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                  ! avoid the double counting.
-                  if( jsigmav==1.and.jlambda_==0 ) cycle
-                  !
-                  ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                  jlambda_ = jlambda_*(-1)**jsigmav
-                  !
-                  if (jlambda_/=jlambda) cycle
-                  !
-                  sigmaj_ = omegai - real(jlambda_,rk)
-                  !
-                  if (abs(sigmaj_)>spinj_) cycle
-                  !
-                  if (sigmaj_/=sigmaj) cycle
-                  !
-                  NNAC_omega = NNAC_omega + 1
-                  !
-                  iNAC_omega(iomega,i,j) = NNAC_omega
-                  !
-                  if (.not.onlycount) then
-                    !
-                    NAC_omega_obj(NNAC_omega)%ilevel = i
-                    NAC_omega_obj(NNAC_omega)%omegai  = omegai
-                    NAC_omega_obj(NNAC_omega)%iomega  = iomega
-                    !
-                    NAC_omega_obj(NNAC_omega)%jlevel = j
-                    NAC_omega_obj(NNAC_omega)%omegaj  = omegai
-                    NAC_omega_obj(NNAC_omega)%jomega  = iomega
-                    !
-                  endif
-                  !
-                enddo
-                !
-              enddo loop_iterm
-              !
-            enddo
-            !
-          enddo
-          !
+        do j = 1,N_i
+           !
+           NNAC_omega = NNAC_omega + 1
+           !
+           iNAC_omega(iomega,i,j) = NNAC_omega
+           !
+           if (.not.onlycount) then
+             !
+             NAC_omega_obj(NNAC_omega)%ilevel = i
+             NAC_omega_obj(NNAC_omega)%omegai  = omegai
+             NAC_omega_obj(NNAC_omega)%iomega  = iomega
+             !
+             NAC_omega_obj(NNAC_omega)%jlevel = j
+             NAC_omega_obj(NNAC_omega)%omegaj  = omegai
+             NAC_omega_obj(NNAC_omega)%jomega  = iomega
+             !
+           endif
+           !
         enddo
         !
       enddo
@@ -16779,51 +16694,23 @@ contains
       do i = 1,N_i
         !
         do j = 1,N_i
-          !
-          iKin_ = 0
-          !
-          loop_Kin : do iKin = 1,nestates
-            !
-            field => poten(iKin)
-            !
-            ! Kin is diagonal in everything
-            !
-            istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-            jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-            !
-            do isigmav = 0,1
-              !
-              ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-              ! avoid the double counting.
-              if( isigmav==1.and.field%lambda==0 ) cycle
-              !
-              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-              ilambda_ = ilambda_*(-1)**isigmav
-              !
-              sigmai = omegai - real(ilambda_,rk)
-              !
-              if (abs(sigmai)>spini_) cycle
-              !
-              NDiab_omega = NDiab_omega + 1
-              !
-              iDiab_omega(iomega,i,j) = NDiab_omega
-              !
-              if (.not.onlycount) then
-                !
-                Diab_omega_obj(NDiab_omega)%ilevel = i
-                Diab_omega_obj(NDiab_omega)%omegai  = omegai
-                Diab_omega_obj(NDiab_omega)%iomega  = iomega
-                !
-                Diab_omega_obj(NDiab_omega)%jlevel = j
-                Diab_omega_obj(NDiab_omega)%omegaj  = omegai
-                Diab_omega_obj(NDiab_omega)%jomega  = iomega
-                !
-              endif
-              !
-            enddo
-            !
-          enddo loop_Kin
-          !
+           !
+           NDiab_omega = NDiab_omega + 1
+           !
+           iDiab_omega(iomega,i,j) = NDiab_omega
+           !
+           if (.not.onlycount) then
+             !
+             Diab_omega_obj(NDiab_omega)%ilevel = i
+             Diab_omega_obj(NDiab_omega)%omegai  = omegai
+             Diab_omega_obj(NDiab_omega)%iomega  = iomega
+             !
+             Diab_omega_obj(NDiab_omega)%jlevel = j
+             Diab_omega_obj(NDiab_omega)%omegaj  = omegai
+             Diab_omega_obj(NDiab_omega)%jomega  = iomega
+             !
+           endif
+           !
         enddo
         !
       enddo
@@ -16845,8 +16732,9 @@ contains
     integer(ik)  :: i,j,istate_,jstate_,iDipole_
     real(rk)     :: spini_,spinj_,omegai,omegaj
     real(rk)     :: sigmai,sigmaj
-    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,jsigmav
     type(fieldT),pointer       :: field
+    logical :: dipole_present
     !
     NDipole_omega = 0
     !
@@ -16858,62 +16746,77 @@ contains
       !
       N_i = Omega_grid(iomega)%Nstates
       !
-      do i = 1,N_i
+      do jomega=1,Nomegas
         !
-        do jomega=1,Nomegas
+        omegaj = Omega_grid(jomega)%omega
+        !
+        if ( abs(nint(omegai-omegaj))>1 ) cycle
+        !
+        dipole_present = .false.
+        !
+        loop_Dipole : do iDipole = 1,Ndipoles
           !
-          omegaj = Omega_grid(jomega)%omega
+          field => dipoletm(iDipole)
+          !
+          ! Dipole is only for Lambda=+/-1,0
+          !
+          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+          jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+          !
+          do isigmav = 0,1
+            !
+            ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
+            ! avoid the double counting. Although this should not happen for opq
+            if( isigmav==1.and.ilambda_==0 ) cycle
+            !
+            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+            ilambda_ = ilambda_*(-1)**isigmav
+            sigmai = omegai - real(ilambda_,rk)
+            !
+            do jsigmav = 0,1
+              !
+              if( jsigmav==1.and.jlambda_==0 ) cycle
+              !
+              jlambda_ = jlambda_*(-1)**jsigmav
+              !
+              sigmaj = omegaj - real(jlambda_,rk)
+              !
+              if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle
+              if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
+              !
+              dipole_present = .true. 
+              !
+            enddo
+            !
+            exit loop_Dipole
+            !
+          enddo
+          !
+        enddo loop_Dipole
+        !
+        if (.not.dipole_present) cycle 
+        !
+        do i = 1,N_i
           !
           N_j = Omega_grid(jomega)%Nstates
           !
-          if ( abs(nint(omegai-omegaj))>1 ) cycle
-          !
           do j = 1,N_j
             !
-            iDipole_ = 0
+            NDipole_omega = NDipole_omega + 1
             !
-            loop_Dipole : do iDipole = 1,Ndipoles
+            iDipole_omega(iomega,jomega,i,j) = NDipole_omega
+            !
+            if (.not.onlycount) then
               !
-              field => dipoletm(iDipole)
+              Dipole_omega_obj(NDipole_omega)%ilevel  = i
+              Dipole_omega_obj(NDipole_omega)%omegai  = omegai
+              Dipole_omega_obj(NDipole_omega)%iomega  = iomega
               !
-              ! Dipole is only for Lambda=+/-1,0
+              Dipole_omega_obj(NDipole_omega)%jlevel  = j
+              Dipole_omega_obj(NDipole_omega)%omegaj  = omegaj
+              Dipole_omega_obj(NDipole_omega)%jomega  = jomega
               !
-              istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-              jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-              !
-              do isigmav = 0,1
-                !
-                ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                ! avoid the double counting. Although this should not happen for opq
-                if( isigmav==1.and.field%lambda==0 ) cycle
-                !
-                ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                ilambda_ = ilambda_*(-1)**isigmav
-                !
-                sigmai = omegai - real(ilambda_,rk)
-                sigmaj = omegaj - real(jlambda_,rk)
-                !
-                if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle
-                if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
-                !
-                NDipole_omega = NDipole_omega + 1
-                !
-                iDipole_omega(iomega,jomega,i,j) = NDipole_omega
-                !
-                if (.not.onlycount) then
-                  !
-                  Dipole_omega_obj(NDipole_omega)%ilevel  = i
-                  Dipole_omega_obj(NDipole_omega)%omegai  = omegai
-                  Dipole_omega_obj(NDipole_omega)%iomega  = iomega
-                  !
-                  Dipole_omega_obj(NDipole_omega)%jlevel  = j
-                  Dipole_omega_obj(NDipole_omega)%omegaj  = omegaj
-                  Dipole_omega_obj(NDipole_omega)%jomega  = jomega
-                  !
-                endif
-              enddo
-              !
-            enddo loop_Dipole
+            endif
             !
           enddo
           !
