@@ -341,6 +341,7 @@ module diatom_module
     type(quantaT),pointer ::quanta(:)  ! the quantum numbers
     integer(ik)      :: Nlevels
     integer(ik)      :: Ndimen
+    integer(ik)      :: Nbound
   end type eigenT
   !
   type basisT
@@ -441,7 +442,9 @@ module diatom_module
     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
     logical             :: bound = .false.        ! filter bound states
     logical             :: unbound = .false.      ! filter and process unbound upper states only
+    logical             :: interpolate = .false.  ! use interpolation of Einstein coefficients on a grid of frequencies 
     logical             :: states_only = .false.  ! Only .states file is generated while .trans is skipped. Equivalent to setting negative freq-window
+    real(rk)            :: asymptote=safe_max     ! Lowest asymptote
     !
   end type IntensityT
   !
@@ -2634,6 +2637,8 @@ contains
             !
             call readf(field%asymptote)
             !
+            intensity%asymptote = min(intensity%asymptote,field%asymptote)
+            !
           case("INTEGRATION")
             !
             call readu(field%integration_method)
@@ -3239,6 +3244,11 @@ contains
             intensity%renorm = .true.
             job%basis_set='KEEP'
             !
+            ! renormalisation feature assumes unbound states only with interpolation
+            intensity%unbound = .true.
+            intensity%bound = .false.
+            intensity%interpolate = .true.
+            !
           case('BOUND')
             !
             intensity%bound = .true.
@@ -3249,7 +3259,16 @@ contains
             intensity%unbound = .true.
             job%basis_set='KEEP'
             !
-          case('VIB-DIPOLE','MU')
+            if (nitems>1) call readu(w)
+            if (trim(w)=="INTERPOLATE") intensity%interpolate = .true.
+            !
+            if (trim(w)=="RENORM") then 
+               intensity%interpolate = .true.
+               intensity%renorm = .true.
+               job%basis_set='KEEP'
+            endif
+            !
+          case('VIB-DIPOLE','MU','TDM')
             !
             intensity%tdm = .true.
             !
@@ -11124,6 +11143,7 @@ contains
                   !
                   if (iverbose>=4) call TimerStart('Find unbound states')
                   !
+                  psi_vib = 0
                   !
                   !$omp parallel do private(k) shared(psi_vib) schedule(guided)
                   do k= grid%npoints-npoints_last+1,grid%npoints
@@ -11275,8 +11295,6 @@ contains
                         psi_vib(k) = psi2
                         !
                       endif
-
-                      !psi_vib(k+1)
                       !
                       if ( psi2>100.0*small_.and.psi1>psi2.and.psi1>psi_vib(k+2) ) then
                         !

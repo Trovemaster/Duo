@@ -371,7 +371,7 @@ contains
     type(quantaT),pointer  :: quantaI,quantaF
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
-    real(rk),allocatable :: acoef_RAM(:),nu_ram(:)  
+    real(rk),allocatable :: acoef_RAM(:),nu_ram(:),spline_grid(:),acoef_norm(:)
     !
     integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
     !
@@ -384,8 +384,8 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J
-    real(rk) :: J_
+    integer(ik) :: Jmax_,ID_J,inu
+    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
     character(1)  :: let_LF ! richmol letters x,y,z
@@ -408,6 +408,9 @@ contains
     !
     nJ = size(Jval)
     !
+    !dnu = (intensity%freq_window(2)-intensity%asymptote)/(real(intensity%Npoints,rk)-1)
+    !
+    dnu = (intensity%freq_window(2)-intensity%freq_window(1))/(real(intensity%Npoints,rk))
     !
     if (trim(intensity%action) == 'TM') intensity_do = .false.  
     !
@@ -633,7 +636,6 @@ contains
     !
     call TimerStop('Intens_Filter-1')
     !
-    !
     !loop over final states -> count states for each symmetry
     !
     nlevelsG = 0
@@ -728,6 +730,13 @@ contains
              !
              if ( nint(intensity%J(1)-Ji)==0.and.( nint(2.0_rk*intensity%J(1))>1) ) cycle
              !
+             ! skip unbound states for the renormalisation case 
+             if (intensity%interpolate.and..not.quantaI%bound) then 
+                   iroot = iroot - 1
+                   eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+                cycle
+             endif
+             !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate
              !
              if (intensity%lande_calc) then
@@ -735,20 +744,6 @@ contains
                lande = 0
                !
                vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
-               !
-               !do k = 1,dimenI
-               !  !
-               !  omegaF = basis(indI)%icontr(k)%omega
-               !  sigmaF = basis(indI)%icontr(k)%sigma
-               !  ilambdaF = basis(indI)%icontr(k)%ilambda
-               !  !
-               !  if ( Ji > 0) then
-               !    !
-               !    lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
-               !    !
-               !  endif
-               !  !
-               !enddo
                !
                ! This version of Lande factor takes into account the non-diagonal Sigma/Sigma+/-1 terms
                !
@@ -873,6 +868,43 @@ contains
            nlevelsG(isymI) = nlevelsG(isymI) + 1
            !
          enddo
+         !
+         ! The unbound intensities (Einstein coefficients) can be interpolated on a frequency grid. 
+         ! Here we define grid as a formal set of state energies in the frequency window
+         !
+         if (intensity%interpolate) then
+            !
+            eigen(indI,igammaI)%Nbound = iroot
+            !
+            do inu=0,intensity%npoints
+               !
+               !nu = intensity%asymptote+dnu*real(inu,rk)
+               !
+               nu = intensity%freq_window(1)+dnu*real(inu,rk)
+               !
+               ndecimals=6-max(0, int( log10(abs(nu)+1.d-6)-4) )
+               !
+               iroot = iroot + 1
+               !eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+               !
+               if (integer_spin) then 
+                 !
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                 write(enunit,my_fmt) & 
+                           iroot,nu,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                           pm,ef,"grid",0,0,0,0
+                 !
+               else
+                 !
+                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                 write(enunit,my_fmt) & 
+                           iroot,nu,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                           pm,ef,"grid",0,0,0.5,0.5
+                           !
+               endif
+            enddo
+         endif         
+         !
        enddo
     enddo
     !
@@ -1140,6 +1172,12 @@ contains
                   call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
                   call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
                   !
+                  if (intensity%interpolate) then 
+                    allocate(spline_grid(nlevelsF),acoef_norm(intensity%npoints),stat=info)
+                    call ArrayStart('spline_grid',info,nlevelsF,kind(spline_grid))
+                    call ArrayStart('acoef_norm',info,intensity%npoints,kind(acoef_norm))
+                  endif
+                  !
                   acoef_RAM = 0
                   !
                 endif
@@ -1174,6 +1212,12 @@ contains
                    ilambdaF = quantaF%ilambda
                    omegaF   = quantaF%omega
                    !
+                   nu_if = energyF - energyI 
+                   !
+                   if (trim(intensity%linelist_file)/="NONE") then
+                      nu_ram(ilevelF) = nu_if
+                   endif
+                   !
                    call energy_filter_upper(jF,energyF,passed)
                    !
                    ! skipping bound states if only unbound are needed 
@@ -1196,8 +1240,6 @@ contains
                    ! Which PQR branch this transition belong to ->
                    ! 
                    branch = PQR_branch(jI,jF)
-                   !
-                   nu_if = energyF - energyI 
                    !
                    ! no zero-frequency transitions should be produced 
                    if ( intensity_do.and.nu_if < small_) cycle
@@ -1254,14 +1296,12 @@ contains
                              if ( intensity%matelem ) then 
                                !
                                acoef_RAM(ilevelF) = linestr 
-                               nu_ram(ilevelF) = nu_if
                                indexi_RAM(ilevelF) = quantaI%iJ_ID
                                indexf_RAM(ilevelF) = quantaF%iJ_ID
                                !
                              else ! exomol
                                !
                                acoef_RAM(ilevelF) = A_einst 
-                               nu_ram(ilevelF) = nu_if
                                indexi_RAM(ilevelF) = quantaI%iroot
                                indexf_RAM(ilevelF) = quantaF%iroot
                                !
@@ -1332,23 +1372,78 @@ contains
                 !
                 if (trim(intensity%linelist_file)/="NONE") then
                    !
-                   do ilevelF=1,nlevelsF
-                     !
-                     if (acoef_RAM(ilevelF)>0.0_rk) then 
+                   if (intensity%interpolate) then
+                      !
+                      Ap1= 0._rk ; Apn =0._rk  ! 1nd derivatives at the first and last point (ignored)
+                      !
+                      if (.not.intensity%renorm) then 
+                         !
+                         ! For the not re-normalise-wavefunctions we normalise Einstein coefficients per area 
+                         ! and interpolate it to obtain a distribution of the Einstein coefficients 
+                         ! on a dense equidistant grid
+                         !
+                         acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
+                         acoef_norm(nlevelsF) = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
+                         do ilevelF=2,nlevelsF-1
+                            acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
+                         enddo
+                         !
+                         acoef_RAM = acoef_norm
+                         !
+                      endif
+                      !
+                      call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
+                      !
+                      ! Obtain the total (integrated) Einstein coefficient 
+                      !
+                      acoef_total = sum(acoef_RAM(:))
+                      !
+                      do inu=0,intensity%npoints
                         !
-                        if ( intensity%matelem ) then 
-                          !
-                          write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
-                                            indexi_RAM(ilevelF),indexf_RAM(ilevelF),1,1,acoef_RAM(ilevelF)
-                          !
-                        else
-                          !
-                          write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
-                                    indexf_RAM(ilevelF),indexi_RAM(ilevelF),acoef_RAM(ilevelF),nu_ram(ilevelF)
+                        nu = intensity%freq_window(1)+dnu*real(inu,rk)
+                        !
+                        ! evaluate spline interpolant
+                        call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
+                        !
+                        ! for the standard normalisation of the unbound wavefunctions 
+                        ! we rescale the Einstein coefficients to conserve its original total:
+                        !
+                        !if (.not.intensity%renorm) then 
+                        !   acoef_grid = acoef_grid*dnu/(intensity%freq_window(2)-intensity%asymptote)
+                        !endif
+                        !
+                        if (acoef_grid>intensity%threshold%linestrength) then 
+                           !
+                           write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                 eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_grid,nu
+                           !
                         endif
-                     endif
-                     !
-                   enddo
+                        !
+                      enddo
+                      !
+                      continue
+                      !
+                   else 
+                      !
+                      do ilevelF=1,nlevelsF
+                        !
+                        if (acoef_RAM(ilevelF)>0.0_rk) then 
+                           !
+                           if ( intensity%matelem ) then 
+                             !
+                             write(richunit(indI,indF),"(i8,i8,2i3,4x,e24.14)") & 
+                                               indexi_RAM(ilevelF),indexf_RAM(ilevelF),1,1,acoef_RAM(ilevelF)
+                             !
+                           else
+                             !
+                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                       indexf_RAM(ilevelF),indexi_RAM(ilevelF),acoef_RAM(ilevelF),nu_ram(ilevelF)
+                           endif
+                        endif
+                        !
+                      enddo
+                      !
+                   endif
                    !
                    if (allocated(acoef_RAM)) then 
                       deallocate(acoef_RAM)
@@ -1365,6 +1460,14 @@ contains
                    if (allocated(indexi_RAM)) then 
                       deallocate(indexi_RAM)
                       call ArrayStop('swap:indexi_RAM')
+                   endif 
+                   if (allocated(spline_grid)) then 
+                      deallocate(spline_grid)
+                      call ArrayStop('spline_grid')
+                   endif 
+                   if (allocated(acoef_norm)) then 
+                      deallocate(acoef_norm)
+                      call ArrayStop('acoef_norm')
                    endif 
                    !
                 endif

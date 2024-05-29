@@ -226,7 +226,12 @@ khi=n
 goto 1
 endif
 h=xa(khi)-xa(klo)
-if (h.eq.0._rk) stop 'bad xa input in splint'
+if (h.eq.0._rk) then 
+    write(out,"('bad xa input in splint',f18.8)") x
+    !stop 'bad xa input in splint'
+    y = 0 
+    return
+endif
 a=(xa(khi)-x)/h
 b=(x-xa(klo))/h
 y=a*ya(klo)+b*ya(khi)+((a**3-a)*y2a(klo)+(b**3-b)*y2a(khi))*(h**2)/6._rk
