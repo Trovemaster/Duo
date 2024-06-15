@@ -3268,7 +3268,7 @@ contains
                job%basis_set='KEEP'
             endif
             !
-          case('VIB-DIPOLE','MU','TDM')
+          case('VIB-DIPOLE','MU','TDM','PRINT-TDM')
             !
             intensity%tdm = .true.
             !

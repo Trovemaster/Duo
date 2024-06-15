@@ -104,7 +104,7 @@ The default is on, for switching of:
 
    overlap off 
 
-* ``VIB-DIPOLE`` (``MU``, ``TDM``)  is to generate transition dipole moments, and similarly ``VIB-QUADRUPOLE`` to generate transition quadrupole moments. 
+* ``VIB-DIPOLE`` (``MU``, ``TDM``,``PRINT-TDM``)  is to generate transition dipole moments, and similarly ``VIB-QUADRUPOLE`` to generate transition quadrupole moments. 
 
 Example
 ::
