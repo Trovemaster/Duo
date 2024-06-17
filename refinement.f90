@@ -1333,7 +1333,9 @@ module refinement
                  !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
-                 if (trim(field%sub_type(1))/="NONE") call define_sub_terms_complex_analytic_field(field%Nsub_terms)
+                 if (associated(field%sub_type)) call define_sub_terms_complex_analytic_field(field%Nsub_terms)
+                 !
+                 !if (trim(field%sub_type(1))/="NONE") call define_sub_terms_complex_analytic_field(field%Nsub_terms)
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !

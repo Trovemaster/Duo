@@ -13,11 +13,19 @@ module functions
   !
   !logical,save :: defined_complex_field = .false.
   integer(ik),save  :: N1,N2,N3
+  type array_of_funcitonsT
+    procedure(fanalytic_fieldT) ,pointer ,nopass :: f =>null()
+  end type array_of_funcitonsT
   !
   procedure (fanalytic_fieldT),pointer :: function_V1 => null()
   procedure (fanalytic_fieldT),pointer :: function_V2 => null()
   procedure (fanalytic_fieldT),pointer :: function_VD => null()
   procedure (fanalytic_fieldT),pointer :: function_beta => null()
+  !
+  type(array_of_funcitonsT),pointer :: function_multi(:)
+  !
+  integer(ik) :: N_multi_subfunctions
+  integer(ik),allocatable :: nsize_multi(:)
   !
   abstract interface
     !
@@ -292,22 +300,58 @@ module functions
     procedure(fanalytic_fieldT),pointer :: fanalytic_field !=> null()
     character(len=cl),intent(in)  :: sub_type(:)
     integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: i,alloc
+    !
+    N_multi_subfunctions = size(Nsub_terms)
     !
     select case(ftype)
       !
     case("COUPLED-PEC")
       !
-      call define_fanalytic_field(sub_type(1),function_V1)
-      call define_fanalytic_field(sub_type(2),function_V2)
-      call define_fanalytic_field(sub_type(3),function_VD)
-      !
-      N1 =Nsub_terms(1)
-      N2 =Nsub_terms(2)
-      N3 =Nsub_terms(3)
-      !
-      fanalytic_field => polynomial_coupled_PECs
+      if (N_multi_subfunctions==3) then 
+        !
+        call define_fanalytic_field(sub_type(1),function_V1)
+        call define_fanalytic_field(sub_type(2),function_V2)
+        call define_fanalytic_field(sub_type(3),function_VD)
+        !
+        N1 =Nsub_terms(1)
+        N2 =Nsub_terms(2)
+        N3 =Nsub_terms(3)
+        !
+        fanalytic_field => polynomial_coupled_PECs
+        !
+      else
+        !
+        if (associated(function_multi)) deallocate(function_multi)
+        if (allocated(nsize_multi)) deallocate(nsize_multi)
+        !
+        allocate(function_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) then
+          write (out,"(' Error define_complex_analytic_field ',i0,' initializing function_multi')") alloc
+          stop 'Error define_complex_analytic_field initializing function_multi - alloc'
+        end if
+        !
+        allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) stop 'Error nsize_multi - alloc'
+        ! 
+        do i = 1,N_multi_subfunctions
+          !
+          call define_fanalytic_field(sub_type(i),function_multi(i)%f)
+          nsize_multi(i) = Nsub_terms(i)
+          !
+        enddo
+        !
+        fanalytic_field => polynomial_multi_coupled_PECs
+        !
+      endif
       !
     case("COUPLED-PEC-BETA")
+      !
+      if (N_multi_subfunctions/=3) then 
+        write(out,"('Illegal number of sub-funcitons for COUPLED-PEC-BETA',i3,' only 3 has been immplemented')") &
+              N_multi_subfunctions
+        stop 'Illegal number of sub-funcitons for COUPLED-PEC-BETA/=3'
+      endif
       !
       call define_fanalytic_field(sub_type(1),function_V1)
       call define_fanalytic_field(sub_type(2),function_V2)
@@ -344,10 +388,30 @@ module functions
   subroutine define_sub_terms_complex_analytic_field(Nsub_terms)
     !
     integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: alloc,i
     !
-    N1 =Nsub_terms(1)
-    N2 =Nsub_terms(2)
-    N3 =Nsub_terms(3)
+    N_multi_subfunctions = size(Nsub_terms)
+    !
+    if (N_multi_subfunctions==3) then 
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    else
+      !
+      if (allocated(nsize_multi)) deallocate(nsize_multi)
+      !
+      allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+      if (alloc/=0) stop 'Error nsize_multi - alloc'
+      ! 
+      do i = 1,N_multi_subfunctions
+        !
+        nsize_multi(i) = Nsub_terms(i)
+        !
+      enddo
+      !
+    endif    
     !
   end subroutine define_sub_terms_complex_analytic_field
   !
@@ -2446,6 +2510,65 @@ module functions
     !
   end function polynomial_coupled_PECs
   !
+  !
+  ! A coupled PEC with an arbitrary number of states 
+  !
+  function polynomial_multi_coupled_PECs(r,parameters) result(f)
+    !
+    use lapack,only : lapack_syev
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk),allocatable   :: h(:,:),e(:)
+    integer(ik) :: icomponent,Ntot,Ndim,N,i,i1,i2,alloc
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    Ndim = ( nint( sqrt(1.0_rk+8_rk*real(N_multi_subfunctions,rk)))-1 )/2
+    !
+    allocate(h(Ndim,Ndim),e(Ndim),stat=alloc)
+    if (alloc/=0) then
+      write (out,"('Error alloac polynomial_multi_coupled_PECs:  h and e ',i0)") alloc
+      stop 'Error alloac polynomial_multi_coupled_PECs - alloc'
+    end if
+    !
+    i = 0
+    Ntot = 0 ! accumulated size
+    !
+    do i1 =1,Ndim
+       i = i + 1
+       N = nsize_multi(i)
+       h(i1,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+       Ntot = Ntot + N
+    enddo
+    !
+    do i1 =1,Ndim
+       do i2 =i1+1,Ndim
+         i = i + 1
+         N = nsize_multi(i)
+         h(i2,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+         Ntot = Ntot + N
+       enddo
+    enddo
+    !
+    ! to diagobalize the NxN matrix 
+    !
+    call lapack_syev(h,e)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = e(icomponent)  
+    !
+    deallocate(h,e)            
+    !
+  end function polynomial_multi_coupled_PECs
   !
   recursive function polynomial_coupled_PECs_beta(r,parameters) result(f)
     !

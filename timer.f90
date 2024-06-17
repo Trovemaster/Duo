@@ -22,7 +22,7 @@ module timer
   implicit none
   private
   public TimerStart, TimerStop, TimerReport, IOStart, IOStop , ArrayStart, ArrayStop, ArrayMinus, &
-         MemoryReport,memory_limit,maxmemory,memory_now, StateStart, StateStop
+         MemoryReport,memory_limit,maxmemory,memory_now, StateStart, StateStop, StateCheck
   !
   integer, parameter :: trk        = rk ! selected_real_kind(12)
   integer, parameter :: table_size = 2000 ! Max number of entries to track
@@ -580,6 +580,25 @@ module timer
       !
     end subroutine StateStop
 
+   subroutine StateCheck(name,slot)
+      character(len=*), intent(in) :: name  ! Unit name
+      integer(ik), intent(out)     :: slot  ! Unit slot
+      !
+      integer(ik)          :: pos  ! Unit position
+      type(tState_unit), pointer   :: t    ! Current State_unit (for convenience)
+      logical                   :: ifopen
+      !
+      slot = 0 
+      !
+      pos =  insert_Stateunit(name)
+      t   => State_table(pos)
+      !
+      if (t%active) then
+        slot  = t%slot
+        return
+      end if
+      !
+    end subroutine StateCheck
 
 
     !

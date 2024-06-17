@@ -165,7 +165,7 @@ module diatom_module
     character(len=cl)    :: name='(unnamed)' ! Identifying name of the function (default to avoid garbled outputs)
     character(len=cl)    :: type='NONE'  ! Identifying type of the function
     character(len=cl)    :: class='NONE' ! Identifying class of the function (poten, spinorbit,dipole,abinitio etc)
-    character(len=cl)    :: sub_type(1:3)='NONE'  ! Identifying type of sub-functions (used for coupled representations)
+    character(len=cl),pointer  :: sub_type(:)  ! Identifying type of sub-functions (used for coupled representations)
     !
     ! variable used for GRID curves to specify interpolation and extrapolation  options
     !
@@ -180,7 +180,8 @@ module diatom_module
     character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
     character(len=cl)    :: jTAG         ! reference State TAG of the term as given in input (ket in case of the coupling)
     integer(ik)          :: Nterms       ! Number of terms or grid points
-    integer(ik)          :: Nsub_terms(3)  ! Number of terms of sub-functions, used for coupled representations
+    integer(ik)          :: Nsubfunctions=0  ! Number of sub-functions
+    integer(ik),pointer  :: Nsub_terms(:)=>null()  ! Number of terms of sub-functions, used for coupled representations
     integer(ik)          :: Lambda =bad_value     ! identification of the electronic state Lambda
     integer(ik)          :: Lambdaj=bad_value     ! identification of the electronic state Lambda (ket)
     integer(ik)          :: multi        ! identification of the electronic spin (bra for the coupling)
@@ -2353,13 +2354,39 @@ contains
             !
             field%type = trim(w)
             !
+            if (nitems>2) then
+              !
+              ! the number of functions, diagonal +  couplings = n*(n+1)/2
+              !
+              call readi(i_t)
+              !
+              field%Nsubfunctions = (i_t+1)*(i_t)/2
+              !
+              if (.not.associated(field%Nsub_terms)) then 
+                allocate(field%Nsub_terms(field%Nsubfunctions))
+              endif
+              !
+              if (.not.associated(field%sub_type)) then
+                 allocate(field%sub_type(field%Nsubfunctions))
+              endif
+              !
+            endif
+            !
           case("SUB-TYPES","SUB-TYPE")
             !
-            !if (nitems<=2) call report ("Too few entries in "//trim(w),.true.)
+            if (field%Nsubfunctions==0) field%Nsubfunctions = Nitems-1
             !
-            call readu(field%sub_type(1))
-            if (nitems>2) call readu(field%sub_type(2))
-            if (nitems>3) call readu(field%sub_type(3))
+            if (Nitems-1/=field%Nsubfunctions) then 
+               call report ("Illegal number of fields in SUB-TYPE /= Ntypes*(Ntypes+1)/2)",.true.)
+            endif
+            !
+            if (.not.associated(field%sub_type)) then
+               allocate(field%sub_type(field%Nsubfunctions))
+            endif
+            !
+            do i=2,Nitems
+               call readu(field%sub_type(i-1))
+            enddo 
             !
           case("NAME")
             !
@@ -2814,14 +2841,25 @@ contains
             field%Nterms = Nparam
             !
             ! this is for multiple entries of the number of paramters used for coupled representaitons
-            if (Nitems>=4) then
+            if (Nitems>=3) then
+              !
+              if (.not.associated(field%Nsub_terms)) then 
+                allocate(field%Nsub_terms(Nitems-1))
+              else 
+                if (Nitems-1/=field%Nsubfunctions) then 
+                   call report ("Illegal number of fields in NPARAMETERS /= Ntypes)",.true.)
+                endif
+              endif
               !
               field%Nsub_terms(1) = Nparam
               !
-              call readi(field%Nsub_terms(2))
-              call readi(field%Nsub_terms(3))
+              do i=2,field%Nsubfunctions
+                call readi(field%Nsub_terms(i))
+              enddo 
               !
-              field%Nterms = sum(field%Nsub_terms(1:3))
+              !call readi(field%Nsub_terms(3))
+              !
+              field%Nterms = sum(field%Nsub_terms(1:field%Nsubfunctions))
               !
             endif
             !
@@ -3935,13 +3973,18 @@ contains
       iobject = iobject + 1
       !
       call reada(iTAG)
-      call StateStart(iTAG,iref)
+      call StateCheck(iTAG,iref)
       jref = iref
       jTAG = iTAG
       !
       ! for nondiagonal terms
       if (nitems>2) call reada(jTAG)
-      call StateStart(jTAG,jref)
+      call StateCheck(jTAG,jref)
+      !
+      !if (jref==0) then 
+      !  write(out,'("input: couplings/properties cannot be introduced before the potential ",a,a,a)') trim(CLASSNAMES(iType)),iTag,jTag
+      !  call report (trim(CLASSNAMES(iType))//" should be moved after PECs",.true.)
+      !endif
       !
       ! find the corresponding potential
       !
@@ -3960,6 +4003,7 @@ contains
       if (.not.include_state) then
         !write(out,"('The LAMBDA-Q term ',2i8,' is skipped')") iref,jref
         iobject = iobject - 1
+        !call StateStop(jTAG)
         do while (trim(w)/="".and.trim(w)/="END")
           call read_line(eof,iut) ; if (eof) exit
           call readu(w)
