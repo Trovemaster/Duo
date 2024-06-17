@@ -267,73 +267,30 @@ module refinement
        !
        ! weights for the ab initio fields
        !
-       j = 0
-       do ifield =1,Nabi
-         !
-         field => abinitio(ifield)
-         do i=1,field%Nterms
-           j = j + 1
-           r(j) = field%grid(i)
-           wtall(en_npts+j) = field%weight(i)
-         enddo
-         !
-         ! normalize weights for each field separately
-         !
-         wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
-         wtall(en_npts+j-field%Nterms+1:en_npts+j) =  & 
-              field%fit_factor*wtall(en_npts+j-field%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
-         !
-       enddo 
+       !j = 0
+       !do ifield =1,Nabi
+       !  !
+       !  field => abinitio(ifield)
+       !  do i=1,field%Nterms
+       !    j = j + 1
+       !    r(j) = field%grid(i)
+       !    wtall(en_npts+j) = field%weight(i)
+       !  enddo
+       !  !
+       !  ! normalize weights for each field separately
+       !  !
+       !  wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
+       !  wtall(en_npts+j-field%Nterms+1:en_npts+j) =  & 
+       !       field%fit_factor*wtall(en_npts+j-field%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
+       !  !
+       !enddo 
        !
        !wtsum = sum(wtall(en_npts+1:npts))
        !wtall(en_npts+1:npts) = wtall(en_npts+1:npts)/max(wtsum,sqrt(small_))
        !
-       ! 2. Factorizing the obs. weights by the factor "fit_factor":
-       !
-       wtall(1:en_npts) = wtall(1:en_npts)*fitting%factor
-       !
-       ! 3. And normilizing all weight factors. 
-       !
-       wtsum = sum(wtall(1:npts))
-       wtall(1:npts) = wtall(1:npts)/max(wtsum,sqrt(small_))
-       ! 
-       ! Count how many data points actually will be fitted. 
-       !
-       nused=0
-       wt_bit = 0 
-       !
-       do i=1,npts
-         if (wtall(i)>small_) then 
-           !
-           nused=nused+1
-           wt_bit(i) = 1.0_rk
-           !
-         endif
-       enddo
-       !
-       ! sigma = exp. data precision for robust fit 
-       !
-       if (fitting%robust>small_) then
-         !
-         sigma = 1.0_rk
-         !
-         !$omp parallel do private(i) shared(sigma) schedule(dynamic)
-         do i=1,npts
-           if (wtall(i)>small_) sigma(i) = sigma(i)/sqrt(wtall(i))
-         enddo
-         !$omp end parallel do
-         !
-         wtsum = 1.0_rk ! sqrt(sum(sigma(1:en_npts)**2))
-         !
-         sigma(:) = sigma(:)*fitting%robust/wtsum
-         !
-       endif 
-       !
        ! assigning mark with null
        !
        mark(:) = ' '
-       !
-       write(out,"('Number of data points used in the fit: ',i9)") nused
        !
        ! The fitting loop is about to start. 
        !
@@ -358,6 +315,7 @@ module refinement
        ipotmin = minloc(poten(1)%gridvalue,dim=1) ; req = grid%r(ipotmin)
        !
        ifield_ = 0
+       j = 0
        !
        do iobject =1,Nobjectmax
           !
@@ -420,8 +378,66 @@ module refinement
               !
             endif 
             !
+            ! weights for the ab initio fields
+            !
+            do i = 1,abinitio(ifield_)%Nterms
+              !
+              j = j + 1
+              !r(j) = field%grid(i)
+              r(j)=  abinitio(ifield_)%grid(1)
+              !wtall(en_npts+j) = field%weight(i)
+              wtall(en_npts+j) = abinitio(ifield_)%weight(i)
+            enddo
+            !
+            wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
+            wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j) =  & 
+                 abinitio(ifield_)%fit_factor*wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
+            !
          enddo
        enddo
+       !
+       ! 2. Factorizing the obs. weights by the factor "fit_factor":
+       !
+       wtall(1:en_npts) = wtall(1:en_npts)*fitting%factor
+       !
+       ! 3. And normilizing all weight factors. 
+       !
+       wtsum = sum(wtall(1:npts))
+       wtall(1:npts) = wtall(1:npts)/max(wtsum,sqrt(small_))
+       ! 
+       ! Count how many data points actually will be fitted. 
+       !
+       nused=0
+       wt_bit = 0 
+       !
+       do i=1,npts
+         if (wtall(i)>small_) then 
+           !
+           nused=nused+1
+           wt_bit(i) = 1.0_rk
+           !
+         endif
+       enddo
+       !
+       write(out,"('Number of data points used in the fit: ',i9)") nused
+       !
+       ! sigma = exp. data precision for robust fit 
+       !
+       if (fitting%robust>small_) then
+         !
+         sigma = 1.0_rk
+         !
+         !$omp parallel do private(i) shared(sigma) schedule(dynamic)
+         do i=1,npts
+           if (wtall(i)>small_) sigma(i) = sigma(i)/sqrt(wtall(i))
+         enddo
+         !$omp end parallel do
+         !
+         wtsum = 1.0_rk ! sqrt(sum(sigma(1:en_npts)**2))
+         !
+         sigma(:) = sigma(:)*fitting%robust/wtsum
+         !
+       endif 
        !
        ! For "frequencies" reconstruct energies by combine differences
        !
