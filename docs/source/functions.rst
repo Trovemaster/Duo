@@ -958,7 +958,7 @@ where :math:`V_1(r)` and `V_2(r)` are PEC1 and PEC2, respectively.
 An example of the `COUPLED-PEC-BETA` input for a potential, produced by the coupling of an EMO, REPULSIVE and a diabatic coupling function :math:`D(r)` defined via
 the :math:`\beta(r)` from a Lorentzian form `BETA_LORENTZ`:
 ::
-     
+
      poten A
      name "A1Pi"
      lambda 1
@@ -996,19 +996,112 @@ the :math:`\beta(r)` from a Lorentzian form `BETA_LORENTZ`:
      RE           2.0452
      COMPON       1.00000000000000E+00
      end
-     
+
 
 Here, the first (lowest) component is produced.
+
+
+
+Generic multi-state coupled adiabatic potential
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Similarly, a general multi-states adiabatic PEC can be constructed using the ``sub-type`` keyword as in the following example:
+:: 
+     
+     
+   poten B
+   name "B2Sig-"
+   symmetry -
+   lambda 0
+   mult   2
+   type  coupled-pec 3
+   sub-types EMO REPULSIVE repulsive morse morse morse  
+   Nparameters 9 12 5 5 5 5
+   values
+    VE           3.84687918328484e+04  (EMO) 
+    RE           1.06429714857428E+00   
+    AE           9.37229718553690E+04
+    RREF        -1
+    PL           4.0
+    PR           4.0
+    NL           0
+    NR           0
+    B0           1.71356377423284e+00   
+    NREP         1.10000000000000E+01  (Repulsive)
+    VE           2.80256612266818E+04
+    B1          -4.80456388326200E+04
+    B2           6.81205015447116E+05
+    B3          -3.05419508907820E+06
+    B4           5.40844612343380E+06
+    B5           0.00000000000000E+00
+    B6          -1.19338269517479E+07
+    B7           1.65813128105902E+07
+    B8          -1.03577590530685E+07
+    B9           3.17202522138413E+06
+    B10         -3.86459936636037E+05
+    NREP         4                     (Repulsive)
+    VE           2.80256612266818E+04
+    B1           0.0
+    B2           0.0
+    B3           3.00E+06
+    TE           1000                  (Morse)
+    RE           2.78
+    A            0.8
+    A0           2.9999e4
+    RREF        -1
+    TE           1000                  (Morse)
+    RE           2.78
+    A            0.8
+    A0           2.9999e4
+    RREF        -1                     (Morse)
+    TE           1000
+    RE           2.78
+    A            0.8
+    A0           2.9999e4
+    RREF        -1
+    COMPON       1 end
+     
+
+Here, the keyword ``type`` has an additional parameter of the number of states to couple:
+::
+   
+    type  coupled-pec 3
+    
+``sub-types`` lists the 1D functions for each element, ``Nparameters`` gives the number of parameters in each object. The last value in the ``values`` section is to indicate the state component to output, 1,2 or 3 in this case. 
+
+The order of the objects is important. The N diagonal diabatic elements are listed first, followed by the non-diagonal elements in the following order:
+:math:`V_{1,2}`, :math:`V_{1,3}`, ... :math:`V_{1,N}`, :math:`V_{2,3}`, ... :math:`V_{2,N}` ..., :math:`V_{N-1,N}`. In the code (funcitons.f90), this is implemented as follows
+::
+    
+    ! diagonal part
+    i = 0 
+    do i1 =1,Ndim
+       i = i + 1
+       N = Nparameters(i)
+       v(i1,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+       Ntot = Ntot + N
+    enddo
+    ! non-diagonal part
+    do i1 =1,Ndim
+       do i2 =i1+1,Ndim
+         i = i + 1
+         N = Nparameters(i)
+         h(i2,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+         Ntot = Ntot + N
+       enddo
+    enddo
+    
+
 
 
 
 Generic two-state coupled adiabatic transition curves (dipoles, spin-orbit, etc)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Similarity to the generic ``COUPLED-PEC-BETA`` functional form used to represent adiabatic PECs from diabatic functions, ``COUPLED-TRANSIT-BETA`` form is used to create non-diagonal adiabatic transition curves (e.g. dipole) from two diabatic curves and a unitary transformation as follows. Here, only one of the two states (bra or ket) describes a coupled 2-state system, another one is assumed a single state. Any two single functions designed for transition and coupling properties implemented in Duo can be used to form such a coupled representation, while the last one should be a function describing the transformation angle :math:`\beta(r)`. This form also requires that the corresponding numbers of parameters are specified using ``Nparameters``. As in other similar adiabatic forms, 
+Similarly to the generic ``COUPLED-PEC-BETA`` functional form used to represent adiabatic PECs from diabatic functions, ``COUPLED-TRANSIT-BETA`` form is used to create non-diagonal adiabatic transition curves (e.g. dipole) from two diabatic curves and a unitary transformation as follows. Here, only one of the two states (bra or ket) describes a coupled 2-state system, another one is assumed a single state. Any two single functions designed for transition and coupling properties implemented in Duo can be used to form such a coupled representation, while the last one should be a function describing the transformation angle :math:`\beta(r)`. This form also requires that the corresponding numbers of parameters are specified using ``Nparameters``. As in other similar adiabatic forms,
 the last parameter is reserved for the component-index (1,2) referring to the adiabatic state in question. Here is an example of a dipole moment in the adiabatic representation of CH formed from two diabatic `bobleroy`` DMCs  and :math:`\beta(r)` in the form of a Lorentzian-type form ``BETA_Lorentz``:
 ::
-     
+
      dipole X C
      name "<X2Pi|DMX|C2Sigma>"
      spin   0.5 0.5
@@ -1035,7 +1128,7 @@ the last parameter is reserved for the component-index (1,2) referring to the ad
      RE           1.6566449350
      COMPON       1
      end
-     
+
 
 Here, the first (lowest) component is produced. The keyword ``sub-type`` is used to specify the corresponding functions  in the form of ``DMC1 DMC2 BETA``, where ``DMC1``, ``DMC2`` and ``BETA`` are any functions implemented in Duo, e.g. ``boblery``, ``beta_Lorentzian`` etc.
 The transformation from :math:`f_1^{\rm 1}` and :math:`f_2^{\rm a}` from :math:`f_1^{\rm d}` and :math:`f_2^{\rm d}`  is via the transformation angle :math:`\beta(r)` is defined as follows
@@ -1047,7 +1140,8 @@ The transformation from :math:`f_1^{\rm 1}` and :math:`f_2^{\rm a}` from :math:`
     f_2^{\rm a}(r) &= \sin\beta f_1^{\rm d}+\cos\beta f_2^{\rm d},
    \end{split}
 
-and ``COMPON`` =1,2 is to select :math:`f_1^{\rm 1}` or :math:`f_2^{\rm a}`, respectively. 
+and ``COMPON`` =1,2 is to select :math:`f_1^{\rm 1}` or :math:`f_2^{\rm a}`, respectively.
+
 
 
 
@@ -1366,7 +1460,7 @@ Example:
 ``SQRT(LORENTZ)``
 ^^^^^^^^^^^^^^^^^
 
-Alais ``SQRT(LORENTZIAN)`.
+Alais ``SQRT(LORENTZIAN)``.
 
 A square-root of a Lorentzian type function used to represent the ``diabatic`` coupling:
 
@@ -1394,15 +1488,15 @@ Example:
 
 
 
-Generic diabatic coupling using the angle :math:`\beta`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Generic two-state diabatic coupling using the angle :math:`\beta`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As discussed above, a diabatic coupling funciton can be generated from two diabatic PECs and a transformation angle :math:`\beta(r)` type as given by
 
 :math:`D(r) = \frac{1}{2}\tan(2\beta(r)) (V_2(r)-V_1(r))`,
 
 using the `COUPLED-DIABATIC`, where :math:`\beta(r)` can be any function sub-type. For example:
-:
+::
 
      diabatic A C
      name "<A|diab|C>"
@@ -1416,6 +1510,7 @@ using the `COUPLED-DIABATIC`, where :math:`\beta(r)` can be any function sub-typ
      gamma        2.75474715845893e-03
      RE           2.02
      end
+
 
 is to generate a diabatic coupling generated from PEC A, PEC B (defined in the corresponding POTENTIAL sections) and a ``BETA_Lorentz`` function.
 
