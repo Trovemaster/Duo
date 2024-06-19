@@ -590,7 +590,12 @@ module timer
       !
       slot = 0 
       !
-      pos =  insert_Stateunit(name)
+      pos =  check_Stateunit(name)
+      !
+      if (pos==0) then
+        return
+      endif
+      !
       t   => State_table(pos)
       !
       if (t%active) then
@@ -637,6 +642,31 @@ module timer
       end do search
       !
     end function insert_Stateunit
+
+
+    !
+    function check_Stateunit(name) result(pos)
+      character(len=*), intent(in) :: name
+      integer(ik)                  :: pos
+      !
+      pos = string_hash(name)
+      search: do
+        if (.not.State_table(pos)%used) then
+          pos = 0
+          exit search
+        end if
+        if (State_table(pos)%name==name) then
+          !
+          ! This is an existing key, simply return the location
+          !
+          exit search
+        end if
+        pos = 1 + modulo(pos-2,table_size)
+      end do search
+      !
+    end function check_Stateunit
+
+
 
 
 

@@ -2550,6 +2550,7 @@ module functions
          i = i + 1
          N = nsize_multi(i)
          h(i2,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+         h(i1,i2) = h(i2,i1)
          Ntot = Ntot + N
        enddo
     enddo

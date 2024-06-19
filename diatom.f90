@@ -1587,7 +1587,9 @@ contains
               ! read the state label
               call reada(iTAG)
               !
-              call StateStart(iTAG,iref)
+              !call StateStart(iTAG,iref)
+              !
+              call StateCheck(iTAG,iref)
               !
               fitting%obs(iobs)%quanta%istate = iref
               fitting%obs(iobs)%quanta%iTAG   = iTAG
@@ -1596,7 +1598,7 @@ contains
               !
               ! skip current line if this state is not processed
               !
-              if (fitting%obs(iobs)%quanta%istate>Nestates) then
+              if (fitting%obs(iobs)%quanta%istate>Nestates.or.iref==0) then
                 iobs = iobs-1
                 call read_line(eof,iut) ; if (eof) exit
                 call readu(w)
@@ -1625,7 +1627,8 @@ contains
                 ! read the state label
                 call reada(iTAG)
                 !
-                call StateStart(iTAG,iref)
+                !call StateStart(iTAG,iref)
+                call StateCheck(iTAG,iref)
                 !
                 fitting%obs(iobs)%quanta_%istate = iref
                 fitting%obs(iobs)%quanta_%iTAG   = iTAG
@@ -1634,7 +1637,7 @@ contains
                 !
                 ! skip current line if this state is not processed
                 !
-                if (fitting%obs(iobs)%quanta_%istate>Nestates) then
+                if (fitting%obs(iobs)%quanta_%istate>Nestates.or.iref==0) then
                   iobs = iobs-1
                   call read_line(eof,iut) ; if (eof) exit
                   call readu(w)
@@ -1965,7 +1968,8 @@ contains
           hfcc1(1)%num_field = hfcc1(1)%num_field + 1
           iobject(21) = iobject(21) + 1
           call reada(iTAG) ; jTAG = iTAG
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2008,7 +2012,8 @@ contains
           hfcc1(2)%num_field = hfcc1(2)%num_field + 1
           iobject(22) = iobject(22) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2051,7 +2056,8 @@ contains
           hfcc1(3)%num_field = hfcc1(3)%num_field + 1
           iobject(23) = iobject(23) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2096,7 +2102,8 @@ contains
           hfcc1(4)%num_field = hfcc1(4)%num_field + 1
           iobject(24) = iobject(24) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2141,7 +2148,8 @@ contains
           hfcc1(5)%num_field = hfcc1(5)%num_field + 1
           iobject(25) = iobject(25) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2184,7 +2192,8 @@ contains
           hfcc1(6)%num_field = hfcc1(6)%num_field + 1
           iobject(26) = iobject(26) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2227,7 +2236,8 @@ contains
           hfcc1(7)%num_field = hfcc1(7)%num_field + 1
           iobject(27) = iobject(27) + 1
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! find the corresponding potential
@@ -2295,12 +2305,14 @@ contains
           if (iobject_==0) call report ("Unrecognized keyword (error 02): "//trim(w),.true.)
           !
           call reada(iTAG)
-          call StateStart(iTAG,iref)
+          !call StateStart(iTAG,iref)
+          !
+          call StateCheck(iTAG,iref)
           jref = iref
           !
           ! for nondiagonal terms
           if (nitems>3) call reada(iTAG)
-          call StateStart(iTAG,jref)
+          call StateCheck(iTAG,jref)
           !
           include_state = .false.
           !
@@ -4046,6 +4058,12 @@ contains
       !
       ierr = 0
       ielement = 0
+      !
+      ! no need to match if the reference is undefined
+      if (iref==0.or.jref==0) then
+       ierr = 2
+       return
+      endif
       !
       do iobject_ =1,Nobjects
         !
