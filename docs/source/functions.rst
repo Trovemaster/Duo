@@ -369,7 +369,7 @@ Example:
     a2            4.5160872659E+01
     end
 
-where the value :math:`A_{\rm e}` is `linked` to the corresponding value of ``poten 1``.
+where the value :math:`A_{\rm e}` is 'linked' to the corresponding value of ``poten 1``.
 
 ``Polynomial``
 ^^^^^^^^^^^^^^
@@ -1059,7 +1059,8 @@ Similarly, a general multi-states adiabatic PEC can be constructed using the ``s
     A            0.8
     A0           2.9999e4
     RREF        -1
-    COMPON       1 end
+    COMPON       1
+    end
      
 
 Here, the keyword ``type`` has an additional parameter of the number of states to couple:
