@@ -13239,7 +13239,7 @@ contains
     !
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
-    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
+    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m,cross_prod,factor
     !
     type(fieldT),pointer      :: field
     !
@@ -13923,6 +13923,22 @@ contains
           !
           mat_1(1:N_i,1:N_i) = &
             matmul(transpose(vect(iomega,1:N_i,1:N_i)),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          !
+          do i = 1,N_i
+             !
+             cross_prod = sum(mat_1(:,i)**2)
+             factor = 1.0_rk/sqrt(cross_prod)
+             !
+             mat_1(:,i) = mat_1(:,i)*factor
+             !
+             do j = i+1,N_i
+               !
+               cross_prod = sum(mat_1(:,i)*mat_1(:,j))
+               !
+               mat_1(:,j) = mat_1(:,j)-mat_1(:,i)*cross_prod
+               !
+             enddo
+          enddo
           !
           ! scalar product of vect with the previous step
           do i = 1,N_i
@@ -15690,7 +15706,7 @@ contains
              !
              if (ilambda/=jlambda.or.nint(spini-spinj)/=0.or.nint(sigmai-sigmaj)/=0 ) cycle
              !
-             field => Diab_omega_obj(iNAC)
+             field => Diab_omega_obj(idiab)
              !
              omegai_ = field%omegai
              omegaj_ = field%omegaj
@@ -15702,11 +15718,11 @@ contains
              hmat(i,j) = hmat(i,j) + field%matelem(ivib,jvib)*sc
              !
              ! print out the internal matrix at the first grid point
-             if (iverbose>=4.and.abs(f_nac)>small_) then
+             if (iverbose>=4.and.abs(field%matelem(ivib,jvib))>small_) then
                !
-               write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
+               write(printout_,'(i3,"-NC",2i3)') idiab,ilevel,jlevel
                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-               write(printout_,'(g12.4)') f_nac/sc
+               write(printout_,'(g12.4)') field%matelem(ivib,jvib)/sc
                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
                !
              endif
