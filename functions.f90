@@ -192,6 +192,10 @@ module functions
       !
       fanalytic_field => dipole_doubleexp
       !
+    case("SIGMOID")
+      !
+      fanalytic_field => poten_sigmoid
+      !
     case("DIABATIC_MU_DIAG","AVOIDEDCROSSING_DIAG_MU")
       !
       fanalytic_field => dipole_avoidedcrossing_diag_mu
@@ -546,6 +550,41 @@ module functions
     f = v0+f0/y
     !
   end function poten_cosh_polynom
+
+  !
+  function poten_sigmoid(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,r0,f,z,v0,D0,phi
+    integer(ik)            :: k,N,Nbeta,p,N0
+    !
+    N = size(parameters)
+    !
+    Nbeta = N - 5
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    D0 = parameters(3)-v0
+    p = nint(parameters(4))
+    !
+    N0 = 5
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    !
+    phi = 0
+    do k=0,Nbeta
+     phi = phi + parameters(k+N0)*z**k
+    enddo
+    !
+    y  = 1.0_rk+exp(-phi*(r-r0))
+    !
+    f = d0/y+v0
+    !
+  end function poten_sigmoid
+
+
   !
   function poten_EMO(r,parameters) result(f)
     !

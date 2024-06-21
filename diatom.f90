@@ -9564,7 +9564,7 @@ contains
                   !
                 end if
                 !
-                ! Also check the that the SO is consistent with the selection rules for SS
+                ! Also check the that the SS is consistent with the selection rules for SS
                 !
                 if (zDebug &
                   .and. ( &
