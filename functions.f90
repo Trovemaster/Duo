@@ -556,22 +556,27 @@ module functions
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
     real(rk),intent(in)    :: parameters(:) ! potential parameters
-    real(rk)               :: y,r0,f,z,v0,D0,phi
+    real(rk)               :: y,r0,f,z,v0,D0,phi,rref
     integer(ik)            :: k,N,Nbeta,p,N0
     !
     N = size(parameters)
     !
-    Nbeta = N - 5
+    Nbeta = N - 6
     !
     v0 = parameters(1)
     r0 = parameters(2)
     ! Note that the De is relative the absolute minimum of the ground state
     D0 = parameters(3)-v0
-    p = nint(parameters(4))
     !
-    N0 = 5
+    rref = parameters(4)
     !
-    z = (r**p-r0**p)/(r**p+r0**p)
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(5))
+    !
+    N0 = 6
+    !
+    z = (r**p-rref**p)/(r**p+rref**p)
     !
     phi = 0
     do k=0,Nbeta
