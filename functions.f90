@@ -196,6 +196,10 @@ module functions
       !
       fanalytic_field => poten_sigmoid
       !
+    case("EMO-SWITCH") 
+      !
+      fanalytic_field => poten_EMO_switch
+      !
     case("DIABATIC_MU_DIAG","AVOIDEDCROSSING_DIAG_MU")
       !
       fanalytic_field => dipole_avoidedcrossing_diag_mu
@@ -2118,7 +2122,7 @@ module functions
     !
     if (N/=size(parameters)-1) then
       write(out,"('Repulsive: Npar inconsistent with total number of parameters:',2i9)") N,size(parameters)+1
-      stop 'Repulsive: illegal number of parameters'
+      !stop 'Repulsive: illegal number of parameters'
     endif
     !
     ! long-range part
@@ -2704,6 +2708,24 @@ module functions
     f = g(icomponent)              
     !
   end function coupled_transition_curves_beta
-
+  !
+  function poten_EMO_switch(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f_shortrange,f_EMO,f_switch,f
+    integer(ik)            :: N,nparams1,nparams2
+    !
+    N = size(parameters)
+    nparams1 = parameters(8)+9
+    nparams2 = N-1-nparams1
+    f_shortrange = parameters(N)
+    !
+    f_EMO = poten_EMO(r,parameters(1:nparams1))
+    f_switch = poten_sigmoid(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    f= f_switch*f_EMO+(1.0_rk-f_switch)*f_shortrange
+    !
+  end function poten_EMO_switch
   !
 end module functions
