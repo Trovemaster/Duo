@@ -1413,6 +1413,48 @@ Example:
     end
 
 
+``EMO-SWITCH`` function
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This is an EMO form with a short-range finite asymptote built using the sigmoid:  
+
+.. math::
+
+      F(r) = F_{\rm EMO}(r) F_{\rm SIG}(r) + (1-F_{\rm SIG}(r)) f_{\rm asymptote}
+
+where :math:`F_{\rm EMO}(r)` and :math:`F_{\rm SIG}(r)` are the corresponding EMO and Sigmoid functions, respectively introduced above and :math:` f_{\rm asymptote}` is the constant defining the short-range asymptote. 
+
+
+Example:
+::
+    
+    spin-orbit 1 2
+    name "<a2Pi|SO|a2Pi>"
+    type  EMO-switch
+    lambda 1 1
+    mult   2 2
+    values
+       F0           2000.0
+       RE           1.1   
+       AE           0.0000
+       RREF        -1.00000000000000E+00
+       PL           5.00000000000000E+00
+       PR           5.00000000000000E+00
+       NL           2.00000000000000E+00
+       NR           2.00000000000000E+00
+       B0           1.95853328535203e+00     
+       B1           0.00000000000000E+00
+       B2           7.14678340571366e-02     
+       V0           0.00000000000000E+00
+       RE           0.900000000000000000
+       A0           1.000000000000000000
+       RREF        -1.00000000000000E+00
+       P            7.00000000000000E+00
+       B0           100
+       Blimit        0.00
+    end
+    
+
 
 Diabatic/non-adiabatic couplings
 --------------------------------
