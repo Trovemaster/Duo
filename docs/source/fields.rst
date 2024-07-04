@@ -605,7 +605,9 @@ In the last example the factor is read in as :math:`-2 \sqrt{2} i`. Note that im
 
 * ``units``
 
-This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and ``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts) for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. **Quadrupole moment curves must be provided to Duo in atomic units, so the ``units`` keyword is invalid for these objects.**
+This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and ``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts) for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. 
+
+.. note:: Quadrupole moment curves must be provided to Duo in atomic units, so the ``units`` keyword is invalid for these objects.
 
 Example:
 ::
@@ -778,7 +780,7 @@ This keyword should appear anywhere in the object section, before the ``values``
     units angstrom cm-1
     type polynomial
     factor i
-    *<x|Lz|y>  2i 2i*
+    <x|Lz|y>  2i 2i
     values
       f 101.2157	
     end
