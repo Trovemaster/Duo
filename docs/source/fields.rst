@@ -233,7 +233,13 @@ The non-diagonal spin-spin matrix elements are given by
   :math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}{ccc}  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}{ccc}    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right) \langle v,S,\Sigma_{\rm ref} |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma_{\rm ref}^\prime \rangle`
 
 
-where :math:`\Sigma_{\rm ref}` is a reference value of the projection of spin used to specify the spin-spin field in the Duo input, e.g.
+where :math:`\Sigma_{\rm ref}` is a reference curve of the projection of spin used to specify the spin-spin field in the Duo input:
+
+:math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S,\Sigma \rangle =  f_{\rm SS'}(r)`
+
+and :math:`f_{\rm SS'}(r)` is an off-diagonal spin-spin curve, which is usually reconstructed empirically. 
+
+An example of the spin-spin input is given by
 ::
 
      spin-spin A a
@@ -256,9 +262,8 @@ where :math:`\Sigma_{\rm ref}` is a reference value of the projection of spin us
 
 
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S,\Sigma \rangle =  f_{\rm SS'}(r)` 
 
-and :math:`f_{\rm SS'}(r)` is an off-diagonal spin-spin curve, which is usually reconstructed empirically. 
+
 
 
 ``spin-rot``
