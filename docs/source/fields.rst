@@ -26,25 +26,25 @@ the keyword identifying their type require two integer numbers
 specifying the two indexes of the two electronic states involved (bra and ket).
 The indexes are the numbers specified after the \texttt{poten} keyword.
 
-Currently Duo supports the following types of objects: ``potential``, ``spinorbit``, ``L2``, ``Lx``, ``spinspin``, ``spinspino``, ``bobrot``, 
+Currently Duo supports the following types of objects: ``potential``, ``spinorbit``, ``L2``, ``Lx``, ``spinspin``, ``spinspino``, ``bobrot``,
 ``spinrot``, ``diabatic``, ``lambdaopq``, ``lambdap2q``, ``lambdaq``, ``abinitio``, ``brot``, ``dipoletm``, ``nac``.
 
 
-``potential`` 
+``potential``
 ^^^^^^^^^^^^^
 
 Alias: ``poten``.  Objects of type ``poten`` represent potential energy curves (PECs) and are
 the most fundamental objects underlying each calculation.
 From the point of view of theory each PEC is the solution of the electronic
 Schoedinger equation with clamped nuclei, possibly complemented with the
-scalar-relativistic correction and with the 
+scalar-relativistic correction and with the
 Born-Oppenheimer Diagonal correction
 (also known as adiabatic correction). Approximate PECs can be obtained with
 well-known quantum chemistry methods such as Hartree-Fock, coupled cluster theory etc.
 
 Objects of type ``poten`` or ``potential`` should always appear before
 all other objects as they are used to assign to each electronic states its quantum numbers.
-Here is an example for a PEC showing the general structure:   
+Here is an example for a PEC showing the general structure:
 ::
 
       poten 1
@@ -68,10 +68,10 @@ Here is an example for a PEC showing the general structure:
       end
 
 
-Here  ``poten 1`` refers to the electronic state 1. This label `1` should be used consistently in all couplings as well as 
-in the description of the experimental data. 
+Here  ``poten 1`` refers to the electronic state 1. This label `1` should be used consistently in all couplings as well as
+in the description of the experimental data.
 
-From 2023, the state labels can be any string of characters, e.g. 
+From 2023, the state labels can be any string of characters, e.g.
 ::
 
       poten Ap
@@ -96,7 +96,7 @@ From 2023, the state labels can be any string of characters, e.g.
       end
 
 
-Integers 1,2,3 from before 2023 will continue working.  
+Integers 1,2,3 from before 2023 will continue working.
 
 
 
@@ -107,18 +107,18 @@ Alias: ``L**2``. These objects represent matrix elements between electronic stat
   angular momentum operator :math:`\hat{L}^2 = \hat{L}_x^2 + \hat{L}_y^2 +\hat{L}_z^2`.
 
 
-``Lx``  and ``L+``  
+``Lx``  and ``L+``
 ^^^^^^^^^^^^^^^^^^
 
 
-Aliases: ``Lplus``, ``LxLy`` and  ``L+``. 
+Aliases: ``Lplus``, ``LxLy`` and  ``L+``.
 It represent matrix elements between electronic states of the molecule-fixed
   angular momentum operator :math:`\hat{L}_+ = \hat{L}_x + i \hat{L}_y` and
   :math:`\hat{L}_x` in the :math:`\Lambda`- and Cartesian-representations, respectively.
 
 
 
-``spin-orbit`` and ``spin-orbit-x`` 
+``spin-orbit`` and ``spin-orbit-x``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These objects are matrix elements of the Breit-Pauli spin-orbit Hamiltonian
@@ -161,12 +161,12 @@ Here 1 and 3 refer to the electronic states ``1`` and ``3`` as introduced using 
 ::
 
 
-    potential 1 
-    name . . . 
-    . . . 
+    potential 1
+    name . . .
+    . . .
     end
 
-    and  
+    and
 
 
     potential 3
@@ -174,7 +174,7 @@ Here 1 and 3 refer to the electronic states ``1`` and ``3`` as introduced using 
     end
 
 
-From 2023, for the electromic states can be labelled using strings of characters, e.g. 
+From 2023, for the electromic states can be labelled using strings of characters, e.g.
 ::
 
 
@@ -192,9 +192,9 @@ From 2023, for the electromic states can be labelled using strings of characters
     BETA         8.00000000000000E-01
     GAMMA        2.00000000000000E-02
     P            6.00000000000000E+00
-    B0           2.06176847388046e+02 
-    B1          -7.04066795005532e+01 
-    B2           0.000000000000000000 
+    B0           2.06176847388046e+02
+    B1          -7.04066795005532e+01
+    B2           0.000000000000000000
     B3           0.00000000000000E+00
     BINF         220.0
     end
@@ -205,10 +205,10 @@ where A is the reference label used for  the electronic state ``A2Pi``.
 
 
 For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the matrix elements of the
- :math:`\hat{L}_z` operator nust be specified using the ``<x|Lz|y>`` keyword. 
- This representation is designed to work with e.g., the MOLPRO outputs. 
- For :math:`\Lambda\ne 0`, the diagonal SO-matrix element (e.g. between to :math:`\Pi`-components of :math:`\Lambda=1`) 
- should be specified using the :math:`\langle \Pi_x|LSZ |\Pi_y \rangle` component 
+ :math:`\hat{L}_z` operator nust be specified using the ``<x|Lz|y>`` keyword.
+ This representation is designed to work with e.g., the MOLPRO outputs.
+ For :math:`\Lambda\ne 0`, the diagonal SO-matrix element (e.g. between to :math:`\Pi`-components of :math:`\Lambda=1`)
+ should be specified using the :math:`\langle \Pi_x|LSZ |\Pi_y \rangle` component
  (e.g. :math:`\langle 1.2 |{\rm LSZ} |1.3 \rangle`).
 
 
@@ -217,7 +217,7 @@ For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the
 ``spin-spin``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Parametrised phenomenological spin-spin operator (diagonal and off-diagonal). 
+Parametrised phenomenological spin-spin operator (diagonal and off-diagonal).
 The diagonal spin-spin matrix elements are given by
 
   :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm SS}| v^\prime \rangle \left[ 3 \Sigma^2- S(S+1) \right]`.
@@ -228,77 +228,81 @@ The diagonal spin-spin matrix elements are given by
   :math:`\langle v| f_{\rm SS}| v^\prime \rangle = \frac{2}{3} \lambda`.
 
 
-The nono-diagonal spin-spin matrix elements are given by
+The non-diagonal spin-spin matrix elements are given by
 
-  :math:`\langle v,S,\Sigma |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}{ccc}  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}{ccc}    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right)`
+  :math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S^\prime,\Sigma^\prime \rangle = (-1)^{\Sigma-\Sigma_{\rm ref}}  \left(\begin{array}{ccc}  S & 2 & S^\prime \\    -\Sigma & \Sigma^\prime-\Sigma & \Sigma^\prime \end{array}   \right) /     \left(\begin{array}{ccc}    S & 2 & S^\prime \\    -\Sigma_{\rm ref} & \Sigma'_{\rm ref}-\Sigma_{\rm ref} & \Sigma_{\rm ref}^\prime   \end{array}  \right) \langle v,S,\Sigma_{\rm ref} |H^{\rm SS}(r) |v^\prime, S^\prime,\Sigma_{\rm ref}^\prime \rangle`
 
 
-where :math:`\Sigma_{\rm ref}` is a refence value of the projection of spin used to specify the spin-spin field in the Duo input, e.g. 
+where :math:`\Sigma_{\rm ref}` is a reference value of the projection of spin used to specify the spin-spin field in the Duo input, e.g.
 ::
 
-     spin-spin A a 
+     spin-spin A a
      name "<A|SS|a>"
      spin   2.5 1.5
      factor  1.0
      lambda 0 0
-     sigma 0.5 0.5 
+     sigma 0.5 0.5
      type  BOBLEROY
      values
      RE           0.16500000000000E+01
      RREF        -0.10000000000000E+01
      P            0.10000000000000E+01
      NT           0.20000000000000E+01
-     B0           0.74662463783234E-01 
-     B1           0.73073583911575E+01 
+     B0           0.74662463783234E-01
+     B1           0.73073583911575E+01
      B2           0.00000000000000E+00
      BINF         0.00000000000000E+00
      end
 
 
 
+  :math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S,\Sigma \rangle =  f_{\rm SS'}(r)` 
 
-``spin-rot`` 
+and :math:`f_{\rm SS'}(r)` is an off-diagonal spin-spin curve, which is usually reconstructed empirically. 
+
+
+``spin-rot``
 ^^^^^^^^^^^^
 
-The diagonal matrix elements of the spin-rotational operator are given by 
+The diagonal matrix elements of the spin-rotational operator are given by
 
    :math:`\langle v,S,\Sigma |H^{\rm S-R}(r) |v^\prime, S,\Sigma \rangle = \langle v| f_{\rm S-R}| v^\prime \rangle \left[ \Sigma^2- S(S+1) \right]`.
 
-The nonzero off-diagonal matrix elements are  
+The nonzero off-diagonal matrix elements are
 
    :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda \rangle (r) |v^\prime, S,\Sigma\pm 1,\Omega\pm 1 \rangle = \frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle \left[ J(J+1)- \Omega(\Omega\pm1) \right]`.
 
-and 
+and
 
   :math:`\langle v,S,\Sigma,\Omega |\langle \Lambda | H^{\rm S-R}|\Lambda\mp1 \rangle |v^\prime, S,\Sigma\pm 1,\Omega \rangle = -\frac{1}{2} \langle v| f_{\rm S-R}| v^\prime \rangle   \langle \Lambda | L_{\pm}|\Lambda \mp1 \rangle     \left[ S(S+1)- \Sigma(\Sigma\pm1) \right]`.
 
 
-``bob-rot``   
+``bob-rot``
 ^^^^^^^^^^^
 
 Alias: ``bobrot``. Specifies the (diagonal) rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
 which can be interpreted as a position-dependent modification to the rotational mass and is introduced as follows
 
-  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + {\rm BobRot}(r)\right).` 
-  
+  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + {\rm BobRot}(r)\right).`
+
 
 
 ``diabatic``
 ^^^^^^^^^^^^
 
-Alias: ``diabat``. Non-diagonal coupling of potential energy functions in the diabatic 
-representation. A diabatic coupling should be centred about the crossing point of the correpsonding diabatic potential curves. 
-For an analitycal (non-grid) representaion, Duo will automatically finds a crossing between the corresponding 
-states and store its value to the second parameter of the diabatic field. It is threfore important to reserve the second 
-line for the reference, expansion point. The search of the crossing point is done by the dividing-by-half approach until the 
-convergence  (or 100 iterations) is reached.  Only one crossing is currenly supported. 
+Alias: ``diabat``. Non-diagonal coupling of potential energy functions in the diabatic
+representation. A diabatic coupling should be centred about the crossing point of the correpsonding diabatic potential curves.
+For an analitycal (non-grid) representaion, Duo will automatically finds a crossing between the corresponding
+states and store its value to the second parameter of the diabatic field. It is threfore important to reserve the second
+line for the reference, expansion point. The search of the crossing point is done by the dividing-by-half approach until the
+convergence  (or 100 iterations) is reached.  Only one crossing is currenly supported.
 
 Example:
 ::
 
-     diabatic  B D 
+     diabatic  B D
      name "<B2Sigma+|DC|D2Sigma+>"
-     lambda     0 0 
+     lambda     0 0
      spin   0.5 0.5
      type  Lorentz
      factor    1.0
@@ -313,27 +317,27 @@ Example:
 Non-adiabatic coupling: ``NAC``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Non-adiabatic coupling (NAC). It is a non-diagonal coupling element used for adiabatic representation. It appears in the kinetic energy operator as 
-a linear momentum term: 
+Non-adiabatic coupling (NAC). It is a non-diagonal coupling element used for adiabatic representation. It appears in the kinetic energy operator as
+a linear momentum term:
 
   :math:`H^{\rm NAC}_{12}(r) = -\frac{h}{8 \pi^2 c \mu} \left[ -\left(\frac{d^{\gets}}{d r} w^{(12)}- w^{(12)} \frac{d^{\to}}{d r }\right)  \right]`,
-  
-where 12 stands for the coupling between states 1 and 2. 
-By default, a NAC field trigers the "second order NAC" corrections to the corresponding potential energies defined as 
+
+where 12 stands for the coupling between states 1 and 2.
+By default, a NAC field trigers the "second order NAC" corrections to the corresponding potential energies defined as
 
   :math:`H^{\rm NAC2}_{i}(r) = \frac{h}{8 \pi^2 c \mu}  \left(H^{\rm NAC}_{12}(r) \right)^2,`
 
 where :math:`i=1,2`. In Duo, the diagonal ``diabatic'' fields are used to store :math:`H^{\rm NAC2}_{i}(r)`. If however, the corresponding diabatic fields are
-directly specified, these second order NAC correction are ignored. 
+directly specified, these second order NAC correction are ignored.
 
 A typical NAC is a Lorentz- or Gaussian-type functions. NAC should be centred about the crossing point of the correpsonding diabatic potential curves.
 
 Example:
 ::
 
-     NAC  B D 
+     NAC  B D
      name "<B2Sigma+|NAC|D2Sigma+>"
-     lambda     0 0 
+     lambda     0 0
      spin   0.5 0.5
      type  Lorentz
      factor    1.0
@@ -353,7 +357,7 @@ Example:
 
      diabatic B B
      name "<B2Sigma+|NAC2|B2Sigma+>"
-     lambda     0 0 
+     lambda     0 0
      spin   0.5 0.5
      type  grid
      factor  1.243548973
@@ -377,7 +381,7 @@ Example:
 
      diabatic D D
      name "<D2Sigma+|NAC2|D2Sigma+>"
-     lambda     0 0 
+     lambda     0 0
      spin   0.5 0.5
      type  grid
      factor  1.243548973
@@ -403,10 +407,10 @@ Example:
 Here ``factor 1.243548973`` is :math:`\frac{h}{8 \pi^2 c \mu}` for YO.
 
 
-``lambda-opq``, ``lambda-p2q``, and ``lambda-q``  
+``lambda-opq``, ``lambda-p2q``, and ``lambda-q``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  
-These objects are three Lambda-doubling objects which correspond to 
+
+These objects are three Lambda-doubling objects which correspond to
   :math:`o^{\rm LD }+p^{\rm LD }+q^{\rm LD }`, :math:`p^{\rm LD }+2q^{\rm LD }`, and :math:`q^{\rm LD }` couplings.
 
 Example:
@@ -430,9 +434,9 @@ Example:
      end
 
 
-``abinitio`` 
+``abinitio``
 ^^^^^^^^^^^^
-  
+
 Objects of type ``abinitio`` (aliases: ``reference``, ``anchor``) are reference, ``abinitio`` curves which may be specified
 during fitting. When they are used they constrain the fit so that the fitted function differs as little as possible from the
 `ab initio` (reference). The reference curve is typically obtained by `ab initio` methods.
@@ -454,12 +458,12 @@ For any Duo object one can specify a corresponding reference curve as in the fol
      end
 
 
-``dipole``  and ``dipole-x``  
+``dipole``  and ``dipole-x``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  
-``Dipole`` (aliases: ``dipole-moment``, ``TM``):  Diagonal or transition dipole moment curves (DMCs),  necessary for computing 
-(dipole-allowed) transition line intensities and related quantities (Einstein :math:`A` coefficients etc.). 
+
+``Dipole`` (aliases: ``dipole-moment``, ``TM``):  Diagonal or transition dipole moment curves (DMCs),  necessary for computing
+(dipole-allowed) transition line intensities and related quantities (Einstein :math:`A` coefficients etc.).
 
 ``dipole-x`` is related to the Cartesian-representation.
 
@@ -470,21 +474,21 @@ At the moment Duo cannot compute magnetic dipole transition line intensities.
 ``quadrupole``
 ^^^^^^^^^^^^^^
 
-The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole 
-transition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in 
+The keyword ``quadrupole`` is used to specify transition quadrupole moment curves, which are necessary for computing electric-quadrupole
+transition line intensities and related quantities. The actual calculation of line strengths requires the ``quadrupole`` keyword in
 the ``intensity`` section also (:ref:`see here <computing-spectra>`).
 
 The quadrupole moment is defined in Cartesian coordinates by the following expression the Shortley convention:
 
 :math:`Q_{\alpha \beta} = -\sum_i e_i \left( r_{i\alpha} r_{i\beta} - \frac{1}{3}r^2_i \delta_{\alpha \beta} \right)`
 
-where :math:`-e_i` is the charge of the :math:`i-th` electron with position vector :math:`\vec{r}_i`. 
+where :math:`-e_i` is the charge of the :math:`i-th` electron with position vector :math:`\vec{r}_i`.
 This differs from the Buckingham convention, which is used in many quantum chemistry programs, where:
 
 :math:`Q_{\alpha \beta} = -\frac{3}{2} \sum_i e_i \left( r_{i\alpha} r_{i\beta} - \frac{1}{3}r^2_i \delta_{\alpha \beta} \right)`
 
 Currently Duo requires quadrupole moment curves to be provided in the spherical irreducible representation, with atomic units (a.u.),
-which can be obtain from the Cartesian components in the Buckingham convention via the relations given by Eq. (6) - (11) of 
+which can be obtain from the Cartesian components in the Buckingham convention via the relations given by Eq. (6) - (11) of
 `W. Somogyi et al., JCP 155, (2021) <https://doi.org/10.1063/5.0063256>`_.
 
 
@@ -504,17 +508,17 @@ Additionally, the units must be specified via the ``units`` keyword. For example
      end
 
 
-Keywords used in the specification of objects 
+Keywords used in the specification of objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Name and quantum numbers
 ========================
 
-This is a list of keywords used to specify various parameters of Duo objects. 
+This is a list of keywords used to specify various parameters of Duo objects.
 
 * ``name``: object name.
 
-``name`` is a text label which can be assigned to any object for reference in the output. The string must appear within quotation marks. 
+``name`` is a text label which can be assigned to any object for reference in the output. The string must appear within quotation marks.
 Examples:
 ::
 
@@ -524,7 +528,7 @@ Examples:
 
 * ``lambda``: The quantum number(s) :math:`\Lambda`.
 
-``Lambda`` specifies the quantum number(s) :math:`\Lambda`, 
+``Lambda`` specifies the quantum number(s) :math:`\Lambda`,
 i.e. projections of the electronic angular momentum onto the molecular axis, either for one (PECs) or two states (couplings).
 It must be an integral number and is allowed to be either positive or negative.
 The sign of :math:`\Lambda` is relevant when specifying couplings between degenerate states in the spherical representaion (e.g. ``spin-orbit``)
@@ -539,7 +543,7 @@ The last example is relative to a coupling-type object and the two numbers refer
 * ``sigma``: Spin-projection.
 
 
-``sigma`` specifies the quantum number(s) :math:`\Sigma`, i.e. the  projections of the total spin onto the molecular axis, 
+``sigma`` specifies the quantum number(s) :math:`\Sigma`, i.e. the  projections of the total spin onto the molecular axis,
 either for one (diagonal) or two  states (couplings). These values should be real (:math:`-S\le \Sigma \le S`) and can be half-integral,
 where :math:`S` is the total spin. ``sigma`` is currently required for the spin-orbit couplings only.
 
@@ -554,7 +558,7 @@ where two numbers refer to the bra and ket states.
 
 
 ``mult`` specifies the multiplicity of the electronic state(s), given by :math:`(2S + 1)`, where :math:`S` is the total spin.
-It must be an integer number and is an alternative to the ``spin`` keyword. 
+It must be an integer number and is an alternative to the ``spin`` keyword.
 
 Examples:
 ::
@@ -603,14 +607,14 @@ Other control keys
 ==================
 
 
-* ``type``: Type of the functional representaion. 
+* ``type``: Type of the functional representaion.
 
 ``Type`` defines if the object is given on a grid ``type grid`` or
 selects the parametrised analytical function  used for representing the objects
 or selects the interpolation type to be used. The function types supported by Duo
 are listed in :ref:`functions`.
 
-Examples: 
+Examples:
 ::
 
    type grid
@@ -622,7 +626,7 @@ In the examples above ``grid`` selects numerical interpolation of values given o
 See :ref:`functions` for details.
 
 
-* ``Interpolationtype``: Grid interpolation 
+* ``Interpolationtype``: Grid interpolation
 
 
 is used only for ``type grid`` and specifies
@@ -636,7 +640,7 @@ Example:
     Interpolationtype Quinticsplines
 
 
-* ``factor``: Scaling factor  
+* ``factor``: Scaling factor
 
 This optional keyword permits to rescale any object by
 an arbitrary multiplication factor. At the moment the accepted values are any real number,
@@ -657,13 +661,13 @@ Examples:
 
 
 In the last example the factor is read in as :math:`-2 \sqrt{2} i`.
-Note that imaginary factors make sense only in some cases for some coupling terms (in particular, spin-orbit) 
+Note that imaginary factors make sense only in some cases for some coupling terms (in particular, spin-orbit)
 in the Cartesian-representation, see Section~\ref{s:representations}.
 
 
 * ``units``
 
-This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and 
+This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and
 ``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts)
 for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. **Quadrupole moment curves
 must be provided to Duo in atomic units, so the ``units`` keyword is invalid for these objects.**
@@ -677,14 +681,14 @@ Example:
     units ae0 bohr
 
 
-* ``<x|Lz|y>``, ``<z|Lz|xy>`` (aliases ``<a|Lz|b>`` and ``<1|Lz|2>``)  
+* ``<x|Lz|y>``, ``<z|Lz|xy>`` (aliases ``<a|Lz|b>`` and ``<1|Lz|2>``)
 
 This keyword is sometimes needed when specifying coupling curves between electronic states
 with :math:`|\Lambda| > 0` in order to resolve ambiguities in the definition of the
 degenerate components of each electronic state, see:ref:`representations`.
 
 This keyword specifies the matrix element of the :math:`\hat{L}_z` operator between the degenerate components
-of the electronic wave function. 
+of the electronic wave function.
 
 Examples:
 ::
@@ -699,7 +703,7 @@ space or ``*`` sign.
 
 
 
-* ``Molpro`` 
+* ``Molpro``
 
 A single, stand-alone keywrd to trigger the molpro even for `non-x` fields.
 
@@ -709,27 +713,27 @@ Example:
     molpro
 
 
-* ``morphing`` 
+* ``morphing``
 
-This keyword is used for fitting and switches on the morphing method. 
+This keyword is used for fitting and switches on the morphing method.
 
-* ``ZPE``: Zero-point-energy 
+* ``ZPE``: Zero-point-energy
 
 ``ZPE`` allows to explicitly input the zero-point energy (ZPE) of the molecule (in cm\ :sup:`-1`). This affects the value printed, as by default
-Duo  prints energy of rovibronic levels by subtracting the ZPE. If not specified, the lowest energy of the first :math:`J`-block 
+Duo  prints energy of rovibronic levels by subtracting the ZPE. If not specified, the lowest energy of the first :math:`J`-block
 (independent of parity) will be used as appear on the line ``Jlist``.
 
-* ``fit_factor`` 
+* ``fit_factor``
 
-This factor (:math:`d_{\lambda}`) is used as a part of the reference *ab initio* curves of the ``abinitio`` type which (when given) 
-is applied to the corresponding weights assigned to the corresponding values of this object. 
+This factor (:math:`d_{\lambda}`) is used as a part of the reference *ab initio* curves of the ``abinitio`` type which (when given)
+is applied to the corresponding weights assigned to the corresponding values of this object.
 It is different from ``fit_factor`` defined within in :ref:`fitting`.
 
-* ``adjust`` 
+* ``adjust``
 
 This keyword can be used to add a constant value to the values of the potential, which is useful e.g when there is a known systematic
 error in the values. The keyword is followed by a value and (optionally) units. For a list of the available units see the ``units`` keyword above.
-Note that the units of the shift can be different to the units specified using the ``units`` keyword. 
+Note that the units of the shift can be different to the units specified using the ``units`` keyword.
 Default units are ``cm-1`` for PECs, ``debye`` for dipole moment curves, and ``au`` (atomic units) for quadrupole moment curves.
 
 Examples:
@@ -738,7 +742,7 @@ Examples:
 ::
 
 ::
-  adjust 
+  adjust
 
 Example:
 ::
@@ -778,14 +782,14 @@ Example:
 
 
 
-Definition of the function or a grid 
+Definition of the function or a grid
 ====================================
 
 
-* ``values``  
+* ``values``
 
 This keyword starts the subsection containing the numerical
-values defining the object. 
+values defining the object.
 For one of the ``type``s corresponding to an analytical function (see :ref:`functions`),
 the input between ``values`` and ``end`` contains the values of the parameters of the function.
 The input consists in two columns separated by spaces containing (i) a string label
@@ -801,16 +805,16 @@ can be also appear at the end of each the line; this keyword permits to
 cross-reference values from different objects and is explained
 below in this section.
 
-In the case of objects of type ``grid``, the third column can be also used to specify if the grid point needs to vary. 
+In the case of objects of type ``grid``, the third column can be also used to specify if the grid point needs to vary.
 The first columns contains the bond length :math:`r_i` and a second with the value of the object.
 In the case of object of the ``abinitio`` (``reference``) type and specified as ``grid``
 a third column can be used to specify the fitting weights (see :ref:`fitting`).
 
 
-* ``link``  
+* ``link``
 
 This special keyword is used in fitting
-to force a set of parameters 
+to force a set of parameters
 (which may be relative to a different object) to have the same value.
 For example, in a typical situation one may want to fit a set of PECs and to constrain their
 dissociation (asymptotic) energy to the same value (because they are expected from theory to share the same
@@ -818,9 +822,9 @@ dissociation channel).
 
 
 After the keyword ``link`` one should provide three numbers :math:`i_1`, :math:`i_2`, :math:`i_3` defining the parameter ID, where
-:math:`i_1` identifies the object type (e.g. ``poten``, ``spin-orbit``, ``spin-rot`` etc.), 
-:math:`i_2` is the object number within the type :math:`i_1` and :math:`i_3` is the parameter number as it appears after ``values``. The ID numbers :math:`i_1, i_2, i_3` 
-are specified in the fitting outputs in the form `[i,j,k]`. 
+:math:`i_1` identifies the object type (e.g. ``poten``, ``spin-orbit``, ``spin-rot`` etc.),
+:math:`i_2` is the object number within the type :math:`i_1` and :math:`i_3` is the parameter number as it appears after ``values``. The ID numbers :math:`i_1, i_2, i_3`
+are specified in the fitting outputs in the form `[i,j,k]`.
 
 Example of the input:
 ::
@@ -848,16 +852,16 @@ operator, which implies they must be complex valued for :math:`|\Lambda| > 0`. C
 
 :math:`|\Lambda\rangle =\frac{1}{\sqrt{2}}\left[\mp |1\rangle - i|2\rangle \right].`
 
-where :math:`1\rangle` and :math:`2\rangle` are two Cartesian components of the electronic wave functions in a quantum chemistry program. 
-Duo uses the matrix elements of the :math:`\hat{L}_z` to reconstruct the transformation between two representations: 
+where :math:`1\rangle` and :math:`2\rangle` are two Cartesian components of the electronic wave functions in a quantum chemistry program.
+Duo uses the matrix elements of the :math:`\hat{L}_z` to reconstruct the transformation between two representations:
 
 
 The keyword ``<x|Lz|y>`` and ``<z|Lz|xy>`` (aliases ``<a|Lz|b>`` and ``<1|Lz|2>``) is required when specifying coupling curves between electronic states
 in the ``MOLPRO`` representation (``spin-orbit-x``, ``Lx`` and ``dipole-x``)  with :math:`|\Lambda| > 0`
 in order to resolve ambiguities in the definition of the   degenerate components of each electronic state.
 This is also the value of the matrix element of the :math:`\hat{L}_z` operator computed for
-the two component spherical harmonic, degenerate functions :math:`|x\rangle` and :math:`|y\rangle` for the :math:`\Pi` states or 
-:math:`|z\rangle` and :math:`|xy\rangle` for the :math:`\Delta` states etc. 
+the two component spherical harmonic, degenerate functions :math:`|x\rangle` and :math:`|y\rangle` for the :math:`\Pi` states or
+:math:`|z\rangle` and :math:`|xy\rangle` for the :math:`\Delta` states etc.
 The corresponding `<x|Lz|y>` values for both coupled states must be provided.
 
 Examples:
@@ -866,17 +870,17 @@ Examples:
      <x|Lz|y>   i  -i
 
 ::
-     
+
      <z|Lz|xy> -2i  i
 
-This keyword is required for the couplings of the following types: ``spin-orbit-x``, ``Lx`` and ``dipole-x``. 
-The suffix ``-x`` indicates that Duo expects the ``x``-component (non-zero) of the corresponding coupling. 
- 
-This keyword should appear anywhere in the object section, before the ``values`` keyword. 
+This keyword is required for the couplings of the following types: ``spin-orbit-x``, ``Lx`` and ``dipole-x``.
+The suffix ``-x`` indicates that Duo expects the ``x``-component (non-zero) of the corresponding coupling.
+
+This keyword should appear anywhere in the object section, before the ``values`` keyword.
 ::
 
     spin-orbit-x 1 1
-    name "X-X SO term"  
+    name "X-X SO term"
     spin 1.0 1.0
     lambda 2 2
     sigma 1.0 1.0
@@ -885,8 +889,8 @@ This keyword should appear anywhere in the object section, before the ``values``
     factor i
     *<x|Lz|y>  2i 2i*
     values
-      f 101.2157	  
-    end 
+      f 101.2157	
+    end
 
 
 

@@ -7712,6 +7712,7 @@ contains
       !call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
       !
       allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
+      call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
       !
       call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contracted)
       !
@@ -7776,11 +7777,11 @@ contains
           !field%gridvalue(:) = b_rot/r(:)**2*sc
           !Nmax = 1
           !
+        !case (8)
+        !!  Nmax = NNAC_omega
+        !case (9)
+        !  Nmax = NDiab_omega
         case (8)
-          Nmax = NNAC_omega
-        case (9)
-          Nmax = NDiab_omega
-        case (10)
           Nmax = NDipole_omega
         case default
           Nmax = 0
@@ -7816,14 +7817,14 @@ contains
             !field => brot(1)
             field => brot_omega_obj(iterm)
             field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
+          !case (8)
+          !  ! A special case of NAC couplings with 1st derivatives wrt r
+          !  field => NAC_omega_obj(iterm)
+          !case (9)
+          !  ! A special case of Diab couplings with 1st derivatives wrt r
+          !  field => Diab_omega_obj(iterm)
+          !  !
           case (8)
-            ! A special case of NAC couplings with 1st derivatives wrt r
-            field => NAC_omega_obj(iterm)
-          case (9)
-            ! A special case of Diab couplings with 1st derivatives wrt r
-            field => Diab_omega_obj(iterm)
-            !
-          case (10)
             ! A special case of Diab couplings with 1st derivatives wrt r
             field => Dipole_omega_obj(iterm)
             !
@@ -11848,7 +11849,7 @@ contains
     integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
     integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iKin_omega_,iBRot_omega_
-    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole
+    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole,iKin
     !
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
@@ -12967,11 +12968,13 @@ contains
           !
           do i = 1,N_i
             do j = 1,N_i
+             do iKin = 1,nestates
               !
               iBRot_omega_ = iBRot_omega_ + 1
               !
               BRot_omega_obj(iBRot_omega_)%gridvalue(igrid) = mat_2(i,j)
               !
+              enddo
             enddo
           enddo
           !
@@ -14348,8 +14351,8 @@ contains
         if (abs(nint(omegaj-omegai))==0) then
            !
            ! Diabatic noncontribution term
-           !
-           do idiab = 1,NDiab_omega
+           ! This is obselete 
+           do idiab = 1,0 !NDiab_omega
              !
              !selection rules
              !
@@ -14380,8 +14383,8 @@ contains
 
            !
            ! NAC non-diagonal contribution  term
-           !
-           do iNAC = 1,Nnac_omega
+           ! This is obselete 
+           do iNAC = 1,0 !Nnac_omega
              !
              !selection rules
              !
