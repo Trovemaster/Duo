@@ -673,13 +673,13 @@ where :math:`z` is either taken as the damped-coordinate given by:
 
 :math:`z = (r-r_{\rm ref})\, e^{-\beta_2 (r-r_{\rm ref})^2},`
 
-and the short-range damping :math:`D^{\rm DS}(r)` is given by 
+and the short-range damping :math:`D^{\rm DS}(r)` is given by
 
 .. math::
-        D^{\rm DS}(r) = \left(1-\exp{ -b*r-c*r**2 } \right)^s
+        D^{\rm DS}(r) = \left(1-\exp{ -b r-c r^2 } \right)^s
 
 
-Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by default, :math:`\beta_2` is damping long-range factors with  :math:`B_{\infty}` as the long-range asymptote,  :math:`m`, :math:`b` and :math:`c` are floating short-range parameters. 
+Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by default, :math:`\beta_2` is damping long-range factors with  :math:`B_{\infty}` as the long-range asymptote,  :math:`m`, :math:`b` and :math:`c` are floating short-range parameters.
 
 Example
 ::
@@ -697,7 +697,7 @@ Example
      S            1.0
      B            0.03
      C            0.001
-     B0           1.43014508089689E-01 
+     B0           1.43014508089689E-01
      B1           3.01126190509857E+00
      B2           0.00000000000000E+00
      B3           0.00000000000000E+00
@@ -705,7 +705,7 @@ Example
      B3           0.00000000000000E+00
      BINF         1.5
      end
-     
+
 
 
 
