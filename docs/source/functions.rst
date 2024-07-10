@@ -625,7 +625,7 @@ This function is similar to ``Surkus`` expansion
 
 :math:`F(r)=\sum^{N}_{k=0}B_{k}\, z^{k} (1-\xi_p) + \xi_p\, B_{\infty},`
 
-where :math:`z` is either taken as the damped-coordinate given by:
+where :math:`z` is taken as the damped-coordinate given by:
 
 :math:`z = (r-r_{\rm ref})\, e^{-\beta_2 (r-r_{\rm ref})^2-\beta_4 (r - r_{\rm ref})^4},`
 
@@ -656,6 +656,56 @@ Example
    B3           0.00000000000000
    BINF         1.0
    end
+
+
+
+
+
+
+``POLYNOM_DECAY_DAMP``
+^^^^^^^^^^^^^^^^^^^^
+
+This function is similar to a long-range Taylor expansion with  ``Surkus``, but with a Douketis type short-range damping:
+
+:math:`F(r)=D^{\rm DS}(r) \sum^{N}_{k=0}B_{k}\, z^{k} (1-\xi_p) + \xi_p\, B_{\infty},`
+
+where :math:`z` is either taken as the damped-coordinate given by:
+
+:math:`z = (r-r_{\rm ref})\, e^{-\beta_2 (r-r_{\rm ref})^2},`
+
+and the short-range damping :math:`D^{\rm DS}(r)` is given by 
+
+.. math::
+        D^{\rm DS}(r) = \left(1-\exp{ -b*r-c*r**2 } \right)^s
+
+
+Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by default, :math:`\beta_2` is damping long-range factors with  :math:`B_{\infty}` as the long-range asymptote,  :math:`m`, :math:`b` and :math:`c` are floating short-range parameters. 
+
+Example
+::
+
+     spin-rot       X X
+     name           "<X2Delta|SR|X2Delta>"
+     spin   0.5 0.5
+     lambda  2 2
+     sigma  0.5 0.5
+     factor  1.0
+     type POLYNOM_DECAY_DAMP
+     values
+     RE           1.45968667177690E+00 BETA         8.00000000000000E-02
+     P            6.00000000000000E+00
+     S            1.0
+     B            0.03
+     C            0.001
+     B0           1.43014508089689E-01 
+     B1           3.01126190509857E+00
+     B2           0.00000000000000E+00
+     B3           0.00000000000000E+00
+     B3           0.00000000000000E+00
+     B3           0.00000000000000E+00
+     BINF         1.5
+     end
+     
 
 
 
@@ -783,7 +833,7 @@ Example:
 ``TWO_COUPLED_BOBS``
 ^^^^^^^^^^^^^^^^^^^^
 
-This form is used to couple two Surkus-like expansion into one adiabatic representation using two diabatic functions :math:`f_1(r)` and :math:`f_2(r)` coupled by a switching function. The two diabatic curves are give by ``BobLeroy`` while the switching function is given by 
+This form is used to couple two Surkus-like expansion into one adiabatic representation using two diabatic functions :math:`f_1(r)` and :math:`f_2(r)` coupled by a switching function. The two diabatic curves are give by ``BobLeroy`` while the switching function is given by
 
 :math:`f(r)^{\rm switch} = \frac{ 1+\tanh(a_s (r-r_s))}{2}`
 
@@ -1051,7 +1101,7 @@ Here, the keyword ``type`` has an additional parameter of the number of states t
 
 ``sub-types`` lists the 1D functions for each element, ``Nparameters`` gives the number of parameters in each object. The last value in the ``values`` section is to indicate the state component to output, 1,2 or 3 in this case.
 
-The order of the objects is important. The N diagonal diabatic elements are listed first, followed by the non-diagonal elements in the following order: 
+The order of the objects is important. The N diagonal diabatic elements are listed first, followed by the non-diagonal elements in the following order:
 :math:`V_{1,2}`, :math:`V_{1,3}`, ... :math:`V_{1,N}`, :math:`V_{2,3}`, ... :math:`V_{2,N}` ..., :math:`V_{N-1,N}`. In the code (funcitons.f90), this is implemented as follows
 ::
 
@@ -1416,18 +1466,18 @@ Example:
 ``EMO-SWITCH`` function
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-This is an EMO form with a short-range finite asymptote built using the sigmoid:  
+This is an EMO form with a short-range finite asymptote built using the sigmoid:
 
 .. math::
 
       F(r) = F_{\rm EMO}(r) F_{\rm SIG}(r) + (1-F_{\rm SIG}(r)) f_{\rm asymptote}
 
-where :math:`F_{\rm EMO}(r)` and :math:`F_{\rm SIG}(r)` are the corresponding EMO and Sigmoid functions, respectively introduced above and :math:` f_{\rm asymptote}` is the constant defining the short-range asymptote. 
+where :math:`F_{\rm EMO}(r)` and :math:`F_{\rm SIG}(r)` are the corresponding EMO and Sigmoid functions, respectively introduced above and :math:` f_{\rm asymptote}` is the constant defining the short-range asymptote.
 
 
 Example:
 ::
-    
+
     spin-orbit 1 2
     name "<a2Pi|SO|a2Pi>"
     type  EMO-switch
@@ -1435,16 +1485,16 @@ Example:
     mult   2 2
     values
        F0           2000.0
-       RE           1.1   
+       RE           1.1
        AE           0.0000
        RREF        -1.00000000000000E+00
        PL           5.00000000000000E+00
        PR           5.00000000000000E+00
        NL           2.00000000000000E+00
        NR           2.00000000000000E+00
-       B0           1.95853328535203e+00     
+       B0           1.95853328535203e+00
        B1           0.00000000000000E+00
-       B2           7.14678340571366e-02     
+       B2           7.14678340571366e-02
        V0           0.00000000000000E+00
        RE           0.900000000000000000
        A0           1.000000000000000000
@@ -1453,7 +1503,7 @@ Example:
        B0           100
        Blimit        0.00
     end
-    
+
 
 
 Diabatic/non-adiabatic couplings

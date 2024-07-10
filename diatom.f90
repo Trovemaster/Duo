@@ -14683,6 +14683,28 @@ contains
     enddo  ! i
     !omp end parallel do
     !
+    if (iverbose>=3) write(out,'("...done!")')
+    !
+    if (zDebug .and. iverbose>=4) then
+      ! print out the structure of the submatrix
+      !
+      write(out,'(/"Non-zero matrix elements of the coupled Omega matrix:")')
+      write(out, '(A, ES10.2,A)') 'Threshold for printing is ', small_, ' cm^-1'
+      write(out,'(A)') 'RV == Rotational-vibrational'
+      write(out,'(A)') 'SO == Spin-Orbit interaction'
+      write(out,'(A)') 'SS == Spin-Spin interaction'
+      write(out,'(A)') 'JS == J.S interaction (aka S-uncoupling)'
+      write(out,'(A)') 'LS == L.J interaction (aka L-uncoupling)'
+      write(out,'(A)') 'LS == L.S interaction (spin-electronic)'
+      !
+      do ilevel = 1,Nomega_states
+        write(out,'(a)') trim( printout(ilevel) )
+      enddo
+      !
+      write(out,'(" "/)')
+      !
+    endif
+    !
     if (iverbose>=4) call TimerStop('Construct the hamiltonian')
     !
     deallocate(printout)
