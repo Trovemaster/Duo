@@ -6,7 +6,7 @@ Duo Functions
 This section shows examples of the definitions of the analytical functions supported in Duo.
 
 
-Potential energy funcitons
+Potential energy functions
 --------------------------
 
 Extended Morse Oscillator ``EMO``
@@ -676,7 +676,7 @@ where :math:`z` is either taken as the damped-coordinate given by:
 and the short-range damping :math:`D^{\rm DS}(r)` is given by
 
 .. math::
-        D^{\rm DS}(r) = \left(1-\exp\left[ -b r-c r^2 \right \right)^s
+        D^{\rm DS}(r) = \left(1-\exp\left[ -b r-c r^2 \right] \right)^s
 
 
 Here :math:`r_{\rm ref}` is a reference position equal to :math:`r_{\rm e}` by default, :math:`\beta_2` is damping long-range factors with  :math:`B_{\infty}` as the long-range asymptote,  :math:`m`, :math:`b` and :math:`c` are short-range parameters.
