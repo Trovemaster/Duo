@@ -452,6 +452,7 @@ module diatom_module
   type matrixT
     !
     real(rk),pointer    :: matrix(:,:)
+    real(rk),pointer    :: U(:,:)
     integer(ik),pointer :: irec(:)
     !
   end type matrixT
@@ -7124,12 +7125,12 @@ contains
     character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
     character(cl)           :: printout_
     real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
-    integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k
+    integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,ipower,ipar,i1,i2
     integer(ik)             :: total_roots,irrep,jrrep,isr,ild
     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
     real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatnac(:,:)
     real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
-    real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:)
+    real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:),HmatxU(:,:),Hsym_(:,:)
     integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
     integer(ik),allocatable :: vib_count(:)
     type(quantaT),allocatable :: icontrvib(:),icontr(:)
@@ -7155,7 +7156,7 @@ contains
     integer(ik) :: Nlambdasigmas_max
     integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
     real(rk)    :: omega_min,omega_max,spin_min
-    logical     :: bound_state = .true.
+    logical     :: bound_state = .true.,check_symmetry=.false.
     !
     type(contract_solT),allocatable :: contracted(:)
     real(rk),allocatable            :: vect_i(:),vect_j(:)
@@ -8763,7 +8764,9 @@ contains
         !
         ! first count the contracted states of the product basis set
         !
+        isym = 0
         i = 0
+        Nsym(:) = 0
         do ivib =1, totalroots
           !
           omega = icontrvib(ivib)%omega
@@ -8772,7 +8775,32 @@ contains
           !
           if (abs(omega)>jval) cycle
           !
+          ! size of the symmetrised basis: 
+          isym = isym + 1
+          !
+          ! non-symmetrised basis count
           i = i + 1
+          !
+          ! double increment to account for the degenerate contribution if omega/=0
+          if (int(2.0*omega)/=0) i  = i + 1
+          !
+          if ( nint(2.0_rk*omega)==0) then
+             !
+             ! assume the parity to be (-1)^J and J is always integer if omega==0
+             ! ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval),2 )+1
+             !
+             Nsym(ipar) = Nsym(ipar) + 1
+             !
+           else
+             !
+             do ipar = 1,2
+                !
+                Nsym(ipar) = Nsym(ipar) + 1
+                !
+             enddo
+             !
+          endif
           !
         enddo
         !
@@ -8789,45 +8817,162 @@ contains
         ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
         allocate(icontr(Ntotal),stat=alloc)
         !
+        ! Hamiltonian in irreps 
+        allocate(transform(1)%matrix(max(1,Nsym(1)),max(1,Nsym(1))),stat=alloc)
+        allocate(transform(2)%matrix(max(1,Nsym(2)),max(1,Nsym(2))),stat=alloc)
+        !
+        call ArrayStart('transform',alloc,size(transform(1)%matrix),kind(transform(1)%matrix))
+        call ArrayStart('transform',alloc,size(transform(2)%matrix),kind(transform(2)%matrix))
+        !
+        allocate(transform(1)%irec( max( 1,Nsym(1) ) ),stat=alloc)
+        allocate(transform(2)%irec( max( 1,Nsym(2) ) ),stat=alloc)
+        !
+        call ArrayStart('transform',alloc,size(transform(1)%irec),kind(transform(1)%irec))
+        call ArrayStart('transform',alloc,size(transform(2)%irec),kind(transform(2)%irec))
+        !
+        ! Unitary transformations to the irreps from Omega-representation
+        allocate(transform(1)%U(max(1,Nsym(1)),Ntotal),stat=alloc)
+        allocate(transform(2)%U(max(1,Nsym(2)),Ntotal),stat=alloc)
+        !
+        call ArrayStart('transform',alloc,size(transform(1)%matrix),kind(transform(1)%matrix))
+        call ArrayStart('transform',alloc,size(transform(2)%matrix),kind(transform(2)%matrix))
+        !
+        allocate(HmatxU(Ntotal,max(Nsym(1),Nsym(2))),stat=alloc)
+        call ArrayStart('HmatxU',alloc,size(HmatxU),kind(HmatxU))
+        !
+        allocate(Hsym_(max(Nsym(1),Nsym(2)),max(Nsym(1),Nsym(2))),stat=alloc)
+        call ArrayStart('Hsym_',alloc,size(Hsym_),kind(Hsym_))
+        !
+        allocate(ilevel2i(Ntotal,2),stat=alloc)
+        call ArrayStart('ilevel2i',alloc,size(ilevel2i),kind(ilevel2i))
+        !
         if (iverbose>=4) write(out,'(/"Contracted basis set:")')
         if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
         !
-        ! build the bookkeeping: the object icontr will store this informtion
+        ! build the bookkeeping: the object icontr will store this information
         !
         i = 0
+        Nsym(:) = 0
+        !
+        transform(1)%U = 0 
+        transform(2)%U = 0 
+        !
         do ivib = 1,totalroots
           !
           omega = icontrvib(ivib)%omega
           !
           if (abs(omega)>jval) cycle
           !
-          i = i + 1
-          !
           ilevel =  icontrvib(ivib)%ilevel
           iomega = icontrvib(ivib)%iomega
           tau_lambdai = 0 ; if (omega<0) tau_lambdai = 1
-
+          !
           istate      =  Omega_grid(iomega)%qn(ilevel)%istate
           sigma       =  Omega_grid(iomega)%qn(ilevel)%sigma
           ilambda     =  Omega_grid(iomega)%qn(ilevel)%ilambda
           spini       =  Omega_grid(iomega)%qn(ilevel)%spin
           !
-          icontr(i) = omega_grid(iomega)%qn(ilevel)
-          icontr(i)%ivib = ivib
-          icontr(i)%ilevel = ilevel
-          icontr(i)%v = icontrvib(ivib)%v
-          icontr(i)%ilevel = ilevel
-          icontr(i)%iomega = iomega
-          icontr(i)%omega = omega
-          icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
+          do ipar = 1,2
+             !
+             if (nint(2.0_rk*omega)==0.and.ipar==2) cycle
+             !
+             i = i + 1
+             !
+             icontr(i) = omega_grid(iomega)%qn(ilevel)
+             icontr(i)%ivib = ivib
+             icontr(i)%ilevel = ilevel
+             icontr(i)%v = icontrvib(ivib)%v
+             icontr(i)%ilevel = ilevel
+             icontr(i)%iomega = iomega
+             icontr(i)%omega = omega*(-1.0_rk)**ipar
+             icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
+             !
+             ! print the quantum numbers
+             if (iverbose>=4) then
+               write(out,'(i6,1x,f8.1,1x,i4,1x,i4,1x,i4,1x,i4,1x,f8.1,1x,f8.1,1x,i4,1x,f8.1,3x,a)') &
+                 i,jval,ilevel,ivib,ilevel,&
+                 icontr(i)%v,spini,sigma,ilambda,omega,trim(poten(istate)%name)
+             endif
+             !
+          enddo
           !
-          ! print the quantum numbers
-          if (iverbose>=4) then
-            write(out,'(i6,1x,f8.1,1x,i4,1x,i4,1x,i4,1x,i4,1x,f8.1,1x,f8.1,1x,i4,1x,f8.1,3x,a)') &
-              i,jval,ilevel,ivib,ilevel,&
-              icontr(i)%v,spini,sigma,ilambda,omega,trim(poten(istate)%name)
+          if ( nint(2.0_rk*omega)==0) then
+             !
+             ! assume the parity to be (-1)^J and J is always integer if omega==0
+             ! ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval),2 )+1
+             !
+             Nsym(ipar) = Nsym(ipar) + 1
+             !
+             isym = Nsym(ipar) 
+             !
+             ! symmetry unitary transformation matrix elements:
+             !
+             transform(ipar)%U(isym,i) = 1.0_ark
+             !
+             transform(ipar)%irec(isym) = ilevel
+             !
+             ilevel2i(ilevel,ipar) = i
+             !
+           else
+             !
+             do ipar = 1,2
+                !
+                Nsym(ipar) = Nsym(ipar) + 1
+                !
+                isym = Nsym(ipar) 
+                !
+                ! here jval - omega is always integer and parity=0,1, i.e. ipar-1
+                ipower = nint(jval-omega)+ipar-1
+                !
+                ! symmetry unitary transformation matrix elements. 
+                ! Here i should correspond to omega, while i-1 is for -omega
+                transform(ipar)%U(isym,i) = 1.0_ark/sqrt(2.0_ark)
+                transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1)**ipower
+                !
+                ! store the primitive record in the irrep 
+                transform(ipar)%irec(isym) = ilevel
+                !
+                ilevel2i(ilevel,ipar) = i
+                !
+             enddo
+             !
           endif
           !
+        enddo
+        !
+        ! check unitariy of the Us:
+        !
+        do isym = 1,2
+          do jsym=isym,2
+            !
+            Hsym_(1:Nsym(isym),1:Nsym(jsym)) = matmul( transform(isym)%U,transpose(transform(jsym)%U) )
+            !
+            do i1 = 1,Nsym(1)
+               do i2 =1,Nsym(2)
+                  !
+                  check_symmetry = .false.
+                  if (isym==jsym.and.i1==i2) then 
+                     check_symmetry = (abs(Hsym_(i1,i2)-1.0_rk)>sqrt(small_))
+                  else
+                     check_symmetry = (abs(Hsym_(i1,i2))>sqrt(small_))
+                  endif
+                  ! 
+                  if (check_symmetry) then
+                     write(out,"('Error-Omega: wrong unitary elements of UxU^+',24i5,f18.8)") isym,jsym,i1,i2,Hsym_(i1,i2)
+                     !
+                     write(out,"('  Omegas = ',2f5.1)") icontr(i1)%omega,icontr(i2)%omega
+                     write(out,"('  v = ',2i5)") icontr(i1)%v,icontr(i2)%v
+                     write(out,"('  ivib = ',2i5)") icontr(i1)%ivib,icontr(i2)%ivib
+                     write(out,"('  level = ',2i5)") icontr(i1)%ilevel,icontr(i2)%ilevel
+                     !
+                     stop 'Error-Omega: wrong unitary elements of UxU^+'
+                     !
+                  endif
+               enddo
+            enddo
+            !
+          enddo
         enddo
         !
         ! allocate the hamiltonian matrix and an array for the energies of this size Ntotal
@@ -8841,287 +8986,30 @@ contains
         !
         ! Transformation to the symmetrized basis set
         !
-        ! |v,Lambda,Sigma,J,Omega,tau> = 1/sqrt(2) [ |v,Lambda,Sigma,J,Omega>+(-1)^tau |v,-Lambda,-Sigma,J,-Omega> ]
+        ! |v,J,Omega,tau> = 1/sqrt(2) [ |v,J,Omega>+(-1)^(J-Omega+tau) |v,J,-Omega> ]
         !
-        allocate(iswap(Ntotal),vec(Ntotal),Nirr(Ntotal,2),ilevel2i(Ntotal,2),tau(Ntotal),ilevel2isym(Ntotal,2),stat=alloc)
-        call ArrayStart('iswap-vec',alloc,size(iswap),kind(iswap))
-        call ArrayStart('iswap-vec',alloc,size(vec),kind(vec))
-        call ArrayStart('Nirr',alloc,size(Nirr),kind(Nirr))
+        HmatxU(1:Ntotal,1:Nsym(1)) = matmul( hmat,transpose(transform(1)%U) )
+        transform(1)%matrix(1:Nsym(1),1:Nsym(1)) = matmul( transform(1)%U,HmatxU(1:Ntotal,1:Nsym(1)) )
         !
-        iswap = 0
-        Nsym = 0
-        Nlevels = 0
-        ilevel2i = 0
-        ilevel2isym = 0
-        Nirr = 0
+        HmatxU(1:Ntotal,1:Nsym(2)) = matmul( hmat,transpose(transform(2)%U) )
+        transform(2)%matrix(1:Nsym(2),1:Nsym(2)) = matmul( transform(2)%U,HmatxU(1:Ntotal,1:Nsym(2)) )
         !
-        !omp parallel do private(istate,sigmai,ilambda,spini,omegai,ibib,j,jstate,sigmaj,jlambda,omegaj,spinj,jvib) &
-        !                        shared(iswap,vec) schedule(guided)
-        do i = 1,Ntotal
-          !
-          istate  = icontr(i)%istate
-          sigmai  = icontr(i)%sigma
-          ilambda = icontr(i)%ilambda
-          spini   = icontr(i)%spin
-          omegai  = icontr(i)%omega
-          ilevel  = icontr(i)%ilevel
-          ivib    = icontr(i)%v
-          !
-          if (iswap(i)/=0) cycle
-          !
-          if (nint(omegai)==0) then
-            !
-            Nlevels = Nlevels + 1
-            !
-            itau = nint(Jval)
-            !
-            itau = abs(itau)
-            !
-            tau(Nlevels) = (-1.0_rk)**itau
-            !
-            if (mod(itau,2)==1) then
-              Nsym(2) = Nsym(2) + 1
-              ilevel2isym(Nlevels,2) = nsym(2)
-              ilevel2i(Nlevels,2) = i
-              Nirr(Nlevels,2) = 1
-            else
-              Nsym(1) = Nsym(1) + 1
-              ilevel2isym(Nlevels,1) = nsym(1)
-              ilevel2i(Nlevels,1) = i
-              Nirr(Nlevels,1) = 1
-            endif
-            !
-            iswap(i) = i
-            !ilevel2i(Nlevels,1) = i
-            !
-          else
-            !
-            do  j = 1,Ntotal
-              !
-              jstate  = icontr(j)%istate
-              sigmaj  = icontr(j)%sigma
-              jlambda = icontr(j)%ilambda
-              omegaj  = icontr(j)%omega
-              jlevel  = icontr(j)%ilevel
-              spinj   = icontr(j)%spin
-              jvib    = icontr(j)%v
-              !
-              if (nint(omegai+omegaj)==0.and. ilevel==jlevel.and.ivib==jvib) then
-                !
-                ! total number of irreps
-                !
-                Nsym(:) = Nsym(:) + 1
-                !
-                ! Levels of each irrep
-                !
-                Nlevels = Nlevels + 1
-                !
-                Nirr(Nlevels,:) = 1
-                !
-                !ilevel2i(Nlevels,1) = i
-                !ilevel2i(Nlevels,2) = j
-                !
-                if (omegaj>omegai) then
-                  !if (mod(nint(omegai-omegaj),2)==0) then
-                  !
-                  ilevel2i(Nlevels,1) = i
-                  ilevel2i(Nlevels,2) = j
-                  !
-                else
-                  !
-                  ilevel2i(Nlevels,1) = j
-                  ilevel2i(Nlevels,2) = i
-                  !
-                endif
-                !
-                ilevel2isym(Nlevels,1:2) = nsym(1:2)
-                !
-                itau = nint(Jval)
-                !
-                if (mod(nint(2.0_rk*Jval),2)/=0) itau = nint(Jval+0.5_rk+2.0_rk*omegai)
-                !
-                tau(Nlevels) = (-1.0_rk)**itau
-                !
-                iswap(i) = j*(-1)**itau
-                iswap(j) = i*(-1)**itau
-                !
-                exit
-                !
+        ! check non-diagnal (between symmetries) matrix elements:
+        Hsym_(1:Nsym(1),1:Nsym(2)) = matmul( transform(1)%U,HmatxU(1:Ntotal,1:Nsym(2)) )
+        !
+        do i1 = 1,Nsym(1)
+           do i2 =1,Nsym(2) 
+              if (abs(Hsym_(i1,i2))>sqrt(small_)) then
+                 write(out,"('Error-Omega: non-zero elements between symmetries 1 & 2 ',2i5,f18.8)") i1,i2,Hsym_(i1,i2)
+                 !
+                 write(out,"('  Omegas = ',2f5.1)") icontr(i1)%omega,icontr(i2)%omega
+                 write(out,"('  v = ',2i5)") icontr(i1)%v,icontr(i2)%v
+                 write(out,"('  ivib = ',2i5)") icontr(i1)%ivib,icontr(i2)%ivib
+                 write(out,"('  level = ',2i5)") icontr(i1)%ilevel,icontr(i2)%ilevel
+                 !
+                 stop 'Error-Omega: non-zero elements between symmetries'
               endif
-              !
-            enddo
-            !
-          endif
-          !
-        enddo
-        !omp end parallel do
-        !
-        ! Nlevels is the number of states disregarding the degeneracy
-        ! Nroots is the total number of roots including the degenerate states
-        !
-        allocate(transform(1)%matrix(max(1,Nsym(1)),max(1,Nsym(1))),stat=alloc)
-        allocate(transform(2)%matrix(max(1,Nsym(2)),max(1,Nsym(2))),stat=alloc)
-        allocate(transform(1)%irec( max( 1,Nsym(1) ) ),stat=alloc)
-        allocate(transform(2)%irec( max( 1,Nsym(2) ) ),stat=alloc)
-        !
-        call ArrayStart('transform',alloc,size(transform(1)%matrix),kind(transform(1)%matrix))
-        call ArrayStart('transform',alloc,size(transform(2)%matrix),kind(transform(2)%matrix))
-        call ArrayStart('transform',alloc,size(transform(1)%irec),kind(transform(1)%irec))
-        call ArrayStart('transform',alloc,size(transform(2)%irec),kind(transform(2)%irec))
-        !
-        allocate(Utransform(Nlevels,2,2),stat=alloc)
-        call ArrayStart('Utransform',alloc,size(Utransform),kind(Utransform))
-        !
-        ! Building the transformation to the symmetrized representaion (irrep)
-        !
-        do ilevel = 1,Nlevels
-          !
-          veci = 0
-          !
-          if (any(Nirr(ilevel,:)==0)) then
-            !
-            do irrep = 1,sym%NrepresCs
-              do itau = 1,Nirr(ilevel,irrep)
-                !
-                i = ilevel2i(ilevel,irrep)
-                veci(irrep,irrep) = 1.0_rk
-                isym = ilevel2isym(ilevel,irrep)
-                transform(irrep)%irec(isym) = ilevel
-                !
-              enddo
-            enddo
-            !
-            !
-            !if (tau(ilevel)<0) then
-            !  veci(1,2) = 1.0_rk
-            !  isym = ilevel2isym(ilevel,2)
-            !  transform(2)%irec(isym) = ilevel
-            !else
-            !  veci(1,1) = 1.0_rk
-            !  isym = ilevel2isym(ilevel,1)
-            !  transform(1)%irec(isym) = ilevel
-            !endif
-            !
-          else
-            !
-            veci(1,1) = sqrt(0.5_rk)
-            veci(2,1) = sqrt(0.5_rk)*tau(ilevel)
-            veci(1,2) = sqrt(0.5_rk)
-            veci(2,2) =-sqrt(0.5_rk)*tau(ilevel)
-            !
-            do irrep = 1,sym%NrepresCs
-              isym = ilevel2isym(ilevel,irrep)
-              transform(irrep)%irec(isym) = ilevel
-            enddo
-            !
-          endif
-          !
-          Utransform(ilevel,:,:) = veci(:,:)
-          !
-          do jlevel = 1,Nlevels
-            !
-            vecj = 0
-            !
-            if (any(Nirr(jlevel,:)==0)) then
-              !
-              do jrrep = 1,sym%NrepresCs
-                do jtau = 1,Nirr(jlevel,jrrep)
-                  vecj(jrrep,jrrep) = 1.0_rk
-                enddo
-              enddo
-              !
-            else
-              !
-              vecj(1,1) = sqrt(0.5_rk)
-              vecj(2,1) = sqrt(0.5_rk)*tau(jlevel)
-              vecj(1,2) = sqrt(0.5_rk)
-              vecj(2,2) =-sqrt(0.5_rk)*tau(jlevel)
-              !
-            endif
-            !
-            pmat = 0
-            !
-            do isym = 1,2
-              do itau = 1,Nirr(ilevel,isym)
-                i = ilevel2i(ilevel,isym)
-                do jsym = 1,2
-                  do jtau = 1,Nirr(jlevel,jsym)
-                    j = ilevel2i(jlevel,jsym)
-                    !
-                    if (i<=j) then
-                      pmat(isym,jsym) = hmat(i,j)
-                    else
-                      pmat(isym,jsym) = hmat(j,i)
-                    endif
-                    !
-                  enddo
-                enddo
-              enddo
-            enddo
-            !
-            smat = matmul(transpose(veci),matmul(pmat,vecj))
-            !
-            !smat = matmul((veci),matmul(pmat,transpose(vecj)))
-            !
-            do irrep = 1,sym%NrepresCs
-              do itau = 1,Nirr(ilevel,irrep)
-                !i = ilevel2i(ilevel,isym)
-                !
-                isym = ilevel2isym(ilevel,irrep)
-                !
-                do jrrep = 1,sym%NrepresCs
-                  do jtau = 1,Nirr(jlevel,jrrep)
-                    !j = ilevel2i(jlevel,jsym)
-                    jsym = ilevel2isym(jlevel,jrrep)
-                    !
-                    if (irrep==jrrep) then
-                      !
-                      transform(irrep)%matrix(isym,jsym) = smat(irrep,irrep)
-                      !
-                    else
-                      !
-                      if (abs(smat(irrep,jrrep))>sqrt(small_)) then
-                        !
-                        i = ilevel2i(ilevel,itau)
-                        j = ilevel2i(jlevel,jtau)
-                        !
-                        istate = icontr(i)%istate
-                        sigmai  = icontr(i)%sigma
-                        ilambda = icontr(i)%ilambda
-                        spini   = icontr(i)%spin
-                        omegai  = icontr(i)%omega
-                        ivib    = icontr(i)%v
-                        !
-                        jstate  = icontr(j)%istate
-                        sigmaj  = icontr(j)%sigma
-                        jlambda = icontr(j)%ilambda
-                        omegaj  = icontr(j)%omega
-                        spinj   = icontr(j)%spin
-                        jvib    = icontr(j)%v
-                        !
-                        write(out,'(/"Problem with symmetry: The non-diagonal matrix element is not zero:")')
-                        write(out,'(/"i,j = ",2i8," irrep,jrrep = ",2i8," isym,jsym = ",2i8," ilevel,jlevel = ", &
-                                   & 2i3," , matelem =  ",g16.9," with zero = ",g16.9)') &
-                                   i,j,irrep,jrrep,isym,jsym,ilevel,jlevel,smat(itau,jtau),sqrt(small_)
-                        write(out,'(/"<State   v  lambda spin   sigma  omega |H(sym)| State   v  lambda spin   '//&
-                              'sigma  omega>")')
-                        write(out,'("<",i3,2x,2i4,3f8.1," |H(sym)| ",i3,2x,2i4,3f8.1,"> /= 0")') &
-                          istate,ivib,ilambda,spini,sigmai,omegai,jstate,jvib,jlambda,spinj,sigmaj,omegaj
-                        write(out,'("<",a10,"|H(sym)|",a10,"> /= 0")') trim(poten(istate)%name),trim(poten(jstate)%name)
-                        !
-                        stop 'Problem with symmetry: The non-diagonal matrix element is not zero'
-                        !
-                      endif
-                      !
-                    endif
-                    !
-                  enddo
-                enddo
-              enddo
-            enddo
-
-          enddo
-          !
+           enddo
         enddo
         !
       case('VIB')
@@ -10451,10 +10339,12 @@ contains
         !
         ! |v,Lambda,Sigma,J,Omega,tau> = 1/sqrt(2) [ |v,Lambda,Sigma,J,Omega>+(-1)^tau |v,-Lambda,-Sigma,J,-Omega> ]
         !
-        allocate(iswap(Ntotal),vec(Ntotal),Nirr(Ntotal,2),ilevel2i(Ntotal,2),tau(Ntotal),ilevel2isym(Ntotal,2),stat=alloc)
+        allocate(iswap(Ntotal),vec(Ntotal),Nirr(Ntotal,2),tau(Ntotal),ilevel2isym(Ntotal,2),stat=alloc)
         call ArrayStart('iswap-vec',alloc,size(iswap),kind(iswap))
         call ArrayStart('iswap-vec',alloc,size(vec),kind(vec))
         call ArrayStart('Nirr',alloc,size(Nirr),kind(Nirr))
+        allocate(ilevel2i(Ntotal,2),stat=alloc)
+        call ArrayStart('ilevel2i',alloc,size(ilevel2i),kind(ilevel2i))
         !
         iswap = 0
         Nsym = 0
@@ -11508,21 +11398,51 @@ contains
       !
       if (iverbose>=2) write(out,'(/"Zero point energy (ZPE) = ",f20.12)') job%ZPE
       !
-      !omp end parallel do
+      if (allocated(iswap)) then
+        deallocate(iswap,vec)
+        call ArrayStop('iswap-vec')
+      endif
       !
-      !jval = jval + 1.0_rk ; irot = irot + 1
+      if (allocated(Nirr)) then
+        deallocate(Nirr)
+        call ArrayStop('Nirr')
+      endif
       !
-      deallocate(iswap,vec,Nirr)
-      call ArrayStop('iswap-vec')
-      call ArrayStop('Nirr')
+      if (allocated(ilevel2isym)) then
+         deallocate(tau,ilevel2isym)
+      endif
       !
-      deallocate(ilevel2i,tau,ilevel2isym)
+      if (allocated(ilevel2i)) then
+         deallocate(ilevel2i)
+        call ArrayStop('ilevel2i')
+      endif
       !
-      deallocate(transform(1)%matrix,transform(2)%matrix,transform(1)%irec,transform(2)%irec)
+      if (associated(transform(1)%matrix)) then
+         deallocate(transform(1)%matrix,transform(2)%matrix)
+      endif
+      !
+      if (associated(transform(1)%U)) then
+         deallocate(transform(1)%U,transform(2)%U)
+      endif
+      !
+      if (associated(transform(1)%irec)) then
+         deallocate(transform(1)%irec,transform(2)%irec)
+      endif
+      !
       call ArrayStop('transform')
       !
-      deallocate(Utransform)
-      call ArrayStop('Utransform')
+      if (allocated(Utransform)) then
+        deallocate(Utransform)
+        call ArrayStop('Utransform')
+      endif
+      !
+      if (allocated(HmatxU)) then
+        deallocate(HmatxU)
+      endif
+      !
+      if (allocated(Hsym_)) then
+        deallocate(Hsym_)
+      endif
       !
       deallocate(hmat)
       call ArrayStop('hmat')
@@ -13848,6 +13768,10 @@ contains
     !
     do iomega=1,Nomegas
       !
+      omega  = Omega_grid(iomega)%omega
+      !
+      if (omega<0) cycle
+      !
       if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
       !
       Nlambdasigmas = omega_grid(iomega)%Nstates
@@ -13861,7 +13785,7 @@ contains
       !
       do ilevel = 1,Nlambdasigmas
         !
-        omega  = Omega_grid(iomega)%basis(ilevel)%omega
+        !omega  = Omega_grid(iomega)%basis(ilevel)%omega
         !
         if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
         !
@@ -14296,6 +14220,7 @@ contains
             erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
             !
             hmat(i,j) = hmat(i,j) + erot
+            hmat(j,i) = hmat(i,j)  
             !
           enddo
           !
@@ -14343,6 +14268,7 @@ contains
             erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
             !
             hmat(i,j) = hmat(i,j) + erot
+            hmat(j,i) = hmat(i,j)  
             !
           enddo
           !
@@ -14368,6 +14294,7 @@ contains
              if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
              !
              hmat(i,j) = hmat(i,j) + field%matelem(ivib,jvib)*sc
+             hmat(j,i) = hmat(i,j)  
              !
              ! print out the internal matrix at the first grid point
              if (iverbose>=4.and.abs(field%matelem(ivib,jvib))>small_) then
@@ -14454,6 +14381,7 @@ contains
               f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
               !
               hmat(i,j) = hmat(i,j) - f_t
+              hmat(j,i) = hmat(i,j)  
               !
             enddo
             !
@@ -14516,6 +14444,7 @@ contains
               f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
               !
               hmat(i,j) = hmat(i,j) - f_t
+              hmat(j,i) = hmat(i,j)  
               !
             enddo
             !
@@ -14572,6 +14501,7 @@ contains
             f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) + f_t*0.5_rk
+            hmat(j,i) = hmat(i,j)  
             !
             !enddo
             !
@@ -14618,6 +14548,7 @@ contains
             f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) - f_t*0.5_rk
+            hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(f_t)>small_) then
@@ -14664,6 +14595,7 @@ contains
             f_lo = field%matelem(ivib,jvib)*f_t
             !
             hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
+            hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
