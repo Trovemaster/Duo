@@ -1580,7 +1580,7 @@ contains
             if (ngamma>1) then 
               !
               write(out,"('dm_intensity: Assumption that selection rules come in pairs is wrong!')")
-              stop 'dm_intensity: Assumption that all selection rules work in pairs is wrong!'
+              stop 'dm_intensity: Assumption that all selection rules work in pairs is broken!'
               !
             endif   
             !
