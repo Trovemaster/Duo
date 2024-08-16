@@ -7150,7 +7150,7 @@ contains
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
     character(len=cl)          :: filename,ioname
-    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
+    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,ilevel_,jlevel_
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
     integer(ik)                :: npoints_last,icount_max
@@ -7871,11 +7871,11 @@ contains
           !
           ! check if the field wass not allocated at previous call to prevent multiple allocatetions
           !
-          if (.not.fields_allocated) then
-            allocate(field_%matelem(totalroots,totalroots),stat=alloc)
-            call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
-            field_%matelem = 0
-          endif
+          !if (.not.fields_allocated) then
+          !  allocate(field_%matelem(totalroots,totalroots),stat=alloc)
+          !  call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
+          !  field_%matelem = 0
+          !endif
           !
           if (associated(field_%matelem) .eqv. .false.) then
             allocate(field_%matelem(totalroots,totalroots),stat=alloc)
@@ -7885,59 +7885,54 @@ contains
             !
           endif
           !
+          ilevel  = field%ilevel
+          jlevel  = field%jlevel
+          !
           iomega  = field%iomega
           jomega  = field%jomega
           !
-          ilevel  = field%ilevel
-          jlevel  = field%jlevel
+          omegai = field%omegai
+          omegaj = field%omegaj
           !
           do iroot = 1,totalroots
             !
             i = icontrvib(iroot)%ivib
             iomega_ = icontrvib(iroot)%iomega
             omegai_ = icontrvib(iroot)%omega
+            ilevel_ = icontrvib(iroot)%ilevel
+            !
+            if( nint(omegai_-abs(omegai))/=0.or.ilevel/=ilevel_ ) cycle
+            !
+            vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
             !
             !if (iomega/=iomega_.and.jomega/=iomega_) cycle
             !
-            do jroot = 1,iroot
+            do jroot = 1,totalroots
               !
               j = icontrvib(jroot)%ivib
               jomega_ = icontrvib(jroot)%iomega
               omegaj_ = icontrvib(jroot)%omega
+              jlevel_ = icontrvib(jroot)%ilevel
               !
-              !do isigmav = 0,isigmav_max
-                !
-                ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-                ! avoid the double counting.
-                !if( isigmav==1.and. nint(abs( field%omegai ) + abs( field%omegaj ))==0 ) cycle
-                !
-                ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-                omegai = field%omegai
-                omegaj = field%omegaj
-                !
-                ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-                !
-                if( nint(omegai_-abs(omegai))/=0.or.nint(omegaj_-abs(omegaj))/=0 ) cycle
-                !
-                vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
-                vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
-                !
-                ! in the grid representation of the vibrational basis set
-                ! the matrix elements are evaluated simply by a summation of over the grid points
-                !
-                field_%matelem(iroot,jroot)  = field_%matelem(iroot,jroot) + &
-                 sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
-                !
-                ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-                ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
-                !if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                !  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
-                !endif
-                !
-                field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
-                !
-                !
-              !enddo
+              if (jlevel/=jlevel_) cycle
+              !
+              if( nint(omegaj_-abs(omegaj))/=0.or.jlevel/=jlevel_ ) cycle
+              !
+              vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
+              !
+              ! in the grid representation of the vibrational basis set
+              ! the matrix elements are evaluated simply by a summation of over the grid points
+              !
+              field_%matelem(iroot,jroot)  = field_%matelem(iroot,jroot) + &
+               sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
+              !
+              ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+              ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
+              !if (iobject==Nobjects-3.or.iobject==Nobjects) then
+              !  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
+              !endif
+              !
+              !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
               !
             enddo
           enddo
@@ -8886,7 +8881,7 @@ contains
         call ArrayStart('ilevel2i',alloc,size(ilevel2i),kind(ilevel2i))
         !
         if (iverbose>=4) write(out,'(/"Contracted basis set:")')
-        if (iverbose>=4) write(out,'("     i     jrot ilevel ivib state v     spin    sigma lambda   omega   Name")')
+        if (iverbose>=4) write(out,'("     i     jrot iroot ivib ilevel v     spin    sigma lambda   omega   Name")')
         !
         ! build the bookkeeping: the object icontr will store this information
         !
@@ -8940,7 +8935,7 @@ contains
              ! print the quantum numbers
              if (iverbose>=4) then
                write(out,'(i6,1x,f8.1,1x,i4,1x,i4,1x,i4,1x,i4,1x,f8.1,1x,f8.1,1x,i4,1x,f8.1,3x,a)') &
-                 i,jval,ilevel,ivib,ilevel,&
+                 i,jval,iroot,ivib,ilevel,&
                  icontr(i)%v,spini,sigma,ilambda,icontr(i)%omega,trim(poten(istate)%name)
              endif
              !
@@ -8973,12 +8968,13 @@ contains
                 isym = Nsym(ipar) 
                 !
                 ! here jval - omega is always integer and parity=0,1, i.e. ipar-1
-                ipower = nint(jval-omega)+ipar-1
+                !ipower = nint(jval-omega)+ipar-1
+                ipower = ipar-1+mod(int(Jval),2)
                 !
                 ! symmetry unitary transformation matrix elements. 
                 ! Here i should correspond to omega, while i-1 is for -omega
-                transform(ipar)%U(isym,i) = 1.0_ark/sqrt(2.0_ark)
-                transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1)**ipower
+                transform(ipar)%U(isym,i)   = 1.0_ark/sqrt(2.0_ark)
+                transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1.0_rk)**ipower
                 !
                 ! store the primitive record in the irrep 
                 transform(ipar)%irec(isym) = ilevel
@@ -11564,76 +11560,6 @@ contains
       !
     endif
     !
-    !if (associated(L_omega_obj)) then
-    !  !
-    !  do i = 1,NLplus_omega
-    !    deallocate(L_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'L_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(L_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'L_omega_obj cannot be deallocated'
-    !  call ArrayStop("L+ Omega obj")
-    !  !
-    !endif
-    !
-    !if (associated(S_omega_obj)) then
-    !  !
-    !  do i = 1,NSplus_omega
-    !    deallocate(S_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'S_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(S_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'S_omega_obj cannot be deallocated'
-    !  call ArrayStop("S+ Omega obj")
-    !endif
-    !
-    !if (associated(SR_omega_obj)) then
-    !  !
-    !  do i = 1,NSR_omega
-    !    deallocate(SR_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'SR_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(SR_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'SR_omega_obj cannot be deallocated'
-    !  call ArrayStop("SR Omega obj")
-    !endif
-     !!
-    !if (associated(bob_omega_obj)) then
-    !  do i = 1,NBob_omega
-    !    deallocate(bob_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'bob_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(bob_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'bob_omega_obj cannot be deallocated'
-    !  call ArrayStop("BOB Omega obj")
-    !endif
-     !!
-    !if (associated(p2q_omega_obj)) then
-    !  do i = 1,Np2q_omega
-    !    deallocate(p2q_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'p2q_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(p2q_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'p2q_omega_obj cannot be deallocated'
-    !  call ArrayStop("P2Q Omega obj")
-    !endif
-    !
-    !if (associated(q_omega_obj)) then
-    !  do i = 1,Nq_omega
-    !    deallocate(q_omega_obj(i)%gridvalue,stat=alloc)
-    !    if (alloc/=0) stop 'q_omega_obj-grid cannot be deallocated'
-    !  enddo
-    !  deallocate(q_omega_obj,stat=alloc)
-    !  if (alloc/=0) stop 'q_omega_obj cannot be deallocated'
-    !  call ArrayStop("Q Omega obj")
-    !endif
-     !!
-    !if (associated(brot)) then
-    !  deallocate(brot(1)%gridvalue,stat=alloc)
-    !  if (alloc/=0) stop 'brot-grid cannot be deallocated'
-    !  call ArrayStop('BROT')
-    !endif
-    !
     if (job%print_rovibronic_energies_to_file ) close(u2)
     !
   end subroutine duo_j0
@@ -12784,21 +12710,23 @@ contains
                 sigmaj  = Omega_grid(jomega)%basis(j)%sigma
                 spinj   = Omega_grid(jomega)%basis(j)%spin
                 !
-                if (spinj/=spini.or.(ilambda/=jlambda).or.nint(abs(sigmai-sigmaj))/=1) cycle
+                if (spinj/=spini.or.nint(abs(sigmai-sigmaj))/=1) cycle
                 !
-                do ispin = 1,Nspins
+                !do ispin = 1,Nspins
                   !
-                  spini_ = real(ispin-1,rk)+spin_min
+                  !spini_ = real(ispin-1,rk)+spin_min
                   !
                   !spinj = spini
                   !
                   !L_LambdaSigma(i,j) = sqrt( (spini-sigmaj)*(spini+sigmaj+1.0_rk) )
                   !
+                  if (ilambda/=jlambda) cycle
+                  !
                   f_s = sigmaj-sigmai
                   !
                   L_LambdaSigma(i,j) = sqrt( spini*(spini+1.0_rk)-sigmai*(sigmai+f_s) )
                   !
-                enddo
+                !enddo
                 !
               enddo
             enddo
@@ -13384,7 +13312,7 @@ contains
             enddo
           enddo
           !
-          mat_2(1:N_i,1:N_i) = matmul((omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),transpose(L_LambdaSigma(1:N_i,1:N_i)))
+          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),(L_LambdaSigma(1:N_i,1:N_i)))
           !
           do i = 1,N_i
             do j = 1,N_i
@@ -13432,7 +13360,7 @@ contains
             enddo
           enddo
           !
-          mat_1(1:N_i,1:N_i) =matmul(transpose(L_LambdaSigma(1:N_i,1:N_i)),L_LambdaSigma(1:N_i,1:N_i))
+          mat_1(1:N_i,1:N_i) =matmul((L_LambdaSigma(1:N_i,1:N_i)),transpose(L_LambdaSigma(1:N_i,1:N_i)))
           !
           do i = 1,N_i
               !
@@ -13440,9 +13368,9 @@ contains
               !
               if (iDiab_omega_==0) stop 'Illegal iDiab_omega_=0'
               !
-              ! We will need to  apply the factor (h^2/2mu) later to convert to the right units, when scale is defined
+              ! We will need to  apply the factor (h^2/2mu) later to convert to the right units, where scale is defined
               !
-              Diab_omega_obj(iDiab_omega_)%gridvalue(igrid)= mat_1(i,i)*b_rot*sc
+              Diab_omega_obj(iDiab_omega_)%gridvalue(igrid)= mat_1(i,i)*b_rot
               !
           enddo
           !
@@ -13507,7 +13435,7 @@ contains
     !
     integer(ik),intent(in) :: iverbose,Nomega_states
     !
-    integer(ik) :: i,j,igrid,iterm,iomega,jomega,ngrid
+    integer(ik) :: i,j,igrid,iterm,iomega,jomega,ngrid,icount
     !
     ngrid = grid%npoints
     !
@@ -13518,9 +13446,11 @@ contains
       write(out,'(/7x,a)') "PECS in the Omega representation"
       write(out,'(7x,a)') "#  #    Omega Lambda  Sigma  State"
       !
+      icount=0 
       do iomega=1,Nomegas
         do i=1,Omega_grid(iomega)%Nstates
-          write(out,'(4x,i4,1x,i2,1x,f8.1,1x,1x,i3,1x,f8.1,1x,a)') iomega,i,&
+          icount=icount+1
+          write(out,'(4x,i4,1x,i2,1x,f8.1,1x,1x,i3,1x,f8.1,1x,a)') icount,i,&
             Omega_grid(iomega)%omega,Omega_grid(iomega)%qn(i)%ilambda,&
             Omega_grid(iomega)%qn(i)%sigma,trim(Omega_grid(iomega)%qn(i)%name)
         enddo
@@ -13580,10 +13510,10 @@ contains
           iomega = S_omega_obj(iterm)%iomega
           jomega = S_omega_obj(iterm)%jomega
           !
-          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
-            S_omega_obj(iterm)%omegai,&
+          write(out,'(7x,2i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,i4,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
+            i,S_omega_obj(iterm)%omegai,&
             Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
-            S_omega_obj(iterm)%omegaj,&
+            j,S_omega_obj(iterm)%omegaj,&
             Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
         enddo
         !
@@ -13840,15 +13770,20 @@ contains
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
-    integer(ik)             :: irange(2),iterm
+    integer(ik)             :: irange(2),iterm,Nstates,iroot
     type(quantaT)           :: icontrvib_
     type(fieldT),pointer    :: field
+    integer                 :: vibstates(Nestates,Nomegas),vibmax_omega(Nestates,Nomegas)
     !
     !
     if (trim(solution_method)=="LOBATTO".or.grid%nsub == 6) then
       write(out,"('The LOBATTO is currently not working for the OMEGA representation')")
       stop 'The LOBATTO is currently not working for the OMEGA representation'
     endif
+    !
+    ! map the vbax limits to omegas from states
+    !
+    vibmax_omega = maxval(job%vibmax(:))
     !
     b_rot = aston/amass
     !
@@ -13969,7 +13904,7 @@ contains
            !
            if (ilevel/=jlevel) cycle
            !
-           vibmat(ielem,ielem) = vibmat(ielem,ielem) + field%gridvalue(igrid)
+           vibmat(ielem,ielem) = vibmat(ielem,ielem) + field%gridvalue(igrid)*sc
            !
          enddo
          !
@@ -13979,7 +13914,7 @@ contains
       !
       istate = Omega_grid(iomega)%basis(1)%istate
       !
-      if (job%vibmax(istate)>Ndimen/2) then
+      if (job%vibmax(istate)>0) then !Ndimen/2  
         !
         call lapack_syev(vibmat,vibener)
         !
@@ -14028,23 +13963,42 @@ contains
       !
       if (ilevel==1) zpe = vibener(1)
       !
-      ! write the pure vibrational energies and the corresponding eigenfunctions into global matrices
-      contracted(iomega)%vector(:,1:nroots) = vibmat(:,1:nroots)
-      contracted(iomega)%energy(1:nroots)   = vibener(1:nroots)
-      contrenergy(totalroots+1:totalroots+nroots) = vibener(1:nroots)
+      Nstates = Omega_grid(iomega)%Nstates
+      vibstates(:,:)  = 0
       !
-      !vibmat_rk = vibmat
+      iroot = 0 
+      ! select lowest vmax states for each term 
+      do i=1,nroots
+        !
+        imaxcontr = maxloc(vibmat(:,i)**2,dim=1,mask=vibmat(:,i)**2.ge.small_)
+        !
+        ilevel = ceiling(real(imaxcontr,rk)/real(ngrid,rk))
+        !
+        istate  = Omega_grid(iomega)%qn(ilevel)%istate
+        !
+        if ( vibstates(istate,iomega)<vibmax_omega(istate,iomega) ) then 
+          !
+          vibstates(istate,iomega) = vibstates(istate,iomega) + 1
+          !
+          iroot = iroot + 1 
+          !
+          ! write the pure vibrational energies and the corresponding eigenfunctions into global matrices
+          contracted(iomega)%vector(:,iroot) = vibmat(:,i)
+          contracted(iomega)%energy(iroot)   = vibener(i)
+          contrenergy(totalroots+iroot) = vibener(i)
+          !
+        endif
+        !
+      enddo
       !
-      !call schmidt_orthogonalization(ngrid,nroots,vibmat_rk)
-      !
-      !contrfunc_rk(:,totalroots+1:totalroots+nroots) = vibmat_rk(:,1:nroots)
+      nroots = iroot
       !
       ! assign the eigenstates with quanta
       do i=1,nroots
         !
         contracted(iomega)%ilevel(i) = totalroots+i
         !
-        imaxcontr = maxloc(vibmat(:,i)**2,dim=1,mask=vibmat(:,i)**2.ge.small_)
+        imaxcontr = maxloc(contracted(iomega)%vector(:,i)**2,dim=1,mask=contracted(iomega)%vector(:,i)**2.ge.small_)
         !
         ilevel = ceiling(real(imaxcontr,rk)/real(ngrid,rk))
         !
@@ -14258,7 +14212,6 @@ contains
       ivib    = icontr(i)%ivib
       ilevel  = icontr(i)%ilevel
       iroot    = icontr(i)%iroot
-      !
       istate  = icontr(i)%istate
       sigmai  = icontr(i)%sigma
       imulti  = icontr(i)%imulti
@@ -14279,14 +14232,14 @@ contains
         !
         jvib    = icontr(j)%ivib
         jlevel  = icontr(j)%ilevel
-        jroot    = icontr(i)%iroot
+        jroot   = icontr(j)%iroot
         jstate  = icontr(j)%istate
         sigmaj  = icontr(j)%sigma
         jmulti  = icontr(j)%imulti
         jlambda = icontr(j)%ilambda
         omegaj  = icontr(j)%omega
         spinj   = icontr(j)%spin
-        jlevel = icontr(j)%ilevel
+        jlevel  = icontr(j)%ilevel
         jomega  = icontr(j)%iomega
         omegaj  = icontr(j)%omega
         !
