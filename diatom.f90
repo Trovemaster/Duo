@@ -173,8 +173,8 @@ module diatom_module
     !
     !character(len=cl)    :: interpolation_type='QUINTICSPLINES'
     !
-    integer(ik)          :: iref         ! reference number of the term as given in input (bra in case of the coupling)
-    integer(ik)          :: jref         ! reference number of the coupling term as given in input (ket in case of the coupling)
+    integer(ik)          :: iref=0       ! reference number of the term as given in input (bra in case of the coupling)
+    integer(ik)          :: jref=0       ! reference number of the coupling term as given in input (ket in case of the coupling)
     integer(ik)          :: istate       ! the actual state number (bra in case of the coupling)
     integer(ik)          :: jstate       ! the actual state number (ket in case of the coupling)
     character(len=cl)    :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
@@ -4009,6 +4009,7 @@ contains
       !
       include_state = .false.
       loop_istate_nd : do istate=1,Nestates
+        if (iref==0.or.jref==0) exit loop_istate_nd
         do jstate=1,Nestates
           if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
             include_state = .true.
