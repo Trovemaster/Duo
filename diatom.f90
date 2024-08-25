@@ -13497,11 +13497,11 @@ contains
         !
       endif
       !
-      ! Print Spin S+ in Omega
+      ! Print Spin vector S = (S+,S-) in Omega
       !
       if (NSplus_omega>0) then
         !
-        write(out,'(/10x,a)') "S+ in the Omega representation"
+        write(out,'(/10x,a)') "S = (S+,S-) in the Omega representation"
         write(out,'(10x,a)') "#    Omega State Lambda Sigma <->Omega State Lambda Sigma"
 
         do iterm=1,NSplus_omega
