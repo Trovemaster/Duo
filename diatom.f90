@@ -11473,8 +11473,10 @@ contains
          deallocate(transform(1)%matrix,transform(2)%matrix)
       endif
       !
-      if (associated(transform(1)%U)) then
-         deallocate(transform(1)%U,transform(2)%U)
+      if (trim(job%contraction)=="OMEGA") then 
+        if (associated(transform(1)%U)) then
+           deallocate(transform(1)%U,transform(2)%U)
+        endif
       endif
       !
       if (associated(transform(1)%irec)) then
