@@ -2,6 +2,7 @@ module refinement
   !
   use accuracy
   use timer
+  !
   use functions,only : define_sub_terms_complex_analytic_field
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
@@ -65,7 +66,7 @@ module refinement
       real(rk)     :: stadev_old,stability,stadev,sum_sterr,conf_int
       real(rk)     :: ssq,rms,ssq1,ssq2,rms1,rms2,fit_factor
       real(rk)     :: a_wats = 1.0_rk,lambda = 0.01_rk,nu = 10.0_rk
-      integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max
+      integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max,NumSVD
       integer(ik)  :: iener,jener,irow,icolumn,ndigits,nrot,irot,irot_
       integer(ik)  :: enunit,abinitunit,i0,i1,iter_th,k0,frequnit
       integer(ik)  :: nlevels,NArmijo,ialpha_Armijo
@@ -1608,6 +1609,15 @@ module refinement
                  !
                  solution = bi ! *0.1
                  !
+              case ("SVD")
+                 !
+                 !call lapack_svd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 call lapack_sdd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 !
+                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
+                 !
+                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SVD roots = ',NumSVD,'tol = ',fitting%svd_tol
+                 !
                end select
                !
                ! convert back from Marquardt's representation
@@ -2386,5 +2396,235 @@ module refinement
           !
        end do
   end subroutine define_jlist
+
+  subroutine lapack_svd_pseudo_inverse(tol,h,Nkeep)
+
+    real(rk), intent(in)    :: tol 
+    real(rk), intent(inout) :: h(:,:)  ! In:  matrix
+    !                                          ! Out: pseudo-inverse matrix V Sigma- VT
+    integer(ik), intent(out)  :: Nkeep
+    character(len=1) :: jobu,jobvt,jobz
+    !
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:)
+    integer           :: info
+    integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
+    integer           :: lwork
+    double precision  :: tol_
+    double precision  :: alpha = 1.0d0,beta=0
+    !
+    jobu  = 'S'
+    jobvt = 'A'
+    jobz  = 'A'
+    !
+    nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
+    !
+    lwork = 50*nh1
+    !
+    select case (jobu)
+       case('A')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = nh1
+       case('S')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = min(nh1,nh2)
+    end select
+    !
+    select case (jobvt)
+       case('A')
+         LDVT = nh2
+         nvt1 = nh2
+         nvt2 = nh2
+       case('S')
+         LDVT = min(nh1,nh2)
+         nvt1 = min(nh1,nh2)
+         nvt2 = nh2
+    end select
+    !
+    allocate(work(lwork),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)    !
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(work),kind(work))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(u),kind(u))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(ut),kind(ut))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(vt),kind(vt))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(v),kind(v))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(s),kind(s))
+    !
+    call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,-1,info)
+    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,-1,info)
+    !
+    if (int(work(1))>size(work)) then
+      !
+      lwork = int(work(1))
+      !
+      deallocate(work)
+      !
+      allocate(work(lwork))
+      !
+    endif
+    !
+    call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,lwork,info)
+    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,lwork,info)
+    !
+    if (info/=0) then
+      write (6,"(' dgesvd returned ',i8)") info
+      stop 'lapack_dgesvd - dgesvd failed'
+    end if
+    !
+    ! pseudo-inverse 
+    !
+    Nkeep = 0
+    !
+    tol_  = tol*maxval(s,dim=1)
+    !
+    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
+    !
+    Nkeep = min(Nkeep,nh1)
+    !
+    ut = 0 
+    !
+    do  i = 1,nu1
+      do  j = 1,Nkeep
+         ut(j,i) = U(i,j)/s(j)
+      enddo
+    enddo
+    !
+    !v = transpose(vt)
+    u = transpose(ut)
+    !
+    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
+    !
+    !h = 0
+    !
+    !h = transpose(ut)
+    !
+    h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
+    !
+    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
+    !h = transpose(ut)
+    !
+    !call dgemm('T','N',nh1,nkeep,nh2,alpha,ut,nh2,vt,nh2,beta,h,nh1)
+    !
+    deallocate(work,u,vt,ut,v,s)
+    !
+    call ArrayStop('lapack_svd_pseudo_inverse')
+    !
+  end subroutine lapack_svd_pseudo_inverse
+
+
+
+  subroutine lapack_sdd_pseudo_inverse(tol,h,Nkeep)
+
+    real(rk), intent(in)    :: tol 
+    real(rk), intent(inout) :: h(:,:)  ! In:  matrix
+    !                                          ! Out: pseudo-inverse matrix V Sigma- VT
+    integer(ik), intent(out)  :: Nkeep
+    character(len=1) :: jobu,jobvt,jobz
+    !
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:),A(:,:)
+    integer,allocatable    :: iwork(:)
+    integer           :: info
+    integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
+    integer           :: lwork
+    double precision  :: tol_
+    double precision  :: alpha = 1.0d0,beta=0
+    !
+    jobu  = 'S'
+    jobvt = 'A'
+    jobz  = 'A'
+    !
+    nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
+    !
+    lwork = 50*nh1
+    !
+    select case (jobz)
+       case('A')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = nh1
+         LDVT = nh2
+         nvt1 = nh2
+         nvt2 = nh2
+       case('S')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = min(nh1,nh2)
+         LDVT = min(nh1,nh2)
+         nvt1 = min(nh1,nh2)
+         nvt2 = nh2
+    end select
+    !
+    allocate(A(nh1,nh2),stat=info)
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(A),kind(A))
+    !
+    A = h
+    !
+    allocate(work(lwork),iwork(8*min(nh1,nh2)),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(work),kind(work))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(u),kind(u))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(ut),kind(ut))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(vt),kind(vt))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(v),kind(v))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(s),kind(s))
+    !
+    call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,-1,iwork,info)
+    !
+    if (int(work(1))>size(work)) then
+      !
+      lwork = int(work(1))
+      !
+      deallocate(work)
+      !
+      allocate(work(lwork))
+      !
+    endif
+    !
+    call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,lwork,iwork,info)
+    !
+    if (info/=0) then
+      write (6,"(' dgesdd returned ',i8)") info
+      stop 'lapack_dgesdd - dgesvd failed'
+    end if
+    !
+    ! pseudo-inverse 
+    !
+    Nkeep = 0
+    !
+    tol_  = tol*maxval(s,dim=1)
+    !
+    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
+    !
+    Nkeep = min(Nkeep,nh1)
+    !
+    ut = 0 
+    !
+    do  i = 1,nu1
+      do  j = 1,Nkeep
+         ut(j,i) = U(i,j)/s(j)
+      enddo
+    enddo
+    !
+    !v = transpose(vt)
+    u = transpose(ut)
+    !
+    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
+    !
+    !h = 0
+    !
+    !h = transpose(ut)
+    !
+    h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
+    !
+    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
+    !h = transpose(ut)
+    !
+    !call dgemm('T','N',nh1,nkeep,nh2,alpha,ut,nh2,vt,nh2,beta,h,nh1)
+    !
+    deallocate(work,iwork,u,vt,ut,v,s,A)
+    !
+    call ArrayStop('lapack_sdd_pseudo_inverse')
+    !
+  end subroutine lapack_sdd_pseudo_inverse
+
   !
 end module refinement

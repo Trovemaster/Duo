@@ -475,6 +475,7 @@ module diatom_module
     real(rk)             :: threshold_coeff    = -1e-18
     real(rk)             :: threshold_lock     = -1e-18
     real(rk)             :: threshold_obs_calc  = -1e-16
+    real(rk)             :: svd_tol  = 0.1d0
     real(rk)             :: zpe=0
     logical              :: shift_to_zpe = .true.   !
     real(rk)             :: fit_scaling=1.0_rk         ! scaling the fitting correction with this factor >0 and <1
@@ -1333,7 +1334,7 @@ contains
             !
             call readf(fitting%target_rms)
             !
-          case('FIT_TYPE')
+          case('FIT_TYPE','FIT-TYPE')
             !
             call readu(fitting%fit_type)
             !
@@ -1345,6 +1346,10 @@ contains
             ! switch off weights for residuals larger than THRESH_OBS-CALC
             !
             call readf(fitting%threshold_obs_calc)
+            !
+          case('SVD-TOL')
+            !
+            call readf(fitting%svd_tol)
             !
           case("IPARAM")
             !
@@ -7716,7 +7721,7 @@ contains
       !call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
       !
       allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
-      call ArrayStart('icontrvib',alloc,size(icontrvib),kind(icontrvib))
+      call ArrayStart('icontrvib',alloc,size(icontrvib)*(14+5*2),kind(icontrvib))
       !
       call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contracted)
       !

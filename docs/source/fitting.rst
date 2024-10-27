@@ -11,7 +11,7 @@ Duo uses Gauss-Newton least-squares fitting supplemented with the Marquardt appr
 Optionally, this algorythm can be supplemented
 by a linear search via the keyword ``linear-search``. The associated system of linear equations
 is solved either using the LAPACK subroutine ``DGELSS`` or a home-made subroutine ``LINUR``
-as controlled by the keyword ``FIT_TYPE``.
+as controlled by the keyword ``FIT_TYPE`` (``FIT-TYPE``).
 
 Fitting is, by far, the trickiest part of Duo, both on the part of the
 program itself and on the part of the user. While the calculation of energy levels

@@ -492,7 +492,7 @@ module lapack
     integer          :: nh1, nh2
     integer          :: lwork
     !
-    if (verbose>=2) call TimerStart('lapack_dgesvd: diagonalization')
+    if (verbose>=2) call TimerStart('lapack_dgesvd')
     !
     jobu = 'O'
     !
@@ -531,7 +531,7 @@ module lapack
       stop 'lapack_dgesvd - dgesvd failed'
     end if
     !
-    if (verbose>=2) call TimerStop('lapack_dgesvd: diagonalization')
+    if (verbose>=2) call TimerStop('lapack_dgesvd')
     !
   end subroutine lapack_dgesvd
 
