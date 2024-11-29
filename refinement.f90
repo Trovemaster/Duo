@@ -1534,31 +1534,9 @@ module refinement
                   !
                enddo 
                !
-               ! Using Marquardt's fitting method
-               !
-               ! solve the linear equatins for two values of lambda and lambda/10
-               !
-               ! Defining scaled (with covariance) A and b
-               ! 
-               ! form A matrix 
-               do irow=1,numpar       
-                 do icolumn=1,irow    
-                   Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
-                   Am(icolumn,irow)=Am(irow,icolumn)
-                 enddo
-                 bm(irow) = bl(irow)/sqrt(al(irow,irow))
-               enddo
-               !
-               ! define shifted A as A =  A+lambda I
-               ! lambda is Marquard's scaling factor
-               !
-               do irow=1,numpar       
-                   Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
-               enddo
-               !
-               ! Two types of the linear solver are availible: 
-               ! 1. linur (integrated into the program, from Ulenikov Oleg)
-               ! 2. dgelss - Lapack routine (recommended).
+               ! We use two different approaches to Least squares fit Ax=b
+               ! 1. A(ij) = sum_k R(i,k) R(j,k), where R(i,k) = d Ei/d Ck and b(i) = sum_k R(i,k) [Eobs(i)-Ecalc(i)]
+               ! 2. A(i,j) = R(i,j) and b(i) = [Eobs(i)-Ecalc(i)] <= SVD
                !
                select case (trim(fitting%fit_type)) 
                !
@@ -1567,64 +1545,108 @@ module refinement
                  write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
                  stop 'fit_type unknown'
                  !
-               case('LINUR') 
-                 !
-                 call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
-                 !
-                 ! In case of dependent parameters  "linur" reports an error = ierror, 
-                 ! which is a number of the dependent parameter. We can remove this paramter 
-                 ! from the fit and set its value to zero. And start the iteration again. 
-                 !
-                 if (ierror.ne.0) then 
-                   do ncol=1,numpar 
-                      !
-                      if ( ncol.eq.ierror ) then 
-                          !
-                          iobject = fit_index(ncol)%iobject
-                          ifield = fit_index(ncol)%ifield
-                          iterm = fit_index(ncol)%iterm
-                          !
-                          objects(iobject,ifield)%field%weight(iterm) = 0
-                          objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
-                          !
-                          write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
-                          !
-                      endif 
-                      !
-                   enddo 
-                   !
-                   cycle outer_loop
-                  endif 
+               case('LINUR','DGELSS') 
                   !
-               case ('DGELSS')
+                  ! Using Marquardt's fitting method
+                  !
+                  ! solve the linear equatins for two values of lambda and lambda/10
+                  !
+                  ! Defining scaled (with covariance) A and b
+                  ! 
+                  ! form A matrix 
+                  do irow=1,numpar       
+                    do icolumn=1,irow    
+                      Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
+                      Am(icolumn,irow)=Am(irow,icolumn)
+                    enddo
+                    bm(irow) = bl(irow)/sqrt(al(irow,irow))
+                  enddo
+                  !
+                  ! define shifted A as A =  A+lambda I
+                  ! lambda is Marquard's scaling factor
+                  !
+                  do irow=1,numpar       
+                      Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
+                  enddo
+                  !
+                  ! Two types of the linear solver are availible: 
+                  ! 1. linur (integrated into the program, from Ulenikov Oleg)
+                  ! 2. dgelss - Lapack routine (recommended).
+                  !
+                  select case (trim(fitting%fit_type)) 
+                  !
+                  case default
+                    !
+                    write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
+                    stop 'fit_type unknown'
+                    !
+                  case('LINUR') 
+                    !
+                    call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
+                    !
+                    ! In case of dependent parameters  "linur" reports an error = ierror, 
+                    ! which is a number of the dependent parameter. We can remove this paramter 
+                    ! from the fit and set its value to zero. And start the iteration again. 
+                    !
+                    if (ierror.ne.0) then 
+                      do ncol=1,numpar 
+                         !
+                         if ( ncol.eq.ierror ) then 
+                             !
+                             iobject = fit_index(ncol)%iobject
+                             ifield = fit_index(ncol)%ifield
+                             iterm = fit_index(ncol)%iterm
+                             !
+                             objects(iobject,ifield)%field%weight(iterm) = 0
+                             objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                             !
+                             write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                             !
+                         endif 
+                         !
+                      enddo 
+                      !
+                      cycle outer_loop
+                     endif 
+                     !
+                  case ('DGELSS')
+                    !
+                    ai = am 
+                    bi = bm
+                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
+                    !
+                    if (info/=0) then
+                      write(out,"('dgelss:error',i0)") info
+                      stop 'dgelss'
+                    endif
+                    !
+                    solution = bi ! *0.1
+                    !
+                 end select 
                  !
-                 ai = am 
-                 bi = bm
-                 call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
+                 ! convert back from Marquardt's representation
                  !
-                 if (info/=0) then
-                   write(out,"('dgelss:error',i0)") info
-                   stop 'dgelss'
-                 endif
+                 do ncol=1,numpar
+                    solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
+                 enddo
                  !
-                 solution = bi ! *0.1
+               case ("SDD")
                  !
-              case ("SVD")
-                 !
-                 !call lapack_svd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
                  call lapack_sdd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 !
+                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
+                 !
+                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SDD roots = ',NumSVD,'tol = ',fitting%svd_tol
+                 !
+               case ("SVD")
+                 !
+                 call lapack_svd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
                  !
                  solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
                  !
                  if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SVD roots = ',NumSVD,'tol = ',fitting%svd_tol
                  !
                end select
-               !
-               ! convert back from Marquardt's representation
-               !
-               do ncol=1,numpar
-                  solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
-               enddo
                !
                ! Scale the correction if required 
                !
@@ -2483,10 +2505,8 @@ module refinement
     !
     ut = 0 
     !
-    do  i = 1,nu1
-      do  j = 1,Nkeep
-         ut(j,i) = U(i,j)/s(j)
-      enddo
+    do  j = 1,Nkeep
+       ut(j,:) = U(:,j)/s(j)
     enddo
     !
     !v = transpose(vt)
@@ -2498,12 +2518,12 @@ module refinement
     !
     !h = transpose(ut)
     !
-    h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
+    !h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
     !
     !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
     !h = transpose(ut)
     !
-    !call dgemm('T','N',nh1,nkeep,nh2,alpha,ut,nh2,vt,nh2,beta,h,nh1)
+    call dgemm('T','N',LDU,nvt2,Nkeep,alpha,ut,nu2,vt,LDVT,beta,h,nh1)
     !
     deallocate(work,u,vt,ut,v,s)
     !
