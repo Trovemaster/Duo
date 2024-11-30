@@ -1,7 +1,8 @@
 module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global
+ use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
+                          Dipole_omega_tot
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -142,56 +143,7 @@ contains
     !
     case('ABSORPTION', 'EMISSION', 'TM')
        !
-       ! read contraction indexes (icase,ilambda) for all J specified
-       !
-       !call read_contrind(nJ, Jval(1:nJ))
-       !
-       !if (allocated(bset_contr)) deallocate(bset_contr)
-       !allocate(bset_contr(0:njval), stat = info)
-       !if (info /= 0) stop 'read_contr_ind allocation error: bset_contr - out of memory'
-       !
-       !bset_contr(0)%Ndimen = Ntotalvib
-       !bset_contr(0)%Ntotal = Ntotalvib
-       !
-       !allocate(bset_contr(0)%icontr(Ntotalvib),stat = info)
-       !call ArrayStart('bset_contr',info,1,4)
-       !
-       !do iJ = 1,nJ
-       !  !
-       !  !bset_contr(iJ)%jval = jval(iJ)
-       !  !
-       !  Jrot = Jval(iJ)
-       !  !
-       !  ! CHECK SIZE OF ICONTR AND ALLOCATE IT???
-       !  !
-       !  Ndimen = eigen(iJ)%Ndimen
-       !  Nlevels = eigen(iJ)%Nlevels
-       !  !
-       !  !allocate(bset_contr(iJ)%icontr(Ndimen),stat = info)
-       !  !call ArrayStart('bset_contr',info,1,4)
-       !  !
-       !  !call check_point_eigenvectors('READ',iverbose,Jrot,Ntotal,bset_contr(iJ)%icontr)
-       !  bset_contr(iJ)%Nlevels = Ntotal
-       !  !
-       !enddo
-       !
-       ! find correlation between indexes for J = 0 and J > 0
-       ! We need this because the contracted matrix elements of the 
-       ! dipole moment are computed on the J=0 conatracted basis functions. 
-       ! When J/=0 the numbering (bookkeeping) of these basis set has changed and
-       ! we need to find the correlation between the bookkeepings.  
-       !
-       !call index_correlation(nJ, Jval(1:nJ))
-       !
-       ! read eigenvalues and their labeling, i.e. description;
-       ! initialize file-units for reading eigenvectors
-       !
        call Sort_levels(iverbose,nJ, Jval(1:nJ))
-       !
-       !restore vibrational contracted matrix elements
-       !for all  dipole moment vector components
-       !
-       !call check_point_dipoles('READ',iverbose,totalroots)
        !
        ! Run intensity simulations 
        !
@@ -236,8 +188,6 @@ contains
        !
        write(out, '(/a)') 'done'
        !
-    !compute partition function
-    !
     case('PARTFUNC')
        !
        write(out, '(/a)') 'compute partition function'
@@ -1145,11 +1095,23 @@ contains
                   !
                   if (( intensity%J(1)+intensity%J(2)>0 )&
                       .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
-                     !
-                     call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                   vecI(1:dimenI),&
-                                                   half_linestr)
-                     !
+
+                    !
+                    select case (job%contraction)
+                      !
+                    case ("VIB")
+                       !
+                       call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
+                                                     vecI(1:dimenI),&
+                                                     half_linestr)
+                      !
+                    case ("OMEGA")
+                       !
+                       call do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,&
+                                                      vecI(1:dimenI),&
+                                                      half_linestr)
+                    end select 
+                    !
                   endif 
                   !
                 case('TM')
@@ -2168,6 +2130,63 @@ contains
             !
       end subroutine do_1st_half_linestrength
 
+
+
+      subroutine do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
+
+        real(rk),intent(in)     :: jI,jF
+        integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
+        real(rk),intent(in)     :: vector(:)
+        real(rk),intent(out)    :: half_ls(:)
+        integer(ik)             :: icontrF,icontrI,ivibF,ivibI
+        integer(ik)             :: iomegaI_,iomegaI,iomegaF
+        real(rk)                :: ls, f3j, omegaI,omegaF
+        real(rk)                :: f_t
+        type(fieldT),pointer    :: field
+          !
+          !dms_tmp = dipole_me
+          !
+          call TimerStart('do_1st_half_linestr')
+          !
+          half_ls    = 0
+          !
+          !loop over final state basis components
+          !
+          !$omp parallel do private(icontrF,ivibF,omegaF,iomegaF,icontrI,ivibI,omegaI,iomegaI,iomegaI_,f3j,ls,f_t)&
+          !$omp &  shared(half_ls) schedule(guided)
+          loop_F : do icontrF = 1, dimenF
+               !
+               ivibF = basis(indF)%icontr(icontrF)%ivib
+               omegaF = basis(indF)%icontr(icontrF)%omega
+               iomegaF = basis(indF)%icontr(icontrF)%iomega
+               !
+               loop_I : do icontrI = 1, dimenI
+                  !
+                  ivibI   = basis(indI)%icontr(icontrI)%ivib
+                  omegaI  = basis(indI)%icontr(icontrI)%omega
+                  iomegaI = basis(indI)%icontr(icontrI)%iomega
+                  !
+                  if (abs(nint(omegaF - omegaI))>1) cycle loop_I
+                  !
+                  iomegaI_ = int(omegaI)
+                  if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
+                  !
+                  f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  !
+                  f_t = Dipole_omega_tot(iomegaI,iomegaF)%matelem(ivibI,ivibF)
+                  !
+                  ls  =  f_t*f3j*vector(icontrI)
+                  !
+                  half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                  !
+               end do  loop_I
+               !
+            end do   loop_F
+            !$omp end parallel do
+            !
+            call TimerStop('do_1st_half_linestr')
+            !
+      end subroutine do_1st_half_linestrength_omega
 
       subroutine do_1st_half_tm(indI,indF,dimenI,dimenF,vector,half_tm)
 
