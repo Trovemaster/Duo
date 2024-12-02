@@ -7146,7 +7146,6 @@ contains
     type(quantaT),allocatable :: icontrvib(:),icontr(:)
     real(rk),allocatable    :: psi_vib(:),vec_t(:),vec0(:)
     integer(ik),allocatable :: ilambdasigmas_v_icontr(:,:)
-    character(len=250),allocatable :: printout(:)
     double precision,parameter :: alpha = 1.0d0,beta=0.0d0
     type(matrixT)              :: transform(2)
     type(fieldT),pointer       :: field,field_
@@ -7654,10 +7653,6 @@ contains
         !
         do i = 1,NDipole_omega
           Dipole_omega_obj(i)%type = "grid"
-
-              !write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
-          
-          
           Dipole_omega_obj(i)%name = "Dipole Omega obj"
           allocate(Dipole_omega_obj(i)%gridvalue(ngrid),stat=alloc)
           call ArrayStart("NAC Omega obj",alloc,ngrid,kind(Dipole_omega_obj(i)%gridvalue))
@@ -9124,8 +9119,7 @@ contains
         !
         ! allocate the book keeping array to manage the mapping between
         ! the running index i and the vibrational ivib and lamda-sigma ilevel quantum numbers
-        allocate(icontr(Ntotal),printout(Nlambdasigmas),stat=alloc)
-        printout = ''
+        allocate(icontr(Ntotal),stat=alloc)
         !
         allocate(ilambdasigmas_v_icontr(totalroots,Nlambdasigmas),stat=alloc)
         call ArrayStart('ilambdasigmas_v_icontr',alloc,size(ilambdasigmas_v_icontr),kind(ilambdasigmas_v_icontr))
@@ -9225,8 +9219,8 @@ contains
         allocate(hmat(Ntotal,Ntotal),stat=alloc)
         call ArrayStart('hmat',alloc,size(hmat),kind(hmat))
         !
-        call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nomega_states,&
-                                                                           Nlambdasigmas,sc,icontr,contrenergy,kinmat,hmat)
+        call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,&
+                                                                           Nlambdasigmas,sc,icontr,contrenergy,hmat)
         !
         ! Transformation to the symmetrized basis set
         !
@@ -9769,6 +9763,7 @@ contains
               basis(irot)%icontr(i)%omega  = real(icontr(i)%ilambda,rk)+icontr(i)%sigma
               basis(irot)%icontr(i)%ivib   = icontr(i)%ivib
               basis(irot)%icontr(i)%v   = icontr(i)%v
+              basis(irot)%icontr(i)%iroot = icontr(i)%iroot
               !
             enddo
             !
@@ -9826,7 +9821,7 @@ contains
                 !
                 do k=1,Ntotal
                   !
-                  vec(k) = sum(transform(ipar)%U(1:Nsym(irrep),k)*hsym(1:Nsym(irrep),i))
+                  vec(k) = sum(transform(irrep)%U(1:Nsym(irrep),k)*hsym(1:Nsym(irrep),i))
                   !
                 enddo
                 !
@@ -10317,8 +10312,6 @@ contains
       deallocate(hmat)
       call ArrayStop('hmat')
       !
-      if (allocated(printout)) deallocate(printout)
-      !
       deallocate(icontr)
       !
       if (allocated(ilambdasigmas_v_icontr)) then
@@ -10390,15 +10383,15 @@ contains
 
   
 
-  subroutine Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nomega_states,Nlambdasigmas,&
-                                                                           sc,icontr,contrenergy,kinmat,hmat)
+  subroutine Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
+                                                                           sc,icontr,contrenergy,hmat)
     !
     implicit none
     !
-    integer(ik),intent(in)   :: iverbose,ngrid,Ntotal,Nomega_states,Nlambdasigmas
+    integer(ik),intent(in)   :: iverbose,ngrid,Ntotal,Nlambdasigmas
     real(rk),intent(in)      :: sc,jval
     type(quantaT),intent(in) :: icontr(Ntotal)
-    real(rk),intent(in)      :: contrenergy(ngrid*Nestates),kinmat(ngrid,ngrid)
+    real(rk),intent(in)      :: contrenergy(ngrid*Nestates)
     real(rk),intent(out)     :: hmat(Ntotal,Ntotal)
     
     integer(ik) ::i,ivib,ilevel,istate,imulti,ilambda,v_i,j,jvib,jlevel,jstate,jmulti,jlambda,v_j
@@ -10414,7 +10407,7 @@ contains
     type(fieldT),pointer  :: field
 
     !    
-    allocate(printout(Nomega_states),stat=alloc) ; if (alloc/=0) stop 'cannot allocate printout'
+    allocate(printout(Nlambdasigmas),stat=alloc) ; if (alloc/=0) stop 'cannot allocate printout'
     printout = ''
     !
     if (iverbose>=4) call MemoryReport
@@ -10488,7 +10481,6 @@ contains
             !
             stop 'NONE,RAW are beeing deactivated'
             !
-            hmat(i,j) = hmat(i,j) + kinmat(v_i+1,v_j+1)
           end select
           !
         endif
@@ -11646,7 +11638,7 @@ contains
       !
       ivib    = icontr(i)%ivib
       ilevel  = icontr(i)%ilevel
-      iroot    = icontr(i)%iroot
+      iroot   = icontr(i)%iroot
       istate  = icontr(i)%istate
       sigmai  = icontr(i)%sigma
       imulti  = icontr(i)%imulti

@@ -2138,7 +2138,7 @@ contains
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
         real(rk),intent(out)    :: half_ls(:)
-        integer(ik)             :: icontrF,icontrI,ivibF,ivibI
+        integer(ik)             :: icontrF,icontrI,irootF,irootI
         integer(ik)             :: iomegaI_,iomegaI,iomegaF
         real(rk)                :: ls, f3j, omegaI,omegaF
         real(rk)                :: f_t
@@ -2152,17 +2152,17 @@ contains
           !
           !loop over final state basis components
           !
-          !$omp parallel do private(icontrF,ivibF,omegaF,iomegaF,icontrI,ivibI,omegaI,iomegaI,iomegaI_,f3j,ls,f_t)&
+          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,icontrI,irootI,omegaI,iomegaI,iomegaI_,f3j,ls,f_t)&
           !$omp &  shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
-               ivibF = basis(indF)%icontr(icontrF)%ivib
+               irootF = basis(indF)%icontr(icontrF)%iroot
                omegaF = basis(indF)%icontr(icontrF)%omega
                iomegaF = basis(indF)%icontr(icontrF)%iomega
                !
                loop_I : do icontrI = 1, dimenI
                   !
-                  ivibI   = basis(indI)%icontr(icontrI)%ivib
+                  irootI = basis(indI)%icontr(icontrI)%iroot
                   omegaI  = basis(indI)%icontr(icontrI)%omega
                   iomegaI = basis(indI)%icontr(icontrI)%iomega
                   !
@@ -2173,7 +2173,7 @@ contains
                   !
                   f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
                   !
-                  f_t = Dipole_omega_tot(iomegaI,iomegaF)%matelem(ivibI,ivibF)
+                  f_t = Dipole_omega_tot(iomegaI,iomegaF)%matelem(irootI,irootF)
                   !
                   ls  =  f_t*f3j*vector(icontrI)
                   !
