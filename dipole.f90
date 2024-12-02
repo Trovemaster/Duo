@@ -2166,6 +2166,10 @@ contains
                   omegaI  = basis(indI)%icontr(icontrI)%omega
                   iomegaI = basis(indI)%icontr(icontrI)%iomega
                   !
+                  ! Here Nterms is used as dimension of Dipole_omega_tot(iomegaI,iomegaF)%matelem. 
+                  ! if it is zero, the term does not exist and needs to be omitted 
+                  if (Dipole_omega_tot(iomegaI,iomegaF)%Nterms==0) cycle loop_I
+                  !
                   if (abs(nint(omegaF - omegaI))>1) cycle loop_I
                   !
                   iomegaI_ = int(omegaI)

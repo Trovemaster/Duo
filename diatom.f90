@@ -7664,6 +7664,8 @@ contains
         allocate(Dipole_omega_tot(Nomegas,Nomegas),stat=alloc)
         if (alloc/=0) stop 'Dipole_omega_tot cannot be allocated'
         !
+        Dipole_omega_tot(:,:)%Nterms = 0
+        !
       endif            
       !
       ! Diagonalise the PECs+SOCs+couplings and transform all other curves to the Omega representation
@@ -7895,6 +7897,7 @@ contains
             call ArrayStart(field%name,alloc,size(field_%matelem),kind(field_%matelem))
             !
             field_%matelem = 0
+            field_%Nterms = totalroots
             !
           endif
           !
@@ -9161,6 +9164,9 @@ contains
             icontr(i)%ilambda = ilambda
             icontr(i)%omega = omega
             icontr(i)%spin = spini
+            ! iomega is introduced for consistance with the omega representation where it is important 
+            icontr(i)%iomega = int(omega) 
+            if (mod(nint(2.0_rk*omega+1.0_rk),2)==0 ) icontr(i)%iomega = nint((2.0_rk*omega-1.0_rk)*0.5_rk)
             !
             ilambdasigmas_v_icontr(ivib,ilevel) = i
             !
@@ -9454,13 +9460,13 @@ contains
                         sigmai = icontr(i)%sigma
                         ilambda = icontr(i)%ilambda
                         spini = icontr(i)%spin
-                        omegai = real(ilambda,rk)+sigmai
+                        omegai  = icontr(i)%omega
                         ivib    = icontr(i)%v
                         !
                         jstate  = icontr(j)%istate
                         sigmaj  = icontr(j)%sigma
                         jlambda = icontr(j)%ilambda
-                        omegaj  = real(jlambda,rk)+sigmaj
+                        omegaj  = icontr(j)%omega
                         spinj   = icontr(j)%spin
                         jvib    = icontr(j)%v
                         !
@@ -9760,7 +9766,8 @@ contains
               basis(irot)%icontr(i)%sigma  = icontr(i)%sigma
               basis(irot)%icontr(i)%ilambda= icontr(i)%ilambda
               basis(irot)%icontr(i)%spin   = icontr(i)%spin
-              basis(irot)%icontr(i)%omega  = real(icontr(i)%ilambda,rk)+icontr(i)%sigma
+              basis(irot)%icontr(i)%omega  = icontr(i)%omega  !real(icontr(i)%ilambda,rk)+icontr(i)%sigma
+              basis(irot)%icontr(i)%iomega = icontr(i)%iomega 
               basis(irot)%icontr(i)%ivib   = icontr(i)%ivib
               basis(irot)%icontr(i)%v   = icontr(i)%v
               basis(irot)%icontr(i)%iroot = icontr(i)%iroot
@@ -11725,15 +11732,9 @@ contains
         !
         if (nint(omegai-omegaj)==0.and.NBob_omega>0) then
           !
-          !do ibobrot = 1,NBob_omega
-            !
-            field => Bob_omega_tot(iomega)
-            !
-            !omegai_ = field%omegai
-            !ilevel_ = field%ilevel
-            !jlevel_ = field%jlevel
-            !
-            !if ( ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+          field => Bob_omega_tot(iomega)
+          !
+          if (field%Nterms/=0) then
             !
             f_rot = field%matelem(iroot,jroot)
             !
@@ -11742,27 +11743,16 @@ contains
             hmat(i,j) = hmat(i,j) + erot
             hmat(j,i) = hmat(i,j)  
             !
-          !enddo
+          endif
           !
         endif
         !
         ! J*S part (S-uncoupling)
         !
         if (abs(nint(omegaj-omegai))==1.and.NSplus_omega>0) then
+          field => S_omega_tot(iomega,jomega)
           !
-          !do iSplus_omega_ = 1,NSplus_omega
-            !
-            field => S_omega_tot(iomega,jomega)
-            !
-            !omegai_ = field%omegai
-            !omegaj_ = field%omegaj
-            !
-            !ilevel_ = field%ilevel
-            !jlevel_ = field%jlevel
-            !
-            !if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
-            !
-            !if( nint( omegai_-omegai )/=0 .or.nint( omegaj_-omegaj )/=0 ) cycle
+          if (field%Nterms/=0) then
             !
             f_t = 0
             !
@@ -11783,7 +11773,7 @@ contains
               endif
             endif
             !
-          !enddo
+          endif
           !
         endif
         !
@@ -11793,9 +11783,9 @@ contains
         !
         if (abs(nint(omegaj-omegai))==1.and.NLplus_omega>0) then
           !
-          !loop_iLomega : do iLplus_omega_ =1,NLplus_omega
-            !
-            field => L_omega_tot(iomega,jomega)
+          field => L_omega_tot(iomega,jomega)
+          !
+          if (field%Nterms/=0) then
             !
             omegai_ = field%omegai
             omegaj_ = field%omegaj
@@ -11844,7 +11834,7 @@ contains
               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
             endif
             !
-          !enddo loop_iLomega
+          endif
           !
         endif
         !
@@ -11856,9 +11846,9 @@ contains
           !
           ! Non-diagonal spin-rotaion term
           !
-          !do iSR_omega_ = 1,NSR_omega
-            !
-            field => SR_omega_tot(iomega,jomega)
+          field => SR_omega_tot(iomega,jomega)
+          !
+          if (field%Nterms/=0) then
             !
             omegai_ = field%omegai
             omegaj_ = field%omegaj
@@ -11903,7 +11893,7 @@ contains
               endif
             endif
             !
-          !enddo
+          endif
           !
         endif
         !
@@ -11912,6 +11902,8 @@ contains
         if (abs(nint(omegaj-omegai))==1) then
           !
           loop_p2q_omega : do ip2q_omega_ =1,Np2q_omega
+            !
+            stop 'p2q not implemented'
             !
             field => p2q_omega_obj(ip2q_omega_)
             !
@@ -11957,6 +11949,8 @@ contains
         if (abs(nint(omegaj-omegai))==2) then
           !
           do iq_omega_ = 1,Nq_omega
+            !
+            stop 'iq not implemented'
             !
             field => q_omega_obj(iq_omega_)
             !
