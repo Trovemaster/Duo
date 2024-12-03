@@ -97,9 +97,9 @@ module me_numer
    !
    integer,parameter :: NEND = 500,mxfs=5,mxprm=6,mxfsp=16001,mxisp=16001
    !
-   real(rk) ::  BFCT,EFN,OVR,OVRCRT,RH,RMIN,VLIM
-   integer(ik) :: ifs,IWR,JP,OTMF,TMFTYP(mxfs)
-   real(rk) :: DER(0:mxprm-1),PSI(NEND),TMFPRM(0:mxprm-1,mxfs),VJ(mxfsp),z(mxisp)
+   real(rk) ::  BFCT,EFN,VLIM
+   integer(ik) :: OTMF,TMFTYP(mxfs)
+   real(rk) :: DER(0:mxprm-1),PSI(NEND),VJ(mxfsp)
    
    
     !
@@ -1055,7 +1055,7 @@ module me_numer
 
      real(rk) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff
      integer(ik) :: niter,ic,istart,i,id,i0_,jt,i1,i2
-     real(rk) :: G1,G0,DI,SG0,SG1,SI,VV,Y1,Y2,S0,GI,SGI
+     real(rk) :: G1,G0,DI,SG0,SI,VV,Y1,Y2,S0,GI,SGI
      !
      !y(i)=(1.0_rk-hh*(pot_eff(i)-i0(i)*eguess)/12.0_rk)*phi_f(i)
      !

@@ -590,7 +590,7 @@ contains
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,il2=0,ilxly=0,iabi=0,idip=0,iss=0,isso=0,isr=0,idiab=0,iquad=0,imagnetic=0
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,ilxly=0,iabi=0,idip=0,isr=0,idiab=0,iquad=0,imagnetic=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
                     iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
@@ -7123,20 +7123,17 @@ contains
     real(rk)                :: scale,sigma,omega,omegai,omegaj,spini,spinj,sigmaj,sigmai,jval
     integer(ik)             :: alloc,Ntotal,nmax,iterm,Nlambdasigmas,iverbose
     integer(ik)             :: ngrid,j,i,igrid
-    integer(ik)             :: ilevel,mlevel,istate,imulti,jmulti,ilambda,jlambda,iso,jstate,jlevel,iobject
-    integer(ik)             :: mterm,Nroots,tau_lambdai,irot,ilxly,itau,isigmav,isigmav_max
-    integer(ik)             :: ilambda_,jlambda_,ilambda_we,jlambda_we,iL2,iss,isso,ibobrot,idiab,totalroots,ivib,jvib,v,inac
-    integer(ik)             :: ipermute,istate_,jstate_,nener_total
-    real(rk)                :: sigmai_,sigmaj_,f_l2,zpe,spini_,spinj_,omegai_,omegaj_,f_ss,f_bobrot,f_diabatic,f_nac
+    integer(ik)             :: ilevel,mlevel,istate,imulti,ilambda,jlambda,jstate,jlevel,iobject
+    integer(ik)             :: mterm,Nroots,tau_lambdai,irot,itau,isigmav_max
+    integer(ik)             :: ilambda_,iL2,totalroots,ivib,jvib,v
+    integer(ik)             :: istate_,nener_total
+    real(rk)                :: f_l2,zpe,omegai_,omegaj_
     real(rk)                :: sc, h12,f_rot,b_rot,epot,erot
-    real(rk)                :: f_t,f_grid,energy_,f_s,f_l,psipsi_t,f_sr
-    real(rk)                :: three_j_ref, three_j_,q_we, sigmai_we, sigmaj_we, SO,f_s1,f_s2,f_lo,f_o2,f_o1
-    integer(ik)             :: isigma2
+    real(rk)                :: energy_,psipsi_t
     character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
-    character(cl)           :: printout_
     real(rk)                :: vrange(2),veci(2,2),vecj(2,2),pmat(2,2),smat(2,2),maxcontr
     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,ipower,ipar,i1,i2
-    integer(ik)             :: total_roots,irrep,jrrep,isr,ild
+    integer(ik)             :: total_roots,irrep,jrrep
     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
     real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatnac(:,:)
     real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
@@ -7151,7 +7148,7 @@ contains
     type(fieldT),pointer       :: field,field_
     !
     real(ark),allocatable      :: psipsi_ark(:)
-    real(rk),allocatable       :: psipsi(:)
+    !real(rk),allocatable       :: psipsi(:)
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
     character(len=cl)          :: filename,ioname
@@ -7163,7 +7160,7 @@ contains
     ! Lambda-Sigma-> State-Omega contraction
     integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
     integer(ik) :: Nlambdasigmas_max
-    integer(ik) :: Nspins,Ndimen,jomega,v_i,v_j
+    integer(ik) :: Nspins,Ndimen,jomega
     real(rk)    :: omega_min,omega_max,spin_min
     logical     :: bound_state = .true.,check_symmetry=.false.
     !
@@ -7721,7 +7718,7 @@ contains
       !call ArrayStart('contrfunc',alloc,size(contrfunc),kind(contrfunc))
       !
       allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
-      call ArrayStart('icontrvib',alloc,size(icontrvib)*(14+5*2),kind(icontrvib))
+      call ArrayStart('icontrvib',alloc,size(icontrvib)*(14+5*2),kind(iomega))
       !
       call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contracted)
       !
@@ -9019,10 +9016,10 @@ contains
         do isym = 1,2
           do jsym=isym,2
             !
-            Hsym_(1:Nsym(isym),1:Nsym(jsym)) = matmul( transform(isym)%U,transpose(transform(jsym)%U) )
+            Hsym_(1:Nsym(isym),1:Nsym(jsym)) = matmul( transform(isym)%U(1:Nsym(isym),:),transpose(transform(jsym)%U(1:Nsym(jsym),:)) )
             !
-            do i1 = 1,Nsym(1)
-               do i2 =1,Nsym(2)
+            do i1 = 1,Nsym(isym)
+               do i2 =1,Nsym(jsym)
                   !
                   check_symmetry = .false.
                   if (isym==jsym.and.i1==i2) then 
@@ -9032,7 +9029,7 @@ contains
                   endif
                   ! 
                   if (check_symmetry) then
-                     write(out,"('Error-Omega: wrong unitary elements of UxU^+',24i5,f18.8)") isym,jsym,i1,i2,Hsym_(i1,i2)
+                     write(out,"('Error-Omega: wrong unitary elements of UxU^+',4i5,f18.8)") isym,jsym,i1,i2,Hsym_(i1,i2)
                      !
                      write(out,"('  Omegas = ',2f5.1)") icontr(i1)%omega,icontr(i2)%omega
                      write(out,"('  v = ',2i5)") icontr(i1)%v,icontr(i2)%v
@@ -9769,7 +9766,7 @@ contains
               basis(irot)%icontr(i)%omega  = icontr(i)%omega  !real(icontr(i)%ilambda,rk)+icontr(i)%sigma
               basis(irot)%icontr(i)%iomega = icontr(i)%iomega 
               basis(irot)%icontr(i)%ivib   = icontr(i)%ivib
-              basis(irot)%icontr(i)%v   = icontr(i)%v
+              basis(irot)%icontr(i)%v      = icontr(i)%v
               basis(irot)%icontr(i)%iroot = icontr(i)%iroot
               !
             enddo
@@ -11621,9 +11618,9 @@ contains
     real(rk),intent(out)     :: hmat(Ntotal,Ntotal)
     !
     integer(ik) :: i,j,ivib,ilevel,jlevel,istate,jstate,ilambda,jlambda,imulti,jmulti,iomega,jomega,jvib,alloc
-    integer(ik) :: iSplus_omega_,iLplus_omega_,iSR_omega_,isigmav,ilevel_,jlevel_,ibobrot,ip2q_omega_,iq_omega_
-    integer(ik) :: ibrot_omega,iNAC,idiab,iroot,jroot
-    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo,f_nac
+    integer(ik) :: iLplus_omega_,isigmav,ilevel_,jlevel_,ip2q_omega_,iq_omega_
+    integer(ik) :: iroot,jroot
+    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
     type(fieldT),pointer  :: field
@@ -11637,8 +11634,8 @@ contains
     !
     if (iverbose>=3) write(out,'(/"Construct the hamiltonian matrix")')
     !
-    !omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,jvib,jlevel,jstate,sigmaj,  &
-    !                        jmulti,jlambda,omegaj,spinj,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute, &
+    !omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,iomega,jvib,jlevel,jstate,sigmaj,  &
+    !                        jmulti,jlambda,omegaj,spinj,jomega,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute, &
     !                        istate_,ilambda_,sigmai_,spini_,jstate_,jlambda_,sigmaj_,spinj_,isigmav,omegai_,    &
     !                        omegaj_,itau,ilxly,f_grid,f_l,f_ss) shared(hmat) schedule(guided)
     do i = 1,Ntotal
@@ -11652,9 +11649,7 @@ contains
       ilambda = icontr(i)%ilambda
       omegai  = icontr(i)%omega
       spini   = icontr(i)%spin
-      ilevel  = icontr(i)%ilevel
       iomega  = icontr(i)%iomega
-      omegai  = icontr(i)%omega
       !
       ! the diagonal contribution is the energy from the contracted vibrational solution
       !
@@ -11673,9 +11668,7 @@ contains
         jlambda = icontr(j)%ilambda
         omegaj  = icontr(j)%omega
         spinj   = icontr(j)%spin
-        jlevel  = icontr(j)%ilevel
         jomega  = icontr(j)%iomega
-        omegaj  = icontr(j)%omega
         !
         ! the centrifugal factor will be needed for different terms
         ! BRot centrifugal (rotational) term, i.e. a correction to f_rot
@@ -12209,15 +12202,15 @@ contains
     real(rk),intent(in)    :: sc
     !
     integer(ik) :: omega_min,omega_max,iomega,jomega
-    integer(ik) :: igrid,jgrid,istate,jstate,imulti,jmulti,ilambda,jlambda,iL2,ieq,ispin,nspins
+    integer(ik) :: igrid,istate,jstate,imulti,jmulti,ilambda,jlambda,iL2,ieq,nspins
     integer(ik) :: i,j,k,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
-    integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iKin_omega_,iBRot_omega_
-    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole,iKin
+    integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iBRot_omega_
+    integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole
     !
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
-    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m,cross_prod,factor
+    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
     !
     type(fieldT),pointer      :: field
     !
@@ -14231,10 +14224,10 @@ contains
     type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
     real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
     !
-    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1,iKin,ilevel_,jlevel_
+    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
     integer(ik) :: Ndimen,ielem,jelem,imaxcontr
     real(rk)    :: omega,b_rot,epot,zpe,energy_,omegai,omegaj
-    real(rk)    :: psipsi_t,omegai_,energy_j,f_nac
+    real(rk)    :: psipsi_t,energy_j,f_nac
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
@@ -15306,12 +15299,9 @@ contains
     integer(ik),intent(inout) :: NNAC_omega
     !
     logical,intent(in) :: onlycount
-    integer(ik)  :: iKin
-    integer(ik)  :: i,j,istate_,jstate_,iKin_
-    real(rk)     :: spini_,spinj_,omegai
-    real(rk)     :: sigmai
-    integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
-    type(fieldT),pointer       :: field
+    integer(ik)  :: i,j
+    real(rk)     :: omegai
+    integer(ik)  :: iomega,N_i
     !
     NNAC_omega = 0
     !
@@ -15379,12 +15369,9 @@ contains
     integer(ik),intent(inout) :: NDiab_omega
     !
     logical,intent(in) :: onlycount
-    integer(ik)  :: iKin
-    integer(ik)  :: i,j,istate_,jstate_,iKin_
-    real(rk)     :: spini_,spinj_,omegai
-    real(rk)     :: sigmai
-    integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
-    type(fieldT),pointer       :: field
+    integer(ik)  :: i
+    real(rk)     :: omegai
+    integer(ik)  :: iomega,N_i
     !
     NDiab_omega = 0
     !
@@ -15449,7 +15436,7 @@ contains
     !
     logical,intent(in) :: onlycount
     integer(ik)  :: iDipole
-    integer(ik)  :: i,j,istate_,jstate_,iDipole_
+    integer(ik)  :: i,j,istate_,jstate_
     real(rk)     :: spini_,spinj_,omegai,omegaj
     real(rk)     :: sigmai,sigmaj
     integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,jsigmav
@@ -15560,12 +15547,9 @@ contains
     integer(ik),intent(inout) :: NBrot_omega
     !
     logical,intent(in) :: onlycount
-    integer(ik)  :: iKin
-    integer(ik)  :: i,j,istate_,jstate_,iKin_
-    real(rk)     :: spini_,spinj_,omegai
-    real(rk)     :: sigmai
-    integer(ik)  :: ilambda_,jlambda_,iomega,N_i,isigmav
-    type(fieldT),pointer       :: field
+    integer(ik)  :: i,j
+    real(rk)     :: omegai
+    integer(ik)  :: iomega,N_i
     !
     NBrot_omega = 0
     !

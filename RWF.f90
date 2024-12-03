@@ -1007,7 +1007,7 @@ contains
     integer(ik)    :: ilevelI, ilevelF,ilevelR
     integer(ik)    :: nlevelsG(sym%Nrepresen)
     integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
-    integer(ik)    :: igammaI,igammaF
+    integer(ik)    :: igammaI
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI
     real(rk)       :: energyI
     real(rk)       :: jI,jF
@@ -1018,7 +1018,7 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower
+    integer(ik)  :: iroot,NlevelsI,NlevelsF
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,ivibI,ivI,ilambdaI
     integer(ik)  :: ngrid
@@ -1048,7 +1048,7 @@ contains
     !
     real(rk),allocatable :: kinmat(:,:),hmat(:,:),dipole_mat(:,:),hmat_n(:,:,:),kinmat1(:,:)
     !
-    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nsym(2),Nvib_l
+    integer(ik) :: istate,imulti,ilambda,igrid,j,jvib,jlevel,jstate,jmulti,jlambda,Nvib_l
     real(rk) :: sigma,omega,f_rot,sigmaj,spinj,omegaj,erot
     type(quantaT),allocatable :: icontr(:)
     integer(ik),allocatable :: Nirr(:,:),ilevel2i(:,:)

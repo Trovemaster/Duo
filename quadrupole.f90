@@ -1490,14 +1490,11 @@ contains
     ! calculation variables
     real(rk)                :: f3j, vibME, ls
     integer(ik)             :: itau
-
-    ! quadrupole field
-    type(fieldT), pointer   :: field
-
+    !
     call TimerStart('do_1st_half_linestr')
-
+    !
     half_ls = 0
-
+    !
     !$omp parallel do private(&
     !$omp & icontrF,istateF,ivibF,ilambdaF,omegaF,spinF,sigmaF,iomegaF_,&
     !$omp & icontrI,istateI,ivibI,ilambdaI,omegaI,spinI,sigmaI,iomegaI_,f3j,ls,indQuad,indPermute,&

@@ -1613,7 +1613,8 @@ module refinement
                     !
                     ai = am 
                     bi = bm
-                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
+                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,&
+                                wspace,lwork,info)
                     !
                     if (info/=0) then
                       write(out,"('dgelss:error',i0)") info
@@ -2429,7 +2430,7 @@ module refinement
     !
     double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:)
     integer           :: info
-    integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
+    integer           :: nh1, nh2,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
     integer           :: lwork
     double precision  :: tol_
     double precision  :: alpha = 1.0d0,beta=0
@@ -2547,7 +2548,7 @@ module refinement
     integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
     integer           :: lwork
     double precision  :: tol_
-    double precision  :: alpha = 1.0d0,beta=0
+    !double precision  :: alpha = 1.0d0,beta=0
     !
     jobu  = 'S'
     jobvt = 'A'

@@ -1990,7 +1990,6 @@ contains
         integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
         real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
         real(rk)                :: spinI_,spinF_,f_t
-        type(fieldT),pointer    :: field
           !
           !dms_tmp = dipole_me
           !
@@ -2142,7 +2141,6 @@ contains
         integer(ik)             :: iomegaI_,iomegaI,iomegaF
         real(rk)                :: ls, f3j, omegaI,omegaF
         real(rk)                :: f_t
-        type(fieldT),pointer    :: field
           !
           !dms_tmp = dipole_me
           !
