@@ -14084,7 +14084,7 @@ contains
           write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,i2,1x,i4,1x,f8.1,1x)') iterm,&
             bob_omega_obj(iterm)%omegai,&
             Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
-            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(iomega)%qn(j)%sigma
         enddo
         !
         write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NBob_omega, '(i22))'
@@ -14798,7 +14798,7 @@ contains
                     sigmaj = sigmaj + 1.0_rk
                     omegaj_ = real(jlambda_,rk)+sigmaj
                     !
-                    if (nint(omegai_-omegai)==1.and.nint(omegaj_-omegaj)==1) then
+                    if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
                       iLxy = iLxy + 1
                       exit loop_Lxy
                     endif
@@ -15487,8 +15487,9 @@ contains
     integer(ik)  :: iDipole
     integer(ik)  :: i,j,istate_,jstate_
     real(rk)     :: spini_,spinj_,omegai,omegaj
-    real(rk)     :: sigmai,sigmaj
+    real(rk)     :: sigmai,sigmaj,omegai_,omegaj_
     integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,jsigmav
+    integer(ik)  :: ipermute,multi,multj,imulti,jmulti
     type(fieldT),pointer       :: field
     logical :: dipole_present
     character(len=cl) :: char_name
@@ -15517,35 +15518,49 @@ contains
           !
           ! Dipole is only for Lambda=+/-1,0
           !
-          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-          jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-          !
-          do isigmav = 0,1
+          do ipermute  = 0,1
             !
-            ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-            ! avoid the double counting. Although this should not happen for opq
-            if( isigmav==1.and.ilambda_==0 ) cycle
+            if (ipermute==0) then
+              !
+              istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+              jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+              !
+            else  ! permute
+              !
+              jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+              istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+              !
+            endif
             !
-            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-            ilambda_ = ilambda_*(-1)**isigmav
-            sigmai = omegai - real(ilambda_,rk)
+            ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+            ! otherwise it will cause a double counting:
             !
-            do jsigmav = 0,1
+            if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
+            !
+            !
+            multi = nint(2.0_rk*spini_+1.0_rk)
+            !
+            sigmai = -spini_-1.0_rk
+            do imulti = 1,multi
               !
-              if( jsigmav==1.and.jlambda_==0 ) cycle
+              sigmai = sigmai + 1.0_rk
+              omegai_ = real(ilambda_,rk)+sigmai
               !
-              jlambda_ = jlambda_*(-1)**jsigmav
-              !
-              sigmaj = omegaj - real(jlambda_,rk)
-              !
-              if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle
-              if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
-              !
-              dipole_present = .true. 
+              multj = nint(2.0_rk*spinj_+1.0_rk)
+              sigmaj = -spinj_-1.0_rk
+              do jmulti = 1,multj
+                !
+                sigmaj = sigmaj + 1.0_rk
+                omegaj_ = real(jlambda_,rk)+sigmaj
+                !
+                if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
+                  dipole_present = .true. 
+                  exit loop_Dipole
+                endif
+                !
+              enddo
               !
             enddo
-            !
-            exit loop_Dipole
             !
           enddo
           !
