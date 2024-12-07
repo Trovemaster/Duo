@@ -7667,11 +7667,9 @@ contains
       !
       ! Diagonalise the PECs+SOCs+couplings and transform all other curves to the Omega representation
       !
-      !call Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
-      !
       ! Copy the PECs+SOCs+couplings to the Omega representation
       !
-      call Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      call Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
       !
       deallocate(iLPlus_omega,iSPlus_omega,iSR_omega,iBob_omega,ip2q_omega,iQ_omega,iKin_omega,iBRot_omega,&
                  iNAC_omega,iDiab_omega,iDipole_omega,NSplus_omega_each)
@@ -7946,6 +7944,10 @@ contains
               !endif
               !
               !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
+              !
+              if (iobject==8) then
+                if (abs(field_%matelem(iroot,jroot))<intensity%threshold%dipole) field_%matelem(iroot,jroot) = 0
+              endif
               !
             enddo
           enddo
@@ -8615,7 +8617,7 @@ contains
                 !
                 !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
                 !
-                if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>sqrt(small_).and.istate==field%istate.and.&
+                if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>(small_).and.istate==field%istate.and.&
                 !if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
                     jstate==field%jstate ) then
                   !                        NB:   hard limit 40 characters to field name, may lead to truncation!!!
@@ -12192,9 +12194,9 @@ contains
   !
   ! Transform the PECs+SOCs+couplings from the input to the Omega representation
   !
-  subroutine Transfrorm_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+  subroutine Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
     !
-    use lapack,only : lapack_syev,lapack_heev,lapack_syevr
+    use lapack,only : lapack_syev,lapack_heev,lapack_syevr,MLdiag_ulen_ark
     !
     implicit none
     !
@@ -12211,6 +12213,7 @@ contains
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
     real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
+    real(rk)    :: V1,V2,VD,beta,discr
     !
     type(fieldT),pointer      :: field
     !
@@ -12219,6 +12222,7 @@ contains
     real(rk), allocatable :: L_LambdaSigma(:,:)
     integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
     real(rk),allocatable    :: vibmat(:,:),kinmat(:,:)
+    real(ark), allocatable :: omegamat_ark(:,:),omegaenergy_ark(:),omegavecs_ark(:,:)
     !
     real(rk) :: f(9)
     !
@@ -12309,6 +12313,14 @@ contains
         allocate(omegamat(Nlambdasigmas,Nlambdasigmas),omegaenergy(Nlambdasigmas),stat=alloc)
         if (alloc/=0) stop 'Cannot allocate omegamat and omegaenergy'
         omegamat = 0
+        !
+        allocate(omegamat_ark(Nlambdasigmas,Nlambdasigmas),omegaenergy_ark(Nlambdasigmas),stat=alloc)
+        if (alloc/=0) stop 'Cannot allocate omegamat_ark and omegaenergy_ark'
+        omegamat_ark = 0
+        !
+        allocate(omegavecs_ark(Nlambdasigmas,Nlambdasigmas),stat=alloc)
+        if (alloc/=0) stop 'Cannot allocate omegavecs_ark'
+        omegavecs_ark = 0
         !
         do i = 1,Nlambdasigmas
           !
@@ -12899,7 +12911,43 @@ contains
         !   !
         !endif
         !
-        call lapack_syev(omegamat,omegaenergy)
+        !call lapack_syev(omegamat,omegaenergy)
+        !
+        if (Nlambdasigmas==1) then 
+          !
+          omegaenergy(1) = omegamat(1,1)
+          omegamat(1,1) = 1.0_rk
+          !
+        elseif (Nlambdasigmas==2) then 
+          !
+          V1 = min(omegamat(1,1),omegamat(2,2))
+          V2 = max(omegamat(1,1),omegamat(2,2))
+          VD = omegamat(1,2)
+          !
+          Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+          !
+          omegaenergy(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+          omegaenergy(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+          !
+          !beta = 0.5_rk*atan(2.0_rk*VD/(V2-V1))
+          !
+          beta = 0.5_rk*atan2(2.0_rk*VD,(V2-V1))
+          !
+          omegamat(1,1) = cos(beta)
+          omegamat(1,2) =-sin(beta)
+          omegamat(2,2) = cos(beta)
+          omegamat(2,1) = sin(beta)
+          !
+        else 
+          !
+          omegamat_ark = omegamat
+          !
+          call MLdiag_ulen_ark(Nlambdasigmas,omegamat_ark,omegaenergy_ark,omegavecs_ark)
+          !
+          omegaenergy = omegaenergy_ark
+          omegamat = omegavecs_ark
+          !
+        endif
         !
         N_i = Nlambdasigmas
         !
@@ -12908,6 +12956,7 @@ contains
         omega_grid(iomega)%Nstates = Nlambdasigmas
         !
         deallocate(omegamat,omegaenergy)
+        deallocate(omegamat_ark,omegaenergy_ark,omegavecs_ark)
         !
         ! Make phases consistent by projecting U(i) onto U(i-1)
         !
@@ -12950,9 +12999,9 @@ contains
             imaxcontr = maxloc(mat_1(1:N_i,i)**2,dim=1,mask=mat_1(1:N_i,i)**2.ge.small_)
             !
             ! turn the transformation into a permutation patrix
-            !mat_2(imaxcontr,i) = sign(1.0_rk,mat_1(imaxcontr,i))
+            mat_2(imaxcontr,i) = sign(1.0_rk,mat_1(imaxcontr,i))
             !
-            mat_2(i,i) = sign(1.0_rk,mat_1(i,i))
+            !mat_2(i,i) = sign(1.0_rk,mat_1(i,i))
             !
           enddo
           !
@@ -13886,7 +13935,7 @@ contains
     enddo
     !
     !
-  end subroutine Transfrorm_Sigma_Lambda_to_Omega_representation  
+  end subroutine Transform_Sigma_Lambda_to_Omega_representation  
   
   
 
@@ -14128,7 +14177,7 @@ contains
             Dipole_omega_obj(iterm)%omegai,&
             Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
             Dipole_omega_obj(iterm)%omegaj,&
-            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(iomega)%qn(j)%sigma
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
         enddo
         !
         write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NDipole_omega, '(i22))'
@@ -14749,7 +14798,7 @@ contains
                     sigmaj = sigmaj + 1.0_rk
                     omegaj_ = real(jlambda_,rk)+sigmaj
                     !
-                    if (nint(omegai_-omegai)==1.and.nint(omegaj_-omegaj)==1) then
+                    if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
                       iLxy = iLxy + 1
                       exit loop_Lxy
                     endif
@@ -15438,8 +15487,9 @@ contains
     integer(ik)  :: iDipole
     integer(ik)  :: i,j,istate_,jstate_
     real(rk)     :: spini_,spinj_,omegai,omegaj
-    real(rk)     :: sigmai,sigmaj
+    real(rk)     :: sigmai,sigmaj,omegai_,omegaj_
     integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,jsigmav
+    integer(ik)  :: ipermute,multi,multj,imulti,jmulti
     type(fieldT),pointer       :: field
     logical :: dipole_present
     character(len=cl) :: char_name
@@ -15468,35 +15518,49 @@ contains
           !
           ! Dipole is only for Lambda=+/-1,0
           !
-          istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
-          jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
-          !
-          do isigmav = 0,1
+          do ipermute  = 0,1
             !
-            ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-            ! avoid the double counting. Although this should not happen for opq
-            if( isigmav==1.and.ilambda_==0 ) cycle
+            if (ipermute==0) then
+              !
+              istate_ = field%istate ; ilambda_ = field%lambda  ; spini_ = field%spini
+              jstate_ = field%jstate ; jlambda_ = field%lambdaj ; spinj_ = field%spinj
+              !
+            else  ! permute
+              !
+              jstate_ = field%istate ; jlambda_ = field%lambda  ; spinj_ = field%spini
+              istate_ = field%jstate ; ilambda_ = field%lambdaj ; spini_ = field%spinj
+              !
+            endif
             !
-            ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-            ilambda_ = ilambda_*(-1)**isigmav
-            sigmai = omegai - real(ilambda_,rk)
+            ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+            ! otherwise it will cause a double counting:
             !
-            do jsigmav = 0,1
+            if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
+            !
+            !
+            multi = nint(2.0_rk*spini_+1.0_rk)
+            !
+            sigmai = -spini_-1.0_rk
+            do imulti = 1,multi
               !
-              if( jsigmav==1.and.jlambda_==0 ) cycle
+              sigmai = sigmai + 1.0_rk
+              omegai_ = real(ilambda_,rk)+sigmai
               !
-              jlambda_ = jlambda_*(-1)**jsigmav
-              !
-              sigmaj = omegaj - real(jlambda_,rk)
-              !
-              if (abs(sigmai)>spini_.or.abs(sigmaj)>spini_.or.abs(nint(sigmaj-sigmai))/=0) cycle
-              if ((ilambda_-jlambda_)/=nint(omegai-omegaj)) cycle
-              !
-              dipole_present = .true. 
+              multj = nint(2.0_rk*spinj_+1.0_rk)
+              sigmaj = -spinj_-1.0_rk
+              do jmulti = 1,multj
+                !
+                sigmaj = sigmaj + 1.0_rk
+                omegaj_ = real(jlambda_,rk)+sigmaj
+                !
+                if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
+                  dipole_present = .true. 
+                  exit loop_Dipole
+                endif
+                !
+              enddo
               !
             enddo
-            !
-            exit loop_Dipole
             !
           enddo
           !

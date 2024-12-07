@@ -1604,7 +1604,117 @@ module lapack
         do 44 ii=1,n
       d(ii)=b(ii)+z(ii)
       b(ii)=d(ii)
-      z(ii)=0.0d0
+      z(ii)=0.0_ark
+  44  continue
+  50  continue
+
+  deallocate(b,z)
+
+  end subroutine MLdiag_ulen_ark
+
+
+
+   subroutine MLdiag_ulen_rk(n,a,d,ve)
+      !
+      integer(ik)  ::  p,q,p1,q1,irot,i,n2,kp,kp1,ip1,j,iq1,kq1,ii,n
+      real(rk)     ::  a(n,n),d(n),ve(n,n)
+      real(rk)     ::  sm,tresh,g,h,s,c,t,tau,theta,ff1,ff2,ff3,ff4
+      real(rk)     ::  err
+      real(rk),allocatable  ::  b(:),z(:)
+      !
+      err = small_
+      !
+      allocate(b(n+10),z(n+10))
+
+
+ 101  format(5e14.5)
+      do 10 p=1,n
+      do 10 q=1,n
+      ve(p,q)=0.0_rk
+      if(p.eq.q) ve(p,q)=1.0_rk
+  10  continue
+      do 99 p=1,n
+      z(p)=0.0_rk
+      d(p)=a(p,p)
+      b(p)=d(p)
+ 99   continue
+      irot=0
+      do 50 i=1,50
+      sm=0.0_rk
+      n2=n-1
+      do 30 p=1,n2
+      kp=p+1
+      do 30 q=kp,n
+      sm=sm+abs(a(p,q))
+  30  continue
+      if(sm.le.err) goto 50
+      tresh=0.0_rk
+      if(i-4) 3,4,4
+  3   tresh=0.2_rk*sm/(n*n)
+  4     do 33 p1=1,n2
+        kp1=p1+1
+      do 33 q1=kp1,n
+      g=100*abs(a(p1,q1))
+      ff1=abs(d(p1)+g)
+      ff2=abs(d(p1))
+      ff3=abs(d(q1)+g)
+      ff4=abs(d(q1))
+      if(i.gt.4.and.(ff1.eq.ff2).and.ff3.eq.ff4) goto 7
+      ff1=abs(a(p1,q1))
+        if(ff1.le.tresh) goto 33
+      h=d(q1)-d(p1)
+      ff1=abs(h)+g
+      ff2=abs(h)
+      if(ff1.ne.ff2) goto 13
+      t=a(p1,q1)/h
+      goto 6
+  13    theta=0.5_rk*h/a(p1,q1)
+        t=1._rk/(abs(theta)+sqrt(1._rk+theta*theta))
+      if(theta) 5,6,6
+  5     t=-t
+  6     c=1._rk/sqrt(1._rk+t*t)
+        s=t*c
+      tau=s/(1._rk+c)
+      h=t*a(p1,q1)
+      z(p1)=z(p1)-h
+      z(q1)=z(q1)+h
+      d(p1)=d(p1)-h
+      d(q1)=d(q1)+h
+      a(p1,q1)=0.0_rk
+      ip1=p1-1
+        do 20 j=1,ip1
+        g=a(j,p1)
+        h=a(j,q1)
+        a(j,p1)=g-s*(h+g*tau)
+        a(j,q1)=h+s*(g-h*tau)
+  20      continue
+        iq1=q1-1
+        do 21 j=kp1,iq1
+        g=a(p1,j)
+        h=a(j,q1)
+        a(p1,j)=g-s*(h+g*tau)
+        a(j,q1)=h+s*(g-h*tau)
+  21    continue
+        kq1=q1+1
+        do 26 j=kq1,n
+        g=a(p1,j)
+        h=a(q1,j)
+        a(p1,j)=g-s*(h+g*tau)
+        a(q1,j)=h+s*(g-h*tau)
+  26    continue
+          do 29 j=1,n
+        g=ve(j,p1)
+        h=ve(j,q1)
+        ve(j,p1)=g-s*(h+g*tau)
+        ve(j,q1)=h+s*(g-h*tau)
+  29      continue
+        irot=irot+1
+  7     a(p1,q1)=0.0_rk
+  33    continue
+        do 44 ii=1,n
+      d(ii)=b(ii)+z(ii)
+      b(ii)=d(ii)
+      z(ii)=0.0_rk
   44  continue
   50  continue
 
@@ -1612,7 +1722,7 @@ module lapack
 
   deallocate(b,z)
 
-  end subroutine MLdiag_ulen_ark
+  end subroutine MLdiag_ulen_rk
 
 
 end module lapack
