@@ -9,37 +9,37 @@ module me_numer
   private  
 
   public ik, rk, out
-  public ME_numerov,simpsonintegral,simpsonintegral_rk,integral_rect_rk
+  public ME_numerov,simpsonintegral,simpsonintegral_ark,integral_rect_ark
   !
   !
-  real(rk) :: enermax=  70000.0_rk   !  Upper limit for the energy search (1/cm)
+  real(ark) :: enermax=  70000.0_ark   !  Upper limit for the energy search (1/cm)
   !
-  real(rk), parameter :: enerdev=  0.1_rk        !  In the i-th solution has been already defined at 
+  real(ark), parameter :: enerdev=  0.1_ark        !  In the i-th solution has been already defined at 
                                                   !  previouse steps, we solve the eigen-problem anyway
                                                   !  but within +/- "enerdev" (cm-1) interval from 
                                                   !  the found solution
-  real(rk), parameter :: enerstep = 100.0_rk    !  Energy interval needed for the step-wise search of the 
+  real(ark), parameter :: enerstep = 100.0_ark    !  Energy interval needed for the step-wise search of the 
                                                   !  solution, when the iterative procedure does not help 
                                                   !
-  real(rk), parameter :: enersmall= 0.000001_rk !  Small energy value to check whether the search interval not collapsed 
+  real(ark), parameter :: enersmall= 0.000001_ark !  Small energy value to check whether the search interval not collapsed 
   !
-  real(rk), parameter :: thrsh_int = 10.0_rk**(-rk) ! Threshold in Numerov-integration 
-  real(rk), parameter :: thrsh_dif = 0.1e-2_rk       ! Threshold in numerical differentiation
-  real(rk), parameter :: thrsh_upper  = 1.0e20_rk    ! Upper limit for fncts in out-numerov integr.
+  real(ark), parameter :: thrsh_int = 10.0_ark**(-ark) ! Threshold in Numerov-integration 
+  real(ark), parameter :: thrsh_dif = 0.1e-2_ark       ! Threshold in numerical differentiation
+  real(ark), parameter :: thrsh_upper  = 1.0e20_ark    ! Upper limit for fncts in out-numerov integr.
   !
   integer(ik), parameter :: itermax= 500000      ! Maximal possible number of iterations (tries) for Numerov 
   integer(ik), parameter :: maxslots = 10000       ! Maximal possible number of slots for found energies 
   integer(ik), parameter :: epoints = 40         ! N of points used for extrapolation in lsq_fit
   !
-  real(rk) :: rhostep                           ! mesh size
+  real(ark) :: rhostep                           ! mesh size
   !
-  real(rk),parameter :: wave_init=1.0_rk       ! initial arbitrary value at rho = rho_ref
+  real(ark),parameter :: wave_init=1.0_ark       ! initial arbitrary value at rho = rho_ref
   !
   !
-  integer(ik), parameter :: iterlimit=5000       ! Iteration limit in numerov integration 
+  integer(ik), parameter :: iterlimit=3000       ! Iteration limit in numerov integration 
   !
   integer(ik) :: npoints                         ! number of grid points 
-  real(rk)   :: rho_b(2)                        ! rhomin..rhomax
+  real(ark)   :: rho_b(2)                        ! rhomin..rhomax
   integer(ik) :: iperiod                         ! the periodicity (can be negative for the reflecation)
   !
   integer(ik) :: verbose = 6                     ! Verbosity level
@@ -56,13 +56,15 @@ module me_numer
   !
   integer(ik) :: iparity                         ! 
   !
+  real(ark) :: small__ = epsilon(1.0_ark)
+  !
   character(len=cl),parameter :: boundary_condition = 'BOUND'
   !
   character(len=cl),parameter :: deriv_method = 'ML_diffs' !  We use this method to estimate d pvi_v / d rho  
                                                          ! where phi_v is a numerical eigenfunction from numerov
                                                          ! deriv_method can be either 'd04aaf' of '5 points'
                                                          ! '5 points' 
-  real(rk) ::  rho_switch  = .0174532925199432957692369_rk       ! the value of abcisse rho of the switch between regions (1 deg)
+  real(ark) ::  rho_switch  = .0174532925199432957692369_ark       ! the value of abcisse rho of the switch between regions (1 deg)
 
   integer(ik) :: iswitch                                 ! the grid point of switch
 
@@ -85,21 +87,21 @@ module me_numer
    real(rk),intent(in)    :: enermax_    !  Upper limit for the energy search (1/cm)
    integer(ik),intent(in) :: verbose_   ! Verbosity level
    !
-   real(rk)            :: rho 
-   real(rk)            :: h_t,sigma,sigma_t,rms,psipsi_t,characvalue,rhostep_,step_scale,fval,df_t
+   real(ark)            :: rho 
+   real(ark)            :: h_t,sigma,sigma_t,rms,psipsi_t,characvalue,rhostep_,step_scale,fval,df_t
    !
    integer(ik) :: vl,vr,alloc,i,rec_len,i_,i1,i2
    !
-   real(rk),allocatable :: phil(:),phir(:),dphil(:),dphir(:),phivphi(:),rho_kinet(:)
-   real(rk),allocatable :: f(:),poten(:),mu_rr(:),d2fdr2(:),dfdr(:),rho_(:)
+   real(ark),allocatable :: phil(:),phir(:),dphil(:),dphir(:),phivphi(:),rho_kinet(:)
+   real(ark),allocatable :: f(:),poten(:),mu_rr(:),d2fdr2(:),dfdr(:),rho_(:),mu_rr__(:),poten__(:)
    character(len=cl)     :: unitfname 
-   real(rk),allocatable :: enerslot(:),enerslot_(:)
+   real(ark),allocatable :: enerslot(:),enerslot_(:)
    !
    integer,parameter :: NEND = 500,mxfs=5,mxprm=6,mxfsp=16001,mxisp=16001
    !
-   real(rk) ::  BFCT,EFN,VLIM
+   real(ark) ::  BFCT,EFN,VLIM
    integer(ik) :: OTMF,TMFTYP(mxfs)
-   real(rk) :: DER(0:mxprm-1),PSI(NEND),VJ(mxfsp)
+   real(ark) :: DER(0:mxprm-1),PSI(NEND),VJ(mxfsp)
    
    
     !
@@ -150,7 +152,16 @@ module me_numer
        allocate(rho_(0:npoints_),stat=alloc)
        if (alloc/=0) stop 'rho_ - out of memory'
        !
+       allocate(poten__(0:npoints),mu_rr__(0:npoints),stat=alloc)
+       if (alloc/=0) then 
+         write (out,"('phi - out of memory')")
+         stop 'phi - out of memory'
+       endif 
+       !
        forall(i_ = 0:npoints_) rho_(i_)  =  rho_b(1)+real(i_,kind=rk)*rhostep_
+       !
+       poten__ = poten_
+       mu_rr__ = mu_rr_
        !
        do i = 0,npoints 
           !
@@ -160,15 +171,16 @@ module me_numer
           !
           i1 = max(0,i_-Nr) ; i2 = min(npoints_,i_+Nr)
           !
-          call polintrk(rho_(i1:i2),poten_(i1:i2),rho,fval,df_t)
+          call polintark(rho_(i1:i2),poten__(i1:i2),rho,fval,df_t)
           poten(i) = fval
           !
-          call polintrk(rho_(i1:i2),mu_rr_(i1:i2),rho,fval,df_t)
+          call polintark(rho_(i1:i2),mu_rr__(i1:i2),rho,fval,df_t)
           mu_rr(i) = fval
           !
        enddo
        !
-       deallocate(rho_)       !
+       deallocate(rho_,poten__,mu_rr__)       
+       !
      endif
      !
      ! Do some reporting
@@ -176,13 +188,13 @@ module me_numer
      if (verbose>=3) then 
          write (out,"('vmax        = ',i8)") vmax
          write (out,"('icoord      = ',i4)") icoord
-         write (out,"('rho_b (x)   = ',2f12.4)") rho_b(1:2) !*180.0_rk/pi
-         write (out,"('rhostep (x) = ',2f12.4)") rhostep  !*180.0_rk/pi
+         write (out,"('rho_b (x)   = ',2f12.4)") rho_b(1:2) !*180.0_ark/pi
+         write (out,"('rhostep (x) = ',2f12.4)") rhostep  !*180.0_ark/pi
      endif 
      !
-     call diff_2d_4points_rk(npoints,rho_b,mu_rr,periodic,0_ik,dfdr,d2fdr2)
+     call diff_2d_4points_ark(npoints,rho_b,mu_rr,periodic,0_ik,dfdr,d2fdr2)
      !
-     f(:) = (d2fdr2(:)/mu_rr(:)-dfdr(:)**2/mu_rr(:)**2*0.5_rk)*0.5_rk
+     f(:) = (d2fdr2(:)/mu_rr(:)-dfdr(:)**2/mu_rr(:)**2*0.5_ark)*0.5_ark
      !
      ! Print out
      !
@@ -254,19 +266,21 @@ module me_numer
      !
      ! Matrix elements 
      !
-     sigma = 0.0_rk 
-     rms   = 0.0_rk 
+     sigma = 0.0_ark 
+     rms   = 0.0_ark 
      characvalue = maxval(enerslot(0:vmax))
      energy(0:vmax) = enerslot(0:vmax)
-     if (trim(boundary_condition)/='UNBOUND') then
-       energy(0:vmax) = energy(0:vmax)-energy(0)
-     endif
+     !if (trim(boundary_condition)/='UNBOUND') then
+     !  energy(0:vmax) = energy(0:vmax)-energy(0)
+     !endif
      !
      do vl = 0,vmax
         !
         read (io_slot,rec=vl+1) (phil(i),i=0,npoints_),(dphil(i),i=0,npoints_)
         !
-        wavefunc(:,vl) = phil(:)
+        wavefunc(:,vl) = phil(:)*sqrt(rhostep_)
+        !
+        h_t = sum(wavefunc(:,vl)*wavefunc(:,vl))
         !
         do vr = vl,vmax
             !
@@ -283,24 +297,24 @@ module me_numer
             ! <vl|poten|vr> and use to check the solution of the Schroedinger eq-n 
             ! obtained above by the Numerov
             !
-            phivphi(:) = phil(:)*poten_(:)*phir(:)
+            phivphi(:) = phil(:)*poten(:)*phir(:)
             !
-            h_t = simpsonintegral_rk(npoints_,rho_b(2)-rho_b(1),phivphi)
+            h_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
             !
             ! momenta-quadratic part 
             !
-            phivphi(:) =-dphil(:)*mu_rr_(:)*dphir(:)
+            phivphi(:) =-dphil(:)*mu_rr(:)*dphir(:)
             !
-            psipsi_t = simpsonintegral_rk(npoints_,rho_b(2)-rho_b(1),phivphi)
+            psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
             !
             ! Add the diagonal kinetic part to the tested mat. elem-s
             !
-            h_t = h_t - 0.5_rk*psipsi_t
+            h_t = h_t - 0.5_ark*psipsi_t
             !
             !
             phivphi(:) = phil(:)*phir(:)
             !
-            psipsi_t = simpsonintegral_rk(npoints_,rho_b(2)-rho_b(1),phivphi)
+            psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
             !
             ! Count the error, as a maximal deviation sigma =  | <i|H|j>-E delta_ij |
             !
@@ -359,29 +373,29 @@ module me_numer
   subroutine numerov(npoints,npoints_,step_scale,poten,mu_rr,f,enerslot) 
    !
    integer(ik),intent(in) :: npoints,npoints_
-   real(rk),intent(in) :: step_scale
-   real(rk),intent(in) :: poten(0:npoints),mu_rr(0:npoints),f(0:npoints)
+   real(ark),intent(in) :: step_scale
+   real(ark),intent(in) :: poten(0:npoints),mu_rr(0:npoints),f(0:npoints)
    !
-   real(rk),intent(out) :: enerslot(0:maxslots)
+   real(ark),intent(out) :: enerslot(0:maxslots)
 
    integer(ik) :: v,i_
    integer(ik) :: ierr,numnod,ntries,vrec,k0,ipoint,mtries
    !
-   real(rk) :: eold,tsum
+   real(ark) :: eold,tsum
    !
-   real(rk) :: pcout
+   real(ark) :: pcout
    !
-   real(rk),allocatable :: pot_eff(:),i0(:),phi_f(:),phi_t(:),psi_t(:),phi_f_(:),phi_d_(:)
+   real(ark),allocatable :: pot_eff(:),i0(:),phi_f(:),phi_t(:),psi_t(:),phi_f_(:),phi_d_(:)
    !
-   real(rk) :: eguess,enerlow,enerupp,enerdelta,enershift,enermid
+   real(ark) :: eguess,enerlow,enerupp,enerdelta,enershift,enermid
    !
-   !real(rk) :: simpsonintegral
+   !real(ark) :: simpsonintegral
    !
    logical :: notfound
    !
-   real(rk) :: potmin,oldphi,newphi,v_t(-2:2),amplit,amplit0,diff
+   real(ark) :: potmin,oldphi,newphi,v_t(-2:2),amplit,amplit0,diff
    !
-   real(rk) :: df_t1,df_t2,deltaE = 1.0_rk
+   real(ark) :: df_t1,df_t2,deltaE = 1.0_ark
    !
    integer(ik) :: alloc,i,iter,nm2,ic,imin_l,imin_r
    integer(ik) :: icslots(0:maxslots),iright,ileft,ireflect
@@ -399,7 +413,7 @@ module me_numer
    ! Check for the potential "1/0" probelm in mu_rr
    !
    do i=0,npoints
-     if ( abs(mu_rr(i))<small_*100.0_rk ) then 
+     if ( abs(mu_rr(i))<small__*100.0_ark ) then 
         write(out,"('numerov: mu_rr is zero at i = ',i8)") i
         stop 'numerov: mu_rr has a zero element'
      endif
@@ -422,11 +436,11 @@ module me_numer
    !
    ! calculate effective potential w_i
    !
-   pot_eff(:) = f(:) + 2.0_rk*( poten(:) )/mu_rr(:)
+   pot_eff(:) = f(:) + 2.0_ark*( poten(:) )/mu_rr(:)
    !
    ! Effective inertia moment
    !
-   i0(:) = 2.0_rk/mu_rr(:)
+   i0(:) = 2.0_ark/mu_rr(:)
    !
    ! find minimum : position 
    !
@@ -473,8 +487,8 @@ module me_numer
    !
    ! Parameters for the Simson rule integration 
    !
-   ! facodd=2.0_rk*rhostep/3.0_rk
-   ! faceve=2.0_rk*facodd
+   ! facodd=2.0_ark*rhostep/3.0_ark
+   ! faceve=2.0_ark*facodd
    !
    ! Here we start solving Schroedinger equation for the v-th eigenvalue
    !
@@ -487,7 +501,7 @@ module me_numer
      enerslot(0:maxslots)=poten(imin)-sqrt(safe_max)
      icslots(0:maxslots) = npoints
      !
-     enerlow=potmin/2.0_rk*mu_rr(imin)
+     enerlow=potmin/2.0_ark*mu_rr(imin)
      enerupp=enermax
      !
    case ('UNBOUND')
@@ -496,7 +510,7 @@ module me_numer
      !
      !enermax = maxval(poten(:))
      !
-     enerlow=potmin/2.0_rk*mu_rr(imin)
+     enerlow=potmin/2.0_ark*mu_rr(imin)
      !
      deltaE = (enermax-enerlow)/(npoints+1)
      !
@@ -565,7 +579,7 @@ module me_numer
        !
        enermid=(enerlow+enerupp)/2.0
        !
-       !enerdelta = enerdelta*0.5_rk
+       !enerdelta = enerdelta*0.5_ark
        !
        eguess=enermid
        !
@@ -603,7 +617,7 @@ module me_numer
           !
           do i=2,nm2
              if ( oldphi*phi_f(i)<0.0 .or.  & 
-                  ( phi_f(i)==0.0_rk  .and. newphi*oldphi<0.0_rk) ) numnod=numnod+1
+                  ( phi_f(i)==0.0_ark  .and. newphi*oldphi<0.0_ark) ) numnod=numnod+1
              newphi=phi_f(i+2)
              oldphi=phi_f(i)
           enddo
@@ -614,14 +628,14 @@ module me_numer
            !
            phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
            !
-           tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
+           tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
            !
            phi_t(:)=phi_t(:)/sqrt(tsum)
            !
            ireflect = 1
            if (iparity/=0) ireflect = -1
            !
-           call diff_2d_4points_rk(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
+           call diff_2d_4points_ark(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
            !
            if ( (iparity==0.and.abs(psi_t(npoints  ))>sqrt(thrsh_int)).or.&
                 (iparity==1.and.abs(phi_t(npoints  ))>sqrt(thrsh_int))) then 
@@ -674,7 +688,7 @@ module me_numer
             !
             ntries=0
             !
-            !enerdelta = enerdelta*0.5_rk
+            !enerdelta = enerdelta*0.5_ark
             !
             ! Are we still at the begining?
             !
@@ -701,8 +715,8 @@ module me_numer
             endif 
             !
             if (enermid>=enerupp) then 
-               enerdelta = enerdelta*0.5_rk
-               enershift = 0.0_rk
+               enerdelta = enerdelta*0.5_ark
+               enershift = 0.0_ark
             endif 
             !
             enerlow=enerlow+enershift
@@ -760,7 +774,7 @@ module me_numer
          !
          !   numerical intagration with simpson's rule #2
          !
-         tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t)
+         tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t)
          !
          phi_f(:)=phi_f(:)/sqrt(tsum)
          !
@@ -805,9 +819,9 @@ module me_numer
          !
          !   numerical intagration with simpson's rule #2
          !
-         tsum = simpsonintegral_rk(npoints,rho_b(2)-rho_b(1),phi_t)
+         tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t)
          !
-         if (tsum>small_*100) then
+         if (tsum>small__*100) then
            phi_f(:)=phi_f(:)/sqrt(tsum)
          endif
          !
@@ -833,7 +847,7 @@ module me_numer
         if (verbose>=5) write(out,"(/'dphi_t(0)-dphi_t(npoints)    : ',5g18.8)") phi_t(1),phi_t(npoints-1),df_t1,df_t2,df_t1-df_t2
      endif 
      !
-     !if (iperiod<0) phi_f(:)=phi_f(:)/sqrt(2.0_rk)
+     !if (iperiod<0) phi_f(:)=phi_f(:)/sqrt(2.0_ark)
      !
      !
      if (verbose>=5) then 
@@ -869,10 +883,10 @@ module me_numer
            !
            ! 5-points expression
            !
-           phi_t(i) = (-v_t( 2)/12.0_rk+2.0_rk/3.0_rk*v_t(1) & 
-                       +v_t(-2)/12.0_rk-2.0_rk/3.0_rk*v_t(-1) )/rhostep
+           phi_t(i) = (-v_t( 2)/12.0_ark+2.0_ark/3.0_ark*v_t(1) & 
+                       +v_t(-2)/12.0_ark-2.0_ark/3.0_ark*v_t(-1) )/rhostep
            !
-           !phi_t(i) = (v_t(1)-v_t(-1) )/(rhostep*2.0_rk)
+           !phi_t(i) = (v_t(1)-v_t(-1) )/(rhostep*2.0_ark)
            !
         enddo 
         !
@@ -885,14 +899,14 @@ module me_numer
           ireflect = 1
           if (iparity/=0) ireflect = -1
           !
-          call diff_2d_4points_rk(Npoints,rho_b,phi_f,periodic,ireflect,phi_t)
+          call diff_2d_4points_ark(Npoints,rho_b,phi_f,periodic,ireflect,phi_t)
           !
         else 
           !
           ireflect = 0
           if (iparity/=0) ireflect = -1
           !
-          call diff_2d_4points_rk(Npoints,rho_b,phi_f,periodic,ireflect,phi_t)
+          call diff_2d_4points_ark(Npoints,rho_b,phi_f,periodic,ireflect,phi_t)
           !
         endif
         !
@@ -919,7 +933,7 @@ module me_numer
      !
      i = 0 
      !
-     do while (abs(phi_f(i))<100.0*sqrt(small_).and.i<npoints)
+     do while (abs(phi_f(i))<100.0*sqrt(small__).and.i<npoints)
       i = i + 1
      enddo
      !
@@ -927,7 +941,7 @@ module me_numer
      !
      i = npoints 
      !
-     do while (abs(phi_f(i))<100.0*sqrt(small_).and.i>0)
+     do while (abs(phi_f(i))<100.0*sqrt(small__).and.i>0)
       i = i - 1
      enddo
      !
@@ -1046,18 +1060,18 @@ module me_numer
 
      integer(ik),intent(in) :: v
      integer(ik),intent(inout) :: iref
-     real(rk),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
-     real(rk),intent(in)  ::  enerlow
-     real(rk),intent(inout)  :: eguess
-     real(rk),intent(out) :: phi_f(0:npoints)
-     real(rk),intent(out) :: pcout
+     real(ark),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
+     real(ark),intent(in)  ::  enerlow
+     real(ark),intent(inout)  :: eguess
+     real(ark),intent(out) :: phi_f(0:npoints)
+     real(ark),intent(out) :: pcout
      integer(ik),intent(out) :: ierr
 
-     real(rk) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff
+     real(ark) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff
      integer(ik) :: niter,ic,istart,i,id,i0_,jt,i1,i2
-     real(rk) :: G1,G0,DI,SG0,SI,VV,Y1,Y2,S0,GI,SGI
+     real(ark) :: G1,G0,DI,SG0,SI,VV,Y1,Y2,S0,GI,SGI
      !
-     !y(i)=(1.0_rk-hh*(pot_eff(i)-i0(i)*eguess)/12.0_rk)*phi_f(i)
+     !y(i)=(1.0_ark-hh*(pot_eff(i)-i0(i)*eguess)/12.0_ark)*phi_f(i)
      !
      hh=rhostep*rhostep
      !
@@ -1065,14 +1079,14 @@ module me_numer
      niter=0
      dx = safe_max
      !
-     pcout = 1.0_rk
-     pcin  = 1.0_rk
+     pcout = 1.0_ark
+     pcin  = 1.0_ark
      !
      if (mod(v,2)/=0)  pcout = -pcout
      !
-     if ( .not.periodic.and.iperiod<0.and.iparity==0) pcout = 1.0_rk
+     if ( .not.periodic.and.iperiod<0.and.iparity==0) pcout = 1.0_ark
      !
-     if (periodic.and.iperiod>0) pcout = pcout*(-1.0_rk)**iparity
+     if (periodic.and.iperiod>0) pcout = pcout*(-1.0_ark)**iparity
      !
      ierr = 0
      istart = 1
@@ -1084,15 +1098,15 @@ module me_numer
           !
         case('BOUND-0')
           !
-          if (abs(rho_b(1))>0.01_rk) then 
+          if (abs(rho_b(1))>0.01_ark) then 
             stop 'illegal combination of conditions for BOUND-0'
           endif
           !
-          phi_f(1)  = sqrt(small_) ! small_
-          phi_f(0)  = small_
+          phi_f(1)  = sqrt(small__) 
+          phi_f(0)  = small__
           !
-          phi_f(npoints-1)  = sqrt(small_) ! small_
-          phi_f(npoints  )  = small_
+          phi_f(npoints-1)  = sqrt(small__)
+          phi_f(npoints  )  = small__
           !
         case('PERIODIC')
           !
@@ -1102,23 +1116,23 @@ module me_numer
             !
             !
             phi_f(npoints  )  = phi_t
-            phi_f(npoints-1)  = phi_f(npoints)*(12.0_rk+5.0_rk*hh*(pot_eff(npoints)-i0(npoints)*eguess))/ &
-                                               (12.0_rk-        hh*(pot_eff(npoints-1)-i0(npoints-1)*eguess))
+            phi_f(npoints-1)  = phi_f(npoints)*(12.0_ark+5.0_ark*hh*(pot_eff(npoints)-i0(npoints)*eguess))/ &
+                                               (12.0_ark-        hh*(pot_eff(npoints-1)-i0(npoints-1)*eguess))
             !
             phi_f(0)  = phi_t
 
             if ((mod(v,2)/=0.and.iperiod>0.and.iparity==1)) phi_f(0) = -phi_f(0)
 
-            phi_f(1)  = phi_f(0)*(12.0_rk+5.0_rk*hh*(pot_eff(0)-i0(0)*eguess))/ &
-                                 (12.0_rk-        hh*(pot_eff(1)-i0(1)*eguess))
+            phi_f(1)  = phi_f(0)*(12.0_ark+5.0_ark*hh*(pot_eff(0)-i0(0)*eguess))/ &
+                                 (12.0_ark-        hh*(pot_eff(1)-i0(1)*eguess))
 
            !
           else
             !
-            phi_f(npoints-1)  = small_ !sqrt(small_) ! small_
+            phi_f(npoints-1)  = small__ 
             phi_f(npoints  )  = 0
             !
-            phi_f(1)  = -small_
+            phi_f(1)  = -small__
             phi_f(0)  = 0
             !
           endif 
@@ -1127,12 +1141,12 @@ module me_numer
           !
           ic = npoints
           !
-          ID= nint(0.2_rk/rhostep)
+          ID= nint(0.2_ark/rhostep)
           !
           do i = id+1,npoints,1 !id   
             jt = i
             G1= pot_eff(i)-i0(i)*eguess
-            if (G1 < small_) exit
+            if (G1 < small__) exit
             i0_ = i
             G0= G1
           enddo
@@ -1140,14 +1154,14 @@ module me_numer
           !i1 = jt
           !jt = I0+(I1-I0)*G0/(G0-G1)
           !
-          DI= 10.0_rk/(hh*(pot_eff(jt-1)-pot_eff(jt)))**(1.0_rk/3.0_rk)
+          DI= 10.0_ark/(hh*(pot_eff(jt-1)-pot_eff(jt)))**(1.0_ark/3.0_ark)
           ID= nint(DI)
           I0_= max(0,jt-id)
           IF(I0_>npoints) stop 'Airy I0_>npoints'
           G0=  (pot_eff(I0_)-i0(I0_)*eguess)*hh
           !
           ! Adjust starting point outward to ensure integration scheme stability
-          do while(G0>10.0_rk.and.i0_<npoints)
+          do while(G0>10.0_ark.and.i0_<npoints)
              i0_ = i0_+1
              G0= (pot_eff(i0_)-i0(i0_)*eguess)*hh
           enddo
@@ -1158,22 +1172,22 @@ module me_numer
           i2= i1+1
           
           !** WKB starting condition for wave function    
-          S0= 1.0_rk
+          S0= 1.0_ark
           G0= (pot_eff(i0_)-i0(i0_)*eguess)*hh
           GI= (pot_eff(i1)-i0(i1)*eguess)*hh
           !
-          if ((G0<=small_).or.(GI<=small_)) then
+          if ((G0<=small__).or.(GI<=small__)) then
              VV= pot_eff(i1)*i0(i1)
              S0= 0
-             SI= 1.0_rk
+             SI= 1.0_ark
           else
              !
              SG0= sqrt(G0)
              SGI= sqrt(GI)
              SI= S0*sqrt(SG0/SGI)*exp((SG0+SGI)*0.5_ark)  
-             if (SI<small_) S0=0
-             Y1= S0*(1.0_rk-1.0_ark/12.0_ark*G0)
-             Y2= SI*(1.0_rk-1.0_ark/12.0_ark*GI)
+             if (SI<small__) S0=0
+             Y1= S0*(1.0_ark-1.0_ark/12.0_ark*G0)
+             Y2= SI*(1.0_ark-1.0_ark/12.0_ark*GI)
              !
           endif
           !
@@ -1184,7 +1198,7 @@ module me_numer
           phi_f(istart-1)  = S0
           phi_f(istart)  = SI
           !
-          if (i0(npoints)*eguess-pot_eff(npoints)<-small_) then 
+          if (i0(npoints)*eguess-pot_eff(npoints)<-small__) then 
             write(out,"('Error-Numerov: wrong usage of unbound integration for bound state ')")
             stop 'Error-Numerov: wrong usage of unbound integration for bound state '
           endif
@@ -1201,10 +1215,10 @@ module me_numer
           !
         case default 
           !
-          phi_f(0)  = 0.0_rk
-          phi_f(1)  = sqrt(small_)
-          phi_f(npoints-1)  = sqrt(small_)
-          phi_f(npoints  )  = 0.0_rk
+          phi_f(0)  = 0.0_ark
+          phi_f(1)  = small_
+          phi_f(npoints-1)  = small__
+          phi_f(npoints  )  = 0.0_ark
           !
         end select
         !
@@ -1221,11 +1235,11 @@ module me_numer
         !
         tsum=0
         !
-        if (sumin>small_) then 
+        if (sumin>small__) then 
            tsum=sumin/(pcin*pcin)
         endif
         !
-        if (sumout>small_) then 
+        if (sumout>small__) then 
            tsum=tsum+sumout/(pcout*pcout)
         endif
         !
@@ -1239,12 +1253,11 @@ module me_numer
         !
         yc=y(ic)/pcout
         ycm1=y(ic-1)/pcout
+        ycp1=y(ic+1)/pcin
         !
-        ycp1 = 0
-        !
-        if (pcin>small_) then 
-          ycp1=y(ic+1)/pcin
-        endif
+        !if (pcin>small__) then 
+        !  ycp1=y(ic+1)/pcin
+        !endif
         !
         if (trim(boundary_condition)=='UNBOUND') exit
         !
@@ -1286,9 +1299,9 @@ module me_numer
      !
      function y(i) result (v)
      integer(ik),intent(in) :: i
-     real(rk) :: v
+     real(ark) :: v
         !
-        v=(1.0_rk-hh*(pot_eff(i)-i0(i)*eguess)/12.0_rk)*phi_f(i)
+        v=(1.0_ark-hh*(pot_eff(i)-i0(i)*eguess)/12.0_ark)*phi_f(i)
         !
      end function y
      !
@@ -1303,33 +1316,33 @@ module me_numer
   subroutine intout ( v, pot_eff, i0, eguess, phi_f, sumout,istart, iref, ic, pcout, ierr)
       !
      integer(ik),intent(in ) :: v,istart,iref
-     real(rk),intent(in ) :: eguess
+     real(ark),intent(in ) :: eguess
      integer(ik),intent(inout) :: ierr
      integer(ik),intent(out) :: ic
 
 
-     real(rk),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
-     real(rk),intent(inout) :: phi_f(0:npoints)
-     real(rk),intent(out) :: sumout,pcout
+     real(ark),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
+     real(ark),intent(inout) :: phi_f(0:npoints)
+     real(ark),intent(out) :: sumout,pcout
      !
      integer(ik) :: i,iend,imin_ref
      logical :: notfound
      !
-     real(rk) :: hh,const,tsum,redfac,yi,yim1,yip1,phi_t
+     real(ark) :: hh,const,tsum,redfac,yi,yim1,yip1,phi_t
      !
      hh=rhostep*rhostep
      !
      !istart=1
      !
-     yim1=phi_f(istart-1)*(1.0_rk-hh*(pot_eff(istart-1)-i0(istart-1)*eguess)/12.0_rk)
+     yim1=phi_f(istart-1)*(1.0_ark-hh*(pot_eff(istart-1)-i0(istart-1)*eguess)/12.0_ark)
      !
-     yi=phi_f(istart)*(1.0_rk-hh*(pot_eff(istart)-i0(istart)*eguess)/12.0_rk)
+     yi=phi_f(istart)*(1.0_ark-hh*(pot_eff(istart)-i0(istart)*eguess)/12.0_ark)
      !
      const=hh*(pot_eff(istart)-i0(istart)*eguess)
      !
      yip1=const*phi_f(istart)+yi+yi-yim1
      !
-     tsum=0.0_rk
+     tsum=0.0_ark
      !
      notfound = .true.
      !
@@ -1337,18 +1350,18 @@ module me_numer
      iend = npoints-2 
      if (v==0) iend = imin
      !
-     ! if minimum is at i= 0 choose iend in the middle 
+     ! if minimum is at i= 0 choose iend at the moddle 
+     !
      !
      imin_ref = imin
-     !imin_ref = iref
      !
-     do while(notfound.and.i<=iend-1)
+     do while(notfound.and.i<=iend)
         !
         i = i + 1
         !
         const=hh*(pot_eff(i)-i0(i)*eguess)
         !
-        phi_t = yi/(1.0_rk-const/12.0_rk)
+        phi_t = yi/(1.0_ark-const/12.0_ark)
         !
         phi_f(i)=phi_t
         !
@@ -1356,7 +1369,7 @@ module me_numer
         !
         if (i>=imin_ref) then 
           !
-          if ( sign( 1.0_rk,yi-yim1 )/=sign(1.0_rk,yip1-yi).and.i.ne.1) then 
+          if ( sign( 1.0_ark,yi-yim1 )/=sign(1.0_ark,yip1-yi).and.i.ne.1) then 
           !if ( sign( 1.0_rk,yim1 )/=sign(1.0_rk,yip1 ).and.i.ne.1) then 
               notfound = .false.
               cycle 
@@ -1417,19 +1430,19 @@ module me_numer
 !
 !     phi(rhomax) = 0
 !
-!     phi(rhomax-rhostep) = small_
+!     phi(rhomax-rhostep) = small__
 !
 !
   subroutine intin ( pot_eff, i0, eguess, phi_f , sumin , ic , pcin )
       
-     real(rk),intent(in ) :: eguess
+     real(ark),intent(in ) :: eguess
      integer(ik),intent(in) :: ic
 
-     real(rk),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
-     real(rk),intent(inout) :: phi_f(0:npoints)
-     real(rk),intent(out) :: sumin,pcin
+     real(ark),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
+     real(ark),intent(inout) :: phi_f(0:npoints)
+     real(ark),intent(out) :: sumin,pcin
      !
-     real(rk) :: hh,const,tsum,yi,yim1,yip1,redfac,phi_t
+     real(ark) :: hh,const,tsum,yi,yim1,yip1,redfac,phi_t
      integer(ik) :: i,ist,nm1,iend,kend,km1
      !
      hh=rhostep**2
@@ -1438,22 +1451,22 @@ module me_numer
      iend=npoints-1
      nm1=iend
      !
-     yip1=phi_f(nm1+1)*(1.0_rk-hh*(pot_eff(nm1+1)-i0(nm1+1)*eguess)/12.0_rk)
-     yi  =phi_f(nm1  )*(1.0_rk-hh*(pot_eff(nm1  )-i0(nm1  )*eguess)/12.0_rk)
+     yip1=phi_f(nm1+1)*(1.0_ark-hh*(pot_eff(nm1+1)-i0(nm1+1)*eguess)/12.0_ark)
+     yi  =phi_f(nm1  )*(1.0_ark-hh*(pot_eff(nm1  )-i0(nm1  )*eguess)/12.0_ark)
      !
      if (periodic.and.abs(phi_f(0))>sqrt(small_).and..false.) then 
        !
        kend = 2
        km1 = kend
        !
-       yip1=phi_f(km1+1)*(1.0_rk-hh*(pot_eff(km1+1)-i0(km1+1)*eguess)/12.0_rk)
-       yi  =phi_f(km1  )*(1.0_rk-hh*(pot_eff(km1  )-i0(km1  )*eguess)/12.0_rk)
+       yip1=phi_f(km1+1)*(1.0_ark-hh*(pot_eff(km1+1)-i0(km1+1)*eguess)/12.0_ark)
+       yi  =phi_f(km1  )*(1.0_ark-hh*(pot_eff(km1  )-i0(km1  )*eguess)/12.0_ark)
        !
       ! do i=kend,0,-1
       !   !
       !   const=hh*(pot_eff(i)-i0(i)*eguess)
       !   !
-      !   phi_t=yi/(1.0_rk-const/12.0_rk)
+      !   phi_t=yi/(1.0_ark-const/12.0_ark)
       !   !
       !   phi_f(i)=phi_t
       !   !
@@ -1467,10 +1480,10 @@ module me_numer
        !iend=npoints-2
        !nm1=iend
        !
-       !phi_f(npoints-2) = 2.0_rk*phi_f(npoints)-phi_f(2)
+       !phi_f(npoints-2) = 2.0_ark*phi_f(npoints)-phi_f(2)
        !
-       !yip1=phi_f(nm1+1)*(1.0_rk-hh*(pot_eff(nm1+1)-i0(nm1+1)*eguess)/12.0_rk)
-       !yi  =phi_f(nm1  )*(1.0_rk-hh*(pot_eff(nm1  )-i0(nm1  )*eguess)/12.0_rk)
+       !yip1=phi_f(nm1+1)*(1.0_ark-hh*(pot_eff(nm1+1)-i0(nm1+1)*eguess)/12.0_ark)
+       !yi  =phi_f(nm1  )*(1.0_ark-hh*(pot_eff(nm1  )-i0(nm1  )*eguess)/12.0_ark)
        !
      endif
      !
@@ -1478,13 +1491,13 @@ module me_numer
      !
      !yi=phi_f(nm1)*(1.0_rk-hh*(pot_eff(nm1)-i0(nm1)*eguess)/12.0_rk)
      !
-     tsum=0.0_rk
+     tsum=0.0_ark
      !
      do i=iend,ist,-1
         !i=ist+iend-ii
         const=hh*(pot_eff(i)-i0(i)*eguess)
         !
-        phi_t=yi/(1.0_rk-const/12.0_rk)
+        phi_t=yi/(1.0_ark-const/12.0_ark)
         !
         phi_f(i)=phi_t
         !
@@ -1510,23 +1523,22 @@ module me_numer
      !
      sumin=tsum
      !
-     pcin=yi/(1.0_rk-hh*(pot_eff(ic)-i0(ic)*eguess)/12.0_rk)
+     pcin=yi/(1.0_ark-hh*(pot_eff(ic)-i0(ic)*eguess)/12.0_ark)
      !
   end subroutine intin
-
 !
 ! integration with Simpson rules 
 !                                      
-  function simpsonintegral_rk(npoints,xmax,f) result (si) 
+  function simpsonintegral_ark(npoints,xmax,f) result (si) 
     integer(ik),intent(in) :: npoints
     !
-    real(rk),intent(in) :: xmax,f(0:npoints)
+    real(ark),intent(in) :: xmax,f(0:npoints)
     !
-    real(rk) :: si
+    real(ark) :: si
     !
     integer(ik) :: i
     !
-    real(rk) ::  feven,fodd,f0,fmax,h
+    real(ark) ::  feven,fodd,f0,fmax,h
       !
       h = xmax/real(Npoints,kind=rk)  !   integration step   
       feven=0         
@@ -1544,9 +1556,9 @@ module me_numer
      !
      fodd   = fodd  + f(npoints-1)
      !
-     si =  h/3.0_rk*( 4.0_rk*fodd + 2.0_rk*feven + f0 + fmax)
+     si =  h/3.0_ark*( 4.0_ark*fodd + 2.0_ark*feven + f0 + fmax)
 
-  end function  simpsonintegral_rk
+  end function  simpsonintegral_ark
 
 
 !
@@ -1555,13 +1567,13 @@ module me_numer
   function simpsonintegral(npoints,xmax,f) result (si) 
     integer(ik),intent(in) :: npoints
     !
-    real(rk),intent(in) :: xmax,f(0:npoints)
+    real(ark),intent(in) :: xmax,f(0:npoints)
     !
-    real(rk) :: si
+    real(ark) :: si
     !
     integer(ik) :: i
     !
-    real(rk) ::  feven,fodd,f0,fmax,h
+    real(ark) ::  feven,fodd,f0,fmax,h
       !
       h = xmax/real(Npoints,kind=rk)  !   integration step   
       feven=0         
@@ -1579,21 +1591,21 @@ module me_numer
      !
      fodd   = fodd  + f(npoints-1)
      !
-     si =  h/3.0_rk*( 4.0_rk*fodd + 2.0_rk*feven + f0 + fmax)
+     si =  h/3.0_ark*( 4.0_ark*fodd + 2.0_ark*feven + f0 + fmax)
 
   end function  simpsonintegral
 
 
 ! integration with Simpson rules 
 !                                      
-  function integral_rect_rk(npoints,xmax,f) result (si) 
+  function integral_rect_ark(npoints,xmax,f) result (si) 
     integer(ik),intent(in) :: npoints
     !
-    real(rk),intent(in) :: xmax,f(0:npoints)
+    real(ark),intent(in) :: xmax,f(0:npoints)
     !
-    real(rk) :: si
+    real(ark) :: si
     !
-    real(rk) ::  h
+    real(ark) ::  h
      !
      h = xmax/real(Npoints,kind=rk)  !   integration step   
      !
@@ -1601,9 +1613,9 @@ module me_numer
      !
      si = sum(f)*h
      !
-     !si  = simpsonintegral_rk(npoints,xmax,f)
+     !si  = simpsonintegral_ark(npoints,xmax,f)
      !
-  end function  integral_rect_rk
+  end function  integral_rect_ark
 
 
 
@@ -1688,19 +1700,19 @@ module me_numer
 !     mrk 7 revised ier-139 (dec 1978)
 !     mrk 8 revised. ier-219 (mar 1980)
 !     mrk 8d revised. ier-271 (dec 1980).
-      real(rk),intent(in) ::  hbase
+      real(ark),intent(in) ::  hbase
       integer(ik) ::  nderp, nder, ndpar, ifail, n, nn1, nsq, npar, nsmax,j, &
                      neger, ns, npmin, np, nktop, npr, nk, ntop, nmax, nmin,nup, nlo, & 
                      ntopm2, jns, nst2,ii,ifun
-      real(rk) ::  der(4), erest(4), fact, &
+      real(ark) ::  der(4), erest(4), fact, &
        acof(10),fz, h, hfact, hsq, a, b, trange(7), ranmin, temp, term, &
        rtab(10,7), tzerom(10), erprev, ernow, xjns, xmax, xmin,xnum, &
        thron2, zero, one, two, big, small, htest, ftest
       
       integer(ik) :: maxpts
 
-      real(rk) ::  fun(maxpts)
-      data zero, one, two, thron2 /0.0_rk,1.0_rk,2.0_rk,1.5_rk/
+      real(ark) ::  fun(maxpts)
+      data zero, one, two, thron2 /0.0_ark,1.0_ark,2.0_ark,1.5_ark/
 !
 !     to alter the precision of the whole routine,alter the
 !     precision
@@ -1964,13 +1976,13 @@ module me_numer
      subroutine interapolate_at_center(N,V,dv)
      !
      integer,intent(in) :: N
-     real(rk),intent(inout) ::dv,V(-N:N)
+     real(ark),intent(inout) ::dv,V(-N:N)
      !
      integer            :: i1,i2,fact
-     real(rk)           :: x1,a(N,N),b(N,1)
+     real(ark)           :: x1,a(N,N),b(N,1)
         !
         fact = 2
-        if (abs(v(-2)/v(2)+1.0_rk)<sqrt(small_)) then 
+        if (abs(v(-2)/v(2)+1.0_ark)<sqrt(small__)) then 
            dv = 0 
            return 
         endif 
@@ -1991,8 +2003,8 @@ module me_numer
         enddo
         !
         !b(1,1) = V(0)
-        !a(1,1) = 1.0_rk
-        a(:,1) = 1.0_rk
+        !a(1,1) = 1.0_ark
+        a(:,1) = 1.0_ark
         !a(1,2:N) = 0
         !
         !  lapack_gelss 
@@ -2005,22 +2017,22 @@ module me_numer
    end subroutine interapolate_at_center
 
 
-  subroutine diff_2d_4points_rk(Npoints,rho_b,f,periodic,reflect,d1f,d2f)
+  subroutine diff_2d_4points_ark(Npoints,rho_b,f,periodic,reflect,d1f,d2f)
 
    integer(ik) ,intent(in)  :: Npoints
-   real(rk)   ,intent(in)  :: f(0:Npoints)
-   real(rk)   ,intent(in)  :: rho_b(2)
+   real(ark)   ,intent(in)  :: f(0:Npoints)
+   real(ark)   ,intent(in)  :: rho_b(2)
    logical     ,intent(in)  :: periodic
    integer(ik),intent(in)   :: reflect
    !
-   real(rk),   intent(out) ::  d1f(0:Npoints)
-   real(rk),   optional    ::  d2f(0:Npoints)
+   real(ark),   intent(out) ::  d1f(0:Npoints)
+   real(ark),   optional    ::  d2f(0:Npoints)
    !
-   real(rk)               :: rhostep,d1t,d2t,x,dy
+   real(ark)               :: rhostep,d1t,d2t,x,dy
    integer(ik)             :: ipoint,i,kl,kr
    integer(ik),parameter   :: Nextrap = 4
    integer(ik),parameter   :: Mextrap = 4
-   real(rk)                :: v_t(-Nextrap:Nextrap),g_t(1:Nextrap)
+   real(ark)                :: v_t(-Nextrap:Nextrap),g_t(1:Nextrap)
      !
      !
      rhostep = (rho_b(2)-rho_b(1))/real(npoints,kind=rk)
@@ -2029,7 +2041,7 @@ module me_numer
         !
         kl = max(0,ipoint-4) ;   kr = min(Npoints,ipoint+4)
         !
-        call ML_diffs_rk(kl,kr,ipoint,f(kl:kr),rhostep,d1t,d2t) 
+        call ML_diffs_ark(kl,kr,ipoint,f(kl:kr),rhostep,d1t,d2t) 
         !
         d1f(ipoint) = d1t
         !
@@ -2054,21 +2066,21 @@ module me_numer
        !
        ipoint = i
        x = rho_b(1)+real(ipoint,rk)*rhostep
-       call polintrk(v_t(1:Nextrap), d1f(Mextrap:Mextrap+Nextrap-1), x, d1t, dy)
+       call polintark(v_t(1:Nextrap), d1f(Mextrap:Mextrap+Nextrap-1), x, d1t, dy)
        d1f(ipoint) = d1t
        !
        if (present(d2f)) & 
-          call polintrk(v_t(1:Nextrap), d2f(Mextrap:Mextrap+Nextrap-1), x, d2f(ipoint), dy)
+          call polintark(v_t(1:Nextrap), d2f(Mextrap:Mextrap+Nextrap-1), x, d2f(ipoint), dy)
        !
        ipoint = Npoints-Mextrap+1+i
        x = rho_b(1)+real(ipoint,rk)*rhostep
        !
-       call polintrk(g_t(1:Nextrap), d1f(Npoints-Mextrap-Nextrap+1:Npoints-Mextrap), x, d1t, dy)
+       call polintark(g_t(1:Nextrap), d1f(Npoints-Mextrap-Nextrap+1:Npoints-Mextrap), x, d1t, dy)
        !
        d1f(ipoint) = d1t
        !
        if (present(d2f)) & 
-          call polintrk(g_t(1:Nextrap), d2f(Npoints-Mextrap-Nextrap+1:Npoints-Mextrap), x, d2f(ipoint), dy)
+          call polintark(g_t(1:Nextrap), d2f(Npoints-Mextrap-Nextrap+1:Npoints-Mextrap), x, d2f(ipoint), dy)
        !
      enddo
      !
@@ -2088,7 +2100,7 @@ module me_numer
            !
          enddo
          !
-         call ML_diffs_rk(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
+         call ML_diffs_ark(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
          !
          d1f(ipoint) = d1t
          !
@@ -2114,7 +2126,7 @@ module me_numer
            !
          enddo
          !
-         call ML_diffs_rk(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
+         call ML_diffs_ark(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
          !
          d1f(ipoint) = d1t
          !
@@ -2146,7 +2158,7 @@ module me_numer
            !
          enddo
          !
-         call ML_diffs_rk(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
+         call ML_diffs_ark(-4,4,0,v_t(-4:4),rhostep,d1t,d2t) 
          !
          d1f(ipoint) = d1t
          !
@@ -2160,23 +2172,23 @@ module me_numer
        !
      endif 
      !
-  end subroutine diff_2d_4points_rk
+  end subroutine diff_2d_4points_ark
 
 
-  subroutine ML_diffs_rk(n1,n2,n0,v,rhostep,d1,d2)
+  subroutine ML_diffs_ark(n1,n2,n0,v,rhostep,d1,d2)
     !
     integer(ik),intent(in) :: n1,n2,n0
-    real(rk),intent(in) :: v(n1:n2),rhostep
-    real(rk),intent(out) :: d1,d2
+    real(ark),intent(in) :: v(n1:n2),rhostep
+    real(ark),intent(out) :: d1,d2
     !
-    real(rk)             :: v_t(-4:4)
+    real(ark)             :: v_t(-4:4)
     !
     !n1 = lbound(v,dim=1) ; n2 = ubound(v,dim=1)
     !
     if (n1>n0.or.n0>n2) then 
        !
-       write (out,"('ML_diffs_rk: must be n1<=n0<=n2, you give: ',3i8)") n1,n0,n2
-       stop 'ML_diffs_rk: wrong indexes n1,n0,n2'
+       write (out,"('ML_diffs_ark: must be n1<=n0<=n2, you give: ',3i8)") n1,n0,n2
+       stop 'ML_diffs_ark: wrong indexes n1,n0,n2'
        !
     endif 
     !
@@ -2184,30 +2196,30 @@ module me_numer
        !
        v_t(-4:4) = v(n1:n2)
        !
-       d1 = (-v_t( 2)/12.0_rk+2.0_rk/3.0_rk*v_t( 1) & 
-             +v_t(-2)/12.0_rk-2.0_rk/3.0_rk*v_t(-1) )/rhostep
+       d1 = (-v_t( 2)/12.0_ark+2.0_ark/3.0_ark*v_t( 1) & 
+             +v_t(-2)/12.0_ark-2.0_ark/3.0_ark*v_t(-1) )/rhostep
        !
-       d2 = ( v_t( 4)/144.0_rk-v_t( 3)/9.0_rk+v_t( 2)*4.0_rk/9.0_rk+v_t( 1)/9.0_rk  & 
-           -v_t(0)*65.0_rk/72.0_rk  &
-           +v_t(-4)/144.0_rk-v_t(-3)/9.0_rk+v_t(-2)*4.0_rk/9.0_rk+v_t(-1)/9.0_rk) &
+       d2 = ( v_t( 4)/144.0_ark-v_t( 3)/9.0_ark+v_t( 2)*4.0_ark/9.0_ark+v_t( 1)/9.0_ark  & 
+           -v_t(0)*65.0_ark/72.0_ark  &
+           +v_t(-4)/144.0_ark-v_t(-3)/9.0_ark+v_t(-2)*4.0_ark/9.0_ark+v_t(-1)/9.0_ark) &
            /rhostep**2
        !
     elseif ( n0-n1>=2 .and. n2-n0>=2 ) then
        !
        v_t(-2:2) = v(n0-2:n0+2)
        !
-       d1 = (-v_t( 2)/12.0_rk+2.0_rk/3.0_rk*v_t( 1) & 
-             +v_t(-2)/12.0_rk-2.0_rk/3.0_rk*v_t(-1) )/rhostep
+       d1 = (-v_t( 2)/12.0_ark+2.0_ark/3.0_ark*v_t( 1) & 
+             +v_t(-2)/12.0_ark-2.0_ark/3.0_ark*v_t(-1) )/rhostep
        !
-       d2 = (v_t( 2) + v_t(-2) - 2.0_rk*v_t(0) )/(rhostep**2*4.0_rk)
+       d2 = (v_t( 2) + v_t(-2) - 2.0_ark*v_t(0) )/(rhostep**2*4.0_ark)
        !
     elseif ( n0-n1>=1 .and. n2-n0>=1 ) then
        !
        v_t(-1:1) = v(n0-1:n0+1)
        !
-       d1 = ( v_t( 1) - v_t(-1) )/(rhostep*2.0_rk)
+       d1 = ( v_t( 1) - v_t(-1) )/(rhostep*2.0_ark)
        !
-       d2 = (v_t( 1) + v_t(-1) - 2.0_rk*v_t(0) )/(rhostep**2)
+       d2 = (v_t( 1) + v_t(-1) - 2.0_ark*v_t(0) )/(rhostep**2)
        !
     elseif ( n0-n1==0 .and. n2-n0>=2 ) then
        !
@@ -2215,7 +2227,7 @@ module me_numer
        !
        d1 = ( v_t( 1) - v_t(0) )/rhostep
        !
-       d2 = (v_t( 0) - 2.0_rk*v_t( 1) + v_t( 2) )/(rhostep**2)
+       d2 = (v_t( 0) - 2.0_ark*v_t( 1) + v_t( 2) )/(rhostep**2)
        !
     elseif ( n0-n1>=2 .and. n2-n0==0 ) then
        !
@@ -2223,25 +2235,25 @@ module me_numer
        !
        d1 = ( v_t(0) - v_t(-1) )/rhostep
        !
-       d2 = ( v_t( 0) - 2.0_rk*v_t(-1) + v_t(-2) )/(rhostep**2)
+       d2 = ( v_t( 0) - 2.0_ark*v_t(-1) + v_t(-2) )/(rhostep**2)
        !
     else
        !
-       write (out,"('ML_diffs_rk: wrong n1,n0,n2: ',3i8)") n1,n0,n2
-       stop 'ML_diffs_rk: wrong indexes n1,n0,n2'
+       write (out,"('ML_diffs_ark: wrong n1,n0,n2: ',3i8)") n1,n0,n2
+       stop 'ML_diffs_ark: wrong indexes n1,n0,n2'
        !
     endif
     !
-  end subroutine ML_diffs_rk
+  end subroutine ML_diffs_ark
 
 
-recursive subroutine polintrk(xa, ya, x, y, dy)
+recursive subroutine polintark(xa, ya, x, y, dy)
 
   !use nrtype; use nrutil, only : assert_eq, iminloc, nrerror
   implicit none
-  real(rk), dimension(:), intent(in) :: xa, ya
-  real(rk), intent(in) :: x
-  real(rk), intent(out) :: y, dy
+  real(ark), dimension(:), intent(in) :: xa, ya
+  real(ark), intent(in) :: x
+  real(ark), intent(out) :: y, dy
 
   !
   ! given arrays xa and ya of length n, and given a value x, this routine
@@ -2250,9 +2262,9 @@ recursive subroutine polintrk(xa, ya, x, y, dy)
   ! returned value y = p(x).
 
   integer(ik) :: m, n, ns
-  real(rk), dimension(size(xa)) :: c, d, den, ho
+  real(ark), dimension(size(xa)) :: c, d, den, ho
 
-  if (verbose>=6) write(out,"('polintrk...')")
+  if (verbose>=6) write(out,"('polintark...')")
 
   n = size(xa)
   if (size(ya)/=n) then 
@@ -2291,10 +2303,10 @@ recursive subroutine polintrk(xa, ya, x, y, dy)
      y = y+dy                     ! is the measure of error.
   end do
   !
-  if (verbose>=6) write(out,"('polintrk.')")
+  if (verbose>=6) write(out,"('polintark.')")
   !
 
-end subroutine polintrk
+end subroutine polintark
 
 
  end module me_numer
