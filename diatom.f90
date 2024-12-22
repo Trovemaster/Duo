@@ -7905,6 +7905,12 @@ contains
           omegai = field%omegai
           omegaj = field%omegaj
           !
+          field_%omegai = omegai
+          field_%omegaj = omegaj
+          !
+          field_%iomega = iomega
+          field_%jomega = jomega
+          !
           do iroot = 1,totalroots
             !
             i = icontrvib(iroot)%ivib
@@ -8948,14 +8954,14 @@ contains
              icontr(i)%omega = omega*(-1.0_rk)**ipar
 
              !
-             ! find iomega for this omega (with sign)
+             icontr(i)%iomega = iomega
              !
+             ! find iomega for this omega (with sign)
              iomega = 1
              do while (nint(abs(Omega_grid(iomega)%omega-icontr(i)%omega ))/=0)
                iomega= iomega +1
              enddo
              !
-             icontr(i)%iomega = iomega
              icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
              !
              ! print the quantum numbers
@@ -8981,9 +8987,9 @@ contains
              !
              transform(ipar)%U(isym,i) = 1.0_ark
              !
-             transform(ipar)%irec(isym) = ilevel
+             transform(ipar)%irec(isym) = i
              !
-             ilevel2i(ilevel,ipar) = i
+             ilevel2i(i,ipar) = i
              !
            else
              !
@@ -9003,9 +9009,9 @@ contains
                 transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1.0_rk)**ipower
                 !
                 ! store the primitive record in the irrep 
-                transform(ipar)%irec(isym) = ilevel
+                transform(ipar)%irec(isym) = i
                 !
-                ilevel2i(ilevel,ipar) = i
+                ilevel2i(i,ipar) = i-2+ipar
                 !
              enddo
              !
@@ -11622,12 +11628,12 @@ contains
     integer(ik) :: i,j,ivib,ilevel,jlevel,istate,jstate,ilambda,jlambda,imulti,jmulti,iomega,jomega,jvib,alloc
     integer(ik) :: iLplus_omega_,isigmav,ilevel_,jlevel_,ip2q_omega_,iq_omega_
     integer(ik) :: iroot,jroot
-    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo
+    real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo,f_s
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
     type(fieldT),pointer  :: field
     !
-    allocate(printout(Nomega_states),stat=alloc) ; if (alloc/=0) stop 'cannot allocate printout'
+    allocate(printout(Ntotal),stat=alloc) ; if (alloc/=0) stop 'cannot allocate printout'
     printout = ''
 
     hmat = 0
@@ -11700,7 +11706,7 @@ contains
           !
           ! print out the internal matrix at the first grid point
           if (iverbose>=4.and.abs(hmat(i,j)) >small_) then
-            write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
+            write(printout(i),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
           endif
           !
         endif
@@ -11718,7 +11724,7 @@ contains
         !  !
         !  ! print out the internal matrix at the first grid point
         !  if (iverbose>=4.and.abs(hmat(i,j)) >small_) then
-        !      write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
+        !      write(printout(i),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
         !  endif
         !  !
         !endif
@@ -11751,20 +11757,26 @@ contains
             !
             f_t = 0
             !
-            f_w = nint(omegai-omegaj)
+            omegai_ = field%omegai
+            omegaj_ = field%omegaj
             !
-            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(iroot,jroot)
+            if (nint(omegai-omegaj)/=nint(omegaj_-omegai_)) cycle
+            !
+            f_w = nint(omegai-omegaj)
+            f_s = (omegai-omegaj)
+            !
+            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_s) )*field%matelem(iroot,jroot)
             !
             hmat(i,j) = hmat(i,j) - f_t
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(f_t)>sqrt(small_)) then
-              write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              write(printout_,'("  J-S(",2i3,")=")') i,j
+              printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
                 write(printout_,'(F12.4, A)') -f_t/sc, " ;"
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                printout(i) = trim(printout(i))//trim(printout_)
               endif
             endif
             !
@@ -11823,10 +11835,10 @@ contains
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(f_t)>small_) then
-              write(printout_,'(i3,"-LJ",2i3)') iLplus_omega_,ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              write(printout_,'(g12.4)') -f_t/sc
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              write(printout_,'(i3,"-LJ",2i3)') iLplus_omega_,iomega,jomega
+              printout(i) = trim(printout(i))//trim(printout_)
+              write(iomega,'(g12.4)') -f_t/sc
+              printout(i) = trim(printout(i))//trim(printout_)
             endif
             !
           endif
@@ -11880,11 +11892,11 @@ contains
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    SR",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              write(printout_,'("    SR",2i3)') i,j
+              printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
                 write(printout_,'(g12.4)') hmat(i,j)/sc
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                printout(i) = trim(printout(i))//trim(printout_)
               endif
             endif
             !
@@ -11927,10 +11939,10 @@ contains
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(f_t)>small_) then
-              write(printout_,'(i3,"-LJ",2i3)') ip2q_omega_,ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              write(printout_,'(i3,"-LJ",2i3)') ip2q_omega_,i,j
+              printout(i) = trim(printout(i))//trim(printout_)
               write(printout_,'(g12.4)') -f_t/sc
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              printout(i) = trim(printout(i))//trim(printout_)
             endif
             !
           enddo loop_p2q_omega
@@ -11976,11 +11988,11 @@ contains
             !
             ! print out the internal matrix at the first grid point
             if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    q",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              write(printout_,'("    q",2i3)') i,j
+              printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
                 write(printout_,'(g12.4)') hmat(i,j)/sc
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                printout(i) = trim(printout(i))//trim(printout_)
               endif
             endif
             !
@@ -12006,8 +12018,8 @@ contains
       write(out,'(A)') 'LS == L.J interaction (aka L-uncoupling)'
       write(out,'(A)') 'LS == L.S interaction (spin-electronic)'
       !
-      do ilevel = 1,Nomega_states
-        write(out,'(a)') trim( printout(ilevel) )
+      do i = 1,Ntotal
+        write(out,'(a)') trim( printout(i) )
       enddo
       !
       write(out,'(" "/)')
@@ -12018,15 +12030,9 @@ contains
     !
     deallocate(printout)
     !
-
   end subroutine Compute_rovibronic_Hamiltonian_in_omega_vib_representation
   
-  
-  
-  
-  
-  
-  
+   
   !
   !  vibrational reduced density of a rovibronic eigenstate at the igrid point
 
@@ -12213,7 +12219,7 @@ contains
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
     real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
-    real(rk)    :: V1,V2,VD,beta,discr
+    real(rk)    :: V1,V2,VD,beta,discr,VD1,VD2
     !
     type(fieldT),pointer      :: field
     !
@@ -12922,21 +12928,39 @@ contains
           !
           V1 = min(omegamat(1,1),omegamat(2,2))
           V2 = max(omegamat(1,1),omegamat(2,2))
+          !
+          V1 = omegamat(1,1)
+          V2 = omegamat(2,2)
+          !          
           VD = omegamat(1,2)
           !
           Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
           !
-          omegaenergy(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
-          omegaenergy(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+          VD1=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+          VD2=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+          !
+          omegaenergy(1) = min(VD1,VD2)
+          omegaenergy(2) = max(VD1,VD2)
           !
           !beta = 0.5_rk*atan(2.0_rk*VD/(V2-V1))
           !
           beta = 0.5_rk*atan2(2.0_rk*VD,(V2-V1))
           !
-          omegamat(1,1) = cos(beta)
-          omegamat(1,2) =-sin(beta)
-          omegamat(2,2) = cos(beta)
-          omegamat(2,1) = sin(beta)
+          !if (omegamat(2,2)>=omegamat(1,1)) then 
+            !
+            omegamat(1,1) = cos(beta)
+            omegamat(2,1) =-sin(beta)
+            omegamat(1,2) = sin(beta)
+            omegamat(2,2) = cos(beta)
+            !
+          !else
+          !  !
+          !  omegamat(1,2) = cos(beta)
+          !  omegamat(2,2) =-sin(beta)
+          !  omegamat(1,1) = sin(beta)
+          !  omegamat(2,1) = cos(beta)
+          !  !
+          !endif
           !
         else 
           !
@@ -12960,7 +12984,7 @@ contains
         !
         ! Make phases consistent by projecting U(i) onto U(i-1)
         !
-        if (igrid>58.and.iomega==2) then
+        if (igrid>204.and.iomega==2) then
           continue
         endif
         !
@@ -12999,15 +13023,15 @@ contains
             imaxcontr = maxloc(mat_1(1:N_i,i)**2,dim=1,mask=mat_1(1:N_i,i)**2.ge.small_)
             !
             ! turn the transformation into a permutation patrix
-            mat_2(imaxcontr,i) = sign(1.0_rk,mat_1(imaxcontr,i))
+            !mat_2(imaxcontr,i) = sign(1.0_rk,mat_1(imaxcontr,i))
             !
-            !mat_2(i,i) = sign(1.0_rk,mat_1(i,i))
+            mat_2(i,i) = sign(1.0_rk,mat_1(i,i))
             !
           enddo
           !
           mat_1(1:N_i,1:N_i) =  omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
           !
-          omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) =  matmul( transpose(mat_2(1:N_i,1:N_i)),mat_1(1:N_i,1:N_i) )
+          !omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) =  matmul( transpose(mat_2(1:N_i,1:N_i)),mat_1(1:N_i,1:N_i) )
           !
           ! scalar product of vect with the previous step
           !do i = 1,N_i
@@ -14084,7 +14108,7 @@ contains
           write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,i2,1x,i4,1x,f8.1,1x)') iterm,&
             bob_omega_obj(iterm)%omegai,&
             Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma ,&
-            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(iomega)%qn(j)%sigma
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
         enddo
         !
         write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NBob_omega, '(i22))'
@@ -14429,10 +14453,12 @@ contains
         call lapack_syev(vibmat,vibener)
         !
         ! we need only these many roots
-        Nroots = min(Ndimen,job%vibmax(istate))
+        Nroots = min(Ndimen,job%vibmax(istate))*Nlambdasigmas
+        !
+        !if (nint(omega*2.0)/=0) Nroots = 2.0_rk*Nroots
         !
         ! or as many as below job%upper_ener if required by the input
-        if ((job%vibenermax(istate))*sc<safe_max) then
+        if ((job%vibenermax(istate))<safe_max) then
           nroots = maxloc(vibener(:)-vibener(1),dim=1,mask=vibener(:).le.job%vibenermax(istate)*sc)
         endif
         !

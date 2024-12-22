@@ -56,7 +56,7 @@ module me_numer
   !
   integer(ik) :: iparity                         ! 
   !
-  character(len=cl),parameter :: boundary_condition = 'UNBOUND'
+  character(len=cl),parameter :: boundary_condition = 'BOUND'
   !
   character(len=cl),parameter :: deriv_method = 'ML_diffs' !  We use this method to estimate d pvi_v / d rho  
                                                          ! where phi_v is a numerical eigenfunction from numerov
@@ -1202,8 +1202,8 @@ module me_numer
         case default 
           !
           phi_f(0)  = 0.0_rk
-          phi_f(1)  = small_
-          phi_f(npoints-1)  = safe_min ! small_
+          phi_f(1)  = sqrt(small_)
+          phi_f(npoints-1)  = sqrt(small_)
           phi_f(npoints  )  = 0.0_rk
           !
         end select
@@ -1339,8 +1339,8 @@ module me_numer
      !
      ! if minimum is at i= 0 choose iend in the middle 
      !
-     !imin_ref = imin
-     imin_ref = iref
+     imin_ref = imin
+     !imin_ref = iref
      !
      do while(notfound.and.i<=iend-1)
         !
