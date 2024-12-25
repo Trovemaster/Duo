@@ -2575,7 +2575,7 @@ module functions
     !
     f = 0
     !
-    Ndim = ( nint( sqrt(1.0_rk+8_rk*real(N_multi_subfunctions,rk)))-1 )/2
+    Ndim = ( nint( sqrt(1.0_rk+8.0_rk*real(N_multi_subfunctions,rk)))-1 )/2
     !
     allocate(h(Ndim,Ndim),e(Ndim),stat=alloc)
     if (alloc/=0) then

@@ -2313,8 +2313,8 @@ contains
     !     .  now find what the range of new is.
     !
     !
-    newmin=idnint(max((a+be-c),(b-c-al),0.0_rk))
-    newmax=idnint(min((a-al),(b+be),(a+b-c)))
+    newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
+    newmax=nint(min((a-al),(b+be),(a+b-c)))
     !
     !
     summ=0
@@ -2334,7 +2334,7 @@ contains
     !
     !     convert clebsch-gordon to three_j
     !
-    iphase=idnint(a-b-ga)
+    iphase=nint(a-b-ga)
     minus = -1.0_rk
     if (mod(iphase,2).eq.0) minus = 1.0_rk
     three_j0=minus*clebsh/sqrt(2.0_rk*c+1.0_rk)

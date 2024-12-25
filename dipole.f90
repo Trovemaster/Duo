@@ -1221,7 +1221,9 @@ contains
                        !
                      case('ABSORPTION','EMISSION')
                        !
-                       linestr = ddot(dimenF,half_linestr,1,vecF,1)
+                       !linestr = ddot(dimenF,half_linestr,1,vecF,1)
+                       !
+                       linestr = sum(half_linestr(1:dimenF)*vecF(1:dimenF))
                        !
                        linestr2 = linestr**2
                        !

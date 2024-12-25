@@ -5,13 +5,13 @@
     implicit none
 !____________________________________________________________
 !
-     integer       :: nsub      ! type of grid (uniformely spaced or not)
-     integer       :: mes       ! number of the mesh points
+     integer(ik)   :: nsub      ! type of grid (uniformely spaced or not)
+     integer(ik)   :: mes       ! number of the mesh points
      real(kind=rk) :: rmin      ! left innermost point 0<rmin<re
      real(kind=rk) :: rmax      ! right outmost  point rmin<re<rmax
      real(kind=rk) :: alpha     ! alpha > 0
      real(kind=rk) :: re        ! re > 0
-     integer       :: iverbose  ! verbose level
+     integer(ik)   :: iverbose  ! verbose level
      intent(in)    :: alpha,re,rmin,rmax,mes,nsub ! input variables
 !
 !        | assumed radial coordinate belongs |
