@@ -8037,7 +8037,7 @@ contains
                  !
                  field_%matelem(i,j)  = field_%matelem(i,j) + &
                                               sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
-                 field_%matelem(j,i) = field_%matelem(i,j)
+                 !field_%matelem(j,i) = field_%matelem(i,j)
                  !
                  ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                  ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
