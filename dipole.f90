@@ -2139,7 +2139,7 @@ contains
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
         real(rk),intent(out)    :: half_ls(:)
-        integer(ik)             :: icontrF,icontrI,irootF,irootI
+        integer(ik)             :: icontrF,icontrI,irootF,irootI,ilevelI,ilevelF
         integer(ik)             :: iomegaI_,iomegaI,iomegaF
         real(rk)                :: ls, f3j, omegaI,omegaF
         real(rk)                :: f_t
@@ -2152,23 +2152,25 @@ contains
           !
           !loop over final state basis components
           !
-          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,icontrI,irootI,omegaI,iomegaI,iomegaI_,f3j,ls,f_t)&
-          !$omp &  shared(half_ls) schedule(guided)
+          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelI,ilevelF,icontrI,irootI,&
+          !$omp omegaI,iomegaI,iomegaI_,f3j,ls,f_t) shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
                irootF = basis(indF)%icontr(icontrF)%iroot
                omegaF = basis(indF)%icontr(icontrF)%omega
                iomegaF = basis(indF)%icontr(icontrF)%iomega
+               ilevelF = basis(indF)%icontr(icontrF)%ilevel
                !
                loop_I : do icontrI = 1, dimenI
                   !
                   irootI = basis(indI)%icontr(icontrI)%iroot
                   omegaI  = basis(indI)%icontr(icontrI)%omega
                   iomegaI = basis(indI)%icontr(icontrI)%iomega
+                  ilevelI = basis(indI)%icontr(icontrI)%ilevel
                   !
                   ! Here Nterms is used as dimension of Dipole_omega_tot(iomegaI,iomegaF)%matelem. 
                   ! if it is zero, the term does not exist and needs to be omitted 
-                  if (Dipole_omega_tot(iomegaI,iomegaF)%Nterms==0) cycle loop_I
+                  if (Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%Nterms==0) cycle loop_I
                   !
                   if (abs(nint(omegaF - omegaI))>1) cycle loop_I
                   !
@@ -2177,7 +2179,7 @@ contains
                   !
                   f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
                   !
-                  f_t = Dipole_omega_tot(iomegaI,iomegaF)%matelem(irootI,irootF)
+                  f_t = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%matelem(irootI,irootF)
                   !
                   ls  =  f_t*f3j*vector(icontrI)
                   !

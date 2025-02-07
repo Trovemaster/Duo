@@ -538,9 +538,9 @@ module diatom_module
   type(fieldT),pointer :: p2q_omega_obj(:)=>null(),q_omega_obj(:)=>null(),brot_omega_obj(:)=>null()
   type(fieldT),pointer :: nac_omega_obj(:)=>null(),Diab_omega_obj(:)=>null(),Dipole_omega_obj(:)=>null()
   !
-  type(fieldT),pointer :: l_omega_tot(:,:)=>null(),s_omega_tot(:,:)=>null(),sr_omega_tot(:,:)=>null(),bob_omega_tot(:)=>null()
-  type(fieldT),pointer :: p2q_omega_tot(:,:)=>null(),q_omega_tot(:,:)=>null(),brot_omega_tot(:)=>null()
-  type(fieldT),pointer :: Dipole_omega_tot(:,:)=>null(),NAC_omega_tot(:)=>null(),Diab_omega_tot(:)=>null()
+  type(fieldT),pointer :: l_omega_tot(:,:,:,:)=>null(),s_omega_tot(:,:,:,:)=>null(),sr_omega_tot(:,:,:,:)=>null(),bob_omega_tot(:,:,:)=>null()
+  type(fieldT),pointer :: p2q_omega_tot(:,:,:,:)=>null(),q_omega_tot(:,:,:,:)=>null(),brot_omega_tot(:,:,:)=>null()
+  type(fieldT),pointer :: Dipole_omega_tot(:,:,:,:)=>null(),NAC_omega_tot(:,:,:)=>null(),Diab_omega_tot(:,:,:)=>null()
   !
   type(jobT)   :: job
   type(gridT)  :: grid
@@ -7451,7 +7451,7 @@ contains
         !
         call L_omega_create(NLplus_omega,onlycount=.false.)
         !
-        allocate(L_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(L_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Lomega_tot cannot be allocated'
         !
       endif
@@ -7475,7 +7475,7 @@ contains
         !
         call S_omega_create(NSplus_omega,onlycount=.false.)
         !
-        allocate(S_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(S_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'S_omega_tot cannot be allocated'
         !
       endif
@@ -7499,7 +7499,7 @@ contains
         !
         call SR_omega_create(NSR_omega,onlycount=.false.)
         !
-        allocate(SR_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(SR_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'SR_omega_tot cannot be allocated'
         !
       endif
@@ -7523,7 +7523,7 @@ contains
         !
         call Bob_omega_create(NBob_omega,onlycount=.false.)
         !
-        allocate(BOB_omega_tot(Nomegas),stat=alloc)
+        allocate(BOB_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'BOB_omega_tot cannot be allocated'
         !
       endif
@@ -7547,7 +7547,7 @@ contains
         !
         call P2Q_omega_create(Np2q_omega,onlycount=.false.)
         !
-        allocate(P2Q_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(P2Q_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'P2Q_omega_tot cannot be allocated'
         !
       endif
@@ -7571,7 +7571,7 @@ contains
         !
         call Q_omega_create(Nq_omega,onlycount=.false.)
         !
-        allocate(Q_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(Q_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Q_omega_tot cannot be allocated'
         !
       endif
@@ -7595,7 +7595,7 @@ contains
         !
         call Brot_omega_create(NBRot_omega,onlycount=.false.)
         !
-        allocate(BRot_omega_tot(Nomegas),stat=alloc)
+        allocate(BRot_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'BRot_omega_tot cannot be allocated'
         !
       endif
@@ -7619,10 +7619,10 @@ contains
         !
         call NAC_omega_create(NNAC_omega,onlycount=.false.)
         !
-        allocate(Nac_omega_tot(Nomegas),stat=alloc)
+        allocate(Nac_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Nac_omega_tot cannot be allocated'
         !
-        Nac_omega_tot(:)%Nterms = 0
+        Nac_omega_tot(:,:,:)%Nterms = 0
         !
       endif
       !
@@ -7645,10 +7645,10 @@ contains
         !
         call Diab_omega_create(NDiab_omega,onlycount=.false.)
         !
-        allocate(Diab_omega_tot(Nomegas),stat=alloc)
+        allocate(Diab_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Diabat_omega_tot cannot be allocated'
         !
-        Diab_omega_tot(:)%Nterms = 0
+        Diab_omega_tot(:,:,:)%Nterms = 0
         !
       endif      
       !
@@ -7671,10 +7671,10 @@ contains
         !
         call Dipole_omega_create(NDipole_omega,onlycount=.false.)
         !
-        allocate(Dipole_omega_tot(Nomegas,Nomegas),stat=alloc)
+        allocate(Dipole_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Dipole_omega_tot cannot be allocated'
         !
-        Dipole_omega_tot(:,:)%Nterms = 0
+        Dipole_omega_tot(:,:,:,:)%Nterms = 0
         !
       endif            
       !
@@ -7839,7 +7839,11 @@ contains
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => L_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => L_omega_tot(iomega,jomega,ilevel,jlevel)
             !
           case (2)
             field => S_omega_obj(iterm)
@@ -7847,7 +7851,11 @@ contains
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => S_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => S_omega_tot(iomega,jomega,ilevel,jlevel)
             !
           case (3)
             field => SR_omega_obj(iterm)
@@ -7855,7 +7863,11 @@ contains
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => SR_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => SR_omega_tot(iomega,jomega,ilevel,jlevel)
             !
           case (4)
             field => bob_omega_obj(iterm)
@@ -7863,29 +7875,45 @@ contains
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => Bob_omega_tot(iomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => Bob_omega_tot(iomega,ilevel,jlevel)
           case (5)
             field => p2q_omega_obj(iterm)
             field%gridvalue(:) = field%gridvalue(:)*sc
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => p2q_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => p2q_omega_tot(iomega,jomega,ilevel,jlevel)
           case (6)
             field => q_omega_obj(iterm)
             field%gridvalue(:) = field%gridvalue(:)*sc
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => q_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => q_omega_tot(iomega,jomega,ilevel,jlevel)
           case (7)
             !field => brot(1)
             field => brot_omega_obj(iterm)
             field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
             !
             iomega  = field%iomega 
-            jomega  = field%iomega 
-            field_ => brot_omega_tot(iomega)
+            jomega  = field%jomega 
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => brot_omega_tot(iomega,ilevel,jlevel)
             !
           case (8)
             ! A special case of Diab couplings with 1st derivatives wrt r
@@ -7893,23 +7921,36 @@ contains
             !
             iomega  = field%iomega 
             jomega  = field%jomega 
-            field_ => Dipole_omega_tot(iomega,jomega)
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => Dipole_omega_tot(iomega,jomega,ilevel,jlevel)
             !
           case (9)
             ! A special case of NAC couplings with 1st derivatives wrt r
             field  => NAC_omega_obj(iterm)
             !
             iomega  = field%iomega 
-            jomega  = field%iomega 
-            field_ => NAC_omega_tot(iomega)
+            jomega  = field%jomega 
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_ => NAC_omega_tot(iomega,ilevel,jlevel)
             !
           case (10)
             ! A special case of Diab couplings with 1st derivatives wrt r
             field => Diab_omega_obj(iterm)
             !
             iomega  = field%iomega 
-            jomega  = field%iomega 
-            field_=> Diab_omega_tot(iomega)
+            jomega  = field%jomega 
+            !
+            ilevel  = field%ilevel
+            jlevel  = field%jlevel
+            !
+            field_=> Diab_omega_tot(iomega,ilevel,jlevel)
+            !
           case default
             stop 'illegal object in LambdaSigma-Omega'
           end select
@@ -7921,9 +7962,6 @@ contains
           !  call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
           !  field_%matelem = 0
           !endif
-          !
-          ilevel  = field%ilevel
-          jlevel  = field%jlevel
           !
           iomega  = field%iomega
           jomega  = field%jomega
@@ -7962,6 +8000,9 @@ contains
           field_%iomega = iomega
           field_%jomega = jomega
           !
+          field_%ilevel = ilevel
+          field_%jlevel = jlevel
+          !
           ! a special case of a NAC
           !
           if (iobject==9) then
@@ -7985,17 +8026,23 @@ contains
              !
              do i = 1,totalroots
                !
-               if (iomega_/=icontrvib(i)%iomega.or.ilevel/=icontrvib(i)%ilevel) cycle
+               if (iomega_/=icontrvib(i)%iomega) cycle
                iroot = icontrvib(i)%iroot
+               ilevel_ = icontrvib(i)%ilevel
+               !
+               if( ilevel/=ilevel_ ) cycle
                !
                do j = 1,totalroots
                  !
-                 if (jomega_/=icontrvib(j)%iomega.or.jlevel/=icontrvib(j)%ilevel) cycle
+                 if (jomega_/=icontrvib(j)%iomega) cycle
                  jroot = icontrvib(j)%iroot
+                 jlevel_ = icontrvib(j)%ilevel
+                 !
+                 if (jlevel/=jlevel_) cycle
                  !
                  !field_%matelem(i,j) =   field_%matelem(i,j) + vibmat_(iroot,jroot)
                  field_%matelem(i,j) =   vibmat_(iroot,jroot)
-                 !field_%matelem(j,i) =   field_%matelem(i,j) 
+                 !field_%matelem(j,i) =  -vibmat_(iroot,jroot) 
                  !
                enddo
              enddo
@@ -8008,7 +8055,7 @@ contains
              !
              do i = 1,totalroots
                !
-               if (iomega_/=icontrvib(i)%iomega.or.ilevel/=icontrvib(i)%ilevel) cycle
+               if (iomega_/=icontrvib(i)%iomega) cycle
                iroot = icontrvib(i)%iroot
                ilevel_ = icontrvib(i)%ilevel
                !
@@ -8022,7 +8069,7 @@ contains
                !
                do j = 1,totalroots
                  !
-                 if (jomega_/=icontrvib(j)%iomega.or.jlevel/=icontrvib(j)%ilevel) cycle
+                 if (jomega_/=icontrvib(j)%iomega) cycle
                  jroot = icontrvib(j)%iroot
                  jlevel_ = icontrvib(j)%ilevel
                  !
@@ -9057,7 +9104,9 @@ contains
                iomega= iomega +1
              enddo
              !
-             !icontrvib(iroot)%iomega = iomega
+             icontr(i)%iomega = iomega
+             !
+             !icontrvib(i)%iomega = iomega
              !
              icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
              !
@@ -11730,7 +11779,7 @@ contains
     real(rk)  :: sigmai,sigmaj,omegai,omegaj,spini,spinj,f_rot,erot,omegai_,omegaj_,f_w,f_t,f_o2,f_o1,f_lo,f_s
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
-    type(fieldT),pointer  :: field
+    type(fieldT),pointer  :: field,field_i,field_j
     !
     allocate(printout(Ntotal),stat=alloc) ; if (alloc/=0) stop 'cannot allocate printout'
     printout = ''
@@ -11784,15 +11833,17 @@ contains
           !
           !do ibrot_omega = 1,NBRot_omega
             !
-            field => BRot_omega_tot(iomega)
+            field => BRot_omega_tot(iomega,ilevel,jlevel)
             !
             omegai_ = field%omegai
             ilevel_ = field%ilevel
             jlevel_ = field%jlevel
             !
-            !if ( nint(omegai_-omegai)/=0.or.ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+            if ( nint(omegai_-omegai)/=0) cycle
             !
             !if ( nint(omegai_-omegai)/=0 .and. nint(omegai_-omegaj)/=0) cycle
+            !
+            !if (ilevel/=jlevel) cycle
             !
             f_rot = field%matelem(iroot,jroot)
             !
@@ -11815,7 +11866,7 @@ contains
         !
         if (nint(omegai-omegaj)==0.and.NBob_omega>0) then
           !
-          field => Bob_omega_tot(iomega)
+          field => Bob_omega_tot(iomega,ilevel,jlevel)
           !
           if (field%Nterms/=0) then
             !
@@ -11834,14 +11885,21 @@ contains
         !
         if (abs(nint(omegaj-omegai))==0.and.NDiab_omega>0) then
           !
-          field => Diab_omega_tot(iomega)
+          field => Diab_omega_tot(iomega,ilevel,jlevel)
           !
           if (field%Nterms/=0) then
+            !
+            ilevel_ = field%ilevel
+            jlevel_ = field%jlevel
+            !
+            if (ilevel/=jlevel) cycle
             !
             f_t = 0
             !
             omegai_ = field%omegai
             omegaj_ = field%omegaj
+            !
+            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
             !
             !if (nint(omegai-omegai_)/=0) cycle
             !
@@ -11869,11 +11927,22 @@ contains
         !
         if (abs(nint(omegaj-omegai))==0.and.NNAC_omega>0) then
           !
-          field => NAC_omega_tot(iomega)
+          field_i => NAC_omega_tot(iomega,ilevel,jlevel)
+          field_j => NAC_omega_tot(iomega,jlevel,ilevel)
           !
-          if (field%Nterms/=0) then
+          if (field_i%Nterms/=0) then
             !
-            f_t = (field%matelem(iroot,jroot)-field%matelem(jroot,iroot))
+            !ilevel_ = field%ilevel
+            !jlevel_ = field%jlevel
+            !
+            omegai_ = field_i%omegai
+            omegaj_ = field_j%omegaj
+            !
+            if (ilevel==jlevel) cycle
+            !
+            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
+            !
+            f_t = (field_i%matelem(iroot,jroot)-field_j%matelem(jroot,iroot))
             !
             hmat(i,j) = hmat(i,j) + f_t
             hmat(j,i) = hmat(i,j) 
@@ -11896,7 +11965,7 @@ contains
         ! J*S part (S-uncoupling)
         !
         if (abs(nint(omegaj-omegai))==1.and.NSplus_omega>0) then
-          field => S_omega_tot(iomega,jomega)
+          field => S_omega_tot(iomega,jomega,ilevel,jlevel)
           !
           if (field%Nterms/=0) then
             !
@@ -11905,7 +11974,12 @@ contains
             omegai_ = field%omegai
             omegaj_ = field%omegaj
             !
-            if (nint(omegai-omegaj)/=nint(omegaj_-omegai_)) cycle
+            !if (nint(omegai-omegaj)/=nint(omegaj_-omegai_)) cycle
+            !
+            ilevel_ = field%ilevel
+            jlevel_ = field%jlevel
+            !
+            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
             !
             f_w = nint(omegai-omegaj)
             f_s = (omegai-omegaj)
@@ -11935,7 +12009,7 @@ contains
         !
         if (abs(nint(omegaj-omegai))==1.and.NLplus_omega>0) then
           !
-          field => L_omega_tot(iomega,jomega)
+          field => L_omega_tot(iomega,jomega,ilevel,jlevel)
           !
           if (field%Nterms/=0) then
             !
@@ -11998,7 +12072,7 @@ contains
           !
           ! Non-diagonal spin-rotaion term
           !
-          field => SR_omega_tot(iomega,jomega)
+          field => SR_omega_tot(iomega,jomega,ilevel,jlevel)
           !
           if (field%Nterms/=0) then
             !
@@ -12524,7 +12598,7 @@ contains
           !         +   spini*(spini+1.0_rk) - sigmai**2 )
           !
           erot = erot + f_rot*(  -job%diag_L2_fact*real(ilambda**2,rk)  &
-                               +   spini*(spini+1.0_rk) - sigmai**2 )
+                      + spini*(spini+1.0_rk) - sigmai**2 )
           !
           ! add the diagonal matrix element to the local spin-rotational matrix hmat
           !
@@ -14076,7 +14150,7 @@ contains
               NAC_omega_obj(iNAC_omega_)%gridvalue(igrid)= mat_2(i,j)
               !
               iNAC_omega_ = iNAC_omega(iomega,j,i)
-              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid) =-mat_2(i,j)
+              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid) = mat_2(i,j)
               !
             enddo
           enddo
