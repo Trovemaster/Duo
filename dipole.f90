@@ -2141,7 +2141,7 @@ contains
         real(rk),intent(out)    :: half_ls(:)
         integer(ik)             :: icontrF,icontrI,irootF,irootI,ilevelI,ilevelF
         integer(ik)             :: iomegaI_,iomegaI,iomegaF
-        real(rk)                :: ls, f3j, omegaI,omegaF
+        real(rk)                :: ls, f3j, omegaI,omegaF,omegaI_,omegaF_
         real(rk)                :: f_t
           !
           !dms_tmp = dipole_me
@@ -2152,7 +2152,7 @@ contains
           !
           !loop over final state basis components
           !
-          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelI,ilevelF,icontrI,irootI,&
+          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelI,omegaI_,omegaF_,ilevelF,icontrI,irootI,&
           !$omp omegaI,iomegaI,iomegaI_,f3j,ls,f_t) shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
@@ -2167,6 +2167,11 @@ contains
                   omegaI  = basis(indI)%icontr(icontrI)%omega
                   iomegaI = basis(indI)%icontr(icontrI)%iomega
                   ilevelI = basis(indI)%icontr(icontrI)%ilevel
+                  !
+                  omegaI_ = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%omegai
+                  omegaF_ = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%omegaj
+                  !
+                  if ( nint(omegaI_-omegaI)/=0.or.nint(omegaF_-omegaF)/=0) cycle
                   !
                   ! Here Nterms is used as dimension of Dipole_omega_tot(iomegaI,iomegaF)%matelem. 
                   ! if it is zero, the term does not exist and needs to be omitted 

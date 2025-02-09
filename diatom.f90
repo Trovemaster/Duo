@@ -7814,7 +7814,7 @@ contains
           if ( action%intensity.and.iverbose>=3.and.intensity%tdm ) then
             !
             write(out,'(/"Vibrational transition moments: ")')
-            write(out,"(A13,6x,A2,5x,a13,8x,a5)") 'State,v,Omega','TM', 'State,v,Omega', 'Value'
+            write(out,"(A13,6x,A2,5x,a13,8x,a5)") 'State,i,v,Omega','TM', 'State,i,v,Omega', 'Value'
             !
           endif
           !
@@ -8095,7 +8095,7 @@ contains
                  !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
                  !
                  if (iobject==8) then
-                   if (abs(field_%matelem(iroot,jroot))<intensity%threshold%dipole) field_%matelem(i,j) = 0
+                   if (abs(field_%matelem(i,j))<intensity%threshold%dipole) field_%matelem(i,j) = 0
                  endif
                  !
                enddo
@@ -8119,14 +8119,14 @@ contains
                 !
                 ! dipole selection rules
                 !
-                if ( iomega_==field%iomega.and.jomega_==field%jomega.and.abs(field_%matelem(iroot,jroot))>sqrt(small_) ) then
+                if ( abs(field_%matelem(i,j))>sqrt(small_) ) then
                   !
-                  write(out,'("<",i2,1(",",i4),",",f8.1,"|","mu","|",i2,1(",",i4),",",f8.1,"> = ",es18.8)') &
-                    icontrvib(iroot)%istate,&
-                    icontrvib(iroot)%v,omegai,&
-                    icontrvib(jroot)%istate,  &
-                    icontrvib(jroot)%v,omegaj,&
-                    field_%matelem(iroot,jroot)
+                  write(out,'("<",i2,2(",",i4),",",f8.1,"|","mu","|",i2,2(",",i4),",",f8.1,"> = ",es18.8)') &
+                    icontrvib(i)%istate,&
+                    i,icontrvib(i)%v,omegai,&
+                    icontrvib(j)%istate,  &
+                    j,icontrvib(j)%v,omegaj,&
+                    field_%matelem(i,j)
                   !
                 endif
                 !
@@ -9920,8 +9920,9 @@ contains
               basis(irot)%icontr(i)%omega  = icontr(i)%omega  !real(icontr(i)%ilambda,rk)+icontr(i)%sigma
               basis(irot)%icontr(i)%iomega = icontr(i)%iomega 
               basis(irot)%icontr(i)%ivib   = icontr(i)%ivib
+              basis(irot)%icontr(i)%ilevel = icontr(i)%ilevel
               basis(irot)%icontr(i)%v      = icontr(i)%v
-              basis(irot)%icontr(i)%iroot = icontr(i)%iroot
+              basis(irot)%icontr(i)%iroot  = icontr(i)%iroot
               !
             enddo
             !
@@ -13915,7 +13916,7 @@ contains
                 spinj   = Omega_grid(jomega)%basis(j)%spin
                 sigmaj  = Omega_grid(jomega)%basis(j)%sigma
                 !
-                if( nint(sigmaj-sigmai)/=0.or.(omegai<omegaj) ) cycle
+                if( nint(sigmaj-sigmai)/=0 ) cycle
                 !
                 do iDipole =1,Ndipoles
                   !
