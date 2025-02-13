@@ -7986,7 +7986,7 @@ contains
           !
           if (associated(field_%matelem) .eqv. .false.) then
             !
-            allocate(field_%matelem(totalroots,totalroots),stat=alloc)
+            allocate(field_%matelem(nroots_i,nroots_j),stat=alloc)
             call ArrayStart(field%name,alloc,size(field_%matelem),kind(field_%matelem))
             !
             field_%matelem = 0
@@ -8024,28 +8024,30 @@ contains
              call dgemm('N','N',nroots_i,nroots_j,ngrid,alpha_,nacmat_,nroots_i,&
                         contracted(jomega_,jlevel)%vector,ngrid,beta_,vibmat_,nroots_i)
              !
-             do i = 1,totalroots
-               !
-               if (iomega_/=icontrvib(i)%iomega) cycle
-               iroot = icontrvib(i)%iroot
-               ilevel_ = icontrvib(i)%ilevel
-               !
-               if( ilevel/=ilevel_ ) cycle
-               !
-               do j = 1,totalroots
-                 !
-                 if (jomega_/=icontrvib(j)%iomega) cycle
-                 jroot = icontrvib(j)%iroot
-                 jlevel_ = icontrvib(j)%ilevel
-                 !
-                 if (jlevel/=jlevel_) cycle
-                 !
-                 !field_%matelem(i,j) =   field_%matelem(i,j) + vibmat_(iroot,jroot)
-                 field_%matelem(i,j) =   vibmat_(iroot,jroot)
-                 !field_%matelem(j,i) =  -vibmat_(iroot,jroot) 
-                 !
-               enddo
-             enddo
+             field_%matelem =   vibmat_
+             !
+             !do i = 1,totalroots
+             !  !
+             !  if (iomega_/=icontrvib(i)%iomega) cycle
+             !  iroot = icontrvib(i)%iroot
+             !  ilevel_ = icontrvib(i)%ilevel
+             !  !
+             !  if( ilevel/=ilevel_ ) cycle
+             !  !
+             !  do j = 1,totalroots
+             !    !
+             !    if (jomega_/=icontrvib(j)%iomega) cycle
+             !    jroot = icontrvib(j)%iroot
+             !    jlevel_ = icontrvib(j)%ilevel
+             !    !
+             !    if (jlevel/=jlevel_) cycle
+             !    !
+             !    !field_%matelem(i,j) =   field_%matelem(i,j) + vibmat_(iroot,jroot)
+             !    field_%matelem(i,j) =   vibmat_(iroot,jroot)
+             !    !field_%matelem(j,i) =  -vibmat_(iroot,jroot) 
+             !    !
+             !  enddo
+             !enddo
              !
              deallocate(nacmat_,vibmat_)
              call ArrayStop('nacmat_')
@@ -8053,13 +8055,13 @@ contains
              !
           else
              !
-             do i = 1,totalroots
+             do iroot = 1,nroots_i
                !
-               if (iomega_/=icontrvib(i)%iomega) cycle
-               iroot = icontrvib(i)%iroot
-               ilevel_ = icontrvib(i)%ilevel
+               !if (iomega_/=icontrvib(i)%iomega) cycle
+               !iroot = icontrvib(i)%iroot
+               !ilevel_ = icontrvib(i)%ilevel
                !
-               if( ilevel/=ilevel_ ) cycle
+               !if( ilevel/=ilevel_ ) cycle
                !
                !vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
                !
@@ -8067,13 +8069,13 @@ contains
                !
                !if (iomega/=iomega_.and.jomega/=iomega_) cycle
                !
-               do j = 1,totalroots
+               do jroot = 1,nroots_j
                  !
-                 if (jomega_/=icontrvib(j)%iomega) cycle
-                 jroot = icontrvib(j)%iroot
-                 jlevel_ = icontrvib(j)%ilevel
+                 !if (jomega_/=icontrvib(j)%iomega) cycle
+                 !jroot = icontrvib(j)%iroot
+                 !jlevel_ = icontrvib(j)%ilevel
                  !
-                 if (jlevel/=jlevel_) cycle
+                 !if (jlevel/=jlevel_) cycle
                  !
                  !vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
                  !
@@ -8082,9 +8084,8 @@ contains
                  ! in the grid representation of the vibrational basis set
                  ! the matrix elements are evaluated simply by a summation of over the grid points
                  !
-                 field_%matelem(i,j)  = field_%matelem(i,j) + &
-                                              sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
-                 !field_%matelem(j,i) = field_%matelem(i,j)
+                 field_%matelem(iroot,jroot)  = field_%matelem(iroot,jroot) + &
+                                                sum(vect_i(:)*(field%gridvalue(:))*vect_j(:))
                  !
                  ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                  ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
@@ -8095,7 +8096,7 @@ contains
                  !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
                  !
                  if (iobject==8) then
-                   if (abs(field_%matelem(i,j))<intensity%threshold%dipole) field_%matelem(i,j) = 0
+                   if (abs(field_%matelem(iroot,jroot))<intensity%threshold%dipole) field_%matelem(iroot,jroot) = 0
                  endif
                  !
                enddo
@@ -8107,26 +8108,30 @@ contains
           !
           if ( iobject==8.and. iverbose>=4.and.action%intensity.and.intensity%tdm ) then
             !
-            do i = 1,totalroots
+            do iroot = 1,nroots_i
               !
-              if (iomega_/=icontrvib(i)%iomega.or.ilevel/=icontrvib(i)%ilevel) cycle
-              iroot = icontrvib(i)%iroot
+              i = contracted(iomega_,ilevel)%ilevel(iroot)
               !
-              do j = 1,totalroots
+              !if (iomega_/=icontrvib(i)%iomega.or.ilevel/=icontrvib(i)%ilevel) cycle
+              !iroot = icontrvib(i)%iroot
+              !
+              do jroot = 1,nroots_j
                 !
-                if (jomega_/=icontrvib(j)%iomega.or.jlevel/=icontrvib(j)%ilevel) cycle
-                jroot = icontrvib(j)%iroot
+                j = contracted(jomega_,jlevel)%ilevel(jroot)
+                !
+                !if (jomega_/=icontrvib(j)%iomega.or.jlevel/=icontrvib(j)%ilevel) cycle
+                !jroot = icontrvib(j)%iroot
                 !
                 ! dipole selection rules
                 !
-                if ( abs(field_%matelem(i,j))>sqrt(small_) ) then
+                if ( abs(field_%matelem(iroot,jroot))>sqrt(small_) ) then
                   !
                   write(out,'("<",i2,2(",",i4),",",f8.1,"|","mu","|",i2,2(",",i4),",",f8.1,"> = ",es18.8)') &
                     icontrvib(i)%istate,&
                     i,icontrvib(i)%v,omegai,&
                     icontrvib(j)%istate,  &
                     j,icontrvib(j)%v,omegaj,&
-                    field_%matelem(i,j)
+                    field_%matelem(iroot,jroot)
                   !
                 endif
                 !
@@ -11837,16 +11842,8 @@ contains
             field => BRot_omega_tot(iomega,ilevel,jlevel)
             !
             omegai_ = field%omegai
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
             !
-            if ( nint(omegai_-omegai)/=0) cycle
-            !
-            !if ( nint(omegai_-omegai)/=0 .and. nint(omegai_-omegaj)/=0) cycle
-            !
-            !if (ilevel/=jlevel) cycle
-            !
-            f_rot = field%matelem(iroot,jroot)
+            f_rot = field%matelem(ivib,jvib)
             !
             erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
             !
@@ -11871,7 +11868,9 @@ contains
           !
           if (field%Nterms/=0) then
             !
-            f_rot = field%matelem(iroot,jroot)
+            omegai_ = field%omegai
+            !
+            f_rot = field%matelem(ivib,jvib)
             !
             erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
             !
@@ -11890,21 +11889,13 @@ contains
           !
           if (field%Nterms/=0) then
             !
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
-            !
             if (ilevel/=jlevel) cycle
             !
             f_t = 0
             !
-            omegai_ = field%omegai
-            omegaj_ = field%omegaj
-            !
-            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
-            !
             !if (nint(omegai-omegai_)/=0) cycle
             !
-            f_t = field%matelem(iroot,jroot)
+            f_t = field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) + f_t*sc
             hmat(j,i) = hmat(i,j)  
@@ -11933,17 +11924,9 @@ contains
           !
           if (field_i%Nterms/=0) then
             !
-            !ilevel_ = field%ilevel
-            !jlevel_ = field%jlevel
-            !
-            omegai_ = field_i%omegai
-            omegaj_ = field_j%omegaj
-            !
             if (ilevel==jlevel) cycle
             !
-            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
-            !
-            f_t = (field_i%matelem(iroot,jroot)-field_j%matelem(jroot,iroot))
+            f_t = (field_i%matelem(ivib,jvib)-field_j%matelem(jvib,ivib))
             !
             hmat(i,j) = hmat(i,j) + f_t
             hmat(j,i) = hmat(i,j) 
@@ -11972,20 +11955,10 @@ contains
             !
             f_t = 0
             !
-            omegai_ = field%omegai
-            omegaj_ = field%omegaj
-            !
-            !if (nint(omegai-omegaj)/=nint(omegaj_-omegai_)) cycle
-            !
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
-            !
-            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
-            !
             f_w = nint(omegai-omegaj)
             f_s = (omegai-omegaj)
             !
-            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_s) )*field%matelem(iroot,jroot)
+            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_s) )*field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) - f_t
             hmat(j,i) = hmat(i,j)  
@@ -12014,13 +11987,7 @@ contains
           !
           if (field%Nterms/=0) then
             !
-            omegai_ = field%omegai
-            omegaj_ = field%omegaj
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
-            !
-            !
-            f_t = field%matelem(iroot,jroot)
+            f_t = field%matelem(ivib,jvib)
             !
             !if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
             !
@@ -12043,10 +12010,10 @@ contains
               !  omega should change by 1 (via J+/-) exactly as l_omega
               f_w = nint(omegai-omegaj)
               !
-              !f_t = field%matelem(iroot,jroot)
+              !f_t = field%matelem(ivib,jvib)
               !f_t = sqrt( (jval-f_w*omegai)*(jval+f_w*omegai-1.0_rk) )*f_t
               !
-              f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(iroot,jroot)
+              f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
               !
               hmat(i,j) = hmat(i,j) - f_t
               hmat(j,i) = hmat(i,j)  
@@ -12077,13 +12044,6 @@ contains
           !
           if (field%Nterms/=0) then
             !
-            omegai_ = field%omegai
-            omegaj_ = field%omegaj
-            ilevel_ = field%ilevel
-            jlevel_ = field%jlevel
-            !
-            if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
-            !
             ! Only one option is possible in the Omega representaion
             ! 1. <Omega|HSR|Omega+/-1>
             !
@@ -12103,7 +12063,7 @@ contains
             !
             f_w = nint(omegai-omegaj)
             !
-            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(iroot,jroot)
+            f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) + f_t*0.5_rk
             hmat(j,i) = hmat(i,j)  
@@ -12139,9 +12099,10 @@ contains
             ilevel_ = field%ilevel
             jlevel_ = field%jlevel
             !
-            f_t = field%matelem(iroot,jroot)
-            !
+            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
             if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+            !
+            f_t = field%matelem(ivib,jvib)
             !
             ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
             !
@@ -12152,7 +12113,7 @@ contains
             !  omega should change by 1 (via J+/-) exactly as l_omega
             f_w = nint(omegai-omegaj)
             !
-            f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(iroot,jroot)
+            f_t = sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj+f_w) )*field%matelem(ivib,jvib)
             !
             hmat(i,j) = hmat(i,j) - f_t*0.5_rk
             hmat(j,i) = hmat(i,j)  
@@ -12186,6 +12147,7 @@ contains
             ilevel_ = field%ilevel
             jlevel_ = field%jlevel
             !
+            if ( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0) cycle
             if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
             !
             ! Only one option is possible in the Omega representaion
@@ -12201,7 +12163,7 @@ contains
             f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
                   sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
             !
-            f_lo = field%matelem(iroot,jroot)*f_t
+            f_lo = field%matelem(ivib,jvib)*f_t
             !
             hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
             hmat(j,i) = hmat(i,j)  

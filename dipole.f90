@@ -1566,6 +1566,8 @@ contains
 
      subroutine energy_filter_lower(J,energy,passed)
        !
+       implicit none
+       !
        real(rk),intent(in) :: J
        real(rk),intent(in)    :: energy
        !type(quantaT),intent(in) :: quanta
@@ -1633,6 +1635,8 @@ contains
 
 
      subroutine intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+        !
+        implicit none
         !
         real(rk),intent(in) :: jI,jF
         integer(ik),intent(in) :: isymI,isymF
@@ -1703,6 +1707,8 @@ contains
 
 
      subroutine matelem_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+        !
+        implicit none
         !
         real(rk),intent(in) :: jI,jF
         integer(ik),intent(in) :: isymI,isymF
@@ -1817,14 +1823,16 @@ contains
  !read eigenvalues and their assignment 
  !
  subroutine Sort_levels(iverbose,njval, jval)
+
+    !
+    implicit none
+    !
     integer(ik), intent(in) :: iverbose,njval
     real(rk), intent(in) :: jval(njval)
 
     integer(ik)             :: jind, nroots, nlevels,  iroot, ilevel, jlevel, &
                                info,itau,jtau
-
     real(rk)                :: energy
-
     !
     logical                 :: passed
     integer(ik)             :: iind,jroot,igamma
@@ -1982,7 +1990,9 @@ contains
       !
 
       subroutine do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
-
+        !
+        implicit none
+        !
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
@@ -2134,14 +2144,16 @@ contains
 
 
       subroutine do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
-
+        !
+        implicit none
+        !
         real(rk),intent(in)     :: jI,jF
         integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
         real(rk),intent(in)     :: vector(:)
         real(rk),intent(out)    :: half_ls(:)
-        integer(ik)             :: icontrF,icontrI,irootF,irootI,ilevelI,ilevelF
+        integer(ik)             :: icontrF,icontrI,irootF,irootI,ilevelI,ilevelF,ivibF,ivibI
         integer(ik)             :: iomegaI_,iomegaI,iomegaF
-        real(rk)                :: ls, f3j, omegaI,omegaF,omegaI_,omegaF_
+        real(rk)                :: ls, f3j, omegaI,omegaF
         real(rk)                :: f_t
           !
           !dms_tmp = dipole_me
@@ -2152,14 +2164,15 @@ contains
           !
           !loop over final state basis components
           !
-          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelI,omegaI_,omegaF_,ilevelF,icontrI,irootI,&
-          !$omp omegaI,iomegaI,iomegaI_,f3j,ls,f_t) shared(half_ls) schedule(guided)
+          !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelF,ivibF,icontrI,irootI,&
+          !$omp omegaI,iomegaI,ilevelI,ivibI,f3j,ls,f_t) shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
                irootF = basis(indF)%icontr(icontrF)%iroot
                omegaF = basis(indF)%icontr(icontrF)%omega
                iomegaF = basis(indF)%icontr(icontrF)%iomega
                ilevelF = basis(indF)%icontr(icontrF)%ilevel
+               ivibF = basis(indF)%icontr(icontrF)%ivib
                !
                loop_I : do icontrI = 1, dimenI
                   !
@@ -2167,11 +2180,7 @@ contains
                   omegaI  = basis(indI)%icontr(icontrI)%omega
                   iomegaI = basis(indI)%icontr(icontrI)%iomega
                   ilevelI = basis(indI)%icontr(icontrI)%ilevel
-                  !
-                  omegaI_ = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%omegai
-                  omegaF_ = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%omegaj
-                  !
-                  if ( nint(omegaI_-omegaI)/=0.or.nint(omegaF_-omegaF)/=0) cycle
+                  ivibI = basis(indI)%icontr(icontrI)%ivib
                   !
                   ! Here Nterms is used as dimension of Dipole_omega_tot(iomegaI,iomegaF)%matelem. 
                   ! if it is zero, the term does not exist and needs to be omitted 
@@ -2184,7 +2193,7 @@ contains
                   !
                   f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
                   !
-                  f_t = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%matelem(irootI,irootF)
+                  f_t = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%matelem(ivibI,ivibF)
                   !
                   ls  =  f_t*f3j*vector(icontrI)
                   !
