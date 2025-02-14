@@ -1077,7 +1077,7 @@ contains
             call readu(w)
             !
             job%IO_density = trim(w)
-            job%IO_eigen = 'SAVE'
+            !job%IO_eigen = 'SAVE'
             job%basis_set='KEEP'
             !
             if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then
@@ -7746,6 +7746,26 @@ contains
       !
       ! introducing a new field for the centrifugal matrix
       !
+      !
+      nroots = totalroots
+      !
+      if (job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE') then
+        !
+        allocate(contrfunc(ngrid,totalroots),stat=alloc)
+        call ArrayStart('contrfunc',alloc,1_ik,kind(contrfunc),size(contrfunc,kind=hik))
+        !
+        do i = 1,totalroots
+          !
+          iroot = icontrvib(i)%iroot
+          ilevel = icontrvib(i)%ilevel
+          iomega = icontrvib(i)%iomega
+          !
+          contrfunc(:,i) =   contracted(iomega,ilevel)%vector(:,iroot)
+          !
+        enddo
+        !
+      endif
+      !
       if (.not.fields_allocated) then
         allocate(brot(1),stat=alloc)
       endif
@@ -8561,21 +8581,21 @@ contains
       vibrational_totalroots = totalroots
       !
       ! keep vibrational basis functions for other applicaitons
-      if (trim(job%basis_set)=='KEEP') then
-        !
-        if (.not.allocated(vibrational_contrfunc)) then
-          !
-          allocate(vibrational_quantum_number(ngrid*Nestates),stat=alloc)
-          allocate(vibrational_contrfunc(ngrid,ngrid*Nestates),stat=alloc)
-          call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
-          call ArrayStart('vibrational_quantum_number',alloc,ngrid*Nestates*(14+6*2),ik)
-          !
-        endif
-        !
-        vibrational_contrfunc = contrfunc(:, 1:totalroots)
-        vibrational_quantum_number = icontrvib(1:totalroots)
-        !
-      endif
+      !if (trim(job%basis_set)=='KEEP') then
+      !  !
+      !  if (.not.allocated(vibrational_contrfunc)) then
+      !    !
+      !    allocate(vibrational_quantum_number(ngrid*Nestates),stat=alloc)
+      !    allocate(vibrational_contrfunc(ngrid,ngrid*Nestates),stat=alloc)
+      !    call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
+      !    call ArrayStart('vibrational_quantum_number',alloc,ngrid*Nestates*(14+6*2),ik)
+      !    !
+      !  endif
+      !  !
+      !  vibrational_contrfunc = contrfunc(:, 1:totalroots)
+      !  vibrational_quantum_number = icontrvib(1:totalroots)
+      !  !
+      !endif
       !
       if (iverbose>=4) call TimerStop('Solve vibrational part')
       !
@@ -8869,6 +8889,26 @@ contains
       !
     endif
     !
+    ! save contrfunc(:, :)
+    vibrational_totalroots = totalroots
+    !
+    ! keep vibrational basis functions for other applicaitons
+    if (trim(job%basis_set)=='KEEP') then
+      !
+      if (.not.allocated(vibrational_contrfunc)) then
+        !
+        allocate(vibrational_quantum_number(totalroots),stat=alloc)
+        allocate(vibrational_contrfunc(ngrid,totalroots),stat=alloc)
+        call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
+        call ArrayStart('vibrational_quantum_number',alloc,totalroots*(14+6*2),ik)
+        !
+      endif
+      !
+      vibrational_contrfunc(:, 1:totalroots) = contrfunc(:, 1:totalroots)
+      vibrational_quantum_number(1:totalroots) = icontrvib(1:totalroots)
+      !
+    endif
+    !
     if (job%IO_eigen=='SAVE') then
       !
       filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
@@ -9099,7 +9139,6 @@ contains
              icontr(i)%v = icontrvib(iroot)%v
              !
              icontr(i)%omega = omega*(-1.0_rk)**ipar
-
              !
              icontr(i)%iomega = iomega
              !
@@ -9335,47 +9374,6 @@ contains
             !
           enddo
         enddo
-        !
-        if (intensity%bound.or.intensity%unbound) then
-          !
-          ! finding unboud states
-          ! small interval at the edge of the box
-          !
-          i = grid%npoints
-          !
-          do while(i>1)
-            !
-            i = i - 1
-            !
-            if (grid%rmax-grid%r(i)>intensity%threshold%deltaR_dens) exit
-            !
-          enddo
-          !
-          npoints_last = grid%npoints-i
-          !
-          !npoints_last = int(intensity%threshold%deltaR_dens/hstep)
-          !
-          npoints_last = max(10,grid%npoints/50,npoints_last)
-          !
-          ! get the actual value of the integration range
-          !
-          intensity%threshold%deltaR_dens = grid%rmax-grid%r(i)
-          !
-          if (npoints_last>=grid%npoints) then
-            write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
-            stop 'wavefunciton unboud check error: too few grid points'
-          endif
-          !
-          if (iverbose>=3) then
-            write(out,'(/"Finding unbound state:")')
-            write(out,'("  Density threshold = ",e12.5)') intensity%threshold%bound_density
-            write(out,'("  The integration box = ",f15.8,"-",f15.8," Ang")') &
-              grid%r(grid%npoints-npoints_last+1),grid%rmax
-            write(out,'("  Number of ingegration points = ",i8)') npoints_last
-            write(out,'("  Delta R = ",f9.2," grid size = ",f13.6)') intensity%threshold%deltaR_dens,hstep
-          endif
-          !
-        endif
         !
         ! allocate the hamiltonian matrix and an array for the energies of this size Ntotal
         allocate(hmat(Ntotal,Ntotal),stat=alloc)
@@ -9657,6 +9655,47 @@ contains
         stop 'error - illegal CONTRACTION'
         !
       end select
+      !
+      if (intensity%bound.or.intensity%unbound) then
+        !
+        ! finding unboud states
+        ! small interval at the edge of the box
+        !
+        i = grid%npoints
+        !
+        do while(i>1)
+          !
+          i = i - 1
+          !
+          if (grid%rmax-grid%r(i)>intensity%threshold%deltaR_dens) exit
+          !
+        enddo
+        !
+        npoints_last = grid%npoints-i
+        !
+        !npoints_last = int(intensity%threshold%deltaR_dens/hstep)
+        !
+        npoints_last = max(10,grid%npoints/50,npoints_last)
+        !
+        ! get the actual value of the integration range
+        !
+        intensity%threshold%deltaR_dens = grid%rmax-grid%r(i)
+        !
+        if (npoints_last>=grid%npoints) then
+          write(out,"('wavefunciton unboud check error: too few grid points = ',i7,' use at least 50')") grid%npoints
+          stop 'wavefunciton unboud check error: too few grid points'
+        endif
+        !
+        if (iverbose>=3) then
+          write(out,'(/"Finding unbound state:")')
+          write(out,'("  Density threshold = ",e12.5)') intensity%threshold%bound_density
+          write(out,'("  The integration box = ",f15.8,"-",f15.8," Ang")') &
+            grid%r(grid%npoints-npoints_last+1),grid%rmax
+          write(out,'("  Number of ingegration points = ",i8)') npoints_last
+          write(out,'("  Delta R = ",f9.2," grid size = ",f13.6)') intensity%threshold%deltaR_dens,hstep
+        endif
+        !
+      endif
       !
       ! Now we diagonalize the two matrices contructed one by one
       !
@@ -10108,7 +10147,7 @@ contains
                 !    eigen(irot,irrep)%vect(:,total_roots) = 0
                 !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
                 !endif
-
+                !
                 if (intensity%bound.or.intensity%unbound) then
                   !
                   ! funding unboud states
@@ -10117,12 +10156,28 @@ contains
                   !
                   psi_vib = 0
                   !
-                  !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                  do k= grid%npoints-npoints_last+1,grid%npoints
-                    psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                                                             vec,psi_vib)
-                  enddo
-                  !$omp end parallel do
+                  select case (job%contraction)
+                    !
+                  case ("OMEGA")
+                    !
+                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    do k= grid%npoints-npoints_last+1,grid%npoints
+                      psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
+                    enddo
+                    !$omp end parallel do
+                    !
+                  case ("VIB")
+                    !
+                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    do k= grid%npoints-npoints_last+1,grid%npoints
+                      psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                                                               vec,psi_vib)
+                    
+                    
+                    enddo
+                    !$omp end parallel do
+                    !
+                  end select
                   !
                   sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
                   !
@@ -10224,12 +10279,28 @@ contains
                     stop 'wavefunciton unboud check error: too few grid points'
                   endif
                   !
-                  !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                  do k= grid%npoints-npoints_last+1,grid%npoints
-                    psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                                                             vec,psi_vib)
-                  enddo
-                  !$omp end parallel do
+                  select case (job%contraction)
+                    !
+                  case ("OMEGA")
+                    !
+                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    do k= grid%npoints-npoints_last+1,grid%npoints
+                      psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
+                    enddo
+                    !$omp end parallel do
+                    !
+                  case ("VIB")
+                    !
+                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    do k= grid%npoints-npoints_last+1,grid%npoints
+                      psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                                                               vec,psi_vib)
+                    
+                    
+                    enddo
+                    !$omp end parallel do
+                    !
+                  end select
                   !
                   sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
                   !
@@ -10259,9 +10330,18 @@ contains
                       !
                       psi1=psi2
                       !
-                      psi2= vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
-                                                        npoints_last,vec,psi_vib)
-
+                      select case (job%contraction)
+                        !
+                      case ("OMEGA")
+                        !
+                        psi2 = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,npoints_last,icontrvib,vec,psi_vib)
+                        !
+                      case ("VIB")
+                        psi2=vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,npoints_last,&
+                                                                   vec,psi_vib)
+                        !
+                      end select
+                      !
                       if (k<=grid%npoints-npoints_last) then
                         !
                         psi_vib(k) = psi2
@@ -10365,7 +10445,21 @@ contains
                     icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
                 enddo
                 !
-                if (job%IO_density=='SAVE') then
+              endif
+              !
+              if (job%IO_density=='SAVE') then
+                !
+                select case (job%contraction)
+                  !
+                case ("OMEGA")
+                  !
+                  !$omp parallel do private(k) shared(psi_vib) schedule(guided)
+                  do k= 1,grid%npoints
+                    psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
+                  enddo
+                  !$omp end parallel do
+                  !
+                case ("VIB")
                   !
                   !$omp parallel do private(k) shared(psi_vib) schedule(guided)
                   do k= 1,grid%npoints
@@ -10374,14 +10468,14 @@ contains
                   enddo
                   !$omp end parallel do
                   !
-                  ! we remove the normalisation factor from the reduced density so that now sum( psi_vib(i)*hstep ) = 1
-                  psi_vib = psi_vib/hstep
-                  !
-                  do k = 1,grid%npoints
-                    write(vibunit,'(e20.12," ||",1x,f8.1,1x,i2,i8)') psi_vib(k),J_list(irot),irrep-1,i
-                  enddo
-                  !
-                endif
+                end select
+                !
+                ! we remove the normalisation factor from the reduced density so that now sum( psi_vib(i)*hstep ) = 1
+                psi_vib = psi_vib/hstep
+                !
+                do k = 1,grid%npoints
+                  write(vibunit,'(e20.12," ||",1x,f8.1,1x,i2,i8)') psi_vib(k),J_list(irot),irrep-1,i
+                enddo
                 !
               endif
               !
@@ -12259,6 +12353,73 @@ contains
     enddo
     !
   end function vibrational_reduced_density
+  !
+
+  !
+  !  vibrational reduced density of a rovibronic eigenstate at the igrid point in the omega representation
+
+  function vibrational_reduced_density_omega(jval,igrid,Ntotal,totalroots,npoints_last,icontrvib,vec,psi_in) result (psi_vib)
+    !
+    integer(ik),intent(in)   :: igrid,Ntotal,totalroots,npoints_last
+    real(rk),intent(in)      :: jval,vec(Ntotal),psi_in(grid%npoints)
+    type(quantaT),intent(in) :: icontrvib(:)
+    !
+    real(rk)    :: psi_vib,vec_t,omegai,omegaj
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar
+
+    !
+    if (igrid>grid%npoints-npoints_last) then
+      !
+      psi_vib = psi_in(igrid)
+      return
+      !
+    endif
+    !
+    psi_vib = 0
+    !
+    i = 0
+    !
+    do iroot = 1,totalroots
+       !
+       omegai = icontrvib(iroot)%omega
+       ilevel = icontrvib(iroot)%ilevel
+       !
+       if (abs(omegai)>jval) cycle
+       !
+       do ipar = 1,2
+          !
+          if (nint(2.0_rk*omegai)==0.and.ipar==2) cycle
+          !
+          i = i + 1
+          !
+          vec_t = vec(i)*vibrational_contrfunc(igrid,iroot)
+          !
+          j = 0
+          !
+          do jroot = 1,totalroots
+             !
+             omegaj = icontrvib(jroot)%omega
+             jlevel = icontrvib(jroot)%ilevel
+             !
+             if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
+             !
+             if (abs(omegaj)>jval) cycle
+             !
+             do jpar = 1,2
+                !
+                if (nint(2.0_rk*omegaj)==0.and.jpar==2) cycle
+                !
+                j = j + 1
+                !
+                psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
+                !
+             enddo
+          enddo
+          !
+       enddo
+    enddo
+    !
+  end function vibrational_reduced_density_omega
   !
   !
   subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
