@@ -1008,17 +1008,29 @@ contains
             !
             if (Nitems<2) job%vibmax = grid%npoints-1
             !
-            do i = 1,min(Nitems-1,Nestates)
+            ! in some cases (omega) we will need more entries than nestates
+            if (Nestates<Nitems-1) then 
+              deallocate(job%vibmax)
+              allocate(job%vibmax(Nitems-1),stat=alloc)
+            endif
+            !
+            do i = 1,min(Nitems-1,size(job%vibmax))
               call readi(job%vibmax(i))
-              job%vibmax(i+1:Nestates) = job%vibmax(i)
+              job%vibmax(i+1:) = job%vibmax(i)
               vmax = max(vmax,job%vibmax(i))
             enddo
             !
           case("ENERMAX")
             !
-            do i = 1,min(Nitems-1,Nestates)
+            ! in some cases (omega) we will need more entries than nestates
+            if (Nestates<Nitems-1) then 
+              deallocate(job%vibenermax)
+              allocate(job%vibenermax(Nitems-1),stat=alloc)
+            endif
+            !
+            do i = 1,min(Nitems-1,size(job%vibenermax))
               call readf(job%vibenermax(i))
-              job%vibenermax(i+1:Nestates) = job%vibenermax(i)
+              job%vibenermax(i+1:) = job%vibenermax(i)
             enddo
             !
           case default
@@ -7154,7 +7166,7 @@ contains
     integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,ilevel_,jlevel_
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
-    integer(ik)                :: npoints_last,icount_max
+    integer(ik)                :: npoints_last,icount_max,ipoint_first
     !
     ! Lambda-Sigma-> State-Omega contraction
     integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
@@ -10156,30 +10168,37 @@ contains
                   !
                   psi_vib = 0
                   !
+                  ipoint_first = grid%npoints-npoints_last+1
+                  !
                   select case (job%contraction)
                     !
                   case ("OMEGA")
                     !
-                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    do k= grid%npoints-npoints_last+1,grid%npoints
-                      psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
-                    enddo
-                    !$omp end parallel do
+                    !omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    !do k= grid%npoints-npoints_last+1,grid%npoints
+                    !  psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
+                    !enddo
+                    !omp end parallel do
+                    !
+                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,vec,psi_vib)
                     !
                   case ("VIB")
                     !
-                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    do k= grid%npoints-npoints_last+1,grid%npoints
-                      psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                                                               vec,psi_vib)
-                    
-                    
-                    enddo
-                    !$omp end parallel do
+                    call vibrational_reduced_density_rho(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                         ipoint_first,vec,psi_vib)
+                    !
+                    !omp parallel do private(k) shared(psi_vib) schedule(guided)
+                    ! do k= grid%npoints-npoints_last+1,grid%npoints
+                    !   psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                    !                                            vec,psi_vib)
+                    ! 
+                    ! 
+                    !enddo
+                    !omp end parallel do
                     !
                   end select
                   !
-                  sum_wv = sum(psi_vib(grid%npoints-npoints_last+1:grid%npoints))
+                  sum_wv = sum(psi_vib(ipoint_first:grid%npoints))
                   !
                   sum_wv_average = sum_wv/intensity%threshold%deltaR_dens
                   !
@@ -10279,26 +10298,19 @@ contains
                     stop 'wavefunciton unboud check error: too few grid points'
                   endif
                   !
+                  ipoint_first = grid%npoints-npoints_last+1
+                  psi_vib = 0
+                  !
                   select case (job%contraction)
                     !
                   case ("OMEGA")
                     !
-                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    do k= grid%npoints-npoints_last+1,grid%npoints
-                      psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
-                    enddo
-                    !$omp end parallel do
+                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,vec,psi_vib)
                     !
                   case ("VIB")
                     !
-                    !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    do k= grid%npoints-npoints_last+1,grid%npoints
-                      psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                                                               vec,psi_vib)
-                    
-                    
-                    enddo
-                    !$omp end parallel do
+                    call vibrational_reduced_density_rho(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                         ipoint_first,vec,psi_vib)
                     !
                   end select
                   !
@@ -10447,26 +10459,33 @@ contains
                 !
               endif
               !
+              psi_vib = 0 
+              !
               if (job%IO_density=='SAVE') then
                 !
                 select case (job%contraction)
                   !
                 case ("OMEGA")
                   !
-                  !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                  do k= 1,grid%npoints
-                    psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
-                  enddo
-                  !$omp end parallel do
+                  !omp parallel do private(k) shared(psi_vib) schedule(guided)
+                  !do k= 1,grid%npoints
+                  !  psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
+                  !enddo
+                  !omp end parallel do
+                  !
+                  call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,1_ik,vec,vec,psi_vib)
                   !
                 case ("VIB")
                   !
-                  !$omp parallel do private(k) shared(psi_vib) schedule(guided)
-                  do k= 1,grid%npoints
-                    psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                                                             vec,psi_vib)
-                  enddo
-                  !$omp end parallel do
+                  !omp parallel do private(k) shared(psi_vib) schedule(guided)
+                  !do k= 1,grid%npoints
+                  !  psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
+                  !                                           vec,psi_vib)
+                  !enddo
+                  !omp end parallel do
+                  !
+                  call vibrational_reduced_density_rho(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                       1_ik,vec,psi_vib)
                   !
                 end select
                 !
@@ -12022,7 +12041,7 @@ contains
             !
             f_t = (field_i%matelem(ivib,jvib)-field_j%matelem(jvib,ivib))
             !
-            hmat(i,j) = hmat(i,j) + f_t
+            hmat(i,j) = hmat(i,j) + f_t*0
             hmat(j,i) = hmat(i,j) 
             !
             ! print out the internal matrix at the first grid point
@@ -12054,7 +12073,7 @@ contains
             !
             f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_s) )*field%matelem(ivib,jvib)
             !
-            hmat(i,j) = hmat(i,j) - f_t
+            hmat(i,j) = hmat(i,j) - f_t*0
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
@@ -12354,6 +12373,56 @@ contains
     !
   end function vibrational_reduced_density
   !
+  
+  !
+  !  vibrational reduced density of a rovibronic eigenstate at the igrid point
+
+  subroutine vibrational_reduced_density_rho(Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,ifirst,vec,psi_vib)
+    !
+    integer(ik),intent(in) :: Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas),ifirst
+    real(rk),intent(in)    :: vec(Ntotal)
+    real(rk),intent(out)   :: psi_vib(grid%npoints)
+    real(rk)    :: vec_t
+    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc
+    real(rk),allocatable  :: T(:,:)
+
+    allocate(T(Nvib,Nvib),stat=alloc)
+    if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T'
+    T = 0
+    !
+    do ilevel = 1,Nlambdasigmas
+      !
+      do ivib =1,Nvib
+        !
+        k = ilambdasigmas_v_icontr(ivib,ilevel)
+        !
+        if (k==0) cycle
+        !
+        do jvib =1,Nvib
+          !
+          k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+          !
+          if (k_==0) cycle
+          !
+          T(ivib,jvib)  = T(ivib,jvib) + vec(k_)*vec(k)
+          !
+        enddo
+      enddo
+    enddo
+    !
+    psi_vib = 0
+    !
+    do ivib =1,Nvib 
+      do jvib =1,Nvib 
+        !
+        psi_vib(ifirst:) = psi_vib(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
+        !
+      enddo
+    enddo
+    !
+    deallocate(T)
+    !
+  end subroutine vibrational_reduced_density_rho  
 
   !
   !  vibrational reduced density of a rovibronic eigenstate at the igrid point in the omega representation
@@ -12401,8 +12470,6 @@ contains
              omegaj = icontrvib(jroot)%omega
              jlevel = icontrvib(jroot)%ilevel
              !
-             if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
-             !
              if (abs(omegaj)>jval) cycle
              !
              do jpar = 1,2
@@ -12410,6 +12477,8 @@ contains
                 if (nint(2.0_rk*omegaj)==0.and.jpar==2) cycle
                 !
                 j = j + 1
+                !
+                if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
                 !
                 psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
                 !
@@ -12421,6 +12490,78 @@ contains
     !
   end function vibrational_reduced_density_omega
   !
+
+  subroutine vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ifirst,vec,psi_in,psi_vib)
+    !
+    integer(ik),intent(in)   :: Ntotal,totalroots,ifirst
+    real(rk),intent(in)      :: jval,vec(Ntotal),psi_in(grid%npoints)
+    type(quantaT),intent(in) :: icontrvib(:)
+    real(rk),intent(out)     :: psi_vib(grid%npoints)
+    !
+    real(rk)    :: omegai,omegaj
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,alloc
+    real(rk),allocatable  :: T(:,:)
+
+    allocate(T(totalroots,totalroots),stat=alloc)
+    if (alloc/=0) stop 'vibrational_reduced_density_omega_fast error: Cannot T'
+    T = 0
+    !
+    i = 0 
+    !
+    do iroot = 1,totalroots
+       !
+       omegai = icontrvib(iroot)%omega
+       ilevel = icontrvib(iroot)%ilevel
+       !
+       if (abs(omegai)>jval) cycle
+       !
+       do ipar = 1,2
+          !
+          if (nint(2.0_rk*omegai)==0.and.ipar==2) cycle
+          !
+          i = i + 1
+          !
+          j = 0
+          !
+          do jroot = 1,totalroots
+             !
+             omegaj = icontrvib(jroot)%omega
+             jlevel = icontrvib(jroot)%ilevel
+             !
+             if (abs(omegaj)>jval) cycle
+             !
+             do jpar = 1,2
+                !
+                if (nint(2.0_rk*omegaj)==0.and.jpar==2) cycle
+                !
+                j = j + 1
+                !
+                if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
+                !
+                if (ipar/=jpar) cycle
+                !
+                T(iroot,jroot) = T(iroot,jroot) + psi_in(i)*psi_in(j)
+                !
+             enddo
+          enddo
+          !
+       enddo
+    enddo
+    !
+    do iroot = 1,totalroots
+       !
+       do jroot = 1,totalroots
+          !
+          psi_vib(ifirst:) = psi_vib(ifirst:) +  & 
+                            vibrational_contrfunc(ifirst:,iroot)*T(iroot,jroot)*vibrational_contrfunc(ifirst:,jroot)
+          !
+       enddo
+    enddo
+    !
+    deallocate(T)
+    !
+  end subroutine vibrational_reduced_density_omega_fast
+
   !
   subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
     !
@@ -15169,7 +15310,7 @@ contains
     real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
     !
     integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
-    integer(ik) :: Ndimen,ielem,jelem,imaxcontr
+    integer(ik) :: Ndimen,ielem,jelem,imaxcontr,icount_state,ivibmax
     real(rk)    :: omega,b_rot,epot,zpe,energy_,omegai,omegaj
     real(rk)    :: psipsi_t,energy_j,f_nac
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
@@ -15205,6 +15346,8 @@ contains
     call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
     call ArrayStart('vibener',alloc,size(vibener),kind(vibmat))
     !
+    icount_state = 0 
+    !
     do iomega=1,Nomegas
       !
       omega  = Omega_grid(iomega)%omega
@@ -15220,6 +15363,8 @@ contains
         if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
         !
         if (iverbose>=6) write(out,'("ilevel = ",i0)') ilevel
+        !
+        icount_state = icount_state + 1
         !
         vibmat = kinmat
         !
@@ -15246,14 +15391,18 @@ contains
         !
         istate = Omega_grid(iomega)%basis(1)%istate
         !
-        if (job%vibmax(istate)>0) then !Ndimen/2  
+        if (icount_state<=size(job%vibmax)) then
+          ivibmax = job%vibmax(icount_state)
+        endif
+        !
+        if (ivibmax>0) then !Ndimen/2  
           !
           call lapack_syev(vibmat,vibener)
           !
           Nroots = Ndimen
           !
           ! we need only these many roots
-          Nroots = min(Ndimen,job%vibmax(istate))
+          Nroots = min(Ndimen,ivibmax)
           !
           ! or as many as below job%upper_ener if required by the input
           if ((job%vibenermax(istate))<safe_max) then
@@ -15272,11 +15421,11 @@ contains
           jobz = 'V'
           vrange(1) = -0.0_rk ; vrange(2) = (job%vibenermax(istate))*sc
           if (.not.job%zShiftPECsToZero) vrange(1) = -safe_max
-          irange(1) = 1 ; irange(2) = min(job%vibmax(istate),Ndimen)
+          irange(1) = 1 ; irange(2) = min(ivibmax,Ndimen)
           nroots = Ndimen
           rng = 'A'
           !
-          if (job%vibmax(istate)/=1e8) then
+          if (ivibmax/=1e8) then
             rng = 'I'
           elseif (job%vibenermax(istate)<1e8) then
             rng = 'V'

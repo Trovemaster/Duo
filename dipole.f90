@@ -334,8 +334,9 @@ contains
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,inu
-    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total
+    integer(ik) :: Jmax_,ID_J,inu,ileft
+    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total,acoef_error
+    real(rk) :: coeff,b,x1,x2,y1,y2
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
     character(1)  :: let_LF ! richmol letters x,y,z
@@ -1134,6 +1135,10 @@ contains
                   call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
                   call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
                   !
+                  ! npoints can not be smaller than nlevelsF
+                  !
+                  intensity%npoints = max(intensity%npoints,nlevelsF)
+                  !
                   if (intensity%interpolate) then 
                     allocate(spline_grid(nlevelsF),acoef_norm(intensity%npoints),stat=info)
                     call ArrayStart('spline_grid',info,nlevelsF,kind(spline_grid))
@@ -1356,18 +1361,62 @@ contains
                          !
                       endif
                       !
-                      call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
+                      !call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
                       !
                       ! Obtain the total (integrated) Einstein coefficient 
                       !
                       acoef_total = sum(acoef_RAM(:))
+                      !
+                      ! find ileft - starting frid point
+                      do_find_ileft : do ilevelF = 1,nlevelsF
+                        if ( nu_ram(ilevelF)>intensity%freq_window(1) ) then 
+                          ileft = min(max(ilevelF-1,1),nlevelsF)
+                          exit do_find_ileft
+                        endif
+                      enddo do_find_ileft
                       !
                       do inu=0,intensity%npoints
                         !
                         nu = intensity%freq_window(1)+dnu*real(inu,rk)
                         !
                         ! evaluate spline interpolant
-                        call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
+                        !call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
+                        !
+                        !call polint_rk(nu_ram,acoef_RAM,nu+(energyI-intensity%ZPE),acoef_grid,acoef_error)
+                        !
+                        ! linear interpolation
+                        !
+                        if (ileft+1>nlevelsF) ileft = ileft-1 
+                        !
+                        if (nu>nu_ram(ileft+1)) then
+                          do_find_ileft_ : do ilevelF = ileft+1,nlevelsF
+                            if ( nu_ram(ilevelF)>nu ) then 
+                              ileft = min(max(ilevelF-1,1),nlevelsF)
+                              exit do_find_ileft_
+                            endif
+                          enddo do_find_ileft_
+                          !
+                          continue 
+                          !
+                        endif
+                        !
+                        if (quantaI%iroot==3111) then
+                          continue
+                        endif
+                        !
+                        if (ileft+1<=nlevelsF.and.nu<nu_ram(ileft+1)) then 
+                          !
+                          x1 = nu_ram(ileft)
+                          x2 = nu_ram(ileft+1)
+                          y1 = acoef_RAM(ileft)
+                          y2 = acoef_RAM(ileft+1)
+                          !
+                          coeff = (y1-y2)/(-x2+x1)
+                          b = (x1*y2-y1*x2)/(-x2+x1)
+                          !
+                          acoef_grid = coeff*nu+b
+                          !
+                        endif
                         !
                         ! for the standard normalisation of the unbound wavefunctions 
                         ! we rescale the Einstein coefficients to conserve its original total:

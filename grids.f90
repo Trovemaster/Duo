@@ -527,3 +527,63 @@ y = ((((F(I)*P+E(I))*P+D(I))*P+C(I))*P+B(I))*P+ya(I)
 
 return
 end subroutine splint_quint
+
+
+
+
+recursive subroutine polint_rk(xa, ya, x, y, dy)
+
+  use accuracy 
+  !use nrtype; use nrutil, only : assert_eq, iminloc, nrerror
+  implicit none
+  real(rk), dimension(:), intent(in) :: xa, ya
+  real(rk), intent(in) :: x
+  real(rk), intent(out) :: y, dy
+
+  !
+  ! given arrays xa and ya of length n, and given a value x, this routine
+  ! returns a value y, and an error estimate dy. if p(x) is the polynomial
+  ! of degree n - 1 such that p(x a_i) = y a_i, i = 1, ..., n, then the
+  ! returned value y = p(x).
+
+  integer(ik) :: m, n, ns
+  real(rk), dimension(size(xa)) :: c, d, den, ho
+
+  n = size(xa)
+  if (size(ya)/=n) then 
+      stop  'polint: wrong sizes'
+  endif 
+
+  !n = assert_eq(size(xa), size(ya), 'polint')
+  c = ya                          ! initialize the tableau of c's and d's
+  d = ya
+  ho = xa - x
+  ns = minloc(abs(x - xa),dim=1)  ! find index ns of closest table entry
+  y = ya(ns)                      ! initial approximation to y.
+  ns = ns - 1
+  do m = 1, n - 1                        ! for each column of the tableau
+     den(1:n-m) = ho(1:n-m) - ho(1+m:n)  ! we loop over c's and d's and
+     !if (any(den(1:n-m) == 0.0)) &       ! update them
+     !     call nrerror('polint: calculation failure')
+
+     if (any(abs(den(1:n-m)) < small_)) then                   ! interpolating function
+          write(out,"('failure in polint, has a pole here')")
+          stop 'failure in polint'
+          !call nrerror('failure in polint')         ! has a pole here
+     endif 
+     ! this error can occur only if two input xa's are (to within roundoff)
+     ! identical.
+
+     den(1:n - m) = (c(2:n-m+1) - d(1:n-m))/den(1:n-m)
+     d(1:n-m) = ho(1+m:n) * den(1:n-m)   ! here c's and d's get updated
+     c(1:n-m) = ho(1:n-m) * den(1:n-m)
+     if (2 * ns < n-m) then       ! after each column in the tableau is
+        dy=c(ns+1)                ! completed decide, which correction
+     else                         ! c or d we add to y. we take the
+        dy=d(ns)                  ! straightest line through the tableau
+        ns=ns-1                   ! to its apex. the partial approximations
+     end if                       ! are thus centred on x. the last dy
+     y = y+dy                     ! is the measure of error.
+  end do
+  !
+end subroutine polint_rk
