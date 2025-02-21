@@ -998,9 +998,11 @@ contains
           !
           select case(w)
             !
-          case('VIB','ROT','OMEGA')
+          case("VIB","ROT","OMEGA","LAMBDA-SIGMA")
             !
             job%contraction = trim(w)
+            !
+            if (trim(job%contraction)=="LAMBDA-SIGMA") job%contraction='VIB'
             !
           case ("VMAX","VIBMAX","NMAX")
             !
@@ -10459,9 +10461,9 @@ contains
                 !
               endif
               !
-              psi_vib = 0 
-              !
               if (job%IO_density=='SAVE') then
+                !
+                psi_vib = 0 
                 !
                 select case (job%contraction)
                   !
@@ -12041,7 +12043,7 @@ contains
             !
             f_t = (field_i%matelem(ivib,jvib)-field_j%matelem(jvib,ivib))
             !
-            hmat(i,j) = hmat(i,j) + f_t*0
+            hmat(i,j) = hmat(i,j) + f_t
             hmat(j,i) = hmat(i,j) 
             !
             ! print out the internal matrix at the first grid point
@@ -12073,7 +12075,7 @@ contains
             !
             f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_s) )*field%matelem(ivib,jvib)
             !
-            hmat(i,j) = hmat(i,j) - f_t*0
+            hmat(i,j) = hmat(i,j) - f_t
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point

@@ -1351,11 +1351,75 @@ contains
                          ! and interpolate it to obtain a distribution of the Einstein coefficients 
                          ! on a dense equidistant grid
                          !
-                         acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
-                         acoef_norm(nlevelsF) = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
-                         do ilevelF=2,nlevelsF-1
-                            acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
-                         enddo
+                         if (.false.) then 
+                           !
+                           ! averaging by 2
+                           !
+                           acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
+                           acoef_norm(nlevelsF)   = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
+                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
+                           do ilevelF=2,nlevelsF-2
+                              !acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
+                              !
+                              acoef_norm(ilevelF) = ( acoef_RAM(ilevelF)+acoef_RAM(ilevelF+1) )/&
+                                                    (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF)-nu_ram(ilevelF-1))
+                        
+                              !
+                           enddo
+                           !
+                         elseif (.false.) then
+                            !
+                            ! averaging by 3
+                            !
+                            acoef_norm(1) = (acoef_RAM(1)+acoef_RAM(2))/( nu_ram(3) + nu_ram(2)-2.0_rk*nu_ram(1) )*2.0_rk
+                            acoef_norm(2) = (acoef_RAM(1)+acoef_RAM(2)+acoef_RAM(3))/(nu_ram(4)+nu_ram(3)-2.0_rk*nu_ram(1) )*2.0_rk
+                        
+                            acoef_norm(nlevelsF) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1))/( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-2) - nu_ram(nlevelsF-1) )*2.0_rk
+                            acoef_norm(nlevelsF-1) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1)+acoef_RAM(nlevelsF-2))/( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-3) - nu_ram(nlevelsF-2) )*2.0_rk
+                            !
+                            do ilevelF=3,nlevelsF-2
+                               !
+                               !acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
+                               !
+                               !acoef_norm(ilevelF) = ( acoef_RAM(ilevelF)+acoef_RAM(ilevelF+1) )/&
+                               !                      (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF)-nu_ram(ilevelF-1))
+                        
+                        
+                               acoef_norm(ilevelF) = ( acoef_RAM(ilevelF)+acoef_RAM(ilevelF-1)+acoef_RAM(ilevelF+1) )/&
+                                                     (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2))*2.0_ark
+                        
+                               !
+                            enddo
+                            !
+                         else
+                           !
+                           ! Averaging by 10 
+                           !
+                           acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
+                           acoef_norm(nlevelsF)   = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
+                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
+                           do ilevelF=2,nlevelsF-2
+                              !
+                              if (ilevelF<6.or.ilevelF>nlevelsF-5) then 
+                                !
+                                acoef_norm(ilevelF) = ( acoef_RAM(ilevelF)+acoef_RAM(ilevelF+1) )/&
+                                                      (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF)-nu_ram(ilevelF-1))
+                                !                        
+                              else
+                               !
+                               acoef_norm(ilevelF) = ( acoef_RAM(ilevelF+5)+acoef_RAM(ilevelF+4)+acoef_RAM(ilevelF+3)+acoef_RAM(ilevelF+2)+acoef_RAM(ilevelF+1)+acoef_RAM(ilevelF)+&
+                                                       acoef_RAM(ilevelF-5)+acoef_RAM(ilevelF-4)+acoef_RAM(ilevelF-3)+acoef_RAM(ilevelF-2)+acoef_RAM(ilevelF-1 ) )/&
+                                                     (nu_ram(ilevelF+5)+nu_ram(ilevelF+4)+nu_ram(ilevelF+3)+nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2)-nu_ram(ilevelF-3)-nu_ram(ilevelF-4)-nu_ram(ilevelF-5))*2.0_ark
+                                !
+                              endif
+                              !
+                           enddo
+
+
+
+
+                           !
+                         endif                     
                          !
                          acoef_RAM = acoef_norm
                          !

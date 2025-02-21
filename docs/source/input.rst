@@ -337,7 +337,7 @@ vibrational eigenfunctions :math:`|v\rangle` with :math:`0 \le v\le` vmax and :m
 form the vibrational part of the basis set.
 
 The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
-by the keywords ``vib`` or ``omega``. 
+by the keywords ``vib`` (``lambda-sigma``) or ``omega``. 
 
 
     VibrationalBasis             options for the vibrational uncoupled problem

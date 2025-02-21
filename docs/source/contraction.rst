@@ -12,7 +12,7 @@ form the vibrational part of the basis set.
 There is currently one contraction scheme supported by Duo: vibrational ``vib``. The  ``Omega`` is under construction. 
 
 The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
-by the keyword ``vib``. 
+by the keyword ``vib`` (``sigma-lambda``). 
 
 
 
