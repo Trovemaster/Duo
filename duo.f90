@@ -74,8 +74,7 @@
         write(out, '(a)') '--End--'
         stop
      endif   
-
-     
+     !
      if (action%fitting) then 
         !
         if (action%intensity) then 
@@ -90,7 +89,6 @@
         call sf_fitting
       endif 
       ! 
-
      if (action%intensity) then 
         action%save_eigen_J = .true.
        !

@@ -592,7 +592,12 @@ contains
     nlevelsG = 0
     !
     ! guessing if this is a half-integer spin case
-    if (mod(eigen(1,1)%quanta(1)%imulti,2)==0) integer_spin = .false.
+    !
+    if (eigen(1,1)%Nlevels>0) then 
+      if (mod(eigen(1,1)%quanta(1)%imulti,2)==0) integer_spin = .false.
+    else
+      if (mod(eigen(1,2)%quanta(1)%imulti,2)==0) integer_spin = .false.
+    endif    
     !
     allocate(vecI(dimenmax), stat = info)
     call ArrayStart('intensity-vecI',info,size(vecI),kind(vecI))
@@ -1351,7 +1356,15 @@ contains
                          ! and interpolate it to obtain a distribution of the Einstein coefficients 
                          ! on a dense equidistant grid
                          !
-                         if (.false.) then 
+                         if (.true.) then
+                           !
+                           acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
+                           acoef_norm(nlevelsF) = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
+                           do ilevelF=2,nlevelsF-1
+                              acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
+                           enddo
+                           !
+                         elseif (.false.) then 
                            !
                            ! averaging by 2
                            !
@@ -1414,10 +1427,6 @@ contains
                               endif
                               !
                            enddo
-
-
-
-
                            !
                          endif                     
                          !
@@ -1425,13 +1434,13 @@ contains
                          !
                       endif
                       !
-                      !call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
+                      call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
                       !
                       ! Obtain the total (integrated) Einstein coefficient 
                       !
                       acoef_total = sum(acoef_RAM(:))
                       !
-                      ! find ileft - starting frid point
+                      ! find ileft - starting grid point used in linear interpolation
                       do_find_ileft : do ilevelF = 1,nlevelsF
                         if ( nu_ram(ilevelF)>intensity%freq_window(1) ) then 
                           ileft = min(max(ilevelF-1,1),nlevelsF)
@@ -1439,46 +1448,51 @@ contains
                         endif
                       enddo do_find_ileft
                       !
+                      if (ilevelI==2021) then 
+                        continue
+                      endif
+                      !
                       do inu=0,intensity%npoints
                         !
                         nu = intensity%freq_window(1)+dnu*real(inu,rk)
                         !
-                        ! evaluate spline interpolant
-                        !call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
-                        !
-                        !call polint_rk(nu_ram,acoef_RAM,nu+(energyI-intensity%ZPE),acoef_grid,acoef_error)
-                        !
-                        ! linear interpolation
-                        !
-                        if (ileft+1>nlevelsF) ileft = ileft-1 
-                        !
-                        if (nu>nu_ram(ileft+1)) then
-                          do_find_ileft_ : do ilevelF = ileft+1,nlevelsF
-                            if ( nu_ram(ilevelF)>nu ) then 
-                              ileft = min(max(ilevelF-1,1),nlevelsF)
-                              exit do_find_ileft_
-                            endif
-                          enddo do_find_ileft_
+                        if (.true.) then
+                          ! evaluate spline interpolant
+                          call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
                           !
-                          continue 
+                          !call polint_rk(nu_ram,acoef_RAM,nu+(energyI-intensity%ZPE),acoef_grid,acoef_error)
                           !
-                        endif
-                        !
-                        if (quantaI%iroot==3111) then
-                          continue
-                        endif
-                        !
-                        if (ileft+1<=nlevelsF.and.nu<nu_ram(ileft+1)) then 
+                        else
                           !
-                          x1 = nu_ram(ileft)
-                          x2 = nu_ram(ileft+1)
-                          y1 = acoef_RAM(ileft)
-                          y2 = acoef_RAM(ileft+1)
+                          ! linear interpolation
                           !
-                          coeff = (y1-y2)/(-x2+x1)
-                          b = (x1*y2-y1*x2)/(-x2+x1)
+                          if (ileft+1>nlevelsF) ileft = ileft-1 
                           !
-                          acoef_grid = coeff*nu+b
+                          if (nu>nu_ram(ileft+1)) then
+                            do_find_ileft_ : do ilevelF = ileft+1,nlevelsF
+                              if ( nu_ram(ilevelF)>nu ) then 
+                                ileft = min(max(ilevelF-1,1),nlevelsF)
+                                exit do_find_ileft_
+                              endif
+                            enddo do_find_ileft_
+                            !
+                            continue 
+                            !
+                          endif
+                          !
+                          if (ileft+1<=nlevelsF.and.nu<nu_ram(ileft+1)) then 
+                            !
+                            x1 = nu_ram(ileft)
+                            x2 = nu_ram(ileft+1)
+                            y1 = acoef_RAM(ileft)
+                            y2 = acoef_RAM(ileft+1)
+                            !
+                            coeff = (y1-y2)/(-x2+x1)
+                            b = (x1*y2-y1*x2)/(-x2+x1)
+                            !
+                            acoef_grid = coeff*nu+b
+                            !
+                          endif
                           !
                         endif
                         !
