@@ -2,7 +2,7 @@ module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          Dipole_omega_tot
+                          Dipole_omega_tot,nestates
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -310,7 +310,7 @@ contains
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    integer(ik)  :: ivF_,ilambdaF_
+    integer(ik)  :: ivF_,ilambdaF_,NomegaMax,iomegaF
     real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
     integer(hik) :: matsize
     !
@@ -321,21 +321,21 @@ contains
     type(quantaT),pointer  :: quantaI,quantaF
     !
     real(rk)     :: boltz_fc, beta, intens_cm_mol, emcoef, A_coef_s_1, A_einst, absorption_int,lande
-    real(rk),allocatable :: acoef_RAM(:),nu_ram(:),spline_grid(:),acoef_norm(:)
+    real(rk),allocatable :: acoef_RAM(:),nu_ram(:),spline_grid(:),acoef_norm(:),acoef_spin_grid(:,:,:),nu_spin_grid(:,:,:)
     !
-    integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:)
+    integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:),ncount_spin_grid(:,:)
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer :: ndecimals
-    integer(ik)  :: enunit,transunit
+    integer(ik)  :: enunit,transunit,icount,ncount
     character(len=cl) :: filename,ioname
     !
     logical     :: integer_spin = .true.,intensity_do = .true.
     !
     integer(ik) :: alloc_p
     !
-    integer(ik) :: Jmax_,ID_J,inu,ileft
-    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total,acoef_error
+    integer(ik) :: Jmax_,ID_J,inu,ileft,istate,multi,taumax,Nlambdasigmas,imulti,ispin_component
+    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total,acoef_error,acoef_norm_tot
     real(rk) :: coeff,b,x1,x2,y1,y2
     character(len=12) :: char_Jf,char_Ji,char_LF
     integer(ik),allocatable :: richunit(:,:)
@@ -867,6 +867,59 @@ contains
     deallocate(vecI)
     call ArrayStop('intensity-vecI')
     !
+    if (intensity%interpolate) then
+      !
+      ! npoints can not be smaller than nlevelsF
+      !
+      intensity%npoints = max(intensity%npoints,nlevelsF)
+      !
+      allocate(spline_grid(nlevelsF),acoef_norm(intensity%npoints),stat=info)
+      call ArrayStart('spline_grid',info,nlevelsF,kind(spline_grid))
+      call ArrayStart('acoef_norm',info,intensity%npoints,kind(acoef_norm))
+      !
+      Nlambdasigmas = 0 
+      !
+      jF = jval(nJ)
+      !
+      NomegaMax = 0 
+      !
+      do istate = 1,nestates
+        !
+        multi = poten(istate)%multi
+        !
+        taumax = 1
+        if (poten(istate)%lambda==0) taumax = 0
+        !
+        do itau = 0,taumax
+          ilambdaF = (-1)**itau*poten(istate)%lambda
+          !
+          sigmaF = -poten(istate)%spini
+          do imulti = 1,multi
+            !
+            omegaF = real(ilambdaF,rk)+sigmaF
+            !
+            NomegaMax = max(nint(abs(omegaF)),NomegaMax)
+            !
+            if (nint(2.0_rk*abs(omegaF))<=nint(2.0_rk*jF)) then
+              Nlambdasigmas = Nlambdasigmas + 1
+            endif
+            sigmaF = sigmaF + 1.0_rk
+            !
+          enddo
+          !
+        enddo
+        !
+      enddo
+      !
+      allocate(acoef_spin_grid(intensity%npoints,nestates,-NomegaMax:NomegaMax),stat=info)
+      call ArrayStart('acoef_spin_grid',info,size(acoef_spin_grid),kind(acoef_spin_grid))
+      allocate(nu_spin_grid(intensity%npoints,nestates,-NomegaMax:NomegaMax),stat=info)
+      call ArrayStart('acoef_spin_grid',info,size(nu_spin_grid),kind(nu_spin_grid))
+      allocate(ncount_spin_grid(nestates,-NomegaMax:NomegaMax),stat=info)
+      call ArrayStart('acoef_spin_grid',info,size(ncount_spin_grid),kind(ncount_spin_grid))
+      !                    
+    endif
+    !
     if (trim(intensity%linelist_file)/="NONE") close(enunit,status='keep')
     !
     write(my_fmt,'(A,I0,A)') "('Number of states for each symm = ',", sym%Nrepresen, "i8)"
@@ -1140,16 +1193,6 @@ contains
                   call ArrayStart('swap:indexf_RAM',info,size(indexf_RAM),kind(indexf_RAM))
                   call ArrayStart('swap:indexi_RAM',info,size(indexi_RAM),kind(indexi_RAM))
                   !
-                  ! npoints can not be smaller than nlevelsF
-                  !
-                  intensity%npoints = max(intensity%npoints,nlevelsF)
-                  !
-                  if (intensity%interpolate) then 
-                    allocate(spline_grid(nlevelsF),acoef_norm(intensity%npoints),stat=info)
-                    call ArrayStart('spline_grid',info,nlevelsF,kind(spline_grid))
-                    call ArrayStart('acoef_norm',info,intensity%npoints,kind(acoef_norm))
-                  endif
-                  !
                   acoef_RAM = 0
                   !
                 endif
@@ -1348,6 +1391,10 @@ contains
                    !
                    if (intensity%interpolate) then
                       !
+                      if (quantaI%iroot==3111) then 
+                        continue
+                      endif
+                      !
                       Ap1= 0._rk ; Apn =0._rk  ! 1nd derivatives at the first and last point (ignored)
                       !
                       if (.not.intensity%renorm) then 
@@ -1356,7 +1403,44 @@ contains
                          ! and interpolate it to obtain a distribution of the Einstein coefficients 
                          ! on a dense equidistant grid
                          !
+                         !
                          if (.true.) then
+                           !
+                           acoef_spin_grid = 0
+                           ncount_spin_grid = 0
+                           !
+                           do ilevelF=1,nlevelsF
+                              !
+                              quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                              !
+                              ispin_component  = quantaF%ilevel
+                              !
+                              istateF  = quantaF%istate
+                              ivibF    = quantaF%ivib
+                              ivF      = quantaF%v
+                              sigmaF   = quantaF%sigma
+                              spinF    = quantaF%spin
+                              ilambdaF = quantaF%ilambda
+                              omegaF   = quantaF%omega
+                              iomegaF = nint(omegaF)
+                              !
+                              ncount_spin_grid(istateF,iomegaF) = ncount_spin_grid(istateF,iomegaF) + 1
+                              !
+                              icount = ncount_spin_grid(istateF,iomegaF)
+                              acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)
+                              nu_spin_grid(icount,istateF,iomegaF) = nu_RAM(ilevelF)
+                              !
+                              if (ilevelF == 1) then
+                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/(nu_ram(2)-nu_ram(1))*2.0_rk
+                              elseif (ilevelF==nlevelsF) then 
+                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/( nu_ram(nlevelsF)-nu_ram(nlevelsF-1) )*2.0_rk
+                              else
+                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/( nu_ram(ilevelF+1)-nu_ram(ilevelF-1) )*2.0_rk
+                              endif
+                              !
+                           enddo
+                           !
+                         elseif (.true.) then
                            !
                            acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
                            acoef_norm(nlevelsF) = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
@@ -1430,89 +1514,144 @@ contains
                            !
                          endif                     
                          !
-                         acoef_RAM = acoef_norm
+                         !acoef_RAM = acoef_norm
                          !
                       endif
                       !
-                      call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
-                      !
-                      ! Obtain the total (integrated) Einstein coefficient 
-                      !
-                      acoef_total = sum(acoef_RAM(:))
-                      !
-                      ! find ileft - starting grid point used in linear interpolation
-                      do_find_ileft : do ilevelF = 1,nlevelsF
-                        if ( nu_ram(ilevelF)>intensity%freq_window(1) ) then 
-                          ileft = min(max(ilevelF-1,1),nlevelsF)
-                          exit do_find_ileft
+                      if (.true.) then 
+                        !
+                        acoef_norm = 0 
+                        acoef_total = sum(acoef_RAM)
+                        !
+                        do istateF=1,Nestates
+                          do iomegaF = -NomegaMax,NomegaMax
+                            !
+                            ncount = ncount_spin_grid(istateF,iomegaF)
+                            !
+                            if (ncount==0) cycle
+                            !
+                            call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
+                            !
+                            !acoef_total = acoef_total + sum(acoef_spin_grid(1:ncount,istateF,iomegaF))
+                            !
+                            do inu=1,intensity%npoints
+                              !
+                              nu = intensity%freq_window(1)+dnu*real(inu,rk)
+                              !
+                              ! evaluate spline interpolant
+                              call splint(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                                          spline_grid(1:ncount),ncount,nu,acoef_grid)
+                              !
+                              call linear_interpolation(ncount,nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                                                        intensity%freq_window,nu,acoef_grid)
+                              !
+                              acoef_norm(inu) = acoef_norm(inu) + (max(acoef_grid,0.0_rk))
+                              !
+                            enddo
+                            !
+                          enddo
+                          !
+                        enddo
+                        !
+                        acoef_norm_tot = sum(acoef_norm(:))*dnu
+                        !
+                        if (acoef_norm_tot>sqrt(small_)) then 
+                          !
+                          acoef_norm(:) = acoef_total/acoef_norm_tot*acoef_norm(:)
+                          !
                         endif
-                      enddo do_find_ileft
-                      !
-                      if (ilevelI==2021) then 
-                        continue
+                        !
+                        do inu=1,intensity%npoints
+                          !
+                          if (acoef_norm(inu)<intensity%threshold%linestrength) cycle 
+                          !
+                          nu = intensity%freq_window(1)+dnu*real(inu,rk)
+                          !
+                          write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_norm(inu)*dnu,nu
+                        enddo
+                        !
+                      else
+                        !
+                        call spline(nu_ram,acoef_RAM,nlevelsF,Ap1,Apn,spline_grid)
+                        !
+                        ! Obtain the total (integrated) Einstein coefficient 
+                        !
+                        acoef_total = sum(acoef_RAM(:))
+                        !
+                        ! find ileft - starting grid point used in linear interpolation
+                        do_find_ileft : do ilevelF = 1,nlevelsF
+                          if ( nu_ram(ilevelF)>intensity%freq_window(1) ) then 
+                            ileft = min(max(ilevelF-1,1),nlevelsF)
+                            exit do_find_ileft
+                          endif
+                        enddo do_find_ileft
+                        !
+                        if (ilevelI==2021) then 
+                          continue
+                        endif
+                        !
+                        do inu=0,intensity%npoints
+                          !
+                          nu = intensity%freq_window(1)+dnu*real(inu,rk)
+                          !
+                          if (.false.) then
+                            ! evaluate spline interpolant
+                            call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu,acoef_grid)
+                            !
+                            !call polint_rk(nu_ram,acoef_RAM,nu+(energyI-intensity%ZPE),acoef_grid,acoef_error)
+                            !
+                          else
+                            !
+                            ! linear interpolation
+                            !
+                            if (ileft+1>nlevelsF) ileft = ileft-1 
+                            !
+                            if (nu>nu_ram(ileft+1)) then
+                              do_find_ileft_ : do ilevelF = ileft+1,nlevelsF
+                                if ( nu_ram(ilevelF)>nu ) then 
+                                  ileft = min(max(ilevelF-1,1),nlevelsF)
+                                  exit do_find_ileft_
+                                endif
+                              enddo do_find_ileft_
+                              !
+                              continue 
+                              !
+                            endif
+                            !
+                            if (ileft+1<=nlevelsF.and.nu<nu_ram(ileft+1)) then 
+                              !
+                              x1 = nu_ram(ileft)
+                              x2 = nu_ram(ileft+1)
+                              y1 = acoef_RAM(ileft)
+                              y2 = acoef_RAM(ileft+1)
+                              !
+                              coeff = (y1-y2)/(-x2+x1)
+                              b = (x1*y2-y1*x2)/(-x2+x1)
+                              !
+                              acoef_grid = coeff*nu+b
+                              !
+                            endif
+                            !
+                          endif
+                          !
+                          ! for the standard normalisation of the unbound wavefunctions 
+                          ! we rescale the Einstein coefficients to conserve its original total:
+                          !
+                          !if (.not.intensity%renorm) then 
+                          !   acoef_grid = acoef_grid*dnu/(intensity%freq_window(2)-intensity%asymptote)
+                          !endif
+                          !
+                          if (acoef_grid>intensity%threshold%linestrength) then 
+                             !
+                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                                   eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_grid,nu
+                             !
+                          endif
+                          !
+                        enddo
+                        !
                       endif
-                      !
-                      do inu=0,intensity%npoints
-                        !
-                        nu = intensity%freq_window(1)+dnu*real(inu,rk)
-                        !
-                        if (.true.) then
-                          ! evaluate spline interpolant
-                          call splint(nu_ram,acoef_RAM,spline_grid,nlevelsF,nu+(energyI-intensity%ZPE),acoef_grid)
-                          !
-                          !call polint_rk(nu_ram,acoef_RAM,nu+(energyI-intensity%ZPE),acoef_grid,acoef_error)
-                          !
-                        else
-                          !
-                          ! linear interpolation
-                          !
-                          if (ileft+1>nlevelsF) ileft = ileft-1 
-                          !
-                          if (nu>nu_ram(ileft+1)) then
-                            do_find_ileft_ : do ilevelF = ileft+1,nlevelsF
-                              if ( nu_ram(ilevelF)>nu ) then 
-                                ileft = min(max(ilevelF-1,1),nlevelsF)
-                                exit do_find_ileft_
-                              endif
-                            enddo do_find_ileft_
-                            !
-                            continue 
-                            !
-                          endif
-                          !
-                          if (ileft+1<=nlevelsF.and.nu<nu_ram(ileft+1)) then 
-                            !
-                            x1 = nu_ram(ileft)
-                            x2 = nu_ram(ileft+1)
-                            y1 = acoef_RAM(ileft)
-                            y2 = acoef_RAM(ileft+1)
-                            !
-                            coeff = (y1-y2)/(-x2+x1)
-                            b = (x1*y2-y1*x2)/(-x2+x1)
-                            !
-                            acoef_grid = coeff*nu+b
-                            !
-                          endif
-                          !
-                        endif
-                        !
-                        ! for the standard normalisation of the unbound wavefunctions 
-                        ! we rescale the Einstein coefficients to conserve its original total:
-                        !
-                        !if (.not.intensity%renorm) then 
-                        !   acoef_grid = acoef_grid*dnu/(intensity%freq_window(2)-intensity%asymptote)
-                        !endif
-                        !
-                        if (acoef_grid>intensity%threshold%linestrength) then 
-                           !
-                           write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
-                                 eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_grid,nu
-                           !
-                        endif
-                        !
-                      enddo
-                      !
-                      continue
                       !
                    else 
                       !
@@ -1552,14 +1691,6 @@ contains
                       deallocate(indexi_RAM)
                       call ArrayStop('swap:indexi_RAM')
                    endif 
-                   if (allocated(spline_grid)) then 
-                      deallocate(spline_grid)
-                      call ArrayStop('spline_grid')
-                   endif 
-                   if (allocated(acoef_norm)) then 
-                      deallocate(acoef_norm)
-                      call ArrayStop('acoef_norm')
-                   endif 
                    !
                 endif
                 !
@@ -1590,6 +1721,22 @@ contains
        endif
        !
     enddo
+    !
+    if (allocated(spline_grid)) then 
+       deallocate(spline_grid)
+       call ArrayStop('spline_grid')
+    endif 
+    if (allocated(acoef_norm)) then 
+       deallocate(acoef_norm)
+       call ArrayStop('acoef_norm')
+    endif 
+    !
+    if (allocated(acoef_spin_grid)) then
+       deallocate(acoef_spin_grid)
+       deallocate(nu_spin_grid)
+       deallocate(ncount_spin_grid)
+       call ArrayStop('acoef_spin_grid')
+    endif
     !
     deallocate(vecI)
     call ArrayStop('intensity-vectors')
@@ -2583,6 +2730,53 @@ contains
 
 
 
+    subroutine linear_interpolation(N,x,y,window,x_,y_)
+      !
+      implicit none
+      !
+      integer(ik),intent(in) :: N
+      real(rk),intent(in) :: x(N),y(N),window(2)
+      real(rk),intent(in) :: x_
+      real(rk),intent(out) :: y_
+      integer(ik) :: i,ileft
+      real(rk) :: coeff,b,x1,x2,y1,y2
+      !
+      do_find_ileft : do i = 1,N
+        if ( x(i)>window(1) ) then 
+          ileft = min(max(i-1,1),N)
+          exit do_find_ileft
+        endif
+      enddo do_find_ileft
+      !
+      ! linear interpolation
+      !
+      if (ileft+1>N) ileft = ileft-1 
+      !
+      if (x_>x(ileft+1)) then
+        do_find_ileft_ : do i = ileft+1,N
+          if ( x(i)>x_ ) then 
+            ileft = min(max(i-1,1),N)
+            exit do_find_ileft_
+          endif
+        enddo do_find_ileft_
+        !
+      endif
+      !
+      if (ileft+1<=N.and.x_<x(ileft+1)) then 
+        !
+        x1 = x(ileft)
+        x2 = x(ileft+1)
+        y1 = y(ileft)
+        y2 = y(ileft+1)
+        !
+        coeff = (y1-y2)/(-x2+x1)
+        b = (x1*y2-y1*x2)/(-x2+x1)
+        !
+        y_ = coeff*x_+b
+        !
+      endif
+      !
+  end subroutine linear_interpolation
 
 
 end module dipole

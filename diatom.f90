@@ -11968,7 +11968,7 @@ contains
           !enddo
           !
           ! print out the internal matrix at the first grid point
-          if (iverbose>=4.and.abs(hmat(i,j)) >small_) then
+          if (iverbose>=5.and.abs(hmat(i,j)) >small_) then
             write(printout(i),'(A, F15.3,A)') " RV=", hmat(i,j)/sc, "; "
           endif
           !
@@ -12017,7 +12017,7 @@ contains
             !
             ! print out the internal matrix at the first grid point
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>small_) then
               !
               write(printout_,'(" DIA=",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
@@ -12047,7 +12047,7 @@ contains
             hmat(j,i) = hmat(i,j) 
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>small_) then
               !
               write(printout_,'(" NC",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
@@ -12079,7 +12079,7 @@ contains
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
-            if (iverbose>=4.and.abs(f_t)>sqrt(small_)) then
+            if (zDebug .and. iverbose>=5.and.abs(f_t)>sqrt(small_)) then
               write(printout_,'("  J-S(",2i3,")=")') i,j
               printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
@@ -12136,7 +12136,7 @@ contains
             enddo
             !
             ! print out the internal matrix at the first grid point
-            if (iverbose>=4.and.abs(f_t)>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(f_t)>small_) then
               write(printout_,'(i3,"-LJ",2i3)') iLplus_omega_,iomega,jomega
               printout(i) = trim(printout(i))//trim(printout_)
               write(iomega,'(g12.4)') -f_t/sc
@@ -12186,7 +12186,7 @@ contains
             !enddo
             !
             ! print out the internal matrix at the first grid point
-            if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>sqrt(small_)) then
               write(printout_,'("    SR",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
@@ -12234,7 +12234,7 @@ contains
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
-            if (iverbose>=4.and.abs(f_t)>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(f_t)>small_) then
               write(printout_,'(i3,"-LJ",2i3)') ip2q_omega_,i,j
               printout(i) = trim(printout(i))//trim(printout_)
               write(printout_,'(g12.4)') -f_t/sc
@@ -12284,7 +12284,7 @@ contains
             hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
-            if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>sqrt(small_)) then
               write(printout_,'("    q",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
               if (abs(hmat(i,j))>sqrt(small_)) then
@@ -12303,7 +12303,7 @@ contains
     !
     if (iverbose>=3) write(out,'("...done!")')
     !
-    if (zDebug .and. iverbose>=4) then
+    if (zDebug .and. iverbose>=5) then
       ! print out the structure of the submatrix
       !
       write(out,'(/"Non-zero matrix elements of the coupled Omega matrix:")')
