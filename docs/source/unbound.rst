@@ -3,8 +3,8 @@
 Treating unbound states
 =======================
 
-Identifying unbound states using desnity
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Identifying unbound states using density
+----------------------------------------
 
 Unbound states appear above the state dissociations. The Duo is developed to treat bound state problems
 with an effective  boundary condition for the rovibronic eigenfunctions to vanish at the borders of the simulation grid.
@@ -15,9 +15,11 @@ Duo methodology can be applied also to compute the unbound spectra, here we show
 calculations and thus to produce bound a line list. The unbound wavefunctions :math:`\psi_{\lambda}(r)` can be identified based on their asymptotic properties
 via non-zero density in the small region of :math:`\delta` at the right border :math:`r= r_{\rm max}`:
 
-:math:`\epsilon = \int_{r_{\rm max - \delta}}^{r_{\rm max}} |\psi_{\lambda}(r)|^2 dr > \epsilon_{\rm thr}`
-
-:math:`\epsilon \sim 10^{-8}` is a small threshold value. The default threshold value is  :math:`\epsilon \sim 10^{-8}` is chosen as :math:`\sqrt{\epsilon(1.0d0)} \sim 1.5 \times 10^{-8}`.
+.. math::
+       
+       \epsilon = \int_{r_{\rm max - \delta}}^{r_{\rm max}} |\psi_{\lambda}(r)|^2 dr > \epsilon_{\rm thr}
+       
+where :math:`\epsilon \sim 10^{-8}` is a small threshold value. The default threshold value is  :math:`\epsilon \sim 10^{-8}` is chosen as :math:`\sqrt{\epsilon(1.0d0)} \sim 1.5 \times 10^{-8}`.
 The threshold value can be specified in the input file using the keyword `thresh_bound`.
 
 The default value of :math:`\delta`  is 0.5 :math:`\AA`, which can be changed using the keyword ``THRESH_DELTA_R`` (also in :math:`\AA`).
@@ -31,16 +33,17 @@ The default value of :math:`\delta`  is 0.5 :math:`\AA`, which can be changed us
        Reduced densities of AlH together with an integration box used to disentangle (quasi-)bound and continuum states, :math:`\delta = 40\,\AA`.
 
 Identifying unbound states using expectation value of the bond length
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------------------------------------------
 
 Here we use the expectation values of :math:`r` as the measure of the unbound/bound character of the wavefunction. To this end, we calculate:
 
-
-:math:`\bar{r} = \int_{r_{\rm min}}^{r_{\rm max}} \psi_{\lambda}(r) r \psi_{\lambda}^{*}(r)  dr`
-
+.. math::
+       
+       \bar{r} = \int_{r_{\rm min}}^{r_{\rm max}} \psi_{\lambda}(r) r \psi_{\lambda}^{*}(r)  dr
+        
 and compare it to a threshold value :math:`r_{\rm thresh}` ``thresh_bound_rmax`. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`. 
 
-This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then use the expectation value criterium. 
+This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then apply the expectation value criterium. 
 
 The .states file in the case of the ``unbound`` calculations also provides the value the value of :math:`\bar{r}` used to decide on the unbound/bound property (last column), as well as a label ``u``/``b`` defining if it is unbound/bound (second from last), for example 
 
@@ -56,22 +59,21 @@ The .states file in the case of the ``unbound`` calculations also provides the v
 
 
 Excluding  unbound states
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------
 
 Once the unbound states are identified they can be excluded from the intensity or line list calculations using the `bound` keyword in the INTENSITY section,
 which tells Duo to compute bound-bound spectra only, e.g.:
 
-Example:
+Example (using the density criterium):
 ::
 
   intensity
     absorption
     bound
-    thresh_intes 1e-50
+    thresh_intens 1e-50
     thresh_bound  1e-6
     thresh_delta_R   1 (Angstrom)
     temperature 3000 (K)
-    nspin 2.5  1.5
     linelist AlCl-37_61_J160
     J 0, 20
     freq-window  0.0  48000.0
@@ -111,7 +113,7 @@ The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`.
 
 
 Excluding  bound upper states
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Sometimes only the transitions to the unbound state are needed. In this case we exclude tansitions to the upper bound states with a keyword `unbound` placed anywhere in the
 INTENSITY section.
@@ -122,13 +124,33 @@ Example:
   intensity
     absorption
     unbound
-    thresh_intes 1e-50
+    thresh_intens 1e-50
     thresh_bound  1e-6
     temperature 3000 (K)
-    nspin 2.5  1.5
     linelist AlCl-37_61_J160
     J 0, 20
     freq-window  0.0  48000.0
     energy low 0.0 30000, upper 0.0,48000
   end
+
+
+
+Here is an example excluding  bound upper states using the criterium for the bond-expectation value:
+::
+
+  intensity
+    absorption
+    bound
+    thresh_intens 1e-50
+    thresh_bound  1e-6
+    thresh_bound_rmax  2
+    temperature 3000 (K)
+    linelist AlCl-37_61_J160
+    J 0, 20
+    freq-window  0.0  48000.0
+    energy low 0.0 30000, upper 0.0,48000
+  end
+
+
+where ``thresh_bound_rmax`` defines the value of :math:`r_{\rm max}` in the equation above. 
 
