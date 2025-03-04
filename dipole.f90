@@ -1530,7 +1530,7 @@ contains
                             !
                             if (ncount==0) cycle
                             !
-                            call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
+                            !call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
                             !
                             !acoef_total = acoef_total + sum(acoef_spin_grid(1:ncount,istateF,iomegaF))
                             !
@@ -1539,8 +1539,8 @@ contains
                               nu = intensity%freq_window(1)+dnu*real(inu,rk)
                               !
                               ! evaluate spline interpolant
-                              call splint(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
-                                          spline_grid(1:ncount),ncount,nu,acoef_grid)
+                              !call splint(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                              !            spline_grid(1:ncount),ncount,nu,acoef_grid)
                               !
                               call linear_interpolation(ncount,nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
                                                         intensity%freq_window,nu,acoef_grid)

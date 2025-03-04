@@ -11968,7 +11968,7 @@ contains
           !enddo
           !
           ! print out the internal matrix at the first grid point
-          if (iverbose>=5.and.abs(hmat(i,j)) >small_) then
+          if (iverbose>=5.and.abs(erot) >small_) then
             write(printout(i),'(A, F15.3,A)') " RV=", hmat(i,j)/sc, "; "
           endif
           !
@@ -12017,7 +12017,7 @@ contains
             !
             ! print out the internal matrix at the first grid point
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(f_t)>small_) then
               !
               write(printout_,'(" DIA=",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
@@ -12047,7 +12047,7 @@ contains
             hmat(j,i) = hmat(i,j) 
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=5.and.abs(hmat(i,j))>small_) then
+            if (zDebug .and. iverbose>=5.and.abs(f_t)>small_) then
               !
               write(printout_,'(" NC",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
@@ -12316,10 +12316,11 @@ contains
       write(out,'(A)') 'LS == L.S interaction (spin-electronic)'
       !
       do i = 1,Ntotal
-        write(out,'(a)') trim( printout(i) )
+        if (trim( printout(i) )/="") then 
+          write(out,'(a)') trim( printout(i) )
+          write(out,'(" "/)')
+        endif
       enddo
-      !
-      write(out,'(" "/)')
       !
     endif
     !
