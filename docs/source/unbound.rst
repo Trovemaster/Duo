@@ -3,8 +3,8 @@
 Treating unbound states
 =======================
 
-Identifying unbound states
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Identifying unbound states using desnity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Unbound states appear above the state dissociations. The Duo is developed to treat bound state problems
 with an effective  boundary condition for the rovibronic eigenfunctions to vanish at the borders of the simulation grid.
@@ -28,9 +28,31 @@ The default value of :math:`\delta`  is 0.5 :math:`\AA`, which can be changed us
    .. figure:: img/AlH_density.jpg
        :alt: AlH density
 
-       Reduced densities of AlH together with an integration box used to disentangle (quasi-)bound and continuum states, :math:`\delta = 40\,\AA`. 
+       Reduced densities of AlH together with an integration box used to disentangle (quasi-)bound and continuum states, :math:`\delta = 40\,\AA`.
+
+Identifying unbound states using expectation value of the bond length
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here we use the expectation values of :math:`r` as the measure of the unbound/bound character of the wavefunction. To this end, we calculate:
 
 
+:math:`\bar{r} = \int_{r_{\rm min}}^{r_{\rm max}} \psi_{\lambda}(r) r \psi_{\lambda}^{*}(r)  dr`
+
+and compare it to a threshold value :math:`r_{\rm thresh}` ``thresh_bound_rmax`. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`. 
+
+This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then use the expectation value criterium. 
+
+The .states file in the case of the ``unbound`` calculations also provides the value the value of :math:`\bar{r}` used to decide on the unbound/bound property (last column), as well as a label ``u``/``b`` defining if it is unbound/bound (second from last), for example 
+
+::
+     
+           1     0.000000      4     0.5 + e X2Pi         0  1    -0.5     0.5 b   1.145131
+           2  2652.362427      4     0.5 + e X2Pi         1  1    -0.5     0.5 b   1.188210
+           3  5200.319353      4     0.5 + e X2Pi         2  1    -0.5     0.5 b   1.230171
+           4  7642.107722      4     0.5 + e X2Pi         3  1    -0.5     0.5 b   1.275067
+           5  9977.930743      4     0.5 + e X2Pi         4  1    -0.5     0.5 b   1.314642
+           6 25367.675041      4     0.5 + e B2sigma-     0  0     0.5     0.5 b   1.229628
+     
 
 
 Excluding  unbound states
@@ -57,9 +79,9 @@ Example:
   end
 
 
-Her, the integrated density :math:`\epsilon` of the given state over the region of :math:`\delta= 1 \AA` will be compared to the threshold value of :math:`\epsilon_{\rm thr} = 1e-6`. The state in question is considered as unbound if :math:`\epsilon>\epsilon_{\rm thr}`. 
+Her, the integrated density :math:`\epsilon` of the given state over the region of :math:`\delta= 1 \AA` will be compared to the threshold value of :math:`\epsilon_{\rm thr} = 1e-6`. The state in question is considered as unbound if :math:`\epsilon>\epsilon_{\rm thr}`.
 
-This selection is very dependent on the geometry of the box and the integrated region and thus will be different for different systems. The selection criterium   for the quasi-bound states is not very well defined and must be chosen on the case-by-case basis. For example, it is sometimes useful to plot the corresponding reduced densities, check the lifetimes or even compare to the experiment to see what should be considered as 'bound' states. 
+This selection is very dependent on the geometry of the box and the integrated region and thus will be different for different systems. The selection criterium   for the quasi-bound states is not very well defined and must be chosen on the case-by-case basis. For example, it is sometimes useful to plot the corresponding reduced densities, check the lifetimes or even compare to the experiment to see what should be considered as 'bound' states.
 
 An alternative way, less dependent on the specific geometry is to specify the threshold using the average density over the specific integration region:
 
@@ -83,8 +105,8 @@ defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
       freq-window    0.0,   30000.0
       energy low   -0.001, 30000.00, upper   -0.00, 30000.0
     END
-    
-The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`. 
+
+The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`.
 
 
 
