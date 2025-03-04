@@ -326,6 +326,8 @@ contains
     integer(ik),allocatable :: indexi_RAM(:),indexf_RAM(:),ncount_spin_grid(:,:)
     !
     character(len=130) :: my_fmt !format for I/O specification
+    character(len=1) :: label_bound
+    !
     integer :: ndecimals
     integer(ik)  :: enunit,transunit,icount,ncount
     character(len=cl) :: filename,ioname
@@ -692,6 +694,9 @@ contains
                    eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
                 cycle
              endif
+             ! 
+             label_bound = "b"
+             if (.not.quantaI%bound) label_bound = "u"
              !
              !Mikhail Semenov: Lande g-factor for the selected eigenstate
              !
@@ -747,18 +752,40 @@ contains
                !
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                           lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                 if (intensity%unbound) then
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,&
+                                            ",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8,1x,a1,1x,f10.6)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                             lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI)),label_bound,quantaI%r_exp
+                 else
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,&
+                                            ",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                             lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                 endif
                  !
                else
                  !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                           !
+                 if (intensity%unbound) then 
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,&
+                                            ",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1,1x,a1,1x,f10.6)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                             lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI),label_bound,quantaI%r_exp
+                             !
+                  else
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,&
+                                            ",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                             lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                  endif
                endif
                !
              elseif ( intensity%matelem ) then
@@ -799,18 +826,42 @@ contains
                ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
                if (integer_spin) then 
                  !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                           pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                 if (intensity%unbound) then 
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,&
+                                            ",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8,1x,a1,1x,f10.6)"
+                   !
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                             pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI)),label_bound,quantaI%r_exp
+                             !
+                 else
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
+                   !
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
+                             pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
+                             !
+                 endif
                  !
                else
                  !
-                 write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                 write(enunit,my_fmt) & 
-                           iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                           !
+                 if (intensity%unbound) then 
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1,1x,a1,1x,f10.6)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                             pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI),label_bound,quantaI%r_exp
+                             !
+                 else
+                   !
+                   write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
+                   write(enunit,my_fmt) & 
+                             iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
+                             pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
+                             !
+                 endif
                endif
                !
              endif

@@ -333,6 +333,7 @@ module diatom_module
     integer(ik)  :: iomega = 1   ! countig number of omega
     character(len=cl) :: name    ! Identifying name of the  function
     logical :: bound = .true.    ! is this state bound or unbound
+    real(rk)     :: r_exp        ! expectation value of the bond length 
     character(len=cl) :: iTAG         ! reference State TAG of the term as given in input (bra in case of the coupling), used to identify a state in the input
   end type quantaT
   !
@@ -395,6 +396,7 @@ module diatom_module
     ! calculated at the edge of the box whioch must be small for bound states
     real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
     real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density (Angstrom)
+    real(rk) :: bound_rmax      = sqrt(safe_max) ! threshold defining the unbound state based on the expectatiob value of the bond length
     !
   end type thresholdsT
   !
@@ -3379,9 +3381,13 @@ contains
             !
             call readf(intensity%threshold%coeff)
             !
-          case('THRESH_BOUND','THRESH_DENSITY')
+          case('THRESH_BOUND','THRESH_DENSITY','THRESH_BOUND_DENSITY')
             !
             call readf(intensity%threshold%bound_density)
+            !
+          case('THRESH_BOUND_RMAX')
+            !
+            call readf(intensity%threshold%bound_rmax)
             !
           case('THRESH_AVERAGE_DENSITY')
             !
@@ -7174,7 +7180,7 @@ contains
     integer(ik) :: lambda_max,multi_max,lambda_min,iomega,Nomega_states
     integer(ik) :: Nlambdasigmas_max
     integer(ik) :: Nspins,Ndimen,jomega
-    real(rk)    :: omega_min,omega_max,spin_min
+    real(rk)    :: omega_min,omega_max,spin_min,r_exp
     logical     :: bound_state = .true.,check_symmetry=.false.
     !
     type(contract_solT),allocatable :: contracted(:,:)
@@ -9703,6 +9709,7 @@ contains
         if (iverbose>=3) then
           write(out,'(/"Finding unbound state:")')
           write(out,'("  Density threshold = ",e12.5)') intensity%threshold%bound_density
+          write(out,'("  rmax threshold = ",e12.5)') intensity%threshold%bound_rmax
           write(out,'("  The integration box = ",f15.8,"-",f15.8," Ang")') &
             grid%r(grid%npoints-npoints_last+1),grid%rmax
           write(out,'("  Number of ingegration points = ",i8)') npoints_last
@@ -10176,31 +10183,21 @@ contains
                     !
                   case ("OMEGA")
                     !
-                    !omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    !do k= grid%npoints-npoints_last+1,grid%npoints
-                    !  psi_vib(k) = vibrational_reduced_density_omega(jval,k,Ntotal,totalroots,0,icontrvib,vec,psi_vib)
-                    !enddo
-                    !omp end parallel do
-                    !
                     call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,vec,psi_vib)
+                    !
+                    sum_wv = sum(psi_vib(ipoint_first:grid%npoints))
                     !
                   case ("VIB")
                     !
-                    call vibrational_reduced_density_rho(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
-                                                         ipoint_first,vec,psi_vib)
+                    !call vibrational_reduced_density_rho(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                    !                                     ipoint_first,vec,psi_vib)
                     !
-                    !omp parallel do private(k) shared(psi_vib) schedule(guided)
-                    ! do k= grid%npoints-npoints_last+1,grid%npoints
-                    !   psi_vib(k) = vibrational_reduced_density(k,Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,0,&
-                    !                                            vec,psi_vib)
-                    ! 
-                    ! 
-                    !enddo
-                    !omp end parallel do
+                    call calculate_state_expectation_value_of_r(Ntotal,totalroots,Nlambdasigmas,ilambdasigmas_v_icontr,&
+                                                                ipoint_first,vec,r_exp,sum_wv)
+                    !
+                    eigen(irot,irrep)%quanta(total_roots)%r_exp = r_exp
                     !
                   end select
-                  !
-                  sum_wv = sum(psi_vib(ipoint_first:grid%npoints))
                   !
                   sum_wv_average = sum_wv/intensity%threshold%deltaR_dens
                   !
@@ -10211,6 +10208,18 @@ contains
                   if (sum_wv>intensity%threshold%bound_density.or.&
                       sum_wv_average>intensity%threshold%bound_aver_density) then
                     !
+                    eigen(irot,irrep)%quanta(total_roots)%bound = .false.
+                    bound_state = .false.
+                    !
+                    if (r_exp<intensity%threshold%bound_rmax) then 
+                      eigen(irot,irrep)%quanta(total_roots)%bound = .true.
+                      bound_state = .true.
+                      !
+                    endif
+                    !
+                  endif
+                  !
+                  if (r_exp>intensity%threshold%bound_rmax) then 
                     eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
                     !
@@ -12426,6 +12435,77 @@ contains
     deallocate(T)
     !
   end subroutine vibrational_reduced_density_rho  
+
+
+  !
+  !  vibrational reduced density of a rovibronic eigenstate at the igrid point
+
+  subroutine calculate_state_expectation_value_of_r(Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr,ifirst,vec,rexpect,sum_wv)
+    !
+    integer(ik),intent(in) :: Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas),ifirst
+    real(rk),intent(in)    :: vec(Ntotal)
+    real(rk),intent(out)   :: rexpect,sum_wv
+    real(rk)    :: vec_t
+    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc,i
+    real(rk),allocatable  :: T(:,:),fgrid(:)
+
+    allocate(T(Nvib,Nvib),fgrid(grid%npoints),stat=alloc)
+    if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T,fgrid'
+    !
+    T = 0
+    !
+    do ilevel = 1,Nlambdasigmas
+      !
+      do ivib =1,Nvib
+        !
+        k = ilambdasigmas_v_icontr(ivib,ilevel)
+        !
+        if (k==0) cycle
+        !
+        do jvib =1,Nvib
+          !
+          k_ = ilambdasigmas_v_icontr(jvib,ilevel)
+          !
+          if (k_==0) cycle
+          !
+          T(ivib,jvib)  = T(ivib,jvib) + vec(k_)*vec(k)
+          !
+        enddo
+      enddo
+    enddo
+    !
+    ! expectation values of r
+    !
+    fgrid = 0
+    !
+    do ivib =1,Nvib 
+      do jvib =1,Nvib 
+        !
+        fgrid(:) = fgrid(:) +  vibrational_contrfunc(:,ivib)*T(ivib,jvib)*vibrational_contrfunc(:,jvib)*grid%r(:)
+        !
+      enddo
+    enddo
+    !
+    rexpect = sum(fgrid)
+    !
+    ! integrated density
+    !
+    fgrid = 0
+    !
+    do ivib =1,Nvib 
+      do jvib =1,Nvib 
+        !
+        fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
+        !
+      enddo
+    enddo
+    !
+    sum_wv = sum(fgrid(ifirst:))
+    !
+    deallocate(T,fgrid)
+    !
+  end subroutine calculate_state_expectation_value_of_r
+
 
   !
   !  vibrational reduced density of a rovibronic eigenstate at the igrid point in the omega representation
