@@ -41,7 +41,7 @@ Here we use the expectation values of :math:`r` as the measure of the unbound/bo
        
        \bar{r} = \int_{r_{\rm min}}^{r_{\rm max}} \psi_{\lambda}(r) r \psi_{\lambda}^{*}(r)  dr
         
-and compare it to a threshold value :math:`r_{\rm thresh}` ``thresh_bound_rmax`. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`. 
+and compare it to a threshold value :math:`r_{\rm max}` ``thresh_bound_rmax``. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`. 
 
 This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then apply the expectation value criterium. 
 
@@ -90,7 +90,8 @@ An alternative way, less dependent on the specific geometry is to specify the th
 :math:`\bar\epsilon =  \frac{\epsilon}{\delta} > \bar\epsilon_{\rm thr}`
 
 defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
-
+::
+     
     INTENSITY
       absorption
       bound
@@ -107,7 +108,8 @@ defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
       freq-window    0.0,   30000.0
       energy low   -0.001, 30000.00, upper   -0.00, 30000.0
     END
-
+    
+    
 The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`.
 
 
