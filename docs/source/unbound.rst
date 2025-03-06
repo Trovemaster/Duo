@@ -99,7 +99,7 @@ defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
       THRESH_DELTA_R   1 (Angstrom)
       THRESH_AVERAGE_density  1e-4
       THRESH_DELTA_R  4
-      THRESH_INTES  1e-40
+      THRESH_INTENS  1e-40
       THRESH_LINE   1e-40
       thresh_dipole 1e-7
       TEMPERATURE   750
