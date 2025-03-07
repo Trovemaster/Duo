@@ -81,7 +81,7 @@ Example (using the density criterium):
   end
 
 
-Her, the integrated density :math:`\epsilon` of the given state over the region of :math:`\delta= 1 \AA` will be compared to the threshold value of :math:`\epsilon_{\rm thr} = 1e-6`. The state in question is considered as unbound if :math:`\epsilon>\epsilon_{\rm thr}`.
+Here, the integrated density :math:`\epsilon` of the given state over the region of :math:`\delta= 1 {\rm \AA}` will be compared to the threshold value of :math:`\epsilon_{\rm thr} = 10^{-6}`. The state in question is considered as unbound if :math:`\epsilon>\epsilon_{\rm thr}`.
 
 This selection is very dependent on the geometry of the box and the integrated region and thus will be different for different systems. The selection criterium   for the quasi-bound states is not very well defined and must be chosen on the case-by-case basis. For example, it is sometimes useful to plot the corresponding reduced densities, check the lifetimes or even compare to the experiment to see what should be considered as 'bound' states.
 
