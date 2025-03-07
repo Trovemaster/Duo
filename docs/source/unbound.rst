@@ -16,9 +16,9 @@ calculations and thus to produce bound a line list. The unbound wavefunctions :m
 via non-zero density in the small region of :math:`\delta` at the right border :math:`r= r_{\rm max}`:
 
 .. math::
-       
+
        \epsilon = \int_{r_{\rm max - \delta}}^{r_{\rm max}} |\psi_{\lambda}(r)|^2 dr > \epsilon_{\rm thr}
-       
+
 where :math:`\epsilon \sim 10^{-8}` is a small threshold value. The default threshold value is  :math:`\epsilon \sim 10^{-8}` is chosen as :math:`\sqrt{\epsilon(1.0d0)} \sim 1.5 \times 10^{-8}`.
 The threshold value can be specified in the input file using the keyword `thresh_bound`.
 
@@ -38,24 +38,24 @@ Identifying unbound states using expectation value of the bond length
 Here we use the expectation values of :math:`r` as the measure of the unbound/bound character of the wavefunction. To this end, we calculate:
 
 .. math::
-       
+
        \bar{r} = \int_{r_{\rm min}}^{r_{\rm max}} \psi_{\lambda}(r) r \psi_{\lambda}^{*}(r)  dr
-        
-and compare it to a threshold value :math:`r_{\rm max}` ``thresh_bound_rmax``. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`. 
 
-This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then apply the expectation value criterium. 
+and compare it to a threshold value :math:`r_{\rm max}` ``thresh_bound_rmax``. The state is labeled "unbound" if :math:`r>r_{\rm thresh}`.
 
-The .states file in the case of the ``unbound`` calculations also provides the value the value of :math:`\bar{r}` used to decide on the unbound/bound property (last column), as well as a label ``u``/``b`` defining if it is unbound/bound (second from last), for example 
+This mechanism can be used in conjunction with the density criteria. First, Duo will check against the density criterium and then apply the expectation value criterium.
+
+The .states file in the case of the ``unbound`` calculations also provides the value the value of :math:`\bar{r}` used to decide on the unbound/bound property (last column), as well as a label ``u``/``b`` defining if it is unbound/bound (second from last), for example
 
 ::
-     
+
            1     0.000000      4     0.5 + e X2Pi         0  1    -0.5     0.5 b   1.145131
            2  2652.362427      4     0.5 + e X2Pi         1  1    -0.5     0.5 b   1.188210
            3  5200.319353      4     0.5 + e X2Pi         2  1    -0.5     0.5 b   1.230171
            4  7642.107722      4     0.5 + e X2Pi         3  1    -0.5     0.5 b   1.275067
            5  9977.930743      4     0.5 + e X2Pi         4  1    -0.5     0.5 b   1.314642
            6 25367.675041      4     0.5 + e B2sigma-     0  0     0.5     0.5 b   1.229628
-     
+
 
 
 Excluding  unbound states
@@ -91,7 +91,7 @@ An alternative way, less dependent on the specific geometry is to specify the th
 
 defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
 ::
-     
+
     INTENSITY
       absorption
       bound
@@ -108,8 +108,8 @@ defined using the ``THRESH_AVERAGE_DENSITY`` keyword, for example:
       freq-window    0.0,   30000.0
       energy low   -0.001, 30000.00, upper   -0.00, 30000.0
     END
-    
-    
+
+
 The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`.
 
 
@@ -117,8 +117,7 @@ The default value of :math:`\bar\epsilon_{\rm thr}` is :math:`\sim 10^{-8}`.
 Excluding  bound upper states
 -----------------------------
 
-Sometimes only the transitions to the unbound state are needed. In this case we exclude tansitions to the upper bound states with a keyword `unbound` placed anywhere in the
-INTENSITY section.
+Sometimes only the transitions to the unbound state are needed. In this case we exclude transitions to the upper bound states with a keyword `unbound` placed anywhere in the INTENSITY section.
 
 Example:
 ::
@@ -154,5 +153,45 @@ Here is an example excluding  bound upper states using the criterium for the bon
   end
 
 
-where ``thresh_bound_rmax`` defines the value of :math:`r_{\rm max}` in the equation above. 
+where ``thresh_bound_rmax`` defines the value of :math:`r_{\rm max}` in the equation above.
+
+
+Printing unbound state properties in the .states file 
+-----------------------------------------------------
+
+By default, the unbound calculations will introduce the labels "b"/"u" (Bound/Unbound) in the States file. When the expectation value of the bond length :math:`\bar{r}` is requested with ``THRESH_BOUND_RMAX`` in the ``Intensity`` block, the corresponding value of :math:`\bar{r}` will also appear next to the label "b"/"u". Additionally the expectation values the unbound densities :math:`\epsilon` can be also included by adding the keyword ``PRINT_BOUND_DENSITY``, e.g. 
+::
+
+     INTENSITY
+       absorption
+       unbound
+       thresh_bound  1e-4
+       thresh_delta_r 1
+       THRESH_BOUND_RMAX 2
+       PRINT_BOUND_DENSITY
+       TEMPERATURE   3000.0
+       linelist CH
+       J,  0.5,  10.5
+       freq-window    0, 50000
+       energy low   -0.001, 20000.00, upper   -0.00, 50000.0
+     END
+     
+     
+Here is an example of the States file generated: 
+::
+     
+     
+           1     0.000000      4     0.5 + e X2Pi         0  1    -0.5     0.5 b   1.13934 0.58E-21
+           2  2720.584833      4     0.5 + e X2Pi         1  1    -0.5     0.5 b   1.17893 0.17E-21
+           3  5314.682367      4     0.5 + e X2Pi         2  1    -0.5     0.5 b   1.22026 0.47E-21
+           4  7784.710908      4     0.5 + e X2Pi         3  1    -0.5     0.5 b   1.26339 0.97E-22
+           5 10132.366441      4     0.5 + e X2Pi         4  1    -0.5     0.5 b   1.30890 0.31E-21
+           6 25771.515741      4     0.5 + e B2Sigma-     0  0     0.5     0.5 b   1.21463 0.83E-21
+           7 27530.492176      4     0.5 + e B2Sigma-     1  0     0.5     0.5 b   1.32459 0.28E-19
+           8 27877.572537      4     0.5 + e B2Sigma-     2  0     0.5     0.5 u   4.15693 0.17E-01
+           9 27905.414170      4     0.5 + e B2Sigma-     3  0     0.5     0.5 u   4.96461 0.18
+          10 27947.636255      4     0.5 + e B2Sigma-     4  0     0.5     0.5 u   4.79088 0.28
+          ..................
+      
+ 
 
