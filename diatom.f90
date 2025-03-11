@@ -11028,7 +11028,7 @@ contains
               ) ) then
               !
               write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
-                    " with SO selection rules: ')") field%istate,field%jstate
+                    " with SS selection rules: ')") field%istate,field%jstate
               write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
                     "Delta S = 0 or Delta S = 1,2 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 2')")
               write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &

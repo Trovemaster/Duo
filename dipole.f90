@@ -700,7 +700,6 @@ contains
              ! skip unbound states for the renormalisation case 
              if (intensity%interpolate.and..not.quantaI%bound) then 
                    iroot = iroot - 1
-                   eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
                 cycle
              endif
              ! 
@@ -861,6 +860,8 @@ contains
             !
             eigen(indI,igammaI)%Nbound = iroot
             !
+            statename = "grid"
+            !
             do inu=0,intensity%npoints
                !
                !nu = intensity%asymptote+dnu*real(inu,rk)
@@ -877,14 +878,14 @@ contains
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
                  write(enunit,my_fmt) & 
                            iroot,nu,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                           pm,ef,"grid",0,0,0,0
+                           pm,ef,statename,0,0,0,0
                  !
                else
                  !
                  write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
                  write(enunit,my_fmt) & 
                            iroot,nu,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                           pm,ef,"grid",0,0,0.5,0.5
+                           pm,ef,statename,0,0,0.5,0.5
                            !
                endif
             enddo
@@ -957,15 +958,6 @@ contains
     matsize = int(sum( nlevelsG(:) ),hik)
     !
     if (iverbose>=4) write(out,"(/'Dipole moment integration (i)...')")
-    !
-    ! prescreen all eigenfunctions, compact and store on the disk
-    !
-    !call TimerStart('Dipole moment integration (i)')
-    !
-    !allocate(vecI(sym%Maxdegen,dimenmax_swap),vecF(sym%Maxdegen,dimenmax), stat = info)
-    !if (info/=0)  stop 'vecI,vecF,icoeffF - out of memory'
-    !
-    !allocate(icoeffF(sym%Maxdegen,dimenmax), stat = info)
     !
     if (Ntransit==0) then 
          write(out,"('dm_intensity: the transition filters are too tight: no transitions selected')") 
@@ -1127,6 +1119,9 @@ contains
                 !
                 call energy_filter_lower(jI,energyI,passed)
                 !
+                ! currently, the lower states should be always selected as bound
+                if (.not.quantaI%bound) passed = .false.
+                !
                 if (.not.passed) cycle
                 !
                 vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
@@ -1264,7 +1259,7 @@ contains
                    !
                    call energy_filter_upper(jF,energyF,passed)
                    !
-                   ! skipping bound states if only unbound are needed 
+                   ! skipping bound uppper states if only unbound transitions are needed 
                    if (intensity%unbound.and.quantaF%bound) passed = .false.
                    !
                    if (.not.passed) cycle Flevels_loop
@@ -1559,9 +1554,9 @@ contains
                             !
                             ncount = ncount_spin_grid(istateF,iomegaF)
                             !
-                            if (ncount==0) cycle
+                            if (ncount<=1) cycle
                             !
-                            !call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
+                            call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
                             !
                             !acoef_total = acoef_total + sum(acoef_spin_grid(1:ncount,istateF,iomegaF))
                             !
@@ -1570,11 +1565,11 @@ contains
                               nu = intensity%freq_window(1)+dnu*real(inu,rk)
                               !
                               ! evaluate spline interpolant
-                              !call splint(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
-                              !            spline_grid(1:ncount),ncount,nu,acoef_grid)
+                              call splint(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                                          spline_grid(1:ncount),ncount,nu,acoef_grid)
                               !
-                              call linear_interpolation(ncount,nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
-                                                        intensity%freq_window,nu,acoef_grid)
+                              !call linear_interpolation(ncount,nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                              !                          intensity%freq_window,nu,acoef_grid)
                               !
                               acoef_norm(inu) = acoef_norm(inu) + (max(acoef_grid,0.0_rk))
                               !
