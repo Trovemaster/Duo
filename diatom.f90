@@ -12442,6 +12442,7 @@ contains
   end subroutine vibrational_reduced_density_rho  
 
 
+
   !
   !  vibrational reduced density of a rovibronic eigenstate at the igrid point
 
@@ -12452,11 +12453,16 @@ contains
     real(rk),intent(out)   :: sum_wv
     real(rk),intent(out),optional   :: rexpect
     real(rk)    :: vec_t
-    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc,i
+    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc,i, ix_R
     real(rk),allocatable  :: T(:,:),fgrid(:)
+
+    real(rk), allocatable :: temp_matrix1(:,:), temp_matrix2(:,:)
 
     allocate(T(Nvib,Nvib),fgrid(grid%npoints),stat=alloc)
     if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T,fgrid'
+    allocate(temp_matrix1(grid%npoints, Nvib), temp_matrix2(grid%npoints, grid%npoints),stat=alloc)
+    if (alloc/=0) stop 'vibrational_reduced_density_rho error: allocation error'
+
     !
     T = 0
     !
@@ -12482,19 +12488,23 @@ contains
     !
     if (present(rexpect)) then 
       !
-      ! expectation values of r
+      !! matmul -- faster for large enough problems (with more npoints/nvib) at the cost of long spinning times at blas omp barriers
+      ! Compute left matmux
+      call DGEMM('N', 'N', grid%npoints, Nvib, Nvib, &
+                1.0_rk, vibrational_contrfunc, grid%npoints, T, Nvib, &
+                0.0_rk, temp_matrix1, grid%npoints)
       !
-      fgrid = 0
+      ! Compute right matmul
+      call DGEMM('N', 'T', grid%npoints, grid%npoints, Nvib, &
+                1.0_rk, temp_matrix1, grid%npoints, vibrational_contrfunc, grid%npoints, &
+                0.0_rk, temp_matrix2, grid%npoints)
       !
-      do ivib =1,Nvib 
-        do jvib =1,Nvib 
-          !
-          fgrid(:) = fgrid(:) +  vibrational_contrfunc(:,ivib)*T(ivib,jvib)*vibrational_contrfunc(:,jvib)*grid%r(:)
-          !
-        enddo
+      !Extract diagonal elements
+      do k = 1, grid%npoints
+       fgrid(k) = temp_matrix2(k, k)
       enddo
-      !
-      rexpect = sum(fgrid)
+      rexpect = sum( grid%r(:) * fgrid(:) )
+      !      
       !
     endif
     !
@@ -12513,6 +12523,7 @@ contains
     sum_wv = sum(fgrid(ifirst:))
     !
     deallocate(T,fgrid)
+    deallocate(temp_matrix1, temp_matrix2)
     !
   end subroutine calculate_state_expectation_value_of_r
 
