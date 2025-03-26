@@ -12504,23 +12504,38 @@ contains
        fgrid(k) = temp_matrix2(k, k)
       enddo
       rexpect = sum( grid%r(:) * fgrid(:) )
-      !      
       !
-    endif
-    !
-    ! integrated density
-    !
-    fgrid = 0
-    !
-    do ivib =1,Nvib 
-      do jvib =1,Nvib 
-        !
-        fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
-        !
+      ! integrated density
+      !
+      fgrid = 0
+      !
+      do ivib =1,Nvib 
+        do jvib =1,Nvib 
+          !
+          fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
+          !
+        enddo
       enddo
-    enddo
-    !
-    sum_wv = sum(fgrid(ifirst:))
+      !
+      sum_wv = sum(fgrid(ifirst:))
+      !
+    else
+      !
+      ! integrated density
+      !
+      fgrid = 0
+      !
+      do ivib =1,Nvib 
+        do jvib =1,Nvib 
+          !
+          fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
+          !
+        enddo
+      enddo
+      !
+      sum_wv = sum(fgrid(ifirst:))
+      !      
+    endif
     !
     deallocate(T,fgrid)
     deallocate(temp_matrix1, temp_matrix2)
