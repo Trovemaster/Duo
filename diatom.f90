@@ -12462,7 +12462,6 @@ contains
     if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T,fgrid'
     allocate(temp_matrix1(grid%npoints, Nvib), temp_matrix2(grid%npoints, grid%npoints),stat=alloc)
     if (alloc/=0) stop 'vibrational_reduced_density_rho error: allocation error'
-
     !
     T = 0
     !
@@ -12507,15 +12506,15 @@ contains
       !
       ! integrated density
       !
-      fgrid = 0
+      !fgrid = 0
       !
-      do ivib =1,Nvib 
-        do jvib =1,Nvib 
-          !
-          fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
-          !
-        enddo
-      enddo
+      !do ivib =1,Nvib 
+      !  do jvib =1,Nvib 
+      !    !
+      !    fgrid(ifirst:) = fgrid(ifirst:) +  vibrational_contrfunc(ifirst:,ivib)*T(ivib,jvib)*vibrational_contrfunc(ifirst:,jvib)
+      !    !
+      !  enddo
+      !enddo
       !
       sum_wv = sum(fgrid(ifirst:))
       !
