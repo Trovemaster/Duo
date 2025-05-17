@@ -7154,7 +7154,7 @@ contains
     integer(ik)             :: mterm,Nroots,tau_lambdai,irot,itau,isigmav_max,Nroots_i,Nroots_j
     integer(ik)             :: ilambda_,iL2,totalroots,ivib,jvib,v
     integer(ik)             :: istate_,nener_total
-    real(rk)                :: f_l2,zpe,omegai_,omegaj_
+    real(rk)                :: f_l2,zpe
     real(rk)                :: sc, h12,f_rot,b_rot,epot,erot
     real(rk)                :: energy_,psipsi_t
     character(len=1)        :: rng,jobz,plusminus(2)=(/'+','-'/)
@@ -12452,8 +12452,7 @@ contains
     real(rk),intent(in)    :: vec(Ntotal)
     real(rk),intent(out)   :: sum_wv
     real(rk),intent(out),optional   :: rexpect
-    real(rk)    :: vec_t
-    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc,i, ix_R
+    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc, ix_R
     real(rk),allocatable  :: T(:,:),fgrid(:)
 
     real(rk), allocatable :: temp_matrix1(:,:), temp_matrix2(:,:)
@@ -15429,14 +15428,13 @@ contains
     !
     integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
     integer(ik) :: Ndimen,ielem,jelem,imaxcontr,icount_state,ivibmax
-    real(rk)    :: omega,b_rot,epot,zpe,energy_,omegai,omegaj
+    real(rk)    :: omega,b_rot,epot,energy_
     real(rk)    :: psipsi_t,energy_j,f_nac
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
     integer(ik)             :: irange(2),iterm,Nstates,iroot
     type(quantaT)           :: icontrvib_
-    type(fieldT),pointer    :: field
     integer                 :: vibstates(Nestates,Nomegas),vibmax_omega(Nestates,Nomegas)
     !
     !
@@ -16862,8 +16860,9 @@ contains
     real(rk),intent(in) :: a,b,c,al,be,ga
     !
     integer(ik):: newmin,newmax,new,iphase
-    real(rk)   :: delta,clebsh,minus
+    real(rk)   :: clebsh,minus
     real(rk)   :: term,term1,term2,term3,summ,dnew,term4,term5,term6,delta_log,term16,termlog
+    real(rk),parameter :: one = 1.0_rk
 
     three_j=0
 !
@@ -16880,9 +16879,9 @@ contains
 !     compute delta(abc)
 !
 !     delta=sqrt(fakt(a+b-c)*fakt(a+c-b)*fakt(b+c-a)/fakt(a+b+c+1.0_rk))
-    delta_log = faclog(a+b-c)+faclog(a+c-b)+faclog(b+c-a)-faclog(a+b+c+1.0_rk)
+    delta_log = faclog(a+b-c)+faclog(a+c-b)+faclog(b+c-a)-faclog(a+b+c+one)
     !
-    delta=sqrt(exp(delta_log))
+    !delta=sqrt(exp(delta_log))
 !
 !
     !term1=fakt(a+al)*fakt(a-al)
@@ -16898,7 +16897,7 @@ contains
     !
     termlog = ( term1+term2+term3+delta_log )*0.5_rk
 
-    term=sqrt( (2.0_rk*c+1.0_rk) )
+    term=sqrt( 2.0_rk*c+1.0_rk )
 !
 !
 !     now compute summation term
