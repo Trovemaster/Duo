@@ -106,6 +106,9 @@ module diatom_module
   !              2) Chemical symbol - atomic number, e.g.: C-14, O-16, Na-23
   character(len=15) :: symbol1="Undefined", symbol2="Undefined"
   !
+  ! Andrei
+  real(kind=rk), allocatable :: factorials_lookup(:)
+  !
   !
   type symmetryT
     !
@@ -585,7 +588,7 @@ module diatom_module
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
     magnetictm,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
-    nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj
+    nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
@@ -12455,12 +12458,10 @@ contains
     integer(ik) :: k,k_,ivib,jvib,ilevel,alloc, ix_R
     real(rk),allocatable  :: T(:,:),fgrid(:)
 
-    real(rk), allocatable :: temp_matrix1(:,:), temp_matrix2(:,:)
+    real(rk), allocatable, dimension(:,:) :: temp_matrix1, temp_matrix2
 
     allocate(T(Nvib,Nvib),fgrid(grid%npoints),stat=alloc)
     if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T,fgrid'
-    allocate(temp_matrix1(grid%npoints, Nvib), temp_matrix2(grid%npoints, grid%npoints),stat=alloc)
-    if (alloc/=0) stop 'vibrational_reduced_density_rho error: allocation error'
     !
     T = 0
     !
@@ -12486,21 +12487,27 @@ contains
     !
     if (present(rexpect)) then 
       !
+      allocate(temp_matrix1(grid%npoints, Nvib) ,stat=alloc)
+      if (alloc/=0) stop 'vibrational_reduced_density_rho error: allocation error'
       !! matmul -- faster for large enough problems (with more npoints/nvib) at the cost of long spinning times at blas omp barriers
       ! Compute left matmux
+      ! version with one matmux and one SP is faster, but still not optimal
       call DGEMM('N', 'N', grid%npoints, Nvib, Nvib, &
                 1.0_rk, vibrational_contrfunc, grid%npoints, T, Nvib, &
                 0.0_rk, temp_matrix1, grid%npoints)
+
+      ! Compute fgrid as dot products of rows in vib*T and vib
+      !!$omp parallel default (shared)
+      !!$omp do
+      do k = 1, size(fgrid)
+          fgrid(k) = dot_product(temp_matrix1(k,:), vibrational_contrfunc(k,:))
+      end do
+      !!$omp enddo
+      !!$omp end parallel
+
+      deallocate(temp_matrix1)
+
       !
-      ! Compute right matmul
-      call DGEMM('N', 'T', grid%npoints, grid%npoints, Nvib, &
-                1.0_rk, temp_matrix1, grid%npoints, vibrational_contrfunc, grid%npoints, &
-                0.0_rk, temp_matrix2, grid%npoints)
-      !
-      !Extract diagonal elements
-      do k = 1, grid%npoints
-       fgrid(k) = temp_matrix2(k, k)
-      enddo
       rexpect = sum( grid%r(:) * fgrid(:) )
       !
       ! integrated density
@@ -12536,7 +12543,6 @@ contains
     endif
     !
     deallocate(T,fgrid)
-    deallocate(temp_matrix1, temp_matrix2)
     !
   end subroutine calculate_state_expectation_value_of_r
 
@@ -16881,7 +16887,7 @@ contains
 !     delta=sqrt(fakt(a+b-c)*fakt(a+c-b)*fakt(b+c-a)/fakt(a+b+c+1.0_rk))
     delta_log = faclog(a+b-c)+faclog(a+c-b)+faclog(b+c-a)-faclog(a+b+c+one)
     !
-    !delta=sqrt(exp(delta_log))
+    ! delta=sqrt(exp(delta_log))
 !
 !
     !term1=fakt(a+al)*fakt(a-al)
@@ -16952,14 +16958,25 @@ contains
     real(rk)            :: v
     integer(ik) j,k
 
-    v=0
     k=nint(a)
-    if(k>=2) then
-      do j=2,k
-        v=v+log(real(j,rk))
-      enddo
-    endif
+    v = factorials_lookup(k)
 
   end function faclog
+  !
+  subroutine setup_factorials_lookup
+    integer :: j, jmax_upper
+    !
+    jmax_upper = nint(jmax)
+    !
+    allocate(factorials_lookup( 0 : 2*jmax_upper ))
+    !
+    factorials_lookup = 0 ! for 0!, 1!
+    if (jmax_upper>=2) then
+      do j = 2, 2*jmax_upper
+        factorials_lookup(j) = factorials_lookup(j-1) + log(real(j,rk))
+      enddo
+    endif
+    
+  end subroutine setup_factorials_lookup
   !
 end module diatom_module
