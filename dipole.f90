@@ -337,7 +337,7 @@ contains
     integer(ik) :: alloc_p
     !
     integer(ik) :: Jmax_,ID_J,inu,ileft,istate,multi,taumax,Nlambdasigmas,imulti,ispin_component
-    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total,acoef_error,acoef_norm_tot
+    real(rk) :: J_,dnu,acoef_grid,nu,Ap1,Apn,acoef_total,acoef_norm_tot
     real(rk) :: coeff,b,x1,x2,y1,y2
     character(len=12) :: char_Jf,char_Ji,char_LF
     character(len=7) :: print_J,print_omega,print_sigma

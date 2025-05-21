@@ -11969,19 +11969,21 @@ contains
         !
         if (nint(omegai-omegaj)==0) then
           !
+          if (ilevel/=jlevel) cycle
+          !
           !do ibrot_omega = 1,NBRot_omega
-            !
-            field => BRot_omega_tot(iomega,ilevel,jlevel)
-            !
-            omegai_ = field%omegai
-            !
-            f_rot = field%matelem(ivib,jvib)
-            !
-            erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
-            !
-            hmat(i,j) = hmat(i,j) + erot
-            hmat(j,i) = hmat(i,j)  
-            !
+          !
+          field => BRot_omega_tot(iomega,ilevel,jlevel)
+          !
+          omegai_ = field%omegai
+          !
+          f_rot = field%matelem(ivib,jvib)
+          !
+          erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
+          !
+          hmat(i,j) = hmat(i,j) + erot
+          hmat(j,i) = hmat(i,j)  
+          !
           !enddo
           !
           ! print out the internal matrix at the first grid point
@@ -12335,9 +12337,9 @@ contains
       do i = 1,Ntotal
         if (trim( printout(i) )/="") then 
           write(out,'(a)') trim( printout(i) )
-          write(out,'(" "/)')
         endif
       enddo
+      write(out,'(" "/)')
       !
     endif
     !
@@ -12626,7 +12628,7 @@ contains
     real(rk),allocatable  :: T(:,:)
 
     allocate(T(totalroots,totalroots),stat=alloc)
-    if (alloc/=0) stop 'vibrational_reduced_density_omega_fast error: Cannot T'
+    if (alloc/=0) stop 'vibrational_reduced_density_omega_fast error: Cannot allocate T'
     T = 0
     !
     i = 0 
@@ -14722,7 +14724,7 @@ contains
       if (NSplus_omega>0) then
         !
         write(out,'(/10x,a)') "S = (S+,S-) in the Omega representation"
-        write(out,'(10x,a)') "#    Omega State Lambda Sigma <->Omega State Lambda Sigma"
+        write(out,'(10x,a)') "#   i Omega State Lambda Sigma <-> j Omega State Lambda Sigma"
 
         do iterm=1,NSplus_omega
           !
@@ -14986,7 +14988,7 @@ contains
     !
     integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
     integer(ik) :: Ndimen,ielem,jelem,imaxcontr
-    real(rk)    :: omega,b_rot,epot,zpe,energy_,omegai,omegaj
+    real(rk)    :: omega,b_rot,epot,energy_,omegai,omegaj
     real(rk)    :: psipsi_t,energy_j,f_nac
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
@@ -15434,12 +15436,12 @@ contains
     !
     integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
     integer(ik) :: Ndimen,ielem,jelem,imaxcontr,icount_state,ivibmax
-    real(rk)    :: omega,b_rot,epot,energy_
+    real(rk)    :: omega,b_rot,epot
     real(rk)    :: psipsi_t,energy_j,f_nac
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
-    integer(ik)             :: irange(2),iterm,Nstates,iroot
+    integer(ik)             :: irange(2),Nstates,iroot
     type(quantaT)           :: icontrvib_
     integer                 :: vibstates(Nestates,Nomegas),vibmax_omega(Nestates,Nomegas)
     !
@@ -16956,7 +16958,7 @@ contains
   function faclog(a)   result (v)
     real(rk),intent(in) ::  a
     real(rk)            :: v
-    integer(ik) j,k
+    integer(ik) k
 
     k=nint(a)
     v = factorials_lookup(k)
