@@ -16958,11 +16958,18 @@ contains
   function faclog(a)   result (v)
     real(rk),intent(in) ::  a
     real(rk)            :: v
-    integer(ik) k
+    integer(ik) k,j
 
     k=nint(a)
-    v = factorials_lookup(k)
-
+    !v = factorials_lookup(k)
+    !
+    v = 0
+    if(k>=2) then
+      do j=2,k
+        v=v+log(real(j,rk))
+      enddo
+    endif
+    !
   end function faclog
   !
   subroutine setup_factorials_lookup
