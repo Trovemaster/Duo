@@ -12083,7 +12083,9 @@ contains
         if (abs(nint(omegaj-omegai))==1.and.NSplus_omega>0) then
           field => S_omega_tot(iomega,jomega,ilevel,jlevel)
           !
-          if (field%Nterms/=0.and.ilevel==jlevel) then
+          if (field%Nterms/=0) then
+            !
+            !if (field%Nterms/=0.and.ilevel==jlevel) then
             !
             f_t = 0
             !
