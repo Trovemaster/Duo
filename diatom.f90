@@ -11969,27 +11969,29 @@ contains
         !
         if (nint(omegai-omegaj)==0) then
           !
-          if (ilevel/=jlevel) cycle
-          !
-          !do ibrot_omega = 1,NBRot_omega
-          !
-          field => BRot_omega_tot(iomega,ilevel,jlevel)
-          !
-          omegai_ = field%omegai
-          !
-          f_rot = field%matelem(ivib,jvib)
-          !
-          erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
-          !
-          hmat(i,j) = hmat(i,j) + erot
-          hmat(j,i) = hmat(i,j)  
-          !
-          !enddo
-          !
-          ! print out the internal matrix at the first grid point
-          if (iverbose>=5.and.abs(erot) >small_) then
-            write(printout(i),'(A, F15.3,A)') " RV=", hmat(i,j)/sc, "; "
-          endif
+          if (ilevel==jlevel) then
+           !
+           !do ibrot_omega = 1,NBRot_omega
+           !
+           field => BRot_omega_tot(iomega,ilevel,jlevel)
+           !
+           omegai_ = field%omegai
+           !
+           f_rot = field%matelem(ivib,jvib)
+           !
+           erot = f_rot*( Jval*(Jval+1.0_rk) - omegai**2)
+           !
+           hmat(i,j) = hmat(i,j) + erot
+           hmat(j,i) = hmat(i,j)  
+           !
+           !enddo
+           !
+           ! print out the internal matrix at the first grid point
+           if (iverbose>=5.and.abs(erot) >small_) then
+             write(printout(i),'(A, F15.3,A)') " RV=", hmat(i,j)/sc, "; "
+           endif
+           !
+          endif  
           !
         endif
         !
@@ -12021,9 +12023,7 @@ contains
           !
           field => Diab_omega_tot(iomega,ilevel,jlevel)
           !
-          if (field%Nterms/=0) then
-            !
-            if (ilevel/=jlevel) cycle
+          if (field%Nterms/=0.and.ilevel==jlevel) then
             !
             f_t = 0
             !
@@ -12056,9 +12056,7 @@ contains
           field_i => NAC_omega_tot(iomega,ilevel,jlevel)
           field_j => NAC_omega_tot(iomega,jlevel,ilevel)
           !
-          if (field_i%Nterms/=0) then
-            !
-            if (ilevel==jlevel) cycle
+          if (field_i%Nterms/=0.and.ilevel/=jlevel) then
             !
             f_t = (field_i%matelem(ivib,jvib)-field_j%matelem(jvib,ivib))
             !
@@ -12085,7 +12083,7 @@ contains
         if (abs(nint(omegaj-omegai))==1.and.NSplus_omega>0) then
           field => S_omega_tot(iomega,jomega,ilevel,jlevel)
           !
-          if (field%Nterms/=0) then
+          if (field%Nterms/=0.and.ilevel==jlevel) then
             !
             f_t = 0
             !
