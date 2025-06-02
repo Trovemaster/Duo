@@ -2486,6 +2486,8 @@ contains
                   ! if it is zero, the term does not exist and needs to be omitted 
                   if (Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%Nterms==0) cycle loop_I
                   !
+                  !if (ilevelI/=ilevelF) cycle
+                  !
                   if (abs(nint(omegaF - omegaI))>1) cycle loop_I
                   !
                   iomegaI_ = int(omegaI)

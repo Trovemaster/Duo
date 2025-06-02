@@ -15720,6 +15720,8 @@ contains
     !
     if (iverbose>=6.or.action%intensity.and.intensity%overlap) then
       !
+      stop "overlap option is not working in omega"
+      !
       if (iverbose>=6) write(out,'(/"Check the contracted basis for ortho-normality")')
       !
       if (action%intensity.and.intensity%overlap) then

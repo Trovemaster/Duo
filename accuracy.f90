@@ -84,6 +84,7 @@ module accuracy
       write(out,'(A40,ES20.12,2x,a12)') 'Boltzmann constant kB = ', boltz, 'erg/Kelvin'
       write(out,'(A40,F20.16,2x,a12)') 'Boltzmann constant kB = ', boltz/hc, 'cm^-1/Kelvin'
       write(out,'(A40,ES20.12,2x,a12)') "Avogadro constant = ", avogno, 'mol^-1'
+      write(out,'(A40,ES20.12,2x,a12)') "Rotational factor = ", aston, 'cm-1 amu Ang^2'
 
       write(out,'(A40,F20.14)')   'Fine structure constant 1/alpha = ', 1._rk / alpha
       write(out,'(A40,ES20.12,2x,a12)') 'Electron mass me = ', me, 'grams'
