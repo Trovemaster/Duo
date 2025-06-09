@@ -585,7 +585,7 @@ Example
 
 A hyperbolic expansion used to represent repulsive potential functions:
 
-:math:`V(r) = \sum_{i=0}^N a_0 \frac{1}{r^i}.`
+:math:`V(r) = \sum_{i=0}^N a_i \frac{1}{r^i}.`
 
 Example:
 ::
