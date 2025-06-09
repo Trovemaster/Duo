@@ -423,6 +423,90 @@ module functions
     !
   end subroutine define_sub_terms_complex_analytic_field
   !
+  !
+  subroutine define_complex_analytic_field_subterms(ftype,sub_type,Nsub_terms)
+    !
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    character(len=cl),intent(in)  :: sub_type(:)
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: i,alloc
+    !
+    N_multi_subfunctions = size(Nsub_terms)
+    !
+    select case(ftype)
+      !
+    case("COUPLED-PEC")
+      !
+      if (N_multi_subfunctions==3) then 
+        !
+        call define_fanalytic_field(sub_type(1),function_V1)
+        call define_fanalytic_field(sub_type(2),function_V2)
+        call define_fanalytic_field(sub_type(3),function_VD)
+        !
+        N1 =Nsub_terms(1)
+        N2 =Nsub_terms(2)
+        N3 =Nsub_terms(3)
+        !
+      else
+        !
+        if (associated(function_multi)) deallocate(function_multi)
+        if (allocated(nsize_multi)) deallocate(nsize_multi)
+        !
+        allocate(function_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) then
+          write (out,"(' Error define_complex_analytic_field ',i0,' initializing function_multi')") alloc
+          stop 'Error define_complex_analytic_field initializing function_multi - alloc'
+        end if
+        !
+        allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) stop 'Error nsize_multi - alloc'
+        ! 
+        do i = 1,N_multi_subfunctions
+          !
+          call define_fanalytic_field(sub_type(i),function_multi(i)%f)
+          nsize_multi(i) = Nsub_terms(i)
+          !
+        enddo
+        !
+      endif
+      !
+    case("COUPLED-PEC-BETA")
+      !
+      if (N_multi_subfunctions/=3) then 
+        write(out,"('Illegal number of sub-funcitons for COUPLED-PEC-BETA',i3,' only 3 has been immplemented')") &
+              N_multi_subfunctions
+        stop 'Illegal number of sub-funcitons for COUPLED-PEC-BETA/=3'
+      endif
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    case("COUPLED-TRANSIT-BETA")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    case default
+      !
+      write(out,'(//"Complex Analytic: Unknown function type ",a)') trim(ftype)
+      stop "Complex Analytic: Unknown field type "
+      !
+    end select
+    !
+  end subroutine define_complex_analytic_field_subterms
+  !
+  !
   function poten_morse(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)

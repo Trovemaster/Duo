@@ -3,7 +3,7 @@ module refinement
   use accuracy
   use timer
   !
-  use functions,only : define_sub_terms_complex_analytic_field
+  use functions,only : define_complex_analytic_field_subterms
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
                            Nlambdap2q,Nlambdaq,Nnac,&
@@ -1334,9 +1334,7 @@ module refinement
                  !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
-                 if (associated(field%sub_type)) call define_sub_terms_complex_analytic_field(field%Nsub_terms)
-                 !
-                 !if (trim(field%sub_type(1))/="NONE") call define_sub_terms_complex_analytic_field(field%Nsub_terms)
+                 if (associated(field%sub_type)) call define_complex_analytic_field_subterms(field%type,field%sub_type,field%Nsub_terms)
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
