@@ -212,7 +212,7 @@ An example input is given below for HF molecule. The parameters are taken from `
 
 
 Hajigeorgiou and Le Roy's MLJ Morse/Lennard-Jones oscillator ``MLJ``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The MLJ potential function is described by `Hajigeorgiou and R. J. Le Roy, J. Chem. Phys. 112, 3949 (2000) <https://doi.org/10.1063/1.480946>`_ and 
  `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_  in the radial variable :math:`r`. The form of the potential is given by:
@@ -221,6 +221,7 @@ The MLJ potential function is described by `Hajigeorgiou and R. J. Le Roy, J. Ch
         V(r) = V_e + (A_{e}-D_e)  \left[1 - \left(\frac{R_e}{R}\right)^n \exp\left\{ -\phi(r) z(r, r_e)\right\}\right]^2, 
         
 where
+      
 .. math::
        z(r, r_e) = 2\frac{r - r_e}{r + r_e}
         
@@ -245,7 +246,7 @@ Otherwise it can be obtained through a fit.
 An example input is given below for LiH molecule. The parameters are taken from `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_
 
 ::
-
+        
         poten X
         name "X1Sigma+"
         symmetry +
@@ -275,11 +276,61 @@ An example input is given below for LiH molecule. The parameters are taken from 
         phi12        -34.8674
         phi13        15.7635
         end
+        
 
 
+Diagonal BO-breakdown functions (rotationless) ``BOB-Z-M-SWITCH``, ``BOB_Z_M_SWITCH``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This form is taken from  `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_. The BOB ``diabatic`` potential is given by:
+
+.. math::
+        V(r) = \frac{m_e}{M_1} U_1(r) +  \frac{m_e}{M_2} U_2(r) , 
+
+where 
+
+.. math::
+        U_i(r) = f^{(i)}_{\rm sw}(r) \sum_{m=1} u_m^{(i)} z^m  +  u_{\infty}^{(i)} [1-\frac{f^{(i)}_{\rm sw}(r)}{f^{(i)}}_{\rm sw}(r_e)}] ,
+
+with the switching function defined as:
+        
+.. math::
+        f^{(i)}_{\rm sw}^(r) = \frac{1}{1+e^{\delta (r-r^{(i)}_{1/2})}}.
 
 
+An example input for ``BOB-Z-M-SWITCH`` for LiH molecule is given by 
 
+::
+     
+     diabatic X X
+     name "X1Sigma+"
+     symmetry +
+     lambda 0
+     mult 1.0
+     type BOB-Z-M-SWITCH
+     values
+     RE           1.59559416124
+     R12          5.0
+     delta        2.5
+     mass_Li      7.016003436590
+     Uinf_Li      0.0
+     N            2
+     U1           -0.77132e-4
+     U2           6.13522e-4
+     R12          5.25
+     delta        2.5
+     mass_H       1.007825032230
+     Uinf_H       -21145.50636
+     N            5
+     U1         -1.0229927e-5
+     U2         1.513 1552e-5
+     U3         -1.47383e-5
+     U4         1.39309e-5
+     U5         -0.67490e-5
+     end
+     
+
+The parameters are taken from `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_
 
 Potential function ``Marquardt``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
