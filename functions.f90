@@ -94,6 +94,14 @@ module functions
       !
       fanalytic_field => poten_MLR_Douketis
       !
+    case("MLJ") ! "Morse/Lennard-Jones oscillator"
+      !
+      fanalytic_field => poten_MLJ
+      !
+    case("BOB-Z-M-SWITCH","BOB_Z_M_SWITCH") ! "Morse/Lennard-Jones oscillator"
+      !
+      fanalytic_field => poten_BOB_mass_depended_in_z_with_switching
+      !
     case("DELR") ! "Double-exponential-long-range"
       !
       fanalytic_field => poten_DELR
@@ -787,7 +795,6 @@ module functions
     f = de*y**2+v0+ ( (1.0_rk-yp)*u + uinf*yp )
     !
   end function poten_EMO_BOB
-
 
   
   
@@ -1832,6 +1839,131 @@ module functions
     !
   end function poten_Pade_Goodisman_2
   !
+
+
+  
+  
+  !
+  ! Morse/Lennard-Jones oscillator, Hajigeorgiou and Le Roy
+  ! fom John A. Coxon; Cameron S. Dickinson J. Chem. Phys. 121, 9378–9388 (2004)
+  ! https://doi.org/10.1063/1.1788659
+  !
+  function poten_MLJ(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,z,phi,phiinf,phi0,phi_sw,f,delta,R12
+    integer(ik)            :: k,N,M,Nstruc,Ntot
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    r12 = parameters(4)
+    !
+    delta = parameters(5)
+    phiinf = parameters(6)
+    !
+    ! leading term in U = De - Cn/r^N
+    !
+    N = parameters(7)
+    !
+    ! can be constrained to 
+    !phiinf = 0.5_rk*log(2.0_rk*de*r0**n/Cn)
+    !
+    ! Number of structural parameters
+    !
+    Nstruc = 7
+    !
+    ! total number of parameters
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    ! number of long range parameters
+    !
+    M = Ntot-Nstruc-1
+    !
+    z = 2.0_rk*(r-r0)/(r+r0)
+    !
+    phi0 = 0
+    do k=0,M
+     phi0 = phi0 + parameters(k+Nstruc+1)*z**k
+    enddo
+    !
+    ! switching part
+    !
+    phi_sw = 1.0_rk/( 1.0_rk+exp( delta*(r-r12) ) )
+    !
+    phi = phi_sw*phi0+(1.0_rk-phi_sw)*phiinf
+    !
+    y  = 1.0_rk-(r0/r)**N*exp(-phi*z)
+    !
+    f = de*y**2+v0
+    !
+  end function poten_MLJ
+
+  ! Potential BOB correction 
+  ! polynomial with mass-dependence in a reduced coordinate z with a switching function between long and short range 
+  !
+  function poten_BOB_mass_depended_in_z_with_switching(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,fa,fb
+    integer(ik)            :: Na,Nb,N1a,Ntot
+    !
+    r0 = parameters(1)
+    Na = nint(parameters(6))
+    !
+    fa = func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters(2:6+Na))
+    !
+    N1a = 6+Na
+    !
+    Nb = nint(parameters(N1a+5))
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    fb = func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters(N1a+1:Ntot))
+    !
+    f= fa+fb
+    !
+  end function poten_BOB_mass_depended_in_z_with_switching
+
+  function func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r,r0          ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f,z,ma,r12,delta,Uinf_a,Ua,phi_sw,phi_sw0,fa
+    real(rk)               :: mass_e = 0.0005485799111 ! mass of electron in Dalton
+    integer(ik)            :: k,Na,N1a
+    !
+    z = 2.0_rk*(r-r0)/(r+r0)
+    !
+    r12 = parameters(1)
+    delta = parameters(2)
+    !
+    ma = parameters(3)
+    Uinf_a = parameters(4)
+    Na = nint(parameters(5))
+    !
+    N1a= 5
+    !
+    Ua = 0
+    do k=1,Na
+     Ua = Ua + parameters(N1a+k)*z**k
+    enddo
+    ! switching part
+    !
+    phi_sw  = 1.0_rk/( 1.0_rk+exp( delta*(r -r12) ) )
+    phi_sw0 = 1.0_rk/( 1.0_rk+exp( delta*(r0-r12) ) )
+    !
+    fa = phi_sw*Ua+Uinf_a*(1.0_rk-phi_sw/phi_sw0)
+    !
+    f= mass_e/ma*fa
+    !
+  end function func_atomic_BOB_mass_depended_in_z_with_switching
+
   !
   ! polynomial with exp decay
   !

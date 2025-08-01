@@ -115,7 +115,7 @@ The MLR3 potential function is described by `Coxon and Hajigeorgiou, JCP 132 (20
 .. math::
         V(r) = D_{e} + \left(1 - \frac{u_{\textrm{LR}}(r)} {u_{\textrm{LR}}(r_e)} \exp\left\{ -\phi_{\rm MLR3}(r) y_{p,a}(r, r_e)\right\}\right)^2, \text{ where } y_{p, a}(r, r_e) = \frac{r^p - r_e^p}{r^p - ar_e^p}
 
-and the the long-range potential function is given by:
+and the long-range potential function is given by:
 
 .. math::
         u_{\rm LR}(r) = \sum_{n} D_n(r) \frac{C_n}{r^n}
@@ -208,6 +208,74 @@ An example input is given below for HF molecule. The parameters are taken from `
   PHI30  -1.06400000000000E+07
   PHI31  -4.70000000000000E+06
   end
+
+
+
+Hajigeorgiou and Le Roy's MLJ Morse/Lennard-Jones oscillator ``MLJ``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The MLJ potential function is described by `Hajigeorgiou and R. J. Le Roy, J. Chem. Phys. 112, 3949 (2000) <https://doi.org/10.1063/1.480946>`_ and 
+ `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_  in the radial variable :math:`r`. The form of the potential is given by:
+
+.. math::
+        V(r) = V_e + (A_{e}-D_e)  \left[1 - \left(\frac{R_e}{R}\right)^n \exp\left\{ -\phi(r) z(r, r_e)\right\}\right]^2, 
+        
+where
+.. math::
+       z(r, r_e) = 2\frac{r - r_e}{r + r_e}
+        
+and
+
+.. math::
+        \phi(r) = f_{\rm sw}(r) \sum_{m} \phi_m z^m  + [1-f_{\rm sw}(r)] \phi_{\infty},
+
+with the switching function defined as:
+
+.. math::
+        f_{\rm sw}(r) = \frac{1}{1+e^{\delta (r-r_{1/2})}}.
+
+In case the long-range coefficient (leading term) :math:`C_n` is known, :math:`\phi_{\infty}` can be estimated as 
+
+.. math::
+        f_{\rm sw}(r) = \frac{1}{2} ln\left( \frac{2 D_e r_e^n}{C_n}\right).
+
+Otherwise it can be obtained through a fit. 
+
+
+An example input is given below for LiH molecule. The parameters are taken from `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_
+
+::
+
+        poten X
+        name "X1Sigma+"
+        symmetry +
+        lambda 0
+        mult 1
+        type MLJ
+        values
+        TE           0.00000000000000E+00
+        RE           1.59559416124
+        AE           20286.0
+        R12          5.15
+        delta        2.25
+        phiinf       0.36722
+        N            6
+        phi0         -4.2014672169
+        phi1         0.80668167
+        phi2         0.11048407	
+        phi3         0.5325794
+        phi4         0.379195
+        phi5         0.25342
+        phi6         0.24914
+        phi7         2.0402
+        phi8         -1.0855
+        phi9         -9.2553
+        phi10        14.2154
+        phi11        12.6523
+        phi12        -34.8674
+        phi13        15.7635
+        end
+
 
 
 
