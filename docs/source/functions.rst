@@ -290,12 +290,15 @@ This form is taken from  `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (
 where 
 
 .. math::
-        U_i(r) = f^{(i)}_{\rm sw}(r) \sum_{m=1} u_m^{(i)} z^m  +  u_{\infty}^{(i)} [1-\frac{f^{(i)}_{\rm sw}(r)}{f^{(i)}}_{\rm sw}(r_e)}] ,
+        U_i(r) = f^{(i)}_{\rm sw}(r) \sum_{m=1} u_m^{(i)} z^m  +  u_{\infty}^{(i)} \left[1-\frac{ f^{(i)}_{\rm sw}(r) }{f^{(i)}_{\rm sw}(r_e)}\right] ,
+    
+.. math::
+       z(r, r_e) = 2\frac{r - r_e}{r + r_e}
 
 with the switching function defined as:
         
 .. math::
-        f^{(i)}_{\rm sw}^(r) = \frac{1}{1+e^{\delta (r-r^{(i)}_{1/2})}}.
+        f^{(i)}_{\rm sw}(r) = \frac{1}{1+e^{\delta (r-r^{(i)}_{1/2})}}.
 
 
 An example input for ``BOB-Z-M-SWITCH`` for LiH molecule is given by 
