@@ -1006,7 +1006,7 @@ contains
           !
           select case(w)
             !
-          case("VIB","ROT","OMEGA","LAMBDA-SIGMA")
+          case("VIB","ROT","OMEGA","LAMBDA-SIGMA","LAMBDA-S")
             !
             job%contraction = trim(w)
             !
@@ -13154,9 +13154,7 @@ contains
                     !
                     ! sigmav is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
                     ! avoid the double counting.
-                    if( isigmav==1.and.&
-                       nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0 &
-                       )cycle
+                    if(isigmav==1.and.nint( abs( 2.0*sigmai_ )+ abs( 2.0*sigmaj_ ) )+abs( ilambda_we )+abs( jlambda_we )==0) cycle
                     !
                     ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
                     ilambda_ = ilambda_we*(-1)**isigmav
@@ -13168,13 +13166,11 @@ contains
                     omegaj_ = sigmaj_+real(jlambda_)
                     !
                     ! Check So selection rules
-                    if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or. &
-                        abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
+                    if ( ( ilambda_-jlambda_)/=-nint(sigmai_-sigmaj_).or.abs(sigmai_-sigmaj_)>1.or.omegai_/=omegaj_ ) cycle
                     !
                     ! proceed only if the quantum numbers of the field equal
                     ! to the corresponding <i| and |j> quantum numbers of the basis set. otherwise skip it:
-                    if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0 &
-                        .or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
+                    if ( nint(sigmai_-sigmai)/=0.or.nint(sigmaj_-sigmaj)/=0.or.ilambda_/=ilambda.or.jlambda_/=jlambda ) cycle
                     !
                     f_t = SO*sc
                     !

@@ -2,7 +2,7 @@ module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          Dipole_omega_tot,nestates
+                          Dipole_omega_tot,nestates,setup_factorials_lookup
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -303,11 +303,11 @@ contains
     logical        :: passed,passed_
 
     real(rk),    allocatable :: vecI(:), vecF(:)
-    real(rk),allocatable     :: half_linestr(:)
+    real(rk),allocatable     :: half_linestr(:),threej(:,:,:,:)
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich,Nomegas,Nomegas_max,iomegaI,idelta
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
     integer(ik)  :: ivF_,ilambdaF_,NomegaMax,iomegaF
@@ -457,6 +457,43 @@ contains
       endif 
       !
     endif
+    !
+    Jmax_ = nint(maxval(Jval(:)))
+    !
+    Nomegas_max = nint(Jval(nJ))
+    if (.not.integer_spin) Nomegas_max = Nomegas_max-1
+    allocate(threej(nJ,0:Nomegas_max,-1:1,-1:1), stat = info)
+    if (info /= 0) stop 'dm_tranint allocation error: threej - out of memory'
+    !
+    threej = 0
+    !
+    !call setup_factorials_lookup
+    !
+    do indI = 1, nJ
+       jI = Jval(indI)
+       Nomegas = nint(jI)
+       if (.not.integer_spin) Nomegas = Nomegas-1
+       !
+       do indF = 1, nJ
+         jF = Jval(indF)
+         if (abs(jF - jI)>1) cycle
+         !
+         do iomegaI = 0,Nomegas
+           !
+           omegaI = real(iomegaI,ik)
+           if (.not.integer_spin) omegaI = omegaI+0.5_rk
+           !
+           do idelta = iomegaI-1,iomegaI+1
+             !
+             omegaF = iomegaI+real(idelta,rk)
+             if (omegaF<0.or.omegaF>jF) cycle
+             !
+             threej(indI,iomegaI,nint(jF - jI), idelta) = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+             !
+           enddo
+        enddo
+      enddo
+    enddo    
     !
     ! maximal size of basis functions 
     !
@@ -1191,7 +1228,7 @@ contains
                     case ("OMEGA")
                        !
                        call do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,&
-                                                      vecI(1:dimenI),&
+                                                      vecI(1:dimenI),nJ,Nomegas_max,threeJ,&
                                                       half_linestr)
                     end select 
                     !
@@ -2443,16 +2480,17 @@ contains
 
 
 
-      subroutine do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
+      subroutine do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,vector,nJ,Nomegas_max,threeJ,half_ls)
         !
         implicit none
         !
         real(rk),intent(in)     :: jI,jF
-        integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
+        integer(ik),intent(in)  :: indI,indF,dimenI,dimenF,nJ,Nomegas_max
         real(rk),intent(in)     :: vector(:)
+        real(rk),intent(in)     :: threej(nJ,0:Nomegas_max,-1:1,-1:1)
         real(rk),intent(out)    :: half_ls(:)
         integer(ik)             :: icontrF,icontrI,irootF,irootI,ilevelI,ilevelF,ivibF,ivibI
-        integer(ik)             :: iomegaI_,iomegaI,iomegaF
+        integer(ik)             :: iomegaI_,iomegaI,iomegaF,idelta
         real(rk)                :: ls, f3j, omegaI,omegaF
         real(rk)                :: f_t
           !
@@ -2465,7 +2503,7 @@ contains
           !loop over final state basis components
           !
           !$omp parallel do private(icontrF,irootF,omegaF,iomegaF,ilevelF,ivibF,icontrI,irootI,&
-          !$omp omegaI,iomegaI,ilevelI,ivibI,f3j,ls,f_t) shared(half_ls) schedule(guided)
+          !$omp omegaI,iomegaI,ilevelI,ivibI,iomegaI_,idelta,f3j,ls,f_t) shared(half_ls) schedule(guided)
           loop_F : do icontrF = 1, dimenF
                !
                irootF = basis(indF)%icontr(icontrF)%iroot
@@ -2493,7 +2531,17 @@ contains
                   iomegaI_ = int(omegaI)
                   if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
                   !
+                  idelta = nint(omegaF-omegaI)
+                  !
+                  !f3j = threej(indI,iomegaI_,nint(jF - jI),idelta)
+                  !
                   f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+                  !
+                  if (abs(f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF))>sqrt(small_)) then
+                     write(out,"('do_1st_half_linestrength_omega Error')")
+                     stop 'f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)'
+                     continue 
+                  endif
                   !
                   f_t = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%matelem(ivibI,ivibF)
                   !
