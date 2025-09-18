@@ -483,7 +483,7 @@ contains
            omegaI = real(iomegaI,ik)
            if (.not.integer_spin) omegaI = omegaI+0.5_rk
            !
-           do idelta = iomegaI-1,iomegaI+1
+           do idelta = -1,+1
              !
              omegaF = iomegaI+real(idelta,rk)
              if (omegaF<0.or.omegaF>jF) cycle
@@ -2537,11 +2537,11 @@ contains
                   !
                   f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
                   !
-                  if (abs(f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF))>sqrt(small_)) then
-                     write(out,"('do_1st_half_linestrength_omega Error')")
-                     stop 'f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)'
-                     continue 
-                  endif
+                  !if (abs(f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF))>sqrt(small_)) then
+                  !   write(out,"('do_1st_half_linestrength_omega Error')")
+                  !   stop 'f3j-three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)'
+                  !   continue 
+                  !endif
                   !
                   f_t = Dipole_omega_tot(iomegaI,iomegaF,ilevelI,ilevelF)%matelem(ivibI,ivibF)
                   !
