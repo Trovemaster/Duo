@@ -227,7 +227,7 @@ goto 1
 endif
 h=xa(khi)-xa(klo)
 if (h.eq.0._rk) then 
-    write(out,"('bad xa input in splint',f18.8)") x
+    write(6,"('bad xa input in splint',f18.8)") x
     !stop 'bad xa input in splint'
     y = 0 
     return

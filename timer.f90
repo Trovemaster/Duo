@@ -521,7 +521,6 @@ module timer
       !
       integer(ik)          :: pos  ! Unit position
       type(tState_unit), pointer   :: t    ! Current State_unit (for convenience)
-      logical                   :: ifopen
       !
       !  One-time initialization
       !
@@ -586,7 +585,6 @@ module timer
       !
       integer(ik)          :: pos  ! Unit position
       type(tState_unit), pointer   :: t    ! Current State_unit (for convenience)
-      logical                   :: ifopen
       !
       slot = 0 
       !

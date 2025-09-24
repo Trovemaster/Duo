@@ -748,7 +748,7 @@ contains
                                 J_bra, J_ket, Omega_bra, Omega_ket 
 
         REAL(rk) :: H_IS, rank1_reduced_matrix_element_M1
-        INTEGER(ik) :: p, q, q1, q2
+        INTEGER(ik) :: p, q
 
         ! Nuclear spin - electron spin dipole interaction
         ! See Kato 1993 Eq.(106)
@@ -814,7 +814,7 @@ contains
                                 J_bra, J_ket, Omega_bra, Omega_ket 
 
         REAL(rk) :: H_IS, rank1_reduced_matrix_element_M1
-        INTEGER(ik) :: p, q, q1, q2
+        INTEGER(ik) :: p, q, q1
 
         ! Nuclear spin - electron spin dipole interaction
         ! See Kato 1993 Eq.(106)
@@ -915,7 +915,7 @@ contains
                                 S_bra, S_ket, Sigma_bra, Sigma_ket, &
                                 J_bra, J_ket, Omega_bra, Omega_ket 
         
-        REAL(rk) :: H_EQ, rank2_reduced_matrix_element_V1
+        REAL(rk) :: H_EQ
         INTEGER(ik) :: p
 
         ! Nuclear electric quadrupole interaction
@@ -973,7 +973,7 @@ contains
                                 S_bra, S_ket, Sigma_bra, Sigma_ket, &
                                 J_bra, J_ket, Omega_bra, Omega_ket 
         
-        REAL(rk) :: H_EQ, rank2_reduced_matrix_element_V1
+        REAL(rk) :: H_EQ
         INTEGER(ik) :: p
 
         ! Nuclear electric quadrupole interaction

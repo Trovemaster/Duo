@@ -7182,7 +7182,7 @@ contains
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
     character(len=cl)          :: filename,ioname
-    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,ilevel_,jlevel_
+    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
     integer(ik)                :: npoints_last,icount_max,ipoint_first
@@ -7197,7 +7197,6 @@ contains
     type(contract_solT),allocatable :: contracted(:,:)
     real(rk),allocatable            :: vect_i(:),vect_j(:)
     real(rk),allocatable            :: nacmat_(:,:)
-    real(rk) :: ddot
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0
     !
     ! open file for later (if option is set)
@@ -10195,7 +10194,7 @@ contains
                     !
                   case ("OMEGA")
                     !
-                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,vec,psi_vib)
+                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,psi_vib)
                     !
                     sum_wv = sum(psi_vib(ipoint_first:grid%npoints))
                     !
@@ -10337,7 +10336,7 @@ contains
                     !
                   case ("OMEGA")
                     !
-                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,vec,psi_vib)
+                    call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ipoint_first,vec,psi_vib)
                     !
                   case ("VIB")
                     !
@@ -10499,7 +10498,7 @@ contains
                   !
                 case ("OMEGA")
                   !
-                  call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,1_ik,vec,vec,psi_vib)
+                  call vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,1_ik,vec,psi_vib)
                   !
                 case ("VIB")
                   !
@@ -12404,7 +12403,6 @@ contains
     integer(ik),intent(in) :: Ntotal,Nvib,Nlambdasigmas,ilambdasigmas_v_icontr(Nvib,Nlambdasigmas),ifirst
     real(rk),intent(in)    :: vec(Ntotal)
     real(rk),intent(out)   :: psi_vib(grid%npoints)
-    real(rk)    :: vec_t
     integer(ik) :: k,k_,ivib,jvib,ilevel,alloc
     real(rk),allocatable  :: T(:,:)
 
@@ -12457,10 +12455,10 @@ contains
     real(rk),intent(in)    :: vec(Ntotal)
     real(rk),intent(out)   :: sum_wv
     real(rk),intent(out),optional   :: rexpect
-    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc, ix_R
+    integer(ik) :: k,k_,ivib,jvib,ilevel,alloc
     real(rk),allocatable  :: T(:,:),fgrid(:)
 
-    real(rk), allocatable, dimension(:,:) :: temp_matrix1, temp_matrix2
+    real(rk), allocatable, dimension(:,:) :: temp_matrix1
 
     allocate(T(Nvib,Nvib),fgrid(grid%npoints),stat=alloc)
     if (alloc/=0) stop 'vibrational_reduced_density_rho error: Cannot T,fgrid'
@@ -12616,10 +12614,10 @@ contains
   end function vibrational_reduced_density_omega
   !
 
-  subroutine vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ifirst,vec,psi_in,psi_vib)
+  subroutine vibrational_reduced_density_omega_fast(jval,Ntotal,totalroots,icontrvib,ifirst,psi_in,psi_vib)
     !
     integer(ik),intent(in)   :: Ntotal,totalroots,ifirst
-    real(rk),intent(in)      :: jval,vec(Ntotal),psi_in(grid%npoints)
+    real(rk),intent(in)      :: jval,psi_in(grid%npoints)
     type(quantaT),intent(in) :: icontrvib(:)
     real(rk),intent(out)     :: psi_vib(grid%npoints)
     !
@@ -15430,15 +15428,14 @@ contains
     type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
     real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
     !
-    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,jgrid,Nroots,i,j,istate,u1
-    integer(ik) :: Ndimen,ielem,jelem,imaxcontr,icount_state,ivibmax
+    integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,Nroots,i,j,istate,u1
+    integer(ik) :: Ndimen,imaxcontr,icount_state,ivibmax
     real(rk)    :: omega,b_rot,epot
-    real(rk)    :: psipsi_t,energy_j,f_nac
+    real(rk)    :: psipsi_t
     real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
     integer(ik)             :: irange(2),Nstates,iroot
-    type(quantaT)           :: icontrvib_
     integer                 :: vibstates(Nestates,Nomegas),vibmax_omega(Nestates,Nomegas)
     !
     !
@@ -16570,7 +16567,7 @@ contains
     integer(ik)  :: i,j,istate_,jstate_
     real(rk)     :: spini_,spinj_,omegai,omegaj
     real(rk)     :: sigmai,sigmaj,omegai_,omegaj_
-    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,jsigmav
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,jsigmav
     integer(ik)  :: ipermute,multi,multj,imulti,jmulti
     type(fieldT),pointer       :: field
     logical :: dipole_present

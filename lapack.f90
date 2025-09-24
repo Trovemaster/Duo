@@ -1518,11 +1518,12 @@ module lapack
 
 
  101  format(5e14.5)
-      do 10 p=1,n
+      do 11 p=1,n
       do 10 q=1,n
       ve(p,q)=0.0_ark
       if(p.eq.q) ve(p,q)=1.0_ark
   10  continue
+  11  continue
       do 99 p=1,n
       z(p)=0.0_ark
       d(p)=a(p,p)
@@ -1532,11 +1533,12 @@ module lapack
       do 50 i=1,50
       sm=0.0_ark
       n2=n-1
-      do 30 p=1,n2
+      do 31 p=1,n2
       kp=p+1
       do 30 q=kp,n
       sm=sm+abs(a(p,q))
   30  continue
+  31  continue
       if(sm.le.err) goto 50
       tresh=0.0_ark
       if(i-4) 3,4,4

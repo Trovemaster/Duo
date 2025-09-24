@@ -299,7 +299,7 @@ contains
     integer(ik)    :: igammaI,igammaF
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
     real(rk)       :: energyI, energyF, nu_if,linestr,ener_,linestr2
-    real(rk)       :: tm,jI,jF,ddot
+    real(rk)       :: tm,jI,jF
     logical        :: passed,passed_
 
     real(rk),    allocatable :: vecI(:), vecF(:)
@@ -806,7 +806,8 @@ contains
                endif
                !
                ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
-               write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
+               write(my_fmt,'(A,i0,a,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,f13.6,1x,a1,1x,a1,",&
+                            "1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
                !
                write(enunit,my_fmt,advance="no") & 
                          iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),print_J,&
@@ -1496,9 +1497,11 @@ contains
                               if (ilevelF == 1) then
                                  acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/(nu_ram(2)-nu_ram(1))*2.0_rk
                               elseif (ilevelF==nlevelsF) then 
-                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/( nu_ram(nlevelsF)-nu_ram(nlevelsF-1) )*2.0_rk
+                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/& 
+                                                                           ( nu_ram(nlevelsF)-nu_ram(nlevelsF-1) )*2.0_rk
                               else
-                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/( nu_ram(ilevelF+1)-nu_ram(ilevelF-1) )*2.0_rk
+                                 acoef_spin_grid(icount,istateF,iomegaF) = acoef_RAM(ilevelF)/&
+                                                                           ( nu_ram(ilevelF+1)-nu_ram(ilevelF-1) )*2.0_rk
                               endif
                               !
                            enddo
@@ -1517,7 +1520,8 @@ contains
                            !
                            acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
                            acoef_norm(nlevelsF)   = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
-                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
+                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )&
+                                                      /(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
                            do ilevelF=2,nlevelsF-2
                               !acoef_norm(ilevelF) = acoef_RAM(ilevelF)/(nu_ram(ilevelF+1)-nu_ram(ilevelF-1))*2.0_rk
                               !
@@ -1534,8 +1538,10 @@ contains
                             acoef_norm(1) = (acoef_RAM(1)+acoef_RAM(2))/( nu_ram(3) + nu_ram(2)-2.0_rk*nu_ram(1) )*2.0_rk
                             acoef_norm(2) = (acoef_RAM(1)+acoef_RAM(2)+acoef_RAM(3))/(nu_ram(4)+nu_ram(3)-2.0_rk*nu_ram(1) )*2.0_rk
                         
-                            acoef_norm(nlevelsF) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1))/( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-2) - nu_ram(nlevelsF-1) )*2.0_rk
-                            acoef_norm(nlevelsF-1) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1)+acoef_RAM(nlevelsF-2))/( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-3) - nu_ram(nlevelsF-2) )*2.0_rk
+                            acoef_norm(nlevelsF) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1))/&
+                                                   ( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-2) - nu_ram(nlevelsF-1) )*2.0_rk
+                            acoef_norm(nlevelsF-1) = (acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1)+acoef_RAM(nlevelsF-2))/&
+                                                   ( 2.0_rk*nu_ram(nlevelsF) -nu_ram(nlevelsF-3) - nu_ram(nlevelsF-2) )*2.0_rk
                             !
                             do ilevelF=3,nlevelsF-2
                                !
@@ -1546,7 +1552,7 @@ contains
                         
                         
                                acoef_norm(ilevelF) = ( acoef_RAM(ilevelF)+acoef_RAM(ilevelF-1)+acoef_RAM(ilevelF+1) )/&
-                                                     (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2))*2.0_ark
+                                            (nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2))*2.0_ark
                         
                                !
                             enddo
@@ -1557,7 +1563,8 @@ contains
                            !
                            acoef_norm(1) = acoef_RAM(1)/(nu_ram(2)-nu_ram(1))*2.0_rk
                            acoef_norm(nlevelsF)   = acoef_RAM(nlevelsF)/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))*2.0_rk
-                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )/(nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
+                           acoef_norm(nlevelsF-1)   = ( acoef_RAM(nlevelsF)+acoef_RAM(nlevelsF-1) )/&
+                                                      (nu_ram(nlevelsF)-nu_ram(nlevelsF-1))
                            do ilevelF=2,nlevelsF-2
                               !
                               if (ilevelF<6.or.ilevelF>nlevelsF-5) then 
@@ -1567,9 +1574,13 @@ contains
                                 !                        
                               else
                                !
-                               acoef_norm(ilevelF) = ( acoef_RAM(ilevelF+5)+acoef_RAM(ilevelF+4)+acoef_RAM(ilevelF+3)+acoef_RAM(ilevelF+2)+acoef_RAM(ilevelF+1)+acoef_RAM(ilevelF)+&
-                                                       acoef_RAM(ilevelF-5)+acoef_RAM(ilevelF-4)+acoef_RAM(ilevelF-3)+acoef_RAM(ilevelF-2)+acoef_RAM(ilevelF-1 ) )/&
-                                                     (nu_ram(ilevelF+5)+nu_ram(ilevelF+4)+nu_ram(ilevelF+3)+nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2)-nu_ram(ilevelF-3)-nu_ram(ilevelF-4)-nu_ram(ilevelF-5))*2.0_ark
+                               acoef_norm(ilevelF) = ( acoef_RAM(ilevelF+5)+acoef_RAM(ilevelF+4)+acoef_RAM(ilevelF+3)+&
+                                                       acoef_RAM(ilevelF+2)+acoef_RAM(ilevelF+1)+acoef_RAM(ilevelF)+&
+                                                       acoef_RAM(ilevelF-5)+acoef_RAM(ilevelF-4)+acoef_RAM(ilevelF-3)+&
+                                                       acoef_RAM(ilevelF-2)+acoef_RAM(ilevelF-1 ) )/&
+                                                     (nu_ram(ilevelF+5)+nu_ram(ilevelF+4)+nu_ram(ilevelF+3)+&
+                                                     nu_ram(ilevelF+2)+nu_ram(ilevelF+1)-nu_ram(ilevelF-1)-nu_ram(ilevelF-2)-&
+                                                     nu_ram(ilevelF-3)-nu_ram(ilevelF-4)-nu_ram(ilevelF-5))*2.0_ark
                                 !
                               endif
                               !
@@ -1593,7 +1604,8 @@ contains
                             !
                             if (ncount<=1) cycle
                             !
-                            call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),ncount,Ap1,Apn,spline_grid(1:ncount))
+                            call spline(nu_spin_grid(1:ncount,istateF,iomegaF),acoef_spin_grid(1:ncount,istateF,iomegaF),&
+                                        ncount,Ap1,Apn,spline_grid(1:ncount))
                             !
                             !acoef_total = acoef_total + sum(acoef_spin_grid(1:ncount,istateF,iomegaF))
                             !
