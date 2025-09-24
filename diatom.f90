@@ -3621,7 +3621,7 @@ contains
           endif
         enddo
         !
-        write(out,"('Input error: State ',a,' was not found in the input, check the STATES line')"),trim(States_list(istate))
+        write(out,"('Input error: State ',a,' was not found in the input, check the STATES line')") trim(States_list(istate))
         stop "Input error: State not found in the input, check STATES line"
         !
       enddo loop_istate_pot_check
