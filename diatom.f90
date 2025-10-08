@@ -1043,6 +1043,57 @@ contains
               job%vibenermax(i+1:) = job%vibenermax(i)
             enddo
             !
+          case ("STATES")
+            !
+            call readu(w)
+            !
+            if (nstate_listed==0) then 
+               write(out,"('Input Error: STATES VMAX in CONTRACTION STATES cannot be used with the NSTATES option.')")
+               call report ("Use vmax or define individual STATES to process",.true.)
+            endif
+            !
+            do while (trim(w)/="".and.trim(w)/="END")
+              !
+              select case(w)
+                !
+              case ("VMAX","VIBMAX","NMAX")
+                !
+                do while (item<Nitems)
+                  !
+                  call reada(w)
+                  !
+                  loop_i_Nstates : do i = 1,nstate_listed
+                    !
+                    if (trim(w)==trim(states_list(i))) then 
+                      !
+                      call readi(job%vibmax(i))
+                      exit loop_i_Nstates
+                      !  
+                    endif 
+                    !
+                  enddo loop_i_Nstates
+                  !
+                enddo
+                !
+                ! check if all states have vmax defined 
+                do i = 1,Nestates
+                  if (job%vibmax(i)>1e7) then 
+                    write(out,"('input error contraction states: vmax for ',a,' is undefined')") trim(states_list(i))
+                    call report ("input error CONTRACTION STATES: vmax is undefined for at least one state ",.true.)
+                  endif 
+                enddo 
+                !
+                call read_line(eof,iut) ; if (eof) exit
+                call readu(w)
+                !
+              case default
+                !
+                call report ("Unrecognized keyword in CONTRACTION STATES: "//trim(w),.true.)
+                !
+              end select 
+              !
+            enddo
+            !
           case default
             !
             call report ("Unrecognized keyword in CONTRACTION: "//trim(w),.true.)
@@ -9225,8 +9276,16 @@ contains
                 !
                 ! symmetry unitary transformation matrix elements. 
                 ! Here i should correspond to omega, while i-1 is for -omega
-                transform(ipar)%U(isym,i)   = 1.0_ark/sqrt(2.0_ark)
-                transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1.0_rk)**ipower
+                !
+                !if (mod(int(Jval),2)==0) then 
+                  !
+                  transform(ipar)%U(isym,i)   = 1.0_ark/sqrt(2.0_ark)
+                  transform(ipar)%U(isym,i-1) = 1.0_ark/sqrt(2.0_ark)*(-1.0_rk)**ipower
+                  !
+                !else
+                !  transform(ipar)%U(isym,i-1)   = 1.0_ark/sqrt(2.0_ark)
+                !  transform(ipar)%U(isym,i)     = 1.0_ark/sqrt(2.0_ark)*(-1.0_rk)**ipower
+                !endif
                 !
                 ! store the primitive record in the irrep 
                 transform(ipar)%irec(isym) = i
@@ -12826,7 +12885,7 @@ contains
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
     real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
-    real(rk)    :: V1,V2,VD,beta,discr,VD1,VD2,energy_,energy_j
+    real(rk)    :: V1,V2,VD,beta,discr,VD1,VD2,energy_,energy_j,sign_diag
     !
     type(fieldT),pointer      :: field
     !
@@ -13616,13 +13675,21 @@ contains
         !
         omega_grid(iomega)%energy(1:N_i,igrid) = omegaenergy/sc
         !
-        if (igrid==Ngrid/2) then 
-          !
-          omega_grid(iomega)%mat(1:N_i,1:N_i) = omegamat
+        !if (igrid==Ngrid/2) then 
+        if (igrid==1) then 
+          do i = 1,Nlambdasigmas
+            !
+            sign_diag = 1.0_rk 
+            if (omegamat(i,i)<0) sign_diag = -1.0_rk 
+            !
+            omega_grid(iomega)%mat(:,i) = omegamat(:,i)*sign_diag
+            !
+          enddo 
           !
         endif 
         !
         omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = abs(omegamat)
+        !omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = omegamat
         omega_grid(iomega)%Nstates = Nlambdasigmas
         !
         deallocate(omegamat,omegaenergy)
@@ -13696,7 +13763,21 @@ contains
         !
       enddo
       !
-      ! Now we can use the eigenfunctions to  unitary transform different objects to the Omega representation
+    enddo
+    !
+    ! update the transformation vectors from all positive to the phases recorded at Ngrid/2
+    do iomega=1,Nomegas
+      do i=1,Omega_grid(iomega)%Nstates
+        do j=1,Omega_grid(iomega)%Nstates
+          omega_grid(iomega)%vector(i,j,:) = sign(1.0_rk,omega_grid(iomega)%mat(i,j))*omega_grid(iomega)%vector(i,j,:) 
+        enddo
+      enddo
+    enddo
+    !
+    ! Now we can use the eigenfunctions to  unitary transform different objects to the Omega representation
+    do igrid =1, ngrid
+      !
+      i = (istate-1)*ngrid + igrid
       !
       ! Compute the L+ matrix elements in the primitive Lambda-Sigma representation
       !
@@ -14357,7 +14438,7 @@ contains
                       !
                       f_grid  = field%gridvalue(igrid)
                       !
-                      ! <Lx> and <Ly> don't depend on Sigma
+                      ! <mux> and <muy> don't depend on Sigma
                       !
                       f_s = real(ilambda-jlambda,rk)
                       !
@@ -14407,13 +14488,13 @@ contains
       !
     enddo
     !
-    do iomega=1,Nomegas
-      do i=1,Omega_grid(iomega)%Nstates
-        do j=1,Omega_grid(iomega)%Nstates
-          omega_grid(iomega)%vector(i,j,:) = sign(1.0_rk,omega_grid(iomega)%mat(i,j))*omega_grid(iomega)%vector(i,j,:) 
-        enddo
-      enddo
-    enddo
+    !do iomega=1,Nomegas
+    !  do i=1,Omega_grid(iomega)%Nstates
+    !    do j=1,Omega_grid(iomega)%Nstates
+    !      omega_grid(iomega)%vector(i,j,:) = sign(1.0_rk,omega_grid(iomega)%mat(i,j))*omega_grid(iomega)%vector(i,j,:) 
+    !    enddo
+    !  enddo
+    !enddo
     !
     allocate(vibmat(ngrid,ngrid),stat=alloc)
     call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
@@ -14522,7 +14603,7 @@ contains
             enddo
           enddo
           !
-          mat_2(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),(L_LambdaSigma(1:N_i,1:N_i)))
+          mat_2(1:N_i,1:N_i) = matmul(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid),transpose(L_LambdaSigma(1:N_i,1:N_i)))
           !
           do i = 1,N_i
             do j = 1+1,N_i

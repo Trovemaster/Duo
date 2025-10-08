@@ -9,26 +9,26 @@ of ``npoints``. Then a certain number  of the resulted
 vibrational eigenfunctions :math:`|v\rangle` with :math:`0 \le v\le` vmax and :math:`\tilde{E} \le` ``EnerMax``  is selected to
 form the vibrational part of the basis set.
 
-There is currently one contraction scheme supported by Duo: vibrational ``vib``. The  ``Omega`` is under construction. 
+There is currently one contraction scheme supported by Duo: vibrational ``vib``. The  ``Omega`` is under construction.
 
-The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
-by the keyword ``vib`` (``sigma-lambda``). 
+The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``)
+by the keyword ``vib`` (``sigma-lambda``).
 
 
 
 Vibrational contraction
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-This contraction uses a spin-free, fully uncoupled :math:`J=0` solution of the vibrational Schrödinger equation 
-obtained independently for each electronic state as the vibrational basis. The rovibronic basis set is then form from the Lamda-Sigma wavefunctions: 
+This contraction uses a spin-free, fully uncoupled :math:`J=0` solution of the vibrational Schrödinger equation
+obtained independently for each electronic state as the vibrational basis. The rovibronic basis set is then form from the Lamda-Sigma wavefunctions:
 
 
 :math:`| J \Omega S \Sigma \Lambda v \rangle = | J \Omega \rangle | S \Sigma \rangle | \Lambda \rangle | v \rangle`
 
 where :math:`| J \Omega \rangle`  and :math:`| S \Sigma \rangle`  are the rigid rotor functions and :math:`| \Lambda \rangle`  are the
 electronic wavefunctions implicitly taken from the ab initio calculations.
-Example : 
-:: 
+Example :
+::
 
 
      contraction
@@ -39,19 +39,19 @@ Example :
 
 
 
-Omega (diabatic) contraction - under construciton 
+Omega (diabatic) contraction - under construciton
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`. 
-This contraction consists of two steps. 
+This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`.
+This contraction consists of two steps.
 
-  1. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis 
+  1. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis
 :math:`|S\Sigma\rangle|\Lambda\rangle` for each values of :math:`\Omega=\Lambda+\Sigma` independently to form diabatic PECs.
 
-  2. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set 
-:math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`). 
+  2. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set
+:math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`).
 
-The rovibronic basis set in the Omega representation is given by 
+The rovibronic basis set in the Omega representation is given by
 
 :math:`| J \Omega n v \rangle = | J \Omega \rangle | v,\Omega,n^{\Omega} \rangle`
 
@@ -65,7 +65,7 @@ Example 2:
 
      contraction
        omega
-       nmax  30  10 10 
+       vmax  30  10 10
      end
 
 
@@ -84,18 +84,35 @@ Keywords
 the solution of the coupled problem. For example
 ::
 
-    nmax 15
+    vmax 15
 
-specifies to compute for each PEC the lowest-energy 15 vibrational levels; it is also possible 
+specifies to compute for each PEC the lowest-energy 15 vibrational levels; it is also possible
 to specify different values of \texttt{vmax} for each PEC, in which case the values must be given as a list; for example
 ::
 
-    nmax 10 15 8
+    vmax 10 15 8
 
 
 specifies that for the PEC identified as ``poten 1`` Duo should take 10 lowest vibrational states ``nmax=10``, for
 ``poten 2``, ``nmax=15`` and for ``poten 3``, ``nmax=8``.
 If there are more PEC (``poten 4`` etc.) they will use for ``nmax`` the last value specified (``nmax=8`` in this example).
+The ``vmax`` values in this input will be assigned to the states in the order fof appearance of the corresponding ``potential`` objects in the input file, and not in the order associated e.g. with the keyword ``States``, which can be somewhat confusing. For a more intuitive definition of ``vmax`` for individual stats see the keyword ``states vmax`` belonging to the same section ``Contraction``.
+
+
+* States vmax 
+
+This option can be used in combination with the ``States`` option defining states participating in the solution by their labels. The format is as follows 
+::
+   
+    contraction
+      vib
+      states vmax X 20, a 30, B 35
+    end
+    
+Here we assume that these states were introduced at the beginning of the input file using the keyword ``States``, e.g.
+::
+
+    Stated X, a, B
 
 * enermax
 
@@ -105,8 +122,8 @@ for each PEC by writing a list of values; for example
 ::
 
       enermax 30000.0 25000.0
-      
-      
+
+
 selects a threshold of 30000 cm\ :sup:`-1`  for ``poten 1`` and one of 25000 cm\ :sup:`-1` for ``poten 2`` and any other potential present.
 Note that by default Duo will shift the PECs so that the lowest point of the lowest-lying PEC has zero energy, and that the energy
 used for the ``enermax`` threshold are ``total`` vibrational energies including the zero point energy.

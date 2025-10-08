@@ -408,13 +408,6 @@ contains
     !
     ! Prepare the list of units with the stored eigenvectors
     !
-    !allocate(Jeigenvec_unit(nJ), stat = info)
-    !if (info /= 0) stop 'md_tranint allocation error: Jeigenvec_unit - out of memory'
-    !
-    !do jind=1,nJ
-    !  Jeigenvec_unit(jind) = TReigenvec_unit(jind,Jval)
-    !enddo
-    !
     ! open units for the line list in the exomol format
     if (trim(intensity%linelist_file)/="NONE") then
       !
@@ -1986,20 +1979,6 @@ contains
         !
         ls = 0
         !
-        !do isigmav = 0,1
-        !
-        ! the permutation is only needed if at least some of the quanta ilambda is not zero.
-        ! otherwise it should be skipped to avoid the double counting.
-        !if(isigmav==1.and.abs(ilambdaI)+abs(ilambdaF)==0) cycle
-       
-        ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-        !ilambdaI_ = ilambdaI*(-1)**isigmav
-        !ilambdaF_ = ilambdaF*(-1)**isigmav
-        !sigmaI_ = sigmaI*(-1)**isigmav
-        !sigmaF_ = sigmaF*(-1)**isigmav
-        !
-        !if (ilambdaI_ /= ilambdaF_) cycle
-        !
         f_t = 0
         !
         if ( ilambdaI==ilambdaF .and. istateI==istateF .and. ivibI==ivibF) then
@@ -2017,20 +1996,6 @@ contains
           else
             cycle
           endif
-          !
-          !f_t = f_t * overlap_matelem(ivibI,ivibF)
-          !
-          ! the result of the symmetry transformation:
-          !if (isigmav==1) then
-          !  !
-          !  itau = 0
-          !  !
-          !  if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
-          !  if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
-          !  !
-          !  f_t = f_t*(-1.0_rk)**(itau)
-          !  !
-          !endif
           !
           !add spin magnetic moment
           ls  =  f_t*f3j*vector(icontrI)
@@ -2086,16 +2051,6 @@ contains
               !
               ! check the selection rule Delta Lambda = +/1
               if (abs(ilambdaI-ilambdaF)/=1) cycle
-              !
-              ! double check
-              !if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
-              !  write(out,'("dipole_intens: reconsrtucted spini ",f8.1," or spinj ",f8.1, &
-              !            & " do not agree with stored values ",f8.1,x,f8.1)') &
-              !        spini,spinj,poten(istate)%spini,poten(jstate)%spini
-              !  stop 'dipole_intens: wrongly reconsrtucted spini or spinj'
-              !endif
-              !
-              !f_grid  = field%matelem(ivib,jvib)
               !
               f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
               !
