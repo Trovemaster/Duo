@@ -460,6 +460,8 @@ contains
     !
     Jmax_ = nint(maxval(Jval(:)))
     !
+    if (mod(nint(2.0_rk*Jval(nJ)+1.0_rk),2)/=1) integer_spin = .false.
+    !
     Nomegas_max = nint(Jval(nJ))
     if (.not.integer_spin) Nomegas_max = Nomegas_max-1
     allocate(threej(nJ,0:Nomegas_max,-1:1,-1:1), stat = info)

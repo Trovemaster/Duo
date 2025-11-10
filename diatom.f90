@@ -564,7 +564,7 @@ module diatom_module
                    Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1,nMagneticDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
-  real(rk)      :: jmin_global
+  real(rk)      :: jmin_global,spin_max
   !
   !type(fieldT),pointer :: refined(:)
   type(fieldmapT) :: fieldmap(Nobjects)
@@ -3373,7 +3373,7 @@ contains
             !
             intensity%overlap = .true.
             if (nitems>1) call readu(w)
-            if (trim(w)=="OFF") intensity%overlap = .false.
+            if (trim(w)=="  OFF") intensity%overlap = .false.
             !
           case('RENORM','RENORMALIZE')
             !
@@ -3846,7 +3846,7 @@ contains
     !lambda_ = 100
     !spin_ = lambda_
 
-    ! for each term, find the minimum possible Omega
+    ! for each term, find the minimum possible Omega and maximal spin
     do istate=1,Nestates
       omega_ = safe_max
       spin_   = poten(istate)%spini
@@ -3856,6 +3856,8 @@ contains
         omega_=min(omega_,abs(real(lambda_, rk) +sigma_) )
       end do
       poten(istate)%Omega_min = omega_
+      !
+      spin_max = max(spin_,spin_max)
     enddo
     !
     ! find globally minimum Omega
@@ -7217,7 +7219,7 @@ contains
     integer(ik)             :: total_roots,irrep,jrrep
     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
     real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatnac(:,:),vibmat_(:,:)
-    real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:),vibTmat(:,:)
+    real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:)
     real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:),HmatxU(:,:),Hsym_(:,:)
     integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
     integer(ik),allocatable :: vib_count(:)
@@ -7249,6 +7251,10 @@ contains
     real(rk),allocatable            :: vect_i(:),vect_j(:)
     real(rk),allocatable            :: nacmat_(:,:)
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0
+    real(rk),allocatable  :: threej(:,:,:,:,:)
+    integer(ik) :: indI,indF,ispin,jspin,iSigma,jSigma,idelta,nDeltaS,Nspin_max,jmulti
+    logical      :: integer_spin = .true.
+    real(rk) :: spin_i,spin_j,sigma_i,sigma_j
     !
     ! open file for later (if option is set)
     if (job%print_rovibronic_energies_to_file ) &
@@ -7305,6 +7311,51 @@ contains
     !
     allocate(psipsi_ark(ngrid),stat=alloc)
     call ArrayStart('psipsi_ark',alloc,size(psipsi_ark),kind(psipsi_ark))
+    !
+    if (mod(nint(2.0_rk*J_list(nJ)+1.0_rk),2)/=1) integer_spin = .false.
+    !
+    Nspin_max = nint(spin_max)
+    if (.not.integer_spin) Nspin_max = nint(spin_max-0.5_rk)
+    multi_max = nint(2.0_rk*spin_max)+1
+    !
+    allocate(threej(0:Nspin_max,2,0:Nspin_max,1:multi_max,-2:2), stat = alloc)
+    if (alloc /= 0) stop 'duo_j0 allocation error: threej - out of memory'
+    !
+    threej = 0
+    !
+    !call setup_factorials_lookup
+    !
+    do ispin = 0,Nspin_max
+       spin_i = real(ispin,rk)
+       if (.not.integer_spin) spin_i = spin_i + 0.5_rk
+       !
+       do jspin = 0, Nspin_max
+         spin_j = real(jspin,rk)
+         if (.not.integer_spin) spin_j = spin_j + 0.5_rk
+         !
+         do nDeltaS = 1,2
+         !
+         if ( nDeltaS<abs(nint(spin_j - spin_i)).or.nDeltaS>(nint(spin_j + spin_i)) ) cycle
+           !
+           do imulti = 1,nint(2.0_rk*spin_i)+1
+             !
+             sigma_i = -spin_i+real(imulti-1,ik)
+             !
+             do idelta = -nDeltaS,+nDeltaS
+               !
+               sigma_j = sigma_i+real(idelta,rk)
+               if (sigma_j<-spin_j.or.sigma_j>spin_j) cycle
+               jmulti = nint(spin_j+1.0_rk+sigma_j)
+               !
+               threej(ispin,nDeltaS,jspin,imulti,nint(sigma_j-sigma_i)) = three_j(spin_i,real(nDeltaS,rk),spin_j,sigma_i,sigma_j-sigma_i,-sigma_j)
+               !
+             enddo
+             !
+           enddo
+           !
+        enddo
+      enddo
+    enddo   
     !
     !do i = 1,ngrid
     !  grid_rk(i) = 0.7_rk+(3.0_rk-.7_rk)/real(ngrid-1,rk)*real(i-1,rk)
@@ -8316,11 +8367,10 @@ contains
       endif
       !
       if (trim(solution_method)=="LOBATTO") then
-        allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),vibTmat(ngrid,ngrid),stat=alloc)
+        allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),stat=alloc)
         call ArrayStart('LobAbs',alloc,size(LobAbs),kind(LobAbs))
         call ArrayStart('LobWeights',alloc,size(LobWeights),kind(LobWeights))
         call ArrayStart('LobDerivs',alloc,size(LobDerivs),kind(LobDerivs))
-        call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
       endif
       !
       ! Lobbato grids, abcissas and weighs
@@ -8335,7 +8385,15 @@ contains
         !
       else
         !
-        call kinetic_energy_grid_points(ngrid,kinmat)
+        if (trim(solution_method)/="LOBATTO") then 
+          !
+          call kinetic_energy_grid_points(ngrid,kinmat)
+          !
+        else
+          !
+          call kinetic_energy_grid_points(ngrid,kinmat,LobWeights=LobWeights,LobDerivs=LobDerivs)
+          !
+        endif
         !
       endif
       !
@@ -9056,11 +9114,10 @@ contains
     endif
     !
     if (trim(solution_method)=="LOBATTO") then
-      deallocate(LobDerivs,LobAbs,LobWeights,vibTmat)
+      deallocate(LobDerivs,LobAbs,LobWeights)
       call ArrayStop('LobDerivs')
       call ArrayStop('LobAbs')
       call ArrayStop('LobWeights')
-      call ArrayStop('vibTmat')
     endif
     !
     if (allocated(contrfunc)) then
@@ -9468,8 +9525,8 @@ contains
         allocate(hmat(Ntotal,Ntotal),stat=alloc)
         call ArrayStart('hmat',alloc,size(hmat),kind(hmat))
         !
-        call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,&
-                                                                           Nlambdasigmas,sc,icontr,contrenergy,hmat)
+        call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
+                                                                           sc,icontr,contrenergy,Nspin_max,multi_max,threej,hmat)
         !
         ! Transformation to the symmetrized basis set
         !
@@ -10740,24 +10797,25 @@ contains
   
 
   subroutine Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
-                                                                           sc,icontr,contrenergy,hmat)
+                                                                           sc,icontr,contrenergy,Nspin_max,multi_max,threej,hmat)
     !
     implicit none
     !
-    integer(ik),intent(in)   :: iverbose,ngrid,Ntotal,Nlambdasigmas
+    integer(ik),intent(in)   :: iverbose,ngrid,Ntotal,Nlambdasigmas,Nspin_max,multi_max
     real(rk),intent(in)      :: sc,jval
     type(quantaT),intent(in) :: icontr(Ntotal)
     real(rk),intent(in)      :: contrenergy(ngrid*Nestates)
+    real(rk),intent(in)      :: threej(0:Nspin_max,2,0:Nspin_max,1:multi_max,-2:2)
     real(rk),intent(out)     :: hmat(Ntotal,Ntotal)
-    
+    !    
     integer(ik) ::i,ivib,ilevel,istate,imulti,ilambda,v_i,j,jvib,jlevel,jstate,jmulti,jlambda,v_j
     integer(ik) :: ibobrot,isr,iL2,idiab,iNAC,iss,isso,ilxly,ild,istate_,jstate_,ilambda_we,jlambda_we,iso,&
                    ilambda_,jlambda_,itau,isigma2,isigmav,ipermute
     integer(ik) :: alloc
     real(rk)    :: omegai,sigmai,spini,sigmaj,omegaj,spinj,f_nac
     real(rk)    :: erot,f_rot,f_bobrot,f_ss,f_sr,f_l2,f_diabatic,q_we,three_j_ref,three_j_,SO,f_s,f_t,f_grid,f_s2,f_s1,f_lo,&
-                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l
-
+                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__
+    !
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
     type(fieldT),pointer  :: field
@@ -11058,6 +11116,10 @@ contains
             ! First of all we can check if the input values are not unphysical and consistent with Wigner-Eckart:
             ! the corresponding three_j should be non-zero:
             three_j_ref = three_j(spini_, 2.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
+            !
+            !if ( abs( three_j_ref-threej(int(spini_),2.0_rk,-int(sigmai_we),nint(spinj_-spini_),nint(q_we)) )>sqrt(small_) ) then
+            !   write(out,"('Error three_j_ref',f18.8,'  ',5f12.1)") three_j_ref,spini_,spinj_,sigmai_we,q_we,sigmaj_we
+            !endif
             !
             if (zDebug .and. abs(three_j_ref)<small_) then
               !
@@ -11476,6 +11538,14 @@ contains
             ! the corresponding three_j should be non-zero:
             three_j_ref = three_j(spini_, 1.0_rk, spinj_, -sigmai_we, q_we, sigmaj_we)
             !
+            imulti = nint(spini_ +1.0_rk - sigmai_we)
+            !
+            !three_j_ref = threej(int(spini_),1,int(spinj_),imulti,nint(q_we))
+            !
+            !if ( abs( three_j_ref-three_j_ )>sqrt(small_) ) then
+            !   write(out,"('Error three_j_ref',2f18.8,'  ',5f12.1)") three_j_ref,three_j_,spini_,spinj_,sigmai_we,q_we,sigmaj_we
+            !endif
+            !
             if (zDebug .and. abs(three_j_ref)<small_) then
               !
               write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
@@ -11518,11 +11588,21 @@ contains
             do isigma2 = -nint(2.0*spini_),nint(2.0*spini_),2
               !
               ! Sigmas from Wigner-Eckart
-              sigmai_ = real(isigma2,rk)*0.5
+              sigmai_ = real(isigma2,rk)*0.5_rk
               sigmaj_ = sigmai_ - q_we
               !
               ! three_j for current Sigmas
               three_j_ = three_j(spini_, 1.0_rk, spinj_, -sigmai_, q_we, sigmaj_)
+              !
+              if (abs(sigmaj_)>spinj_) cycle
+              !
+              !imulti = nint(spini_ +1.0_rk - sigmai_)
+              !
+              !three_j_ = threej(int(spini_),1,int(spinj_),imulti,nint(q_we))
+              !
+              !if ( abs( three_j_-three_j__ )>sqrt(small_) ) then
+              !   write(out,"('Error three_j_ref',2f18.8,'  ',5f12.1)") three_j_,three_j__,spini_,spinj_,sigmai_we,q_we,sigmaj_we
+              !endif
               !
               ! current value of the SO-matrix element from Wigner-Eckart
               SO = (-1.0_rk)**(sigmai_-sigmai_we)*three_j_/three_j_ref*field%matelem(ivib,jvib)
@@ -12745,17 +12825,22 @@ contains
   end subroutine vibrational_reduced_density_omega_fast
 
   !
-  subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,vibTmat,LobWeights,LobDerivs)
+  subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,LobWeights,LobDerivs)
     !
     integer(ik),intent(in)  :: ngrid
     real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
     real(rk),intent(inout),optional  :: kinmat1(ngrid,ngrid)
-    real(rk),intent(inout),optional  :: vibTmat(ngrid,ngrid)
     real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
-    integer(ik)   :: jgrid,kgrid,igrid
+    real(rk),allocatable  :: vibTmat(:,:)
+    integer(ik)   :: jgrid,kgrid,igrid,alloc
     !
     kinmat  = 0
     if (present(kinmat1)) kinmat1 = 0
+    !
+    if (trim(solution_method)=="LOBATTO") then
+      allocate(vibTmat(ngrid,ngrid),stat=alloc)
+      call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
+    endif
     !
     do igrid =1, ngrid
       !
@@ -12828,16 +12913,14 @@ contains
       case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
         ! Requires the Lobatto nonuniform grid to work
         !
-        write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
-        stop 'The Lobatto DVR method is temporally disabled'
+        !write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
+        !stop 'The Lobatto DVR method is temporally disabled'
         !
         if(grid%nsub /= 6) then
           write(out, '(A)') 'The Lobatto DVR method only works with the'
           write(out, '(A)') 'Lobatto grid (grid type 6).'
           stop
         endif
-        !
-        if (.not.present(vibTmat)) stop 'vibTmat is not present'
         !
         vibTmat = 0
         !
@@ -12860,6 +12943,11 @@ contains
       end select
       !
     enddo
+    !
+    if (trim(solution_method)=="LOBATTO") then
+      deallocate(vibTmat)
+      call ArrayStop('vibTmat')
+    endif
     !
   end subroutine kinetic_energy_grid_points
   !
@@ -16949,25 +17037,25 @@ contains
     real(rk),parameter :: one = 1.0_rk
 
     three_j=0
-!
-!     (j1+j2).ge.j and j.ge.abs(a-b)    -m=m1+m2    j1,j2,j.ge.0
-!     abs(m1).le.j1    abs(m2).le.j2   abs(m).le.j
-!
+    !
+    !     (j1+j2).ge.j and j.ge.abs(a-b)    -m=m1+m2    j1,j2,j.ge.0
+    !     abs(m1).le.j1    abs(m2).le.j2   abs(m).le.j
+    !
     if(c.gt.a+b) return
     if(c.lt.abs(a-b)) return
     if(a.lt.0.or.b.lt.0.or.c.lt.0) return
     if(a.lt.abs(al).or.b.lt.abs(be).or.c.lt.abs(ga)) return
     if(-1.0_rk*ga.ne.al+be) return
-!
-!
-!     compute delta(abc)
-!
-!     delta=sqrt(fakt(a+b-c)*fakt(a+c-b)*fakt(b+c-a)/fakt(a+b+c+1.0_rk))
+    !
+    !
+    !     compute delta(abc)
+    !
+    !     delta=sqrt(fakt(a+b-c)*fakt(a+c-b)*fakt(b+c-a)/fakt(a+b+c+1.0_rk))
     delta_log = faclog(a+b-c)+faclog(a+c-b)+faclog(b+c-a)-faclog(a+b+c+one)
     !
     ! delta=sqrt(exp(delta_log))
-!
-!
+    !
+    !
     !term1=fakt(a+al)*fakt(a-al)
     !term2=fakt(b-be)*fakt(b+be)
     !term3=fakt(c+ga)*fakt(c-ga)
@@ -16980,24 +17068,24 @@ contains
     term3=faclog(c+ga)+faclog(c-ga)
     !
     termlog = ( term1+term2+term3+delta_log )*0.5_rk
-
+    !
     term=sqrt( 2.0_rk*c+1.0_rk )
-!
-!
-!     now compute summation term
-!
-!     sum to get summation in eq(2.34) of brink and satchler.  sum until
-!     a term inside factorial goes negative.  new is index for summation
-!     .  now find what the range of new is.
-!
-!
+    !
+    !
+    !     now compute summation term
+    !
+    !     sum to get summation in eq(2.34) of brink and satchler.  sum until
+    !     a term inside factorial goes negative.  new is index for summation
+    !     now find what the range of new is.
+    !
+    !
     newmin=nint(max((a+be-c),(b-c-al),0.0_rk))
     newmax=nint(min((a-al),(b+be),(a+b-c)))
-!
-!
+    !
+    !
     summ=0
-!
-!
+    !
+    !
     do new=newmin,newmax
       !
       dnew=real(new,rk)
@@ -17011,21 +17099,20 @@ contains
       summ=summ+(-1.0_rk)**new*exp(term16)
       !
     enddo
-!
-!     so clebsch-gordon <j1j2m1m2ljm> is clebsh
-!
+    !
+    !     so clebsch-gordon <j1j2m1m2ljm> is clebsh
+    !
     clebsh=term*summ ! /sqrt(10.0_rk)
-!
-!     convert clebsch-gordon to three_j
-!
+    !
+    !     convert clebsch-gordon to three_j
+    !
     iphase=nint(a-b-ga)
     minus = -1.0_rk
     if (mod(iphase,2).eq.0) minus = 1.0_rk
     three_j=minus*clebsh/term
-
-!     threej=(-1.0_rk)**(iphase)*clebsh/sqrt(2.0_rk*c+1.0_rk)
-!
-!
+    !
+    !  threej=(-1.0_rk)**(iphase)*clebsh/sqrt(2.0_rk*c+1.0_rk)
+    !
   end function three_j
   !
   !

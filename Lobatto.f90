@@ -263,7 +263,7 @@ end subroutine quicksort
 subroutine Riffle(a,NAbsc,Nhalf)
     implicit none
     integer(ik),intent(in) :: NAbsc,Nhalf
-    real(rk) ::  a(1:NAbsc),b(1:Nhalf),c(1:Nhalf)
+    real(rk) ::  a(1:NAbsc),b(1:Nhalf+1),c(1:Nhalf+1)
     integer(ik) i,Nhalfplusone
 
     Nhalfplusone = Nhalf+1
