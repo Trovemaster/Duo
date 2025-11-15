@@ -3344,6 +3344,9 @@ contains
             !
             if (nitems>1) call readi(intensity%N_RWF_Order)
             !
+            write(out, '(a)') 'Raman Wavefunctions have been discontinued in Duo'
+            stop 'Raman Wavefunctions have been removed from Duo'
+            !
             ! we will need the vibrational basis for RWF
             !
             job%basis_set  = 'KEEP'
@@ -7252,7 +7255,7 @@ contains
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
     character(len=cl)          :: filename,ioname
-    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
+    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,ibobrot
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
     integer(ik)                :: npoints_last,icount_max,ipoint_first
@@ -7266,10 +7269,10 @@ contains
     !
     type(contract_solT),allocatable :: contracted(:,:)
     real(rk),allocatable            :: vect_i(:),vect_j(:)
-    real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:)
-    double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0
+    real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:),kinmatcalc_(:,:)
+    double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0,alpha_minus = -1.0d0
     real(rk),allocatable  :: threej(:,:,:,:,:)
-    integer(ik) :: indI,indF,ispin,jspin,iSigma,jSigma,idelta,nDeltaS,Nspin_max,jmulti
+    integer(ik) :: ispin,jspin,idelta,nDeltaS,Nspin_max,jmulti
     logical      :: integer_spin = .true.
     real(rk) :: spin_i,spin_j,sigma_i,sigma_j
     !
@@ -8195,29 +8198,6 @@ contains
              !
              field_%matelem =   vibmat_
              !
-             !do i = 1,totalroots
-             !  !
-             !  if (iomega_/=icontrvib(i)%iomega) cycle
-             !  iroot = icontrvib(i)%iroot
-             !  ilevel_ = icontrvib(i)%ilevel
-             !  !
-             !  if( ilevel/=ilevel_ ) cycle
-             !  !
-             !  do j = 1,totalroots
-             !    !
-             !    if (jomega_/=icontrvib(j)%iomega) cycle
-             !    jroot = icontrvib(j)%iroot
-             !    jlevel_ = icontrvib(j)%ilevel
-             !    !
-             !    if (jlevel/=jlevel_) cycle
-             !    !
-             !    !field_%matelem(i,j) =   field_%matelem(i,j) + vibmat_(iroot,jroot)
-             !    field_%matelem(i,j) =   vibmat_(iroot,jroot)
-             !    !field_%matelem(j,i) =  -vibmat_(iroot,jroot) 
-             !    !
-             !  enddo
-             !enddo
-             !
              deallocate(nacmat_,vibmat_)
              call ArrayStop('nacmat_')
              call ArrayStop('vibmat_')
@@ -8396,7 +8376,7 @@ contains
         call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
       endif
       !
-      if (Nnac>0) then
+      if (Nnac>0.or.Nbobvib>0) then
         !
         call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
         !
@@ -8505,6 +8485,10 @@ contains
           if (istate==1) zpe = vibener(1)
           !
         case ('NONE','RAW')
+          !
+          write(out,"(a)") 'NONE,RAW are beeing deactivated'
+          !
+          stop 'NONE,RAW are beeing deactivated'
           !
           vibener = poten(istate)%gridvalue*sc
           !
@@ -8804,6 +8788,16 @@ contains
           case (4)
             field => lxly(iterm)
             field%gridvalue(:) = field%gridvalue(:)*b_rot/r(:)**2*sc
+            !
+            !if (.not.job%legacy_version) then 
+            !  do ibobrot = 1,Nbobrot
+            !    if (bobrot(ibobrot)%istate==field%istate.and.bobrot(ibobrot)%jstate==field%jstate.and.istate==jstate) then
+            !      field%gridvalue(:) = field%gridvalue(:) + bobrot(ibobrot)%gridvalue(:)*b_rot/r(:)**2*sc
+            !      exit
+            !    endif
+            !  enddo
+            !endif
+            !
           case (5)
             field => spinspin(iterm)
           case (6)
@@ -8933,20 +8927,35 @@ contains
             if (iverbose>=4) call TimerStop('Compute nacmat_ nac')
             !
           case (14)
+            !
             ! Kinetic energy term BOBvib
             !
             if (iverbose>=4) call TimerStart('Compute BobVib')
             !
             allocate(bobvibmat_(totalroots,ngrid),stat=alloc)
-            call ArrayStart('bobvibmat_',alloc,size(nacmat_),kind(nacmat_))
+            call ArrayStart('bobvibmat_',alloc,size(bobvibmat_),kind(bobvibmat_))
+            !
+            allocate(kinmatcalc_(ngrid,ngrid),stat=alloc)
+            call ArrayStart('kinmatcalc_',alloc,size(kinmatcalc_),kind(kinmatcalc_))
+            !
+            !$omp parallel do private(i) shared(kinmatcalc_) schedule(guided)
+            do i = 1,ngrid
+              kinmatcalc_(:,i) = kinmat1(:,i)*field%gridvalue(i)
+            enddo
+            !$omp end parallel do
+            !
+            ! minus here is becasue we changed the direction of the momentum operator 
+            call dgemm('N','N',ngrid,ngrid,ngrid,alpha_minus,kinmatcalc_,ngrid,&
+                       kinmat1,ngrid,beta_,kinmatcalc,ngrid)
             !
             !$omp parallel do private(i,j) shared(kinmatcalc) schedule(guided)
-            do i = 1,ngrid
-              do j = 1,ngrid
-                ! minus here becasue we changed the direction of the momentum operator 
-                kinmatcalc(i,j) = -sum(kinmat1(i,:)*field%gridvalue(:)*kinmat1(:,j))
-              enddo
-            enddo
+            !do i = 1,ngrid
+            !  do j = i,ngrid
+            !    ! minus here is becasue we changed the direction of the momentum operator 
+            !    kinmatcalc(i,j) = -sum(kinmat1(i,:)*field%gridvalue(:)*kinmat1(:,j))
+            !    kinmatcalc(j,i) = kinmatcalc(i,j)
+            !  enddo
+            !enddo
             !$omp end parallel do
             !
             call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
@@ -8956,6 +8965,9 @@ contains
             !
             deallocate(bobvibmat_)
             call ArrayStop('bobvibmat_')
+            !
+            deallocate(kinmatcalc_)
+            call ArrayStop('kinmatcalc_')
             !
             if (iverbose>=4) call TimerStop('Compute BobVib')
             !
@@ -10337,14 +10349,6 @@ contains
                 eigen(irot,irrep)%quanta(total_roots)%name = trim(poten(istate)%name)
                 !
                 !
-                ! This is a special case of the Raman-Wave-Function for which we use set all the
-                ! eigenvectors back to the basis set
-                !
-                !if (action%RWF.and.istate>Nrefstates) then
-                !    eigen(irot,irrep)%vect(:,total_roots) = 0
-                !    eigen(irot,irrep)%vect(i,total_roots) = 1.0_rk
-                !endif
-                !
                 if (intensity%bound.or.intensity%unbound) then
                   !
                   ! funding unboud states
@@ -10881,10 +10885,11 @@ contains
     !
     if (iverbose>=3) write(out,'(/"Construct the hamiltonian matrix")')
     !
-    !omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,v_i,jvib,jlevel,jstate,sigmaj, &
-    !                        jmulti,jlambda,omegaj,spinj,v_j,f_rot,erot,iL2,field,f_l2,f_s,f_t,iso,ibraket,ipermute,&
-    !                        istate_,ilambda_,sigmai_,spini_,jstate_,jlambda_,sigmaj_,spinj_,isigmav,omegai_,       &
-    !                        omegaj_,itau,ilxly,f_grid,f_l,f_ss) shared(hmat) schedule(guided)
+    !$omp parallel do private(ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,v_i,j,jvib,jlevel,jstate,sigmaj,jmulti,&
+    !$omp & jlambda,omegaj,spinj,v_j,f_rot,ibobrot,field,f_bobrot,f_rot,erot,iss,f_ss,isr,f_sr,ibobvib,f_bobvib,iL2,f_l2,idiab,&
+    !$omp & ipermute,istate_,jstate_,f_diabatic,iNAC,f_nac,q_we,three_j_ref,ilambda_we,isigma2,sigmai_,sigmaj_,three_j_,SO,&
+    !$omp & ilambda_,jlambda_,omegai_,omegaj_,itau,isso,f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1) &
+    !$omp & shared(hmat) schedule(guided)
     do i = 1,Ntotal
       !
       ivib = icontr(i)%ivib
@@ -10933,37 +10938,11 @@ contains
           endif
         enddo
         !
-        ! BOB vibrational (alpha) term, i.e. a correction to d^2/dr^2 
+        !if (action%RWF) then
+        !  if (istate>Nrefstates.or.jstate>Nrefstates) cycle
+        !endif
         !
-        do ibobvib = 1,Nbobvib
-          if (bobvib(ibobvib)%istate==istate.and.bobvib(ibobvib)%jstate==jstate.and.istate==jstate) then
-            field => bobvib(ibobvib)
-            f_bobvib = field%matelem(ivib,jvib)
-            f_rot = f_rot + f_bobvib
-            exit
-          endif
-        enddo
-        !
-        ! For the raw non-integrated basis add the kinetic energy matrix elemenent which otherwsie is not included in the
-        ! corresponding contracted enegy values
-        !
-        if (istate==jstate.and.ilevel==jlevel) then
-          !
-          select case (trim(poten(istate)%integration_method))
-            !
-          case ('NONE','RAW')
-            !
-            stop 'NONE,RAW are beeing deactivated'
-            !
-          end select
-          !
-        endif
-        !
-        if (action%RWF) then
-          if (istate>Nrefstates.or.jstate>Nrefstates) cycle
-        endif
-        !
-        if (trim(poten(jstate)%integration_method)=="NUMEROV") cycle
+        !if (trim(poten(jstate)%integration_method)=="NUMEROV") cycle
         !
         ! diagonal elements
         !
@@ -10975,6 +10954,13 @@ contains
           ! add the diagonal matrix element to the local spin-rotational matrix hmat
           hmat(i,j) = hmat(i,j) + erot
           !
+          ! print out the internal matrix at the first grid point
+          if (zDebug) then
+            if(iverbose>=4.and.abs(hmat(i,j)) >small_) then
+              write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
+            endif
+          endif
+          !
           ! Diagonal spin-spin term
           !
           do iss = 1,Nss
@@ -10982,9 +10968,17 @@ contains
               field => spinspin(iss)
               f_ss = field%matelem(ivib,jvib)*(3.0_rk*sigmai**2-spini*(spini+1.0_rk))*sc
               hmat(i,j) = hmat(i,j) + f_ss
+              if (zDebug) then
+                if(iverbose>=4.and.abs(hmat(i,j)) >small_) then
+                  write(printout(ilevel),'(A, F15.3,A)') "SS=", hmat(i,j)/sc, "; "
+                endif
+              endif
+
               exit
             endif
           enddo
+          !
+          ! print out the internal matrix at the first grid point
           !
           ! Diagonal spin-rotation term
           !
@@ -10997,10 +10991,27 @@ contains
             endif
           enddo
           !
-          ! print out the internal matrix at the first grid point
-          if (zDebug .and. iverbose>=4.and.abs(hmat(i,j)) >small_) then
-            write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
-          endif
+          ! BOB vibrational (alpha) term, i.e. a correction to d^2/dr^2 
+          do ibobvib = 1,Nbobvib
+            if (bobvib(ibobvib)%istate==istate.and.bobvib(ibobvib)%jstate==jstate.and.istate==jstate) then
+              field => bobvib(ibobvib)
+              f_bobvib = field%matelem(ivib,jvib)
+              hmat(i,j) = hmat(i,j) + f_bobvib
+              ! print out the internal matrix at the first grid point
+              if (zDebug) then 
+                if (iverbose>=4.and.abs(f_bobvib)>small_) then
+                  !$omp critical
+                  write(printout_,'(i3,"-BV",i3)') idiab,ilevel
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                  write(printout_,'(g12.4)') f_bobvib/sc
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                  !$omp end critical
+                endif
+              endif
+
+              exit
+            endif
+          enddo
           !
         endif
         !
@@ -11049,14 +11060,15 @@ contains
             hmat(i,j) = hmat(i,j) + f_diabatic
             !
             ! print out the internal matrix at the first grid point
-            ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
-              !
-              write(printout_,'(i3,"-DIA",2i3)') idiab,ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              write(printout_,'(g12.4)') f_diabatic/sc
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              !
+            if (zDebug) then 
+              if (iverbose>=4.and.abs(f_diabatic)>small_) then
+                !$omp critical
+                write(printout_,'(i3,"-DIA",2i3)') idiab,ilevel,jlevel
+                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                write(printout_,'(g12.4)') f_diabatic/sc
+                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                !$omp end critical
+              endif
             endif
             !
             exit
@@ -11101,13 +11113,15 @@ contains
             hmat(i,j) = hmat(i,j) + f_nac
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
-              !
-              write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              write(printout_,'(g12.4)') f_nac/sc
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              !
+            if (zDebug) then
+              if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                !$omp critical
+                write(printout_,'(i3,"-NC",2i3)') iNAC,ilevel,jlevel
+                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                write(printout_,'(g12.4)') f_nac/sc
+                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                !$omp end critical
+              endif
             endif
             !
             exit
@@ -11181,42 +11195,43 @@ contains
             !   write(out,"('Error three_j_ref',f18.8,'  ',5f12.1)") three_j_ref,spini_,spinj_,sigmai_we,q_we,sigmaj_we
             !endif
             !
-            if (zDebug .and. abs(three_j_ref)<small_) then
-              !
-              write(out,"('The Spin-spin field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
-                field%istate,field%jstate
-              write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
-              stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
-              !
+            if (zDebug) then
+              if (abs(three_j_ref)<small_) then
+                 write(out,"('The Spin-spin field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
+                   field%istate,field%jstate
+                 write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
+                 stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+              endif
             end if
             !
             ! Also check the that the SS is consistent with the selection rules for SS
             !
-            if (zDebug &
-              .and. ( &
-                ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we) /= 0 &
-                .or. nint(spini_-spinj_) > 2 &
-                .or. ( &
-                  ilambda_we==0 &
-                  .and. jlambda_we==0 &
-                  .and. poten(field%istate)%parity%pm /= poten(field%jstate)%parity%pm &
-                ) &
-                .or. ( (ilambda_we-jlambda_we) /= -nint(sigmai_we-sigmaj_we) ) &
-                .or. abs(ilambda_we-jlambda_we) > 2 &
-                .or. abs(nint(sigmai_we-sigmaj_we)) > 2 &
-                .or. ( &
-                  poten(field%istate)%parity%gu /= 0 &
-                  .and. poten(field%istate)%parity%gu /= poten(field%jstate)%parity%gu &
-                ) &
-              ) ) then
-              !
-              write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
-                    " with SS selection rules: ')") field%istate,field%jstate
-              write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
-                    "Delta S = 0 or Delta S = 1,2 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 2')")
-              write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
-                spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
-              stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+            if (zDebug) then
+              if (( &
+                  ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we) /= 0 &
+                  .or. nint(spini_-spinj_) > 2 &
+                  .or. ( &
+                    ilambda_we==0 &
+                    .and. jlambda_we==0 &
+                    .and. poten(field%istate)%parity%pm /= poten(field%jstate)%parity%pm &
+                  ) &
+                  .or. ( (ilambda_we-jlambda_we) /= -nint(sigmai_we-sigmaj_we) ) &
+                  .or. abs(ilambda_we-jlambda_we) > 2 &
+                  .or. abs(nint(sigmai_we-sigmaj_we)) > 2 &
+                  .or. ( &
+                    poten(field%istate)%parity%gu /= 0 &
+                    .and. poten(field%istate)%parity%gu /= poten(field%jstate)%parity%gu &
+                  ) &
+                ) ) then
+                !
+                write(out,"('The quantum numbers of the spin-spin field ',2i3,' are inconsistent" // &
+                      " with SS selection rules: ')") field%istate,field%jstate
+                write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
+                      "Delta S = 0 or Delta S = 1,2 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 2')")
+                write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
+                  spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+              endif
               !
             endif
             !
@@ -11284,10 +11299,12 @@ contains
                 endif
                 !
                 ! double check
-                if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
-                  write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
-                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
-                  stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                if ( zDebug) then
+                  if (nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                     write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
+                       "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
+                     stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                  endif
                 endif
                 !
                 ! we might end up in eilther parts of the matrix (upper or lower),
@@ -11299,13 +11316,15 @@ contains
                 !hmat(j,i) = hmat(i,j)
                 !
                 ! print out the internal matrix at the first grid point
-                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
-                  !
-                  write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                  write(printout_,'(g12.4)') f_ss/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                  !
+                if (zDebug) then
+                  if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                    !$omp critical
+                    write(printout_,'(i3,"-SS",2i3)') iss,ilevel,jlevel
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    write(printout_,'(g12.4)') f_ss/sc
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    !$omp end critical
+                  endif
                 endif
                 !
                 cycle loop_iss
@@ -11336,12 +11355,16 @@ contains
             hmat(i,j) = hmat(i,j) + f_ss
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    SS-o",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              if (abs(hmat(i,j))>sqrt(small_)) then
-                write(printout_,'(g12.4)') hmat(i,j)/sc
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+            if (zDebug) then
+              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                 !$omp critical
+                 write(printout_,'("    SS-o",2i3)') ilevel,jlevel
+                 printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                 if (abs(hmat(i,j))>sqrt(small_)) then
+                   write(printout_,'(g12.4)') hmat(i,j)/sc
+                   printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                 endif
+                 !$omp end critical
               endif
             endif
             !
@@ -11373,12 +11396,16 @@ contains
             hmat(i,j) = hmat(i,j) + f_sr*0.5_rk
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    SR",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              if (abs(hmat(i,j))>sqrt(small_)) then
-                write(printout_,'(g12.4)') hmat(i,j)/sc
+            if (zDebug) then
+              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                !$omp critical
+                write(printout_,'("    SR",2i3)') ilevel,jlevel
                 printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (abs(hmat(i,j))>sqrt(small_)) then
+                  write(printout_,'(g12.4)') hmat(i,j)/sc
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                endif
+                !$omp end critical
               endif
             endif
             !
@@ -11430,10 +11457,12 @@ contains
                 !
                 !
                 ! double check
-                if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
-                  write(out,'("SR: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
-                             & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
-                  stop 'SR: wrongly reconsrtucted spini or spinj'
+                if (zDebug) then
+                  if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                    write(out,'("SR: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
+                               & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                    stop 'SR: wrongly reconsrtucted spini or spinj'
+                  endif 
                 endif
                 !
                 f_grid  = field%matelem(ivib,jvib)
@@ -11483,11 +11512,15 @@ contains
                   hmat(i,j) = hmat(i,j) - f_t*0.5_rk
                   !
                   ! print out the internal matrix at the first grid point
-                  if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                    write(printout_,'(i3,"-SR",2i3)') isr,ilevel,jlevel
-                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                    write(printout_,'(g12.4)') hmat(i,j)/sc
-                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                  if (zDebug) then
+                    !$omp critical
+                    if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                      write(printout_,'(i3,"-SR",2i3)') isr,ilevel,jlevel
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                      write(printout_,'(g12.4)') hmat(i,j)/sc
+                      printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    endif
+                    !$omp end critical
                   endif
                   !
                 endif
@@ -11523,19 +11556,25 @@ contains
           !
           !hmat(j,i) = hmat(i,j)
           !
-          if (zDebug .and. (nint(omegai-omegaj))/=nint(sigmai-sigmaj)) then
-            write(out,'("J*S: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
-              sigmai,sigmaj,i,j
-            stop 'J*S: omegai/=omegaj+/-1 '
+          if (zDebug) then 
+            if ( nint(omegai-omegaj)/=nint(sigmai-sigmaj) ) then
+              write(out,'("J*S: omegai-omegaj/=sigmai-sigmaj ",2f8.1,2x,2f8.1," for i,j=",2(i0,2x))') omegai,omegaj, &
+                sigmai,sigmaj,i,j
+              stop 'J*S: omegai/=omegaj+/-1 '
+            endif
           endif
           !
           ! print out the internal matrix at the first grid point
-          if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-            write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
-            printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-            if (abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'(F12.4, A)') hmat(i,j)/sc, " ;"
+          if (zDebug) then
+            if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+              !$omp critical
+              write(printout_,'("  J-S(",2i3,")=")') ilevel,jlevel
               printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              if (abs(hmat(i,j))>sqrt(small_)) then
+                write(printout_,'(F12.4, A)') hmat(i,j)/sc, " ;"
+                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+              endif
+              !$omp end critical
             endif
           endif
           !
@@ -11606,42 +11645,42 @@ contains
             !   write(out,"('Error three_j_ref',2f18.8,'  ',5f12.1)") three_j_ref,three_j_,spini_,spinj_,sigmai_we,q_we,sigmaj_we
             !endif
             !
-            if (zDebug .and. abs(three_j_ref)<small_) then
-              !
-              write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
-                field%istate,field%jstate
-              write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
-              stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+            if (zDebug) then
+              if (abs(three_j_ref)<small_) then
+                write(out,"('The Spin-orbit field ',2i3,' is incorrect according to Wigner-Eckart, three_j = 0 ')") &
+                  field%istate,field%jstate
+                write(out,"('Check S_i, S_j, Sigma_i, Sigma_j =  ',4f9.2)") spini_,spinj_,sigmai_we,sigmaj_we
+                stop "The S_i, S_j, Sigma_i, Sigma_j are inconsistent"
+              endif
               !
             end if
             !
             ! Also check the that the SO is consistent with the selection rules for SO
             !
-            if (zDebug &
-              .and. ( &
-                ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we) /= 0 &
-                .or. nint(spini_-spinj_) > 1 &
-                .or. ( &
-                  ilambda_we==0 &
-                  .and. jlambda_we==0 &
-                  .and. poten(field%istate)%parity%pm == poten(field%jstate)%parity%pm &
-                ) &
-                .or. (ilambda_we-jlambda_we) /= -nint(sigmai_we-sigmaj_we) &
-                .or. abs(ilambda_we-jlambda_we) > 1 &
-                .or. abs(nint(sigmai_we-sigmaj_we)) > 1 &
-                .or. ( &
-                  poten(field%istate)%parity%gu /= 0 &
-                  .and. poten(field%istate)%parity%gu /= poten(field%jstate)%parity%gu &
-                ) &
-              ) ) then
-              !
-              write(out,"('The quantum numbers of the spin-orbit field ',2i3,' are inconsistent" // &
-                    " with SO selection rules: ')") field%istate,field%jstate
-              write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
-                    "Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1')")
-              write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
-                spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
-              stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+            if (zDebug) then
+              if ((ilambda_we-jlambda_we+nint(sigmai_we-sigmaj_we) /= 0 &
+                  .or. nint(spini_-spinj_) > 1 &
+                  .or. ( &
+                    ilambda_we==0 &
+                    .and. jlambda_we==0 &
+                    .and. poten(field%istate)%parity%pm == poten(field%jstate)%parity%pm &
+                  ) &
+                  .or. (ilambda_we-jlambda_we) /= -nint(sigmai_we-sigmaj_we) &
+                  .or. abs(ilambda_we-jlambda_we) > 1 &
+                  .or. abs(nint(sigmai_we-sigmaj_we)) > 1 &
+                  .or. ( &
+                    poten(field%istate)%parity%gu /= 0 &
+                    .and. poten(field%istate)%parity%gu /= poten(field%jstate)%parity%gu &
+                  ) ) ) then
+                !
+                write(out,"('The quantum numbers of the spin-orbit field ',2i3,' are inconsistent" // &
+                      " with SO selection rules: ')") field%istate,field%jstate
+                write(out,"('Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<-/->f; Sigma+<->Sigma-; " // &
+                      "Delta S = 0 or Delta S = 1 ; Delta Lambda = Delta Sigma = 0 or Delta Lambda = - Delta Sigma = +/- 1')")
+                write(out,"('Check S_i, S_j, Sigma_i, Sigma_j, lambdai, lambdaj =  ',4f9.2,2i4)") &
+                  spini_,spinj_,sigmai_we,sigmaj_we,ilambda_we,jlambda_we
+                stop "The S_i, S_j, Sigma_i, Sigma_j lambdai, lambdaj are inconsistent with selection rules"
+              endif
               !
             endif
             !
@@ -11719,10 +11758,12 @@ contains
                 endif
                 !
                 ! double check
-                if ( zDebug .and. nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
-                  write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
-                    "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
-                  stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                if ( zDebug ) then
+                  if (nint(omegai-omegai_)/=0 .or. nint(omegaj-omegaj_)/=0 ) then
+                    write(out,'(A,f8.1," or omegaj ",f8.1," do not agree with stored values ",f8.1,1x,f8.1)') &
+                      "SO: reconsrtucted omegai", omegai_,omegaj_,omegai,omegaj
+                    stop 'SO: wrongly reconsrtucted omegai or omegaj'
+                  endif
                 endif
                 !
                 ! we might end up in eilther parts of the matrix (upper or lower),
@@ -11734,12 +11775,15 @@ contains
                 !hmat(j,i) = hmat(i,j)
                 !
                 ! print out the internal matrix at the first grid point
-                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
-                  !
-                  write(printout_,'(i3,"-SO",2i3)') iso,ilevel,jlevel
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                  write(printout_,'(g12.4)') f_t/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (zDebug) then
+                  if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                    !$omp critical
+                    write(printout_,'(i3,"-SO",2i3)') iso,ilevel,jlevel
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    write(printout_,'(g12.4)') f_t/sc
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    !$omp end critical
+                  endif 
                   !
                 endif
                 !
@@ -11759,13 +11803,13 @@ contains
           !
           ! Also check that L+ is consistent with the selection rules
           !
-          if ( zDebug .and. field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
-            !
-            write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
-                  " with L+selection rules: ')") field%istate,field%jstate
-            write(out,"('Delta Lamda = +/-1')")
-            stop "Lx/L+ input is inconsistent with selection rules"
-            !
+          if ( zDebug) then 
+            if (field%istate==field%jstate .or.abs(field%lambda-field%lambdaj)/=1 ) then
+              write(out,"('The quantum numbers of the L+/Lx field ',2i3,' are inconsistent" // &
+                    " with L+selection rules: ')") field%istate,field%jstate
+              write(out,"('Delta Lamda = +/-1')")
+              stop "Lx/L+ input is inconsistent with selection rules"
+            endif
           endif
           !
           ! the field entry in the input gives only one combination of the quantum numbers for
@@ -11818,10 +11862,12 @@ contains
               if (abs(ilambda-jlambda)/=1) cycle
               !
               ! double check
-              if (zDebug .and. spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
-                write(out,'("LJ: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
-                           & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
-                stop 'LJ: wrongly reconsrtucted spini or spinj'
+              if (zDebug) then 
+                if (spini/=poten(istate)%spini.or.spinj/=poten(jstate)%spini) then
+                  write(out,'("LJ: reconstructed spini ",f8.1," or spinj ",f8.1," do not agree with stored values ", &
+                             & f8.1,1x,f8.1)') spini,spinj,poten(istate)%spini,poten(jstate)%spini
+                  stop 'LJ: wrongly reconsrtucted spini or spinj'
+                endif
               endif
               !
               f_grid  = field%matelem(ivib,jvib)
@@ -11881,11 +11927,15 @@ contains
                 !hmat(j,i) = hmat(i,j)
                 !
                 ! print out the internal matrix at the first grid point
-                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(i3,"-LS",2i3)') ilxly,ilevel,jlevel
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (zDebug) then 
+                  if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                     !$omp critical
+                     write(printout_,'(i3,"-LS",2i3)') ilxly,ilevel,jlevel
+                     printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                     write(printout_,'(g12.4)') hmat(i,j)/sc
+                     printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                     !$omp end critical
+                  endif
                 endif
                 !
               endif
@@ -11903,9 +11953,11 @@ contains
                 !
                 ! we should obtain  omegaj = omega+f_l
                 ! double check
-                if ( zDebug .and. nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
-                  write(out,'("L*J omegaj ",f8.1," does agree with assumed ",f8.1," value omegai+/-1")') omegaj,omegai+f_l
-                  stop 'wrongly reconsrtucted omegaj'
+                if ( zDebug) then
+                  if (nint( 2.0_rk*omegaj )/=nint( 2.0_rk*(omegai+f_l) ) ) then
+                    write(out,'("L*J omegaj ",f8.1," does agree with assumed ",f8.1," value omegai+/-1")') omegaj,omegai+f_l
+                    stop 'wrongly reconsrtucted omegaj'
+                  endif
                 endif
                 !
                 f_t = f_grid
@@ -11945,11 +11997,15 @@ contains
                 !hmat(j,i) = hmat(i,j)
                 !
                 ! print out the internal matrix at the first grid point
-                if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>small_) then
-                  write(printout_,'(i3,"-LJ",2i3)') ilxly,ilevel,jlevel
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (zDebug) then 
+                  if (iverbose>=4.and.abs(hmat(i,j))>small_) then
+                    !$omp critical
+                    write(printout_,'(i3,"-LJ",2i3)') ilxly,ilevel,jlevel
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    write(printout_,'(g12.4)') hmat(i,j)/sc
+                    printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                    !$omp end critical
+                  endif
                 endif
                 !
               endif
@@ -11983,12 +12039,16 @@ contains
             hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    LO",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              if (abs(hmat(i,j))>sqrt(small_)) then
-                write(printout_,'(g12.4)') hmat(i,j)/sc
+            if (zDebug) then 
+              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                !$omp critical
+                write(printout_,'("    LO",2i3)') ilevel,jlevel
                 printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (abs(hmat(i,j))>sqrt(small_)) then
+                  write(printout_,'(g12.4)') hmat(i,j)/sc
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                endif
+                !$omp end critical
               endif
             endif
             !
@@ -12017,12 +12077,16 @@ contains
             hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    LP",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              if (abs(hmat(i,j))>sqrt(small_)) then
-                write(printout_,'(g12.4)') hmat(i,j)/sc
+            if (zDebug) then 
+              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                !$omp critical
+                write(printout_,'("    LP",2i3)') ilevel,jlevel
                 printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (abs(hmat(i,j))>sqrt(small_)) then
+                  write(printout_,'(g12.4)') hmat(i,j)/sc
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                endif
+                !$omp end critical
               endif
             endif
             !
@@ -12052,12 +12116,16 @@ contains
             hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
             !
             ! print out the internal matrix at the first grid point
-            if (zDebug .and. iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-              write(printout_,'("    LO",2i3)') ilevel,jlevel
-              printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-              if (abs(hmat(i,j))>sqrt(small_)) then
-                write(printout_,'(g12.4)') hmat(i,j)/sc
+            if (zDebug) then
+              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
+                !$omp critical
+                write(printout_,'("    LO",2i3)') ilevel,jlevel
                 printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                if (abs(hmat(i,j))>sqrt(small_)) then
+                  write(printout_,'(g12.4)') hmat(i,j)/sc
+                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+                endif
+                !$omp end critical
               endif
             endif
             !
@@ -12067,27 +12135,29 @@ contains
         !
       enddo  ! j
     enddo  ! i
-    !omp end parallel do
+    !$omp end parallel do
     !
     if (iverbose>=3) write(out,'("...done!")')
     !
-    if (zDebug .and. iverbose>=4) then
-      ! print out the structure of the submatrix
-      !
-      write(out,'(/"Non-zero matrix elements of the coupled Sigma-Lambda matrix:")')
-      write(out, '(A, ES10.2,A)') 'Threshold for printing is ', small_, ' cm^-1'
-      write(out,'(A)') 'RV == Rotational-vibrational'
-      write(out,'(A)') 'SO == Spin-Orbit interaction'
-      write(out,'(A)') 'SS == Spin-Spin interaction'
-      write(out,'(A)') 'JS == J.S interaction (aka S-uncoupling)'
-      write(out,'(A)') 'LS == L.J interaction (aka L-uncoupling)'
-      write(out,'(A)') 'LS == L.S interaction (spin-electronic)'
-      !
-      do ilevel = 1,Nlambdasigmas
-        write(out,'(a)') trim( printout(ilevel) )
-      enddo
-      !
-      write(out,'(" "/)')
+    if (zDebug) then 
+      if (iverbose>=4) then
+         ! print out the structure of the submatrix
+         !
+         write(out,'(/"Non-zero matrix elements of the coupled Sigma-Lambda matrix:")')
+         write(out, '(A, ES10.2,A)') 'Threshold for printing is ', small_, ' cm^-1'
+         write(out,'(A)') 'RV == Rotational-vibrational'
+         write(out,'(A)') 'SO == Spin-Orbit interaction'
+         write(out,'(A)') 'SS == Spin-Spin interaction'
+         write(out,'(A)') 'JS == J.S interaction (aka S-uncoupling)'
+         write(out,'(A)') 'LS == L.J interaction (aka L-uncoupling)'
+         write(out,'(A)') 'LS == L.S interaction (spin-electronic)'
+         !
+         do ilevel = 1,Nlambdasigmas
+           write(out,'(a)') trim( printout(ilevel) )
+         enddo
+         !
+         write(out,'(" "/)')
+      endif
       !
     endif
     !
@@ -12902,11 +12972,13 @@ contains
       call ArrayStart('vibTmat',alloc,size(vibTmat),kind(vibTmat))
     endif
     !
-    do igrid =1, ngrid
+    select case(solution_method)
       !
-      select case(solution_method)
-      case ("5POINTDIFFERENCES")
+    case ("5POINTDIFFERENCES")
+      !
+      do igrid =1, ngrid
         !
+        !$omp parallel do private(igrid) shared(kinmat,kinmat1) schedule(dynamic)
         kinmat(igrid,igrid) = kinmat(igrid,igrid) + d2dr(igrid)
         !
         ! The nondiagonal matrix elemenets are:
@@ -12933,7 +13005,6 @@ contains
           !
           ! f'(0) = [ f(h) - f(-h) ] / (2 h)
           ! kinetic factor is  12*h**2/(2*h) = 6*h
-          ! where 1e-8 is because of one d/dr not d^2/dr^2
           !
           if (igrid>1) then
             kinmat1(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
@@ -12942,13 +13013,22 @@ contains
           !
         endif
         !
-      case("SINC")   ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
-        ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
-        if( grid%nsub /=0) then
-          write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
-          write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
-          stop
-        endif
+      enddo
+      !$omp end parallel do
+      !
+    case("SINC")
+      !
+      ! Colbert Miller sinc DVR (works only for uniform grids at the moment)
+      ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
+      if( grid%nsub /=0) then
+        write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
+        write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
+        stop
+      endif
+      !
+      !$omp parallel do private(igrid,jgrid) shared(kinmat,kinmat1) schedule(dynamic)
+      do igrid =1, ngrid
+        !
         kinmat(igrid,igrid) = kinmat(igrid,igrid) +(12._rk)* pi**2 / 3._rk
         !
         ! the standard sinc DVR expression is multiplied by -12*hstep^2 to make it agree with the KE form used in finite differences
@@ -12970,11 +13050,23 @@ contains
           !
         endif
         !
-      case("LOBATTO") ! Implements a DVR method based on Lobatto quadrature
-        ! Requires the Lobatto nonuniform grid to work
-        !
-        !write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
-        !stop 'The Lobatto DVR method is temporally disabled'
+      enddo
+      !$omp end parallel do
+      !
+    case("LOBATTO")
+      ! 
+      ! Implements a DVR method based on Lobatto quadrature
+      ! Requires the Lobatto nonuniform grid to work
+      !
+      !write(out, '(A)') 'The Lobatto DVR method is temporally disabled; contact TroveMaster'
+      !stop 'The Lobatto DVR method is temporally disabled'
+      !
+      if ( mod(ngrid,2)==1 ) then
+        write(out, '(A,i14)') 'Illegal Ngrid for Lobatto DVR: currently it does not work with odd Ngrid values',Ngrid
+        stop 'The Lobatto DVR method currently only works with even Ngrid values'
+      endif  
+      !
+      do igrid =1, ngrid
         !
         if(grid%nsub /= 6) then
           write(out, '(A)') 'The Lobatto DVR method only works with the'
@@ -12984,6 +13076,7 @@ contains
         !
         vibTmat = 0
         !
+        !$omp parallel do private(jgrid,kgrid) shared(kinmat,vibTmat) schedule(dynamic)
         do jgrid = igrid,ngrid
           do kgrid=1,ngrid
             vibTmat(igrid,jgrid) = vibTmat(igrid,jgrid) + (12._rk)*(hstep**2)*(LobWeights(kgrid))*&
@@ -12993,16 +13086,17 @@ contains
           kinmat(igrid,jgrid) = kinmat(igrid,jgrid) + vibTmat(igrid,jgrid)
           kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
         enddo
+        !$omp end parallel do
         !
-      case default
+      enddo
+      !
+    case default
         write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
         write(out, '(A)') 'Possible options are: '
         write(out, '(A)') '                      5POINTDIFFERENCES'
         write(out, '(A)') '                      SINC'
         write(out, '(A)') '                      LOBATTO'
-      end select
-      !
-    enddo
+    end select
     !
     if (trim(solution_method)=="LOBATTO") then
       deallocate(vibTmat)
@@ -15661,7 +15755,7 @@ contains
     integer(ik) :: Ndimen,imaxcontr,icount_state,ivibmax
     real(rk)    :: omega,b_rot,epot
     real(rk)    :: psipsi_t
-    real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:),kinmat1(:,:)
+    real(rk),allocatable    :: vibmat(:,:),vibener(:),Kinmat(:,:)
     character(len=1)        :: rng,jobz
     real(rk)                :: vrange(2)
     integer(ik)             :: irange(2),Nstates,iroot
@@ -16796,7 +16890,7 @@ contains
     integer(ik)  :: i,j,istate_,jstate_
     real(rk)     :: spini_,spinj_,omegai,omegaj
     real(rk)     :: sigmai,sigmaj,omegai_,omegaj_
-    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,jsigmav
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j
     integer(ik)  :: ipermute,multi,multj,imulti,jmulti
     type(fieldT),pointer       :: field
     logical :: dipole_present

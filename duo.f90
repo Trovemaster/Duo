@@ -6,9 +6,9 @@
     use dipole
     use quadrupole
     use magnetic_dipole
-    use RWF
+    !
     !use polarizability
-!    use compilation_details, only: write_compilation_details
+    !use compilation_details, only: write_compilation_details
     use header_info, only: write_logo
     use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action,setup_factorials_lookup !, check_and_set_atomic_data
 
@@ -114,9 +114,10 @@
          write(out, '(a)') '--End--'
          stop
        elseif(action%RWF) then
-         call Raman_wavefunction
-         write(out, '(a)') '--End--'
-         stop
+         !
+         !call Raman_wavefunction
+         write(out, '(a)') 'Raman Wavefunctions have been removed from Duo'
+         stop 'Raman Wavefunctions have been removed'
        else
          call dm_tranint
          write(out, '(a)') '--End--'
