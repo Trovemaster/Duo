@@ -8948,7 +8948,7 @@ contains
             call dgemm('N','N',ngrid,ngrid,ngrid,alpha_minus,kinmatcalc_,ngrid,&
                        kinmat1,ngrid,beta_,kinmatcalc,ngrid)
             !
-            !$omp parallel do private(i,j) shared(kinmatcalc) schedule(guided)
+            !omp parallel do private(i,j) shared(kinmatcalc) schedule(guided)
             !do i = 1,ngrid
             !  do j = i,ngrid
             !    ! minus here is becasue we changed the direction of the momentum operator 
@@ -8956,7 +8956,7 @@ contains
             !    kinmatcalc(j,i) = kinmatcalc(i,j)
             !  enddo
             !enddo
-            !$omp end parallel do
+            !omp end parallel do
             !
             call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
                        kinmatcalc,ngrid,beta_,bobvibmat_,totalroots)
@@ -10885,11 +10885,11 @@ contains
     !
     if (iverbose>=3) write(out,'(/"Construct the hamiltonian matrix")')
     !
-    !$omp parallel do private(ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,v_i,j,jvib,jlevel,jstate,sigmaj,jmulti,&
-    !$omp & jlambda,omegaj,spinj,v_j,f_rot,ibobrot,field,f_bobrot,f_rot,erot,iss,f_ss,isr,f_sr,ibobvib,f_bobvib,iL2,f_l2,idiab,&
-    !$omp & ipermute,istate_,jstate_,f_diabatic,iNAC,f_nac,q_we,three_j_ref,ilambda_we,isigma2,sigmai_,sigmaj_,three_j_,SO,&
-    !$omp & ilambda_,jlambda_,omegai_,omegaj_,itau,isso,f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1) &
-    !$omp & shared(hmat) schedule(guided)
+    !$omp parallel do private(i,ivib,ilevel,istate,sigmai,imulti,ilambda,omegai,spini,v_i,j,jvib,jlevel,jstate,sigmaj,jmulti,&
+    !$omp & jlambda,omegaj,spinj,v_j,f_rot,ibobrot,field,f_bobrot,erot,iss,f_ss,isr,f_sr,ibobvib,f_bobvib,iL2,f_l2,idiab,&
+    !$omp & ipermute,istate_,jstate_,f_diabatic,iNAC,f_nac,q_we,three_j_ref,ilambda_we,spini_,spinj_,sigmai_we,sigmaj_we,&
+    !$omp & jlambda_we,isigma2,sigmai_,sigmaj_,three_j_,SO,ilambda_,jlambda_,omegai_,omegaj_,itau,isso,&
+    !$omp & f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1,printout_) shared(hmat) schedule(guided)    
     do i = 1,Ntotal
       !
       ivib = icontr(i)%ivib
@@ -10957,7 +10957,9 @@ contains
           ! print out the internal matrix at the first grid point
           if (zDebug) then
             if(iverbose>=4.and.abs(hmat(i,j)) >small_) then
+              !$omp critical
               write(printout(ilevel),'(A, F15.3,A)') "RV=", hmat(i,j)/sc, "; "
+              !$omp end critical
             endif
           endif
           !
@@ -12976,9 +12978,9 @@ contains
       !
     case ("5POINTDIFFERENCES")
       !
+      !$omp parallel do private(igrid) shared(kinmat,kinmat1) schedule(dynamic)
       do igrid =1, ngrid
         !
-        !$omp parallel do private(igrid) shared(kinmat,kinmat1) schedule(dynamic)
         kinmat(igrid,igrid) = kinmat(igrid,igrid) + d2dr(igrid)
         !
         ! The nondiagonal matrix elemenets are:
