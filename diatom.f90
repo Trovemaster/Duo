@@ -56,7 +56,8 @@ module diatom_module
   !        case (11) lambdap2q(iterm)
   !        case (12) lambdaq(iterm)
   !        case (13) nac(iterm)
-  !        case (14 - 20) reserved
+  !        case (14) bobvib(iterm)
+  !        case (15 - 20) reserved
   !        case (21) hfcc1(1) for Fermi contact, bF
   !        case (22) hfcc1(2) for nuclear spin - orbit, a
   !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
@@ -83,7 +84,7 @@ module diatom_module
     "DIABATIC", &
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
-    "", "", "", "", "", "", "", & ! reserved
+    "BOBVIB", "", "", "", "", "", "", & ! reserved
     "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
     "", & ! reserved
     "MAGNETIC",&
@@ -529,7 +530,7 @@ module diatom_module
   type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
                           dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
                           diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
-  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null()
+  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null(),bobvib(:)=>null()
   !
   ! Fields in the Omega representation
   !
@@ -561,7 +562,7 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,vmax,nQuadrupoles,NBrot,nrefstates = 1,nMagneticDipoles
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,vmax,nQuadrupoles,NBrot,nrefstates = 1,nMagneticDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
   real(rk)      :: jmin_global,spin_max
@@ -917,8 +918,8 @@ contains
         !
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
-                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),quadrupoletm(ncouples),&
-                 magnetictm(ncouples),stat=alloc)
+                 lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),bobvib(nestates),&
+                 quadrupoletm(ncouples),magnetictm(ncouples),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
           allocate(hfcc1(i)%field(nestates), stat=alloc)
@@ -1782,8 +1783,8 @@ contains
         !
       case("SPIN-ORBIT","SPIN-ORBIT-X","SPIN-ORBIT-Z","POTEN","POTENTIAL","L2","L**2","LXLY","LYLX","ABINITIO",&
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
-           "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
-           "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC",&
+           "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
+           "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
            "MAGNETIC","QUADRUPOLE", &
            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2")
         !
@@ -1925,7 +1926,7 @@ contains
           !
           field => l2(iobject(3))
           !
-        case("BOB-ROT","BOBROT")
+        case("BOB-ROT","BOBROT","BETA")
           !
           call input_non_diagonal_field(Nobjects,7,iobject(7),bobrot,ierr)
           !
@@ -2006,6 +2007,14 @@ contains
           if (ierr>0) cycle
           !
           field => nac(iobject(13))
+          !
+        case("BOB-VIB","BOBVIB","ALPHA")
+          !
+          call input_non_diagonal_field(Nobjects,14,iobject(14),bobvib,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => bobvib(iobject(14))
           !
         case("QUADRUPOLE")
           !
@@ -3690,6 +3699,7 @@ contains
     Nlambdap2q = iobject(11)
     Nlambdaq = iobject(12)
     Nnac = iobject(13)
+    Nbobvib  = iobject(14)
     nMagneticDipoles = iobject(Nobjects-4)
     nQuadrupoles = iobject(Nobjects-3)
     Ndipoles = iobject(Nobjects)
@@ -4194,6 +4204,8 @@ contains
             field => lambdaq(ifield)
           case (13)
             field => nac(ifield)
+          case (14)
+            field => bobvib(ifield)
           case (Nobjects-4)
             field => magnetictm(ifield)
           case (Nobjects-3)
@@ -4900,6 +4912,8 @@ contains
           field => lambdaq(iterm)
         case (13)
           field => nac(iterm)
+        case (14)
+          field => bobvib(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-4)
@@ -5428,6 +5442,8 @@ contains
           field => lambdaq(iterm)
         case (13)
           field => nac(iterm)
+        case (14)
+          field => bobvib(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-4)
@@ -5695,12 +5711,13 @@ contains
     call check_and_print_coupling(Nss,        iverbose,spinspin, "Spin-spin functions:")
     call check_and_print_coupling(Nsso,       iverbose,spinspino,"Spin-spin-o (non-diagonal) functions:")
     call check_and_print_coupling(Nsr,        iverbose,spinrot,  "Spin-rotation functions:")
-    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot centrifugal functions:")
+    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot (Beta) centrifugal functions:")
     call check_and_print_coupling(Ndiabatic,  iverbose,diabatic, "Diabatic functions:")
     call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
+    call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib (Alpha) correction:")
     if(associated(dipoletm)) &
       call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
     if(associated(quadrupoletm)) &
@@ -7218,7 +7235,7 @@ contains
     integer(ik)             :: irange(2),Nsym(2),jsym,isym,Nlevels,jtau,Nsym_,nJ,k,ipower,ipar,i1,i2
     integer(ik)             :: total_roots,irrep,jrrep
     real(rk),allocatable    :: eigenval(:),hmat(:,:),vec(:),vibmat(:,:),vibener(:),hsym(:,:)
-    real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatnac(:,:),vibmat_(:,:)
+    real(rk),allocatable    :: kinmat(:,:),kinmat1(:,:),kinmatcalc(:,:),vibmat_(:,:)
     real(rk),allocatable    :: LobAbs(:),LobWeights(:),LobDerivs(:,:)
     real(rk),allocatable    :: contrfunc(:,:),contrenergy(:),tau(:),J_list(:),Utransform(:,:,:),HmatxU(:,:),Hsym_(:,:)
     integer(ik),allocatable :: iswap(:),Nirr(:,:),ilevel2i(:,:),ilevel2isym(:,:),QNs(:)
@@ -7249,7 +7266,7 @@ contains
     !
     type(contract_solT),allocatable :: contracted(:,:)
     real(rk),allocatable            :: vect_i(:),vect_j(:)
-    real(rk),allocatable            :: nacmat_(:,:)
+    real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:)
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0
     real(rk),allocatable  :: threej(:,:,:,:,:)
     integer(ik) :: indI,indF,ispin,jspin,iSigma,jSigma,idelta,nDeltaS,Nspin_max,jmulti
@@ -7914,7 +7931,7 @@ contains
         allocate(kinmat(ngrid,ngrid),stat=alloc)
         call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
         !
-        allocate(kinmat1(Ngrid,Ngrid),kinmatnac(Ngrid,Ngrid),stat=alloc)
+        allocate(kinmat1(Ngrid,Ngrid),kinmatcalc(Ngrid,Ngrid),stat=alloc)
         call ArrayStart('kinmat1',alloc,2_ik*size(kinmat1),kind(kinmat1))
         !
         call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
@@ -8159,9 +8176,9 @@ contains
           !
           if (iobject==9) then
              !
-             !$omp parallel do private(i) shared(kinmatnac) schedule(guided)
+             !$omp parallel do private(i) shared(kinmatcalc) schedule(guided)
              do i = 1,ngrid
-               kinmatnac(i,:) = field%gridvalue(i)*kinmat1(i,:)
+               kinmatcalc(i,:) = field%gridvalue(i)*kinmat1(i,:)
              enddo
              !$omp end parallel do
              !
@@ -8172,7 +8189,7 @@ contains
              call ArrayStart('vibmat_',alloc,size(vibmat_),kind(vibmat_))
              !
              call dgemm('T','N',nroots_i,ngrid,ngrid,alpha_,contracted(iomega_,ilevel)%vector,ngrid,&
-                        kinmatnac,ngrid,beta_,nacmat_,nroots_i)
+                        kinmatcalc,ngrid,beta_,nacmat_,nroots_i)
              call dgemm('N','N',nroots_i,nroots_j,ngrid,alpha_,nacmat_,nroots_i,&
                         contracted(jomega_,jlevel)%vector,ngrid,beta_,vibmat_,nroots_i)
              !
@@ -8302,7 +8319,7 @@ contains
       call ArrayStop('vect_ij')
       !
       if (allocated(kinmat1)) then
-        deallocate(kinmat1,kinmatnac)
+        deallocate(kinmat1,kinmatcalc)
         call ArrayStop('kinmat1')
       endif
       !
@@ -8361,8 +8378,8 @@ contains
       call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
       !
       ! only needed if NACs are present
-      if (nnac>0) then
-        allocate(kinmat1(ngrid,ngrid),kinmatnac(ngrid,ngrid),stat=alloc)
+      if (nnac>0.or.nbobvib>0) then
+        allocate(kinmat1(ngrid,ngrid),kinmatcalc(ngrid,ngrid),stat=alloc)
         call ArrayStart('kinmat1',alloc,2_ik*size(kinmat1),kind(kinmat1))
       endif
       !
@@ -8807,6 +8824,8 @@ contains
           case (13)
             ! A special case of NAC couplings with 1st derivatives wrt r
             field => nac(iterm)
+          case (14)
+            field => bobvib(iterm)
           case (Nobjects-4)
             field => magnetictm(iterm)
           case (Nobjects-3)
@@ -8835,73 +8854,76 @@ contains
           !
           field%matelem = 0
           !
-          !$omp parallel do private(ilevel,jlevel) schedule(guided)
-          do ilevel = 1,totalroots
-            do jlevel = 1,ilevel
-              !
-              ! in the grid representation of the vibrational basis set
-              ! the matrix elements are evaluated simply by a summation of over the grid points
-              !
-              !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
-              !
-              !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
-              !
-              !field%matelem(ilevel,jlevel) = f_ark
-              !
-              !psipsi(:) = contrfunc(:,ilevel)*(field%gridvalue(:))
-              !
-              !field%matelem(ilevel,jlevel)  = ddot(ngrid,psipsi,1,contrfunc(:,jlevel),1)
-              !
-              field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
-              !
-              ! A special case of the non-diagonal integration of NAC
-              !
-              ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
-              ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
-              !
-              if (iobject==Nobjects-3.or.iobject==Nobjects) then
-                if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
-              endif
-              !
-              field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
-              !
-              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
-              !
-              !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* &
-              !                                                                        contrfunc_rk(:,jlevel))
-              !
-              !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
-              !
-              !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
-              !
-              !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
-              !
-              !matelem_rk(ilevel,jlevel) = f_rk
-              !
-              !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
-              !
-              !
+          select case (iobject)
+          case default
+            !
+            !$omp parallel do private(ilevel,jlevel) schedule(guided)
+            do ilevel = 1,totalroots
+              do jlevel = 1,ilevel
+                !
+                ! in the grid representation of the vibrational basis set
+                ! the matrix elements are evaluated simply by a summation of over the grid points
+                !
+                !psipsi_ark = real(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel),kind=ark)
+                !
+                !f_ark = simpsonintegral_ark(ngrid-1,psipsi_ark)
+                !
+                !field%matelem(ilevel,jlevel) = f_ark
+                !
+                !psipsi(:) = contrfunc(:,ilevel)*(field%gridvalue(:))
+                !
+                !field%matelem(ilevel,jlevel)  = ddot(ngrid,psipsi,1,contrfunc(:,jlevel),1)
+                !
+                field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
+                !
+                ! A special case of the non-diagonal integration of NAC
+                !
+                ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
+                ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
+                !
+                if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                  if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
+                endif
+                !
+                field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                !
+                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel))
+                !
+                !matelem_rk(ilevel,jlevel)  = sum(contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )* &
+                !                                                                        contrfunc_rk(:,jlevel))
+                !
+                !psipsi_rk = contrfunc_rk(:,ilevel)*real(field%gridvalue(:),rk)*contrfunc_rk(:,jlevel)
+                !
+                !psipsi_rk = contrfunc_rk(:,ilevel)*( (grid_rk(:)-2.24_rk )*0.6_rk )*contrfunc_rk(:,jlevel)
+                !
+                !f_rk = simpsonintegral_rk(ngrid-1,psipsi_rk)
+                !
+                !matelem_rk(ilevel,jlevel) = f_rk
+                !
+                !matelem_rk(jlevel,ilevel) = matelem_rk(ilevel,jlevel)
+                !
+                !
+              enddo
             enddo
-          enddo
-          !$omp end parallel do
-          !
-          ! a special case of a NAC
-          !
-          if (iobject==13) then
+            !$omp end parallel do
+            !
+          case (13)
+            !
+            ! A special case of a NAC
             !
             if (iverbose>=4) call TimerStart('Compute nacmat_ nac')
             !
             allocate(nacmat_(totalroots,ngrid),stat=alloc)
             call ArrayStart('nacmat_',alloc,size(nacmat_),kind(nacmat_))
             !
-            !$omp parallel do private(i) shared(kinmatnac) schedule(guided)
+            !$omp parallel do private(i) shared(kinmatcalc) schedule(guided)
             do i = 1,ngrid
-              kinmatnac(i,:) = field%gridvalue(i)*kinmat1(i,:)
+              kinmatcalc(i,:) = field%gridvalue(i)*kinmat1(i,:)
             enddo
             !$omp end parallel do
             !
             call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
-                       kinmatnac,ngrid,beta_,nacmat_,totalroots)
+                       kinmatcalc,ngrid,beta_,nacmat_,totalroots)
             call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,nacmat_,totalroots,&
                        contrfunc,ngrid,beta_,field%matelem,totalroots)
             !
@@ -8910,7 +8932,34 @@ contains
             !
             if (iverbose>=4) call TimerStop('Compute nacmat_ nac')
             !
-          endif
+          case (14)
+            ! Kinetic energy term BOBvib
+            !
+            if (iverbose>=4) call TimerStart('Compute BobVib')
+            !
+            allocate(bobvibmat_(totalroots,ngrid),stat=alloc)
+            call ArrayStart('bobvibmat_',alloc,size(nacmat_),kind(nacmat_))
+            !
+            !$omp parallel do private(i,j) shared(kinmatcalc) schedule(guided)
+            do i = 1,ngrid
+              do j = 1,ngrid
+                ! minus here becasue we changed the direction of the momentum operator 
+                kinmatcalc(i,j) = -sum(kinmat1(i,:)*field%gridvalue(:)*kinmat1(:,j))
+              enddo
+            enddo
+            !$omp end parallel do
+            !
+            call dgemm('T','N',totalroots,ngrid,ngrid,alpha_,contrfunc,ngrid,&
+                       kinmatcalc,ngrid,beta_,bobvibmat_,totalroots)
+            call dgemm('N','N',totalroots,totalroots,ngrid,alpha_,bobvibmat_,totalroots,&
+                       contrfunc,ngrid,beta_,field%matelem,totalroots)
+            !
+            deallocate(bobvibmat_)
+            call ArrayStop('bobvibmat_')
+            !
+            if (iverbose>=4) call TimerStop('Compute BobVib')
+            !
+          end select
           !
           ! printing out transition moments
           !
@@ -8983,7 +9032,7 @@ contains
       !call ArrayStop('matelem_rk')
       !
       if (allocated(kinmat1)) then
-        deallocate(kinmat1,kinmatnac)
+        deallocate(kinmat1,kinmatcalc)
         call ArrayStop('kinmat1')
       endif
       !
@@ -10810,11 +10859,11 @@ contains
     !    
     integer(ik) ::i,ivib,ilevel,istate,imulti,ilambda,v_i,j,jvib,jlevel,jstate,jmulti,jlambda,v_j
     integer(ik) :: ibobrot,isr,iL2,idiab,iNAC,iss,isso,ilxly,ild,istate_,jstate_,ilambda_we,jlambda_we,iso,&
-                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute
+                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute,ibobvib
     integer(ik) :: alloc
     real(rk)    :: omegai,sigmai,spini,sigmaj,omegaj,spinj,f_nac
     real(rk)    :: erot,f_rot,f_bobrot,f_ss,f_sr,f_l2,f_diabatic,q_we,three_j_ref,three_j_,SO,f_s,f_t,f_grid,f_s2,f_s1,f_lo,&
-                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__
+                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__,f_bobvib
     !
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
@@ -10880,6 +10929,17 @@ contains
             field => bobrot(ibobrot)
             f_bobrot = field%matelem(ivib,jvib)
             f_rot = f_rot + f_bobrot
+            exit
+          endif
+        enddo
+        !
+        ! BOB vibrational (alpha) term, i.e. a correction to d^2/dr^2 
+        !
+        do ibobvib = 1,Nbobvib
+          if (bobvib(ibobvib)%istate==istate.and.bobvib(ibobvib)%jstate==jstate.and.istate==jstate) then
+            field => bobvib(ibobvib)
+            f_bobvib = field%matelem(ivib,jvib)
+            f_rot = f_rot + f_bobvib
             exit
           endif
         enddo

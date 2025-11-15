@@ -5,10 +5,9 @@ module refinement
   !
   use functions,only : define_complex_analytic_field_subterms
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
-                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,&
-                           Nlambdap2q,Nlambdaq,Nnac,&
-                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
-                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,linkT,vmax,&
+                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,&
+                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm,dipoletm,&
+                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,bobvib,linkT,vmax,&
                            l_omega_obj,s_omega_obj,rangeT
   !
   !
@@ -352,7 +351,11 @@ module refinement
             case (13)
               objects(iobject,ifield)%field => nac(ifield)
             case (14)
+              objects(iobject,ifield)%field => bobvib(ifield)
+            case (Nobjects-3)
               objects(iobject,ifield)%field => quadrupoletm(ifield)
+            case (Nobjects)
+              objects(iobject,ifield)%field => dipoletm(ifield)
             end select
             !
             Nterms = objects(iobject,ifield)%field%Nterms
@@ -2040,44 +2043,6 @@ module refinement
   contains 
 
 
-
-  subroutine parameters_copy_to_fields
-    !
-    integer(ik) :: ifield,Nterms,iterm
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          poten(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          spinorbit(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          L2(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          LxLy(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-    !
-  end subroutine parameters_copy_to_fields
-
-
   subroutine update_linked_parameters
     !
     integer(ik) :: ifield,iterm,iobject,Nfields
@@ -2109,114 +2074,7 @@ module refinement
     enddo
     !
   end subroutine update_linked_parameters
-
-  subroutine one_parameter_copy_to_fields(i,param)
-    !
-    integer(ik),intent(in) :: i
-    real(rk),intent(in) :: param
-    integer(ik) :: ifield,Nterms,iterm,jterm
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               poten(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               spinorbit(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               L2(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               LxLy(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-       enddo
-    !
-  end subroutine one_parameter_copy_to_fields
-
-
-  subroutine field_copy_to_parameters
-    !
-    integer(ik) :: ifield,Nterms,iterm
-       !
-       !potparam(:) = fitting%param(:)%value
-       !ivar(:)     = fitting%param(:)%ifit
-       !nampar(:)   = fitting%param(:)%name
-
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = poten(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(poten(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = poten(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = spinorbit(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(spinorbit(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = spinorbit(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = L2(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(L2(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = L2(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = LxLy(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(LxLy(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = LxLy(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-    !
-  end subroutine field_copy_to_parameters
-
-    !
+  !
  end subroutine sf_fitting
 
   subroutine MLlinur(dimen,npar,coeff,constant,solution,error)
