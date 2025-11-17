@@ -1644,7 +1644,7 @@ contains
                           !
                           nu = intensity%freq_window(1)+dnu*real(inu,rk)
                           !
-                          write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                          write(transunit,"(i12,1x,i12,1x,es10.4,4x,f16.6)") & 
                                 eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_norm(inu)*dnu,nu
                         enddo
                         !
@@ -1721,7 +1721,7 @@ contains
                           !
                           if (acoef_grid>intensity%threshold%linestrength) then 
                              !
-                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                             write(transunit,"(i12,1x,i12,1x,es10.4,4x,f16.6)") & 
                                    eigen(indF,igammaF)%Nbound+inu,quantaI%iroot,acoef_grid,nu
                              !
                           endif
@@ -1743,7 +1743,7 @@ contains
                              !
                            else
                              !
-                             write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                             write(transunit,"(i12,1x,i12,1x,es10.4,4x,f16.6)") & 
                                        indexf_RAM(ilevelF),indexi_RAM(ilevelF),acoef_RAM(ilevelF),nu_ram(ilevelF)
                            endif
                         endif

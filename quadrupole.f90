@@ -1216,7 +1216,7 @@ contains
                               else
                         
                                 write(transUnit, &
-                                  "(i12,1x,i12,2x,es10.4,4x,f16.6)") &
+                                  "(i12,1x,i12,1x,es10.4,4x,f16.6)") &
                                   quantaF%iroot, quantaI%iroot, A_einst, nu_if
                         
                               endif
@@ -1264,7 +1264,7 @@ contains
                         !
                       else
                         !
-                        write(transunit,"(i12,1x,i12,2x,es10.4,4x,f16.6)") & 
+                        write(transunit,"(i12,1x,i12,1x,es10.4,4x,f16.6)") & 
                                   indexf_RAM(indLevelF),indexi_RAM(indLevelF),acoef_RAM(indLevelF),nu_ram(indLevelF)
                       endif
                    endif

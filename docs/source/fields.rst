@@ -250,10 +250,18 @@ and
 ``bob-rot``
 ^^^^^^^^^^^
 
-Alias: ``bobrot``. Specifies the (diagonal) rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
+Alias: ``bobrot`` and ``Alpha``. Specifies the (diagonal) rotational :math:`g` factor (rotational Born-Oppenheimer breakdown term),
 which can be interpreted as a position-dependent modification to the rotational mass and is introduced as follows
 
-  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + {\rm BobRot}(r)\right).`
+  :math:`\frac{\hbar^2}{2\mu r^2} \left(1 + \alpha(r)\right).`
+
+``bob-vib``
+^^^^^^^^^^^
+
+Alias: ``bobvib`` and ``Beta``. Specifies the (diagonal) vibrational :math:`g` factor (Born-Oppenheimer breakdown term),
+which can be interpreted as a position-dependent modification to the vibrational mass and is introduced as follows
+
+  :math:`-\frac{\hbar^2}{2\mu} \frac{d}{dr} \left(1 + \beta(r)\right) \frac{d}{dr}.`
 
 
 

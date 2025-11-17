@@ -1926,7 +1926,7 @@ contains
           !
           field => l2(iobject(3))
           !
-        case("BOB-ROT","BOBROT","BETA")
+        case("BOB-ROT","BOBROT","ALPHA")
           !
           call input_non_diagonal_field(Nobjects,7,iobject(7),bobrot,ierr)
           !
@@ -2008,7 +2008,7 @@ contains
           !
           field => nac(iobject(13))
           !
-        case("BOB-VIB","BOBVIB","ALPHA")
+        case("BOB-VIB","BOBVIB","BETA")
           !
           call input_non_diagonal_field(Nobjects,14,iobject(14),bobvib,ierr)
           !
@@ -5714,13 +5714,13 @@ contains
     call check_and_print_coupling(Nss,        iverbose,spinspin, "Spin-spin functions:")
     call check_and_print_coupling(Nsso,       iverbose,spinspino,"Spin-spin-o (non-diagonal) functions:")
     call check_and_print_coupling(Nsr,        iverbose,spinrot,  "Spin-rotation functions:")
-    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot (Beta) centrifugal functions:")
+    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot (Alpha) centrifugal functions:")
     call check_and_print_coupling(Ndiabatic,  iverbose,diabatic, "Diabatic functions:")
     call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
-    call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib (Alpha) correction:")
+    call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib (Beta) correction:")
     if(associated(dipoletm)) &
       call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
     if(associated(quadrupoletm)) &
