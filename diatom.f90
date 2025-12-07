@@ -25,7 +25,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 33  ! number of different terms of the Hamiltonian
+  integer(ik),parameter   :: Nobjects = 34  ! number of different terms of the Hamiltonian
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -66,6 +66,7 @@ module diatom_module
   !        case (26) hfcc1(6) for electric dipole, eQq0
   !        case (27) hfcc1(7) for electric diople, eQq2
   !        case (28) reserved
+  !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
   !        case(Nobjects-2) abinitio(iterm)
@@ -87,6 +88,7 @@ module diatom_module
     "BOBVIB", "", "", "", "", "", "", & ! reserved
     "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
     "", & ! reserved
+    "MAGNETROT",&
     "MAGNETIC",&
     "QUADRUPOLE", &
     "ABINITIO", &
@@ -442,7 +444,7 @@ module diatom_module
     logical             :: lande_calc = .false.   ! checks whether calculation for Lande should be conducted
     logical             :: overlap = .false.      ! print out overlap integrals (Franck-Condon)
     logical             :: tdm      = .true.      ! print out dipole transition moments
-    logical             :: tqm      = .true.      ! print out quadrupole transition moments
+    logical             :: tqm      = .false.     ! print out quadrupole transition moments
     integer(ik)         :: Npoints = 10           ! used for cross sections grids
     real(rk)            :: gamma = 0.05_rk        ! Lorentzian FWHM, needed for cross-sections
     integer(ik)         :: N_RWF_order  = 1       ! Expansion order of the matrix fraction needed for RWF
@@ -530,7 +532,7 @@ module diatom_module
   type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
                           dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
                           diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
-  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null(),bobvib(:)=>null()
+  type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null(),bobvib(:)=>null(),magnetrot(:)=>null()
   !
   ! Fields in the Omega representation
   !
@@ -562,7 +564,8 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,vmax,nQuadrupoles,NBrot,nrefstates = 1,nMagneticDipoles
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,vmax,nQuadrupoles,NBrot,nrefstates = 1,&
+                   nMagneticDipoles,nMagneticRotDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
   real(rk)      :: jmin_global,spin_max
@@ -588,7 +591,7 @@ module diatom_module
   !
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
-    magnetictm,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
+    magnetictm,magnetrot,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
     nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
@@ -600,12 +603,12 @@ contains
     use  input
     !
     integer(ik)  :: iobject(Nobjects)
-    integer(ik)  :: ipot=0,iso=0,ncouples=0,ilxly=0,iabi=0,idip=0,isr=0,idiab=0,iquad=0,imagnetic=0
+    integer(ik)  :: ipot=0,iso=0,ncouples=0,ilxly=0,iabi=0,idip=0,isr=0,idiab=0,iquad=0,imagnetic=0,imagnetrot=0
     integer(ik)  :: Nparam,alloc,iparam,i,j,iobs,i_t,iref,jref,istate,jstate,istate_,jstate_,item_,ibraket,iabi_,&
                     iobj,iclass_,ielement,nstate_listed
     integer(ik)  :: Nparam_check    !number of parameters as determined automatically by duo (Nparam is specified in input).
     logical      :: zNparam_defined ! true if Nparam is in the input, false otherwise..
-    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_,inac
+    integer(ik)  :: itau,lambda_,x_lz_y_,iobject_,inac,ibobrot
     logical      :: integer_spin = .false., matchfound
     real(rk)     :: unit_field = 1.0_rk,unit_adjust = 1.0_rk, unit_r = 1.0_rk,spin_,jrot2
     real(rk)     :: f_t,jrot,j_list_(1:jlist_max)=-1.0_rk,omega_,sigma_,hstep = -1.0_rk
@@ -919,7 +922,7 @@ contains
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
                  lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),bobvib(nestates),&
-                 quadrupoletm(ncouples),magnetictm(ncouples),stat=alloc)
+                 quadrupoletm(ncouples),magnetictm(ncouples),magnetrot(nestates),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
           allocate(hfcc1(i)%field(nestates), stat=alloc)
@@ -2057,6 +2060,33 @@ contains
           if (trim(w)=='MAGNETIC-X') then
             field%molpro = .true.
           endif
+          !
+          intensity%tdm = .true.
+          !
+        case("MAGNETROT","MAGNETIC-ROT")
+          !
+          if (imagnetrot==0) then
+            allocate(magnetrot(nestates),stat=alloc)
+          endif
+          !
+          call input_non_diagonal_field(Nobjects,Nobjects-5,iobject(Nobjects-5),magnetictm,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => magnetrot(iobject(Nobjects))
+          !
+          imagnetic = iobject(Nobjects)
+          !
+          if (imagnetic>ncouples) then
+            write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
+            call report ("Too many couplings given in the input for"//trim(w),.true.)
+          endif
+          !
+          if (trim(w)=='MAGNETIC-X') then
+            field%molpro = .true.
+          endif
+          !
+          intensity%tdm = .true.
           !
         case("HFCC-BF")
           !
@@ -3374,7 +3404,7 @@ contains
           case('QUADRUPOLE')
             !
             action%quadrupole = .true.
-            !action%dipole     = .false.
+            intensity%tqm = .true.
             !
           case('MAGDIPOLE')
             !
@@ -3703,6 +3733,7 @@ contains
     Nlambdaq = iobject(12)
     Nnac = iobject(13)
     Nbobvib  = iobject(14)
+    nMagneticRotDipoles = iobject(Nobjects-5)
     nMagneticDipoles = iobject(Nobjects-4)
     nQuadrupoles = iobject(Nobjects-3)
     Ndipoles = iobject(Nobjects)
@@ -3803,20 +3834,55 @@ contains
       !
     enddo lool_Lx
     !
+    ! For the magnetic rotational dipole spectra calculations, use bob-rot to define the rotational magnetic dipole moment
+    ! unless it is defined directly using MAGNETROT field.
+    lool_ibobrot: do ibobrot = 1,Nbobrot
+      !
+      ! only needed if action%magdipole is active for magnetic intensities 
+      !
+      if (.not.action%magdipole) cycle  
+      !
+      ! Check if it has been defined before
+      skip_magnetic = .false.
+      do istate=1,nMagneticRotDipoles
+        if ( magnetrot(ibobrot)%iref==magnetrot(ibobrot)%jref ) then
+          skip_magnetic = .true.
+          exit
+        endif
+      enddo
+      !
+      if (.not.skip_magnetic) then
+        !
+        nMagneticRotDipoles = nMagneticRotDipoles + 1
+        iobject(Nobjects-5) = nMagneticRotDipoles
+        !
+        field  => magnetrot(nMagneticRotDipoles)
+        field_ => Bobrot(ibobrot)
+        !
+        field = field_
+        !
+        call transfer_field_properties(field_,field)
+        !
+        field%class = trim(CLASSNAMES(Nobjects-5))
+        !
+      endif
+      !
+    enddo lool_ibobrot
+    !
     ! create a map with field distribution
     !
-    do i = 1,Nobjects-5
+    do i = 1,Nobjects-6
       fieldmap(i)%Nfields = iobject(i)
     enddo
     !
+    fieldmap(Nobjects-5)%Nfields = nMagneticRotDipoles
     fieldmap(Nobjects-4)%Nfields = nMagneticDipoles
     fieldmap(Nobjects-3)%Nfields = nQuadrupoles
     fieldmap(Nobjects-2)%Nfields = Nabi
     fieldmap(Nobjects-1)%Nfields = 1  ! Brot
     fieldmap(Nobjects)%Nfields = Ndipoles
     !
-    Ntotalfields = sum(iobject(1:Nobjects-4))
-    fieldmap(Nobjects-2)%Nfields = Nabi
+    Ntotalfields = sum(iobject(1:Nobjects))
     allgrids = .true.
     !
     if (.not.symmetry_defined) then
@@ -4209,6 +4275,8 @@ contains
             field => nac(ifield)
           case (14)
             field => bobvib(ifield)
+          case (Nobjects-5)
+            field => magnetrot(ifield)
           case (Nobjects-4)
             field => magnetictm(ifield)
           case (Nobjects-3)
@@ -4919,6 +4987,8 @@ contains
           field => bobvib(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (Nobjects-5)
+          field => magnetrot(iterm)
         case (Nobjects-4)
           field => magnetictm(iterm)
         case (Nobjects-3)
@@ -5449,6 +5519,8 @@ contains
           field => bobvib(iterm)
         case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (Nobjects-5)
+          field => magnetrot(iterm)
         case (Nobjects-4)
           field => magnetictm(iterm)
         case (Nobjects-3)
@@ -5714,19 +5786,21 @@ contains
     call check_and_print_coupling(Nss,        iverbose,spinspin, "Spin-spin functions:")
     call check_and_print_coupling(Nsso,       iverbose,spinspino,"Spin-spin-o (non-diagonal) functions:")
     call check_and_print_coupling(Nsr,        iverbose,spinrot,  "Spin-rotation functions:")
-    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot (Alpha) centrifugal functions:")
+    call check_and_print_coupling(Nbobrot,    iverbose,bobrot,   "Bob-Rot functions:")
     call check_and_print_coupling(Ndiabatic,  iverbose,diabatic, "Diabatic functions:")
     call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
-    call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib (Beta) correction:")
+    call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib correction:")
     if(associated(dipoletm)) &
       call check_and_print_coupling(Ndipoles,   iverbose,dipoletm, "Dipole moment functions:")
     if(associated(quadrupoletm)) &
       call check_and_print_coupling(nQuadrupoles,iverbose,quadrupoletm, "Quadrupole moment functions:")
     if(associated(magnetictm)) &
       call check_and_print_coupling(nMagneticDipoles,iverbose,magnetictm, "Magnetic dipole moment functions:")
+    if(associated(magnetrot)) &
+      call check_and_print_coupling(nMagneticRotDipoles,iverbose,magnetrot, "Magnetic rotational dipole moment functions:")
     !
   contains
     !
@@ -8764,8 +8838,10 @@ contains
         !
         if (Nmax==0) cycle 
         !
-        if ( action%intensity.and.(((iobject==Nobjects).or.(iobject==Nobjects-3))&
-                                   .and.iverbose>=3.and.(intensity%tdm.or.intensity%tqm)) ) then
+        if ( action%intensity .and.((iobject==Nobjects  .and.intensity%tdm ).or.&
+                                   ( iobject==Nobjects-3.and.intensity%tqm ).or.&
+                                   ( iobject==Nobjects-4.and.intensity%tdm ).or.&
+                                   ( iobject==Nobjects-5.and.intensity%tdm ) ) ) then
           !
           write(out,'(/"Vibrational transition moments: ")')
           ! write(out,'("    State    TM   State"/)')
@@ -8820,6 +8896,8 @@ contains
             field => nac(iterm)
           case (14)
             field => bobvib(iterm)
+          case (Nobjects-5)
+            field => magnetrot(iterm)
           case (Nobjects-4)
             field => magnetictm(iterm)
           case (Nobjects-3)
@@ -8975,20 +9053,16 @@ contains
           !
           ! printing out transition moments
           !
-          if (  ( iobject==Nobjects  .and.action%intensity.and.intensity%tdm ).or.&
-              ( iobject==Nobjects-3.and.action%intensity.and.intensity%tqm ) ) then
+          if ( action%intensity .and.((iobject==Nobjects  .and.intensity%tdm ).or.&
+                                     ( iobject==Nobjects-3.and.intensity%tqm ).or.&
+                                     ( iobject==Nobjects-4.and.intensity%tdm ).or.&
+                                     ( iobject==Nobjects-5.and.intensity%tdm ) ) ) then
             !
             do ilevel = 1,totalroots
               do jlevel = 1,totalroots
                 !
                 istate = icontrvib(ilevel)%istate
                 jstate = icontrvib(jlevel)%istate
-                !
-                ! dipole selection rules
-                !
-                !if (nint(field%spini-field%spinj)==0.and.abs(field%lambda-field%lambdaj)<=1) then
-                !
-                !field%matelem(ilevel,jlevel) = field%matelem(ilevel,jlevel)*field%factor
                 !
                 if ( iverbose>=4.and.abs(field%matelem(ilevel,jlevel))>(small_).and.istate==field%istate.and.&
                 !if ( iverbose>=4 .and. istate==field%istate.and.&   ! remove the check on magnitude --- print all
@@ -17306,5 +17380,6 @@ contains
     endif
     
   end subroutine setup_factorials_lookup
+  !
   !
 end module diatom_module

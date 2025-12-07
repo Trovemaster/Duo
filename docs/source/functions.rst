@@ -511,7 +511,7 @@ Example:
 
 
 **Taylor expansion around** :math:`r_0`:
-:math:`V(r) = T_{\rm e} + a_1 (r-r_0)^2 + a_2 (r-r_0)^2 + a_3 (r-r_0)^3  + \cdots`
+:math:`V(r) = T_{\rm e} + a_1 (r-r_0)^1 + a_2 (r-r_0)^2 + a_3 (r-r_0)^3  + \cdots`
 
 ``Dunham`` expansion
 

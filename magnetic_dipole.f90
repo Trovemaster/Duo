@@ -2,7 +2,7 @@ module magnetic_dipole
 
   use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, g_s, safe_min
   use diatom_module,only : job,Intensity,quantaT,eigen,basis,duo_j0,fieldT,poten,three_j,&
-                           jmin_global,overlap_matelem,nMagneticDipoles,magnetictm
+                           jmin_global,overlap_matelem,nMagneticDipoles,magnetictm,nMagneticRotDipoles,magnetrot
   use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
                            TimerReport,memory_limit,memory_now
   use symmetry,     only : sym,correlate_to_Cs
@@ -1254,25 +1254,18 @@ contains
                         !$omp critical
                         write(out, &
                         ! Fixed width output
-                        ! "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),&
-                        ! &a1,(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
-                        ! & 3(1x, es16.8),&
-                        ! & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,&
-                        ! &'( ',i2,1x,i3,1x,i2,2f8.1,' )')") &
-                        ! jF, sym%label(indSymF), dir, &
-                        ! jI, sym%label(indSymI), branch, &
-                        ! energyF - Intensity%ZPE, dir, &
-                        ! energyI - Intensity%ZPE, nu_if, &
-                        ! linestr2, A_einst, absorption_int, &
-                        ! istateF, vF, ilambdaF, sigmaF, omegaF, dir, &
-                        ! istateI, vI, ilambdaI, sigmaI, omegaI
+                        "(a2,1x,f5.1,1x,a2,1x,f5.1,1x,a2,1x,a1,1x,&
+                        &f11.4,1x,f11.4,1x,f11.4,1x,&
+                        &es16.8,1x,es16.8,1x,es16.8,1x,&
+                        &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x,&
+                        &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x)")&
                         !
                         ! CSV output
-                        "(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
-                        &f11.4,',',f11.4,',',f11.4,',',&
-                        &es16.8,',',es16.8,',',es16.8,',',&
-                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
-                        &i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
+                        !"(a2,',',f5.1,',',a2,',',f5.1,',',a2,',',a1,',',&
+                        !&f11.4,',',f11.4,',',f11.4,',',&
+                        !&es16.8,',',es16.8,',',es16.8,',',&
+                        !&i2,',',i3,',',i2,',',f8.1,',',f8.1,',',&
+                        !&i2,',',i3,',',i2,',',f8.1,',',f8.1,',')")&
                         dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
                         energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
                         linestr2, A_einst, absorption_int, &
@@ -1917,8 +1910,8 @@ contains
     integer(ik)             :: icontrF,icontrI, &
                                ivibF,ivibI,idip,istateI,istateF,ilambdaF,ilambdaI
     integer(ik)             :: ipermute,istateI_,ilambdaI_,ilambdaF_,isigmav,iomegaI_,istateF_,itau,iomegaF_
-    real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI
-    real(rk)                :: spinI_,spinF_,f_t
+    real(rk)                :: ls, f3j, omegaI,omegaF,sigmaF,sigmaI,spinF,spinI,f6j
+    real(rk)                :: spinI_,spinF_,f_t,g00,g20
     !
     !dms_tmp = dipole_me
     !
@@ -1931,7 +1924,7 @@ contains
     !$omp parallel do private &
     !$omp &(icontrF,ivibF,istateF,omegaF,sigmaF,spinF,ilambdaF,iomegaF_,&
     !$omp & icontrI,ivibI,istateI,omegaI,sigmaI,spinI,ilambdaI,iomegaI_,f3j,ls,f_t,idip,ipermute,&
-    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau) shared(half_ls) schedule(guided)
+    !$omp & istateI_,ilambdaI_,spinI_,istateF_,ilambdaF_,spinF_,isigmav,itau,g00,g20,f6j) shared(half_ls) schedule(guided)
     loop_F : do icontrF = 1, dimenF
       !
       ivibF = basis(indF)%icontr(icontrF)%ivib
@@ -1953,12 +1946,10 @@ contains
         spinI   = basis(indI)%icontr(icontrI)%spin
         ilambdaI= basis(indI)%icontr(icontrI)%ilambda
         !
-        if (abs(nint(omegaF - omegaI))>1 &
-            .or.nint(spinI-spinF)/=0     &
-            .or.abs(nint(sigmaI-sigmaF))>1    &
+        if (& !abs(nint(omegaF - omegaI))>1.or. &
+            nint(spinI-spinF)/=0     &
+            !.or.abs(nint(sigmaI-sigmaF))>1    &
             .or.abs(ilambdaI-ilambdaF)>1) cycle loop_I
-        !if (abs(nint(omegaF - omegaI))==0.and.ilambdaI/=ilambdaF) cycle loop_I
-        !if (abs(nint(omegaF - omegaI))==1.and.abs(ilambdaI-ilambdaF)/=1) cycle loop_I
         !
         iomegaI_ = int(omegaI)
         if (mod(nint(2.0_rk*omegaI+1.0_rk),2)==0 ) iomegaI_ = nint((2.0_rk*omegaI-1.0_rk)*0.5_rk)
@@ -1966,116 +1957,150 @@ contains
         f3j = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
         !f3j = three_j0(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
         !
-        !do isigmav = -spinI,spinI
+        ! 3j-symbol selection rule for the S and L components 
         !
-        !nI = jI+real(isigmav,rk)
-        !f3j = Wigner6j(jI, spinI, nI, spinI, jF, 1.0_rk)
-        !
-        ! 3j-symbol selection rule
-        !
-        if (abs(f3j)<intensity%threshold%coeff) cycle loop_I
-        !
-        !compute line strength for S
-        !
-        ls = 0
-        !
-        f_t = 0
-        !
-        if ( ilambdaI==ilambdaF .and. istateI==istateF .and. ivibI==ivibF) then
+        if (abs(f3j)<intensity%threshold%coeff) then 
           !
-          !spin magnetic moment
-          if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
-            ! ΔΣ = +1
-            f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
-          elseif (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI - 1.0_rk))) then
-            ! ΔΣ = -1
-            f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
-          elseif (nint(2*sigmaF) == nint(2*sigmaI)) then
-            ! ΔΣ = 0
-            f_t = real(ilambdaI,rk) + g_s*sigmaI
-          else
-            cycle
-          endif
+          !compute line strength for S
           !
-          !add spin magnetic moment
-          ls  =  f_t*f3j*vector(icontrI)
+          f_t = 0
           !
-          half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
-          !
-        endif
-        !enddo
-        !
-        ls = 0
-        !
-        !orbital magnetic moments
-        loop_iorbdipole : do idip =1,nMagneticDipoles
-          !
-          do ipermute  = 0,1
+          if ( ilambdaI==ilambdaF .and. istateI==istateF .and. ivibI==ivibF) then
             !
-            if (ipermute==0) then
-              !
-              istateI_ = magnetictm(idip)%istate ; ilambdaI_ = magnetictm(idip)%lambda  ; spinI_ = magnetictm(idip)%spini
-              istateF_ = magnetictm(idip)%jstate ; ilambdaF_ = magnetictm(idip)%lambdaj ; spinF_ = magnetictm(idip)%spinj
-              !
-            else  ! permute
-              !
-              istateF_ = magnetictm(idip)%istate ; ilambdaF_ = magnetictm(idip)%lambda  ; spinF_ = magnetictm(idip)%spini
-              istateI_ = magnetictm(idip)%jstate ; ilambdaI_ = magnetictm(idip)%lambdaj ; spinI_ = magnetictm(idip)%spinj
-              !
+            !spin magnetic moment
+            if (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI + 1.0_rk))) then
+              ! ΔΣ = +1
+              f_t = g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI+1.0_rk))
+            elseif (nint(2.0_rk*sigmaF) == nint(2.0_rk*(sigmaI - 1.0_rk))) then
+              ! ΔΣ = -1
+              f_t =-g_s/sqrt(2.0_rk)*sqrt(spinI*(spinI+1.0_rk)-sigmaI*(sigmaI-1.0_rk))
+            elseif (nint(2*sigmaF) == nint(2*sigmaI)) then
+              ! ΔΣ = 0
+              f_t = real(ilambdaI,rk) + g_s*sigmaI
+            else
+              cycle
             endif
             !
-            ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
-            ! otherwise it will cause a double counting:
+            !add spin magnetic moment
+            ls  =  f_t*f3j*vector(icontrI)
             !
-            if (ipermute==1.and.istateI_==istateF_.and.ilambdaI_==ilambdaF_.and.nint(spinI_-spinF_)==0) cycle
+            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
             !
-            ! check if we at the right electronic states
-            if( istateI/=istateI_.or.istateF/=istateF_ ) cycle
+          endif
+          !enddo
+          !
+          ls = 0
+          !
+          !orbital magnetic moments
+          loop_iorbdipole : do idip =1,nMagneticDipoles
             !
-            ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
-            ! In order to recover other combinations we apply the symmetry transformation
-            ! laboratory fixed inversion which is equivalent to the sigmav operation
-            !                    (sigmav= 0 correspond to the unitary transformation)
-            do isigmav = 0,1
+            do ipermute  = 0,1
               !
-              ! the permutation is only needed if at least some of the quanta is not zero.
-              ! otherwise it should be skipped to avoid the double counting.
-              if( isigmav==1.and. abs( magnetictm(idip)%lambda ) + abs( magnetictm(idip)%lambdaj )==0 ) cycle
-
-              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-              ilambdaI_ = ilambdaI_*(-1)**isigmav
-              ilambdaF_ = ilambdaF_*(-1)**isigmav
-              !
-              ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-              if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
-              !
-              ! check the selection rule Delta Lambda = +/1
-              if (abs(ilambdaI-ilambdaF)/=1) cycle
-              !
-              f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
-              !
-              ! the result of the symmetry transformation:
-              if (isigmav==1) then
+              if (ipermute==0) then
                 !
-                itau = 0
+                istateI_ = magnetictm(idip)%istate ; ilambdaI_ = magnetictm(idip)%lambda  ; spinI_ = magnetictm(idip)%spini
+                istateF_ = magnetictm(idip)%jstate ; ilambdaF_ = magnetictm(idip)%lambdaj ; spinF_ = magnetictm(idip)%spinj
                 !
-                if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
-                if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
+              else  ! permute
                 !
-                f_t = f_t*(-1.0_rk)**(itau)
+                istateF_ = magnetictm(idip)%istate ; ilambdaF_ = magnetictm(idip)%lambda  ; spinF_ = magnetictm(idip)%spini
+                istateI_ = magnetictm(idip)%jstate ; ilambdaI_ = magnetictm(idip)%lambdaj ; spinI_ = magnetictm(idip)%spinj
                 !
               endif
               !
-              ls  =  f_t*f3j*vector(icontrI)
+              ! however the permutation makes sense only when for non diagonal <State,Lambda,Spin|F|State',Lambda',Spin'>
+              ! otherwise it will cause a double counting:
               !
-              !add orbital magnetic moment
-              half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+              if (ipermute==1.and.istateI_==istateF_.and.ilambdaI_==ilambdaF_.and.nint(spinI_-spinF_)==0) cycle
+              !
+              ! check if we at the right electronic states
+              if( istateI/=istateI_.or.istateF/=istateF_ ) cycle
+              !
+              ! We should also take into account that Lambda can change sign (only Lambda>0 is given in input)
+              ! In order to recover other combinations we apply the symmetry transformation
+              ! laboratory fixed inversion which is equivalent to the sigmav operation
+              !                    (sigmav= 0 correspond to the unitary transformation)
+              do isigmav = 0,1
+                !
+                ! the permutation is only needed if at least some of the quanta is not zero.
+                ! otherwise it should be skipped to avoid the double counting.
+                if( isigmav==1.and. abs( magnetictm(idip)%lambda ) + abs( magnetictm(idip)%lambdaj )==0 ) cycle
+       
+                ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
+                ilambdaI_ = ilambdaI_*(-1)**isigmav
+                ilambdaF_ = ilambdaF_*(-1)**isigmav
+                !
+                ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
+                if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
+                !
+                ! check the selection rule Delta Lambda = +/1
+                if (abs(ilambdaI-ilambdaF)/=1) cycle
+                !
+                f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
+                !
+                ! the result of the symmetry transformation:
+                if (isigmav==1) then
+                  !
+                  itau = 0
+                  !
+                  if (ilambdaI_==0.and.poten(istateI)%parity%pm==-1) itau = itau+1
+                  if (ilambdaF_==0.and.poten(istateF)%parity%pm==-1) itau = itau+1
+                  !
+                  f_t = f_t*(-1.0_rk)**(itau)
+                  !
+                endif
+                !
+                ls  =  f_t*f3j*vector(icontrI)
+                !
+                !add orbital magnetic moment
+                half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+                !
+              enddo
               !
             enddo
             !
-          enddo
+          enddo loop_iorbdipole
           !
-        enddo loop_iorbdipole
+        endif
+        !
+        if ( ilambdaI==ilambdaF .and. istateI==istateF .and. ivibI==ivibF ) then
+          !
+          !rotational magnetic moments
+          loop_magnetrot : do idip =1,nMagneticRotDipoles
+            !
+            istateI_ = magnetrot(idip)%istate ; ilambdaI_ = magnetrot(idip)%lambda  ; spinI_ = magnetrot(idip)%spini
+            !
+            ! check if we at the right electronic states
+            if( istateI/=istateI_ .or. ilambdaI/=ilambdaI_  ) cycle
+            !
+            f_t = magnetrot(idip)%matelem(ivibI,ivibF)
+            !
+            ls = 0
+            !
+            if (abs(nint(omegaF - omegaI))==0) then
+              !
+              g00 = -2.0_rk/sqrt(3.0_rk)*f_t
+              f6j = Wigner6j(0.0_rk, 1.0_rk, 1.0_rk, jF, jI, jF)
+              f3j = three_j(jI, 0.0_rk, jF, -omegaI, 0.0_rk, omegaF)
+              !
+              ls = g00*f6j*f3j
+              !
+            elseif(abs(nint(omegaF - omegaI))==2) then
+              !
+              g20 = -2.0_rk/sqrt(6.0_rk)*f_t
+              f6j = Wigner6j(2.0_rk, 1.0_rk, 1.0_rk, jF, jI, jF)
+              f3j = three_j(jI, 2.0_rk, jF, -omegaI, 0.0_rk, omegaF)
+              !
+              ls = sqrt(3.0_rk)*g20*f6j*f3j
+              !
+            endif
+            !
+            !add rotational magnetic moment
+            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+            !
+           enddo loop_magnetrot
+           !
+        endif
         !
       end do  loop_I
       !
@@ -2299,96 +2324,97 @@ contains
     !
   end function three_j0
 
-    function Wigner6j(j1, j2, j3, J_1, J_2, J_3) result(w6j)
-        implicit none
-        REAL(rk), INTENT(IN) :: j1, j2, j3, J_1, J_2, J_3
-        REAL(rk) :: w6j, threshold, tri1, tri2, tri3, tri4
-        REAL(rk) :: a1, a2, a3, a4, k1, k2, k3, upper_limit, lower_limit, t
+  function Wigner6j(j1, j2, j3, J_1, J_2, J_3) result(w6j)
+      implicit none
+      REAL(rk), INTENT(IN) :: j1, j2, j3, J_1, J_2, J_3
+      REAL(rk) :: w6j, threshold, tri1, tri2, tri3, tri4
+      REAL(rk) :: a1, a2, a3, a4, k1, k2, k3, upper_limit, lower_limit, t
 
-        tri1 = triangle_coefficient(j1, j2, j3) 
-        tri2 = triangle_coefficient(j1, J_2, J_3) 
-        tri3 = triangle_coefficient(J_1, j2, J_3) 
-        tri4 = triangle_coefficient(J_1, J_2, j3)
-        threshold = safe_min
-        if ( (abs(tri1) < threshold) &
-            .or. (abs(tri2) < threshold) &
-            .or. (abs(tri3) < threshold) &
-            .or. (abs(tri4) < threshold) ) then
-            w6j = 0.0_rk
-            return
-        end if
+      tri1 = triangle_coefficient(j1, j2, j3) 
+      tri2 = triangle_coefficient(j1, J_2, J_3) 
+      tri3 = triangle_coefficient(J_1, j2, J_3) 
+      tri4 = triangle_coefficient(J_1, J_2, j3)
+      threshold = safe_min
+      if ( (abs(tri1) < threshold) &
+          .or. (abs(tri2) < threshold) &
+          .or. (abs(tri3) < threshold) &
+          .or. (abs(tri4) < threshold) ) then
+          w6j = 0.0_rk
+          return
+      end if
 
-        a1 = j1 + j2 + j3;
-        a2 = j1 + J_2 + J_3;
-        a3 = J_1 + j2 + J_3;
-        a4 = J_1 + J_2 + j3;
-        
-        k1 = j1 + j2 + J_1 + J_2;
-        k2 = j2 + j3 + J_2 + J_3;
-        k3 = j3 + j1 + J_3 + J_1;
+      a1 = j1 + j2 + j3;
+      a2 = j1 + J_2 + J_3;
+      a3 = J_1 + j2 + J_3;
+      a4 = J_1 + J_2 + j3;
+      
+      k1 = j1 + j2 + J_1 + J_2;
+      k2 = j2 + j3 + J_2 + J_3;
+      k3 = j3 + j1 + J_3 + J_1;
 
-        lower_limit = max(a1, a2, a3, a4)
-        upper_limit = min(k1, k3, k3)
+      lower_limit = max(a1, a2, a3, a4)
+      upper_limit = min(k1, k3, k3)
 
-        t = lower_limit
-        threshold = 1E-6
-        
-        w6j = 0.0_rk
-        do while (t < upper_limit + threshold)
-            w6j = w6j + get_sign(t) * exp(log_())
-            t = t + 1.0_rk
-        end do
+      t = lower_limit
+      threshold = 1E-6
+      
+      w6j = 0.0_rk
+      do while (t < upper_limit + threshold)
+          w6j = w6j + get_sign(t) * exp(log_())
+          t = t + 1.0_rk
+      end do
 
-        w6j = sqrt(tri1 * tri2 * tri3 * tri4) * w6j
+      w6j = sqrt(tri1 * tri2 * tri3 * tri4) * w6j
 
-    contains 
-        REAL(rk) function log_()   
-        real(rk) log_gamma
-        log_ = log_gamma(t + 2.0_rk) &
-            - log_gamma(t - j1 - j2 - j3 + 1.0_rk) &
-            - log_gamma(t - j1 - J_2 - J_3 + 1.0_rk) & 
-            - log_gamma(t - J_1 - j2 - J_3 + 1.0_rk) &
-            - log_gamma(t - J_1 - J_2 - j3 + 1.0_rk) &
-            - log_gamma(j1 + j2 + J_1 + J_2 - t + 1.0_rk) &
-            - log_gamma(j2 + j3 + J_2 + J_3 - t + 1.0_rk) &
-            - log_gamma(j3 + j1 + J_3 + J_1 - t + 1.0_rk)        
-        end function log_
+  contains 
+  
+      REAL(rk) function log_()   
+      real(rk) log_gamma
+      log_ = log_gamma(t + 2.0_rk) &
+          - log_gamma(t - j1 - j2 - j3 + 1.0_rk) &
+          - log_gamma(t - j1 - J_2 - J_3 + 1.0_rk) & 
+          - log_gamma(t - J_1 - j2 - J_3 + 1.0_rk) &
+          - log_gamma(t - J_1 - J_2 - j3 + 1.0_rk) &
+          - log_gamma(j1 + j2 + J_1 + J_2 - t + 1.0_rk) &
+          - log_gamma(j2 + j3 + J_2 + J_3 - t + 1.0_rk) &
+          - log_gamma(j3 + j1 + J_3 + J_1 - t + 1.0_rk)        
+      end function log_
 
-        function triangle_coefficient(a, b, c) result(tri)
-            implicit none
-            REAL(rk), INTENT(IN) :: a, b, c
-            REAL(rk) :: tri
-            integer(ik) :: xa
-            
-            tri = 0
-            if ( a < 0 .or. b < 0 .or. c < 0 ) return
+      function triangle_coefficient(a, b, c) result(tri)
+          implicit none
+          REAL(rk), INTENT(IN) :: a, b, c
+          REAL(rk) :: tri
+          integer(ik) :: xa
+          
+          tri = 0
+          if ( a < 0 .or. b < 0 .or. c < 0 ) return
 
-            do xa = nint(abs(a-b) * 2.0_rk), nint((a+b) * 2.0_rk), 2
-                if ( nint(c * 2.0_rk) == xa) then
-                    tri = log_gamma(a + b - c + 1.0_rk) &
-                        + log_gamma(a + c - b + 1.0_rk) &
-                        + log_gamma(b + c - a + 1.0_rk) &
-                        - log_gamma(a + b + c + 2.0_rk)
-                    tri = exp(tri)
-                end if
-            end do
-        end function triangle_coefficient
+          do xa = nint(abs(a-b) * 2.0_rk), nint((a+b) * 2.0_rk), 2
+              if ( nint(c * 2.0_rk) == xa) then
+                  tri = log_gamma(a + b - c + 1.0_rk) &
+                      + log_gamma(a + c - b + 1.0_rk) &
+                      + log_gamma(b + c - a + 1.0_rk) &
+                      - log_gamma(a + b + c + 2.0_rk)
+                  tri = exp(tri)
+              end if
+          end do
+      end function triangle_coefficient
 
-    end function Wigner6j
+  end function Wigner6j
 
-    function get_sign(exp) result(sign_)
-        ! Evaluate (-1)^exp and return a REAL(rk) value.
-        implicit none
+  function get_sign(exp) result(sign_)
+      ! Evaluate (-1)^exp and return a REAL(rk) value.
+      implicit none
 
-        REAL(rk), INTENT(IN) :: exp
-        REAL(rk) sign_
+      REAL(rk), INTENT(IN) :: exp
+      REAL(rk) sign_
 
-        if (mod(nint(exp), 2) == 0) then
-            sign_ = 1.0_rk
-        else
-            sign_ = -1.0_rk
-        end if
-    end function get_sign
+      if (mod(nint(exp), 2) == 0) then
+          sign_ = 1.0_rk
+      else
+          sign_ = -1.0_rk
+      end if
+  end function get_sign
 
 
   function fakt(a) result (f)
