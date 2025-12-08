@@ -2085,13 +2085,13 @@ contains
               !
               ls = g00*f6j*f3j
               !
-            elseif(abs(nint(omegaF - omegaI))==2) then
+              !elseif(abs(nint(omegaF - omegaI))==2) then
               !
               g20 = -2.0_rk/sqrt(6.0_rk)*f_t
               f6j = Wigner6j(2.0_rk, 1.0_rk, 1.0_rk, jF, jI, jF)
               f3j = three_j(jI, 2.0_rk, jF, -omegaI, 0.0_rk, omegaF)
               !
-              ls = sqrt(3.0_rk)*g20*f6j*f3j
+              ls = ls  + sqrt(3.0_rk)*g20*f6j*f3j
               !
             endif
             !

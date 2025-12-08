@@ -2692,7 +2692,7 @@ subroutine print_atomic_and_nuclear_info(my_string,verbose,unit)
  m  = get_m(my_string)
 
   if( zi <= 0) then
-    write(u1,'(A)') 'Error: could not properly read Z from element symbol: ' // trim(my_string)
+    !write(u1,'(A)') 'Error: could not properly read Z from element symbol: ' // trim(my_string)
     return
   endif
 
