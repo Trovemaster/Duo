@@ -440,7 +440,6 @@ Objects of type ``abinitio`` (aliases: ``reference``, ``anchor``) are reference,
 
 ``dipole-x`` is related to the Cartesian-representation.
 
-At the moment Duo cannot compute magnetic dipole transition line intensities.
 
 .. _quadrupole curves:
 

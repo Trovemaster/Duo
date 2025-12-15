@@ -1984,7 +1984,7 @@ contains
             !add spin magnetic moment
             ls  =  f_t*f3j*vector(icontrI)
             !
-            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls*0
+            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
             !
           endif
           !enddo
@@ -2053,7 +2053,7 @@ contains
                 ls  =  f_t*f3j*vector(icontrI)
                 !
                 !add orbital magnetic moment
-                half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls*0
+                half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
                 !
               enddo
               !
