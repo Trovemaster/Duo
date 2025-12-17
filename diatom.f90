@@ -1788,7 +1788,7 @@ contains
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
-           "MAGNETIC","QUADRUPOLE", &
+           "MAGNETIC","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2")
         !
         ibraket = 0
@@ -2048,9 +2048,9 @@ contains
           !
           if (ierr>0) cycle
           !
-          field => magnetictm(iobject(Nobjects))
+          field => magnetictm(iobject(Nobjects-4))
           !
-          imagnetic = iobject(Nobjects)
+          imagnetic = iobject(Nobjects-4)
           !
           if (imagnetic>ncouples) then
             write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
@@ -2066,23 +2066,23 @@ contains
         case("MAGNETROT","MAGNETIC-ROT")
           !
           if (imagnetrot==0) then
-            allocate(magnetrot(nestates),stat=alloc)
+            allocate(magnetrot(ncouples),stat=alloc)
           endif
           !
-          call input_non_diagonal_field(Nobjects,Nobjects-5,iobject(Nobjects-5),magnetictm,ierr)
+          call input_non_diagonal_field(Nobjects,Nobjects-5,iobject(Nobjects-5),magnetrot,ierr)
           !
           if (ierr>0) cycle
           !
-          field => magnetrot(iobject(Nobjects))
+          field => magnetrot(iobject(Nobjects-5))
           !
-          imagnetic = iobject(Nobjects)
+          imagnetrot = iobject(Nobjects-5)
           !
           if (imagnetic>ncouples) then
             write(out, "(2a,i4,a,i6)") trim(w),": Number of couplings = ",iso," exceeds the maximal allowed value",ncouples
             call report ("Too many couplings given in the input for"//trim(w),.true.)
           endif
           !
-          if (trim(w)=='MAGNETIC-X') then
+          if (trim(w)=='MAGNETROT-X') then
             field%molpro = .true.
           endif
           !
