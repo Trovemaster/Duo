@@ -2063,7 +2063,7 @@ contains
           !
           intensity%tdm = .true.
           !
-        case("MAGNETROT","MAGNETIC-ROT")
+        case("MAGNETROT","MAGNETIC-ROT","MAGNET-ROT")
           !
           if (imagnetrot==0) then
             allocate(magnetrot(ncouples),stat=alloc)
