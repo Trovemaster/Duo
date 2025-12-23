@@ -1959,7 +1959,7 @@ contains
         !
         ! 3j-symbol selection rule for the S and L components 
         !
-        if (abs(f3j)<intensity%threshold%coeff) then 
+        if (abs(f3j)>intensity%threshold%coeff) then 
           !
           !compute line strength for S
           !
