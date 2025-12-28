@@ -413,8 +413,8 @@ module diatom_module
   !
   type IntensityT
     logical             :: do = .false.     ! process (.true.) or not (.false.) the intensity (or TM) calculations
-    character(cl)       :: action           ! type of the intensity calculations:
-    ! absorption, emission, tm (transition moments),
+    character(cl)       :: action = "ABSORPTION"    ! type of the intensity calculations:
+    ! absorption (default), emission, tm (transition moments),
     !  raman, and so on.
     real(rk)            :: temperature      ! temperature in K
     real(rk)            :: part_func=0      ! partition function
