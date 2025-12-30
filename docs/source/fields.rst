@@ -475,6 +475,7 @@ Additionally, the units must be specified via the ``units`` keyword. For example
      end
 
 
+.. _magnetic fields:
 
 ``MAGNETIC``
 ^^^^^^^^^^^^

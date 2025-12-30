@@ -1179,11 +1179,13 @@ contains
             !
           case('TM','DIPOLE')
             !
-            call readu(job%IO_dipole)
+            call readu(w)
             !
             if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then
               call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
             endif
+            !
+            job%IO_dipole = trim(w)
             !
           case default
             !
@@ -17399,11 +17401,11 @@ contains
    integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
    type(quantaT),intent(in),optional :: icontr(:)
    !
-   call TimerStart('check_point_eigenvectors')
+   call TimerStart('check_point_dipoles')
    select case (action)
      case default
-       write (out,"(' check_point_eigenvectors - action ',a,' is not valid')") trim(action)
-       stop 'check_point_eigenvectors - bogus command'
+       write (out,"(' check_point_dipoles - action ',a,' is not valid')") trim(action)
+       stop 'check_point_dipoles - bogus command'
      case ('SAVE','save')
        call checkpointSave
      case ('CLOSE','close')
@@ -17411,7 +17413,7 @@ contains
      case ('READ','read')
        call checkpointRestore
    end select
-   call TimerStop('check_point_eigenvectors')
+   call TimerStop('check_point_dipoles')
 
    contains 
 
@@ -17437,6 +17439,36 @@ contains
           write(chkptIO) iterm
           !
           write(chkptIO) dipoletm(iterm)%matelem
+          !
+        enddo
+        !
+        write(chkptIO) Ntotal,nMagneticDipoles
+        !
+        do iterm = 1,nMagneticDipoles
+          !
+          write(chkptIO) iterm
+          !
+          write(chkptIO) magnetictm(iterm)%matelem
+          !
+        enddo
+        !
+        write(chkptIO) Ntotal,nMagneticRotDipoles
+        !
+        do iterm = 1,nMagneticRotDipoles
+          !
+          write(chkptIO) iterm
+          !
+          write(chkptIO) magnetrot(iterm)%matelem
+          !
+        enddo
+        !
+        write(chkptIO) Ntotal,nQuadrupoles
+        !
+        do iterm = 1,nQuadrupoles
+          !
+          write(chkptIO) iterm
+          !
+          write(chkptIO) quadrupoletm(iterm)%matelem
           !
         enddo
         !
@@ -17519,11 +17551,55 @@ contains
   end subroutine check_point_dipoles
 
 
+  subroutine check_point_eigenfunc(action,iverbose,Ntotal,icontr)
+
+   character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
+   integer(ik),intent(in)            :: iverbose
+   integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
+   type(quantaT),intent(in),optional :: icontr(:)
+   !
+   call TimerStart('check_point_eigenvectors')
+   select case (action)
+     case default
+       write (out,"(' check_point_eigenvectors - action ',a,' is not valid')") trim(action)
+       stop 'check_point_eigenvectors - bogus command'
+     case ('READ','read')
+       call checkpointRestore
+   end select
+   call TimerStop('check_point_eigenvectors')
 
 
+   contains 
+   !
+   !
+   subroutine checkpointRestore
 
+     character(len=cl)  :: filename,string1,string2,ioname
+     integer(ik)        :: Nroots_,totalroots_,nestates_,npoints_,iunit,k
+     real(rk)           :: m1_,m2_,rmin_,rmax_
+        !
+        filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
+        write(ioname, '(a, i4)') 'Eigenvectors file '
+        call IOstart(trim(ioname),iunit)
+        open(unit = iunit, action = 'read',status='old' , file = filename)
+        !
+        read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
+        read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
+        read(iunit,*) string1(1:6),string2(1:1),Nroots_
+        read(iunit,*) string1(1:6),string2(1:1),totalroots_
+        read(iunit,*) string1(1:7),string2(1:1),nestates_
+        read(iunit,*) string1(1:8),string2(1:1),npoints_
+        read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        !
+        read(iunit,*) (poten(k)%name,k =1,nestates)
+        !
+        read(iunit,*) string1(1:1)
+        !
+        close(iunit,status='keep')
+        !
+   end subroutine checkpointRestore
 
-
+  end subroutine check_point_eigenfunc
 
 
 
