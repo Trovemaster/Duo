@@ -173,7 +173,7 @@ From 2023, for the electromic states can be labelled using strings of characters
 
 where A is the reference label used for  the electronic state ``A2Pi``.
 
- 
+
 For the ``spin-orbit-x`` case (:math:`\Lambda`-representation), the value of the matrix elements of the  :math:`\hat{L}_z` operator must be specified using the ``<x|Lz|y>`` keyword.  This representation is designed to work with e.g., the MOLPRO outputs.  For :math:`\Lambda\ne 0`, the diagonal SO-matrix element (e.g. between to :math:`\Pi`-components of :math:`\Lambda=1`)  should be specified using the :math:`\langle \Pi_x|LSZ |\Pi_y \rangle` component  (e.g. :math:`\langle 1.2 |{\rm LSZ} |1.3 \rangle`).
 
 
@@ -202,7 +202,7 @@ where :math:`\Sigma_{\rm ref}` is a reference curve of the projection of spin us
 
 :math:`\langle v,S,\Sigma |H^{\rm SS'}(r) |v^\prime, S,\Sigma \rangle =  f_{\rm SS'}(r)`
 
-and :math:`f_{\rm SS'}(r)` is an off-diagonal spin-spin curve, which is usually reconstructed empirically. 
+and :math:`f_{\rm SS'}(r)` is an off-diagonal spin-spin curve, which is usually reconstructed empirically.
 
 An example of the spin-spin input is given by
 ::
@@ -475,6 +475,31 @@ Additionally, the units must be specified via the ``units`` keyword. For example
      end
 
 
+
+``MAGNETIC``
+^^^^^^^^^^^^
+
+Aliases: ``MAGNETIC-DIPOLE``,``MAGNETIC-X``. Specifies the magnetic dipoles used in magnetic dipole intensity calculations, its electronic orbital  angular momentum contribution :math:`\hat{L}_\alpha`:
+.. math::
+
+   \mu_\alpha = \hat{S}_\alpha + \hat{L}_\alpha, 
+    
+where :math:`\alpha= x,y,z`. If ``Magnetic`` fields are not provided for ``magdipole`` intensity calculations, the corresponding fields ``Lx`` are used instead. 
+
+
+
+
+``MAGNETROT``
+^^^^^^^^^^^^
+
+Aliases: ``MAGNETIC-ROT``,``MAGNET-ROT``. Specifies the rotational magnetic dipoles used in magnetic dipole intensity calculations. This contribution corresponds to the rotational g-factor, which is the same as the ``BOB-ROT`` component. If ``MagnetRot`` fields are not provided for ``magdipole`` intensity calculations, the corresponding fields ``Bob-Rot`` are used instead.
+
+
+.. warning:: This feature is currently under construction. 
+
+
+
+
 Keywords used in the specification of objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -612,7 +637,7 @@ In the last example the factor is read in as :math:`-2 \sqrt{2} i`. Note that im
 
 * ``units``
 
-This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and ``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts) for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order. 
+This keyword selects the units of measure used for the the object in question. Supported units are: ``angstroms`` (default) and ``bohr`` for the bond lengths; ``cm-1`` (default), ``hartree`` (aliases are ``au``, ``a.u.``, and ``Eh``), and ``eV`` (electronvolts) for energies; ``debye`` (default) and ``ea0`` (i.e., atomic units) for dipoles; units can appear in any order.
 
 .. note:: Quadrupole moment curves must be provided to Duo in atomic units, so the ``units`` keyword is invalid for these objects.
 
@@ -665,7 +690,7 @@ This factor (:math:`d_{\lambda}`) is used as a part of the reference *ab initio*
 
 * ``adjust``
 
-This keyword can be used to add a constant value to the values of the potential, which is useful e.g when there is a known systematic error in the values. The keyword is followed by a value and (optionally) units. For a list of the available units see the ``units`` keyword above. Note that the units of the shift can be different to the units specified using the ``units`` keyword. Default units are ``cm-1`` for PECs, ``debye`` for dipole moment curves, and ``au`` (atomic units) for quadrupole moment curves. 
+This keyword can be used to add a constant value to the values of the potential, which is useful e.g when there is a known systematic error in the values. The keyword is followed by a value and (optionally) units. For a list of the available units see the ``units`` keyword above. Note that the units of the shift can be different to the units specified using the ``units`` keyword. Default units are ``cm-1`` for PECs, ``debye`` for dipole moment curves, and ``au`` (atomic units) for quadrupole moment curves.
 
 Examples:
 ::

@@ -54,6 +54,11 @@ Example:
 
 This keyword is used to trigger the calculation of electric quadrupole transitions (see also :ref:`quadrupole curves`).
 
+* ``magdipole``, ``magnetic``
+
+These keywords are used to trigger the calculation of magnetic dipole transitions.
+
+
 * ``J`` (aliases  ``Jrot``, ``Jlist``) 
 
 This keywords defines the range of rotational angular momentum quantum numbers for which line transitions should be computed. 

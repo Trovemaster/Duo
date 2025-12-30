@@ -3406,7 +3406,7 @@ contains
             action%quadrupole = .true.
             intensity%tqm = .true.
             !
-          case('MAGDIPOLE')
+          case('MAGDIPOLE','MAGNETIC')
             !
             action%magdipole = .true.
             !action%overlap = .true.
@@ -9138,9 +9138,9 @@ contains
       !
       ! checkpoint the matrix elements of dipoles if required
       !
-      !if (trim(job%IO_dipole=='SAVE')) then
-       !!    call check_point_dipoles('SAVE',iverbose,totalroots)
-      !endif
+      if (trim(job%IO_dipole)=='SAVE') then
+           call check_point_dipoles('SAVE',iverbose,totalroots)
+      endif
       !
       if (iverbose>=4) call TimerStop('Compute vibrational matrix elements')
       !
@@ -17381,5 +17381,265 @@ contains
     
   end subroutine setup_factorials_lookup
   !
+
+
+
+
+
+
+
+  !
+  ! read-write the matrix elements of the external field (e.g. dipole): 
+  ! all actions
+  !
+  subroutine check_point_dipoles(action,iverbose,Ntotal,icontr)
+
+   character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
+   integer(ik),intent(in)            :: iverbose
+   integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
+   type(quantaT),intent(in),optional :: icontr(:)
+   !
+   call TimerStart('check_point_eigenvectors')
+   select case (action)
+     case default
+       write (out,"(' check_point_eigenvectors - action ',a,' is not valid')") trim(action)
+       stop 'check_point_eigenvectors - bogus command'
+     case ('SAVE','save')
+       call checkpointSave
+     case ('CLOSE','close')
+       call checkpointClose
+     case ('READ','read')
+       call checkpointRestore
+   end select
+   call TimerStop('check_point_eigenvectors')
+
+   contains 
+
+   !
+   subroutine checkpointSave
+     !
+     character(len=cl)  :: unitfname,file
+     integer(ik)        :: chkptIO,iterm
+        !
+        unitfname ='External field: contrvib matrix elements'
+        call IOStart(trim(unitfname),chkptIO)
+        !
+        file = 'external.chk'
+        !
+        open(chkptIO,form='unformatted',action='write',status='replace',file=file) 
+        !
+        write(chkptIO) 'external-field/start'
+        !
+        write(chkptIO) Ntotal,Ndipoles
+        !
+        do iterm = 1,Ndipoles
+          !
+          write(chkptIO) iterm
+          !
+          write(chkptIO) dipoletm(iterm)%matelem
+          !
+        enddo
+        !
+        write(chkptIO) 'external-field/end'
+        !
+        close(chkptIO,status='keep')
+        !
+   end subroutine checkpointSave
+   !
+   !
+   subroutine checkpointRestore
+
+     character(len=cl)  :: unitfname,file,buf
+     integer(ik)        :: chkptIO,iterm,Ntotal_,Ndipoles_,iterm_
+        !
+        unitfname ='External field: contrvib matrix elements'
+        call IOStart(trim(unitfname),chkptIO)
+        !
+        file = 'external.chk'
+        !
+        open(chkptIO,form='unformatted',action='read',position='rewind',status='old',file=file) 
+        !
+        read(chkptIO) buf(1:20)
+        !
+        if (buf(1:20)/='external-field/start') then
+          write (out,"(' Checkpoint file ',a,' has bogus header: ',a)") file, buf(1:20)
+          stop 'check_point_external_read - bogus file format'
+        end if
+        !
+        read(chkptIO) Ntotal_,Ndipoles_
+        !
+        if (Ntotal_/=Ntotal.or.Ndipoles_/=Ndipoles) then
+          write (out,"(' Ntotal or Ndipoles stored ',2i,' are inconcistent with actual values',2i,': wrong checkpoint?')") Ntotal_,Ntotal,Ndipoles_,Ndipoles
+          stop 'check_point_external_read - check Ntotal or Ndipoles'
+        end if
+        !
+        do iterm = 1,Ndipoles
+          !
+          read(chkptIO) iterm_
+          !
+          if (iterm_/=iterm) then
+            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
+          end if
+          !
+          read(chkptIO) dipoletm(iterm)%matelem
+          !
+        enddo
+        !
+        read(chkptIO) buf(1:19)
+        !
+        if (buf(1:19)/='external-field/start') then
+          write (out,"(' Checkpoint file ',a,' has bogus footer: ',a)") file, buf(1:19)
+          stop 'check_point_external_read - bogus file heade'
+        end if
+        !
+        close(chkptIO,status='keep')
+        !
+   end subroutine checkpointRestore
+
+   subroutine checkpointClose
+     !
+     character(len=cl)  :: unitfname
+     integer(ik)        :: chkptIO
+     !
+     ! we simply close this one
+     !
+     unitfname ='Eigenvectors in the contracted represent'
+     call IOStart(trim(unitfname),chkptIO)
+     !
+     close(chkptIO,status='keep') 
+     !
+     unitfname ='Quantum numbers of the eigensolution'
+     call IOStart(trim(unitfname),chkptIO)
+     !
+     close(chkptIO,status='keep') 
+     !
+   end subroutine checkpointClose
+
+  end subroutine check_point_dipoles
+
+
+
+
+
+
+
+
+
+
+   !
+   !
+   subroutine fingerprint(action,iverbose,chkptIO,Ntotal,Ntotalvib,nestates,Nspinorbits,Nlxly,Nl2)
+    !
+    character(len=*), intent(in) :: action ! 'read'  or 'write'
+    integer(ik),intent(in) :: iverbose,chkptIO,nestates,Nspinorbits,Nlxly,Nl2
+    integer(ik),intent(in) :: Ntotal ! size of the contracted basis set
+    integer(ik),intent(in) :: Ntotalvib ! size of the vibrational basis subset
+     !
+     if (iverbose>=7) write(out,"(/'fingerprint/start')") 
+     !
+     select case (action)
+       case default
+         write (out,"(' fingerprint - action ',a,' is not valid')") trim(action)
+         stop 'fingerprint - bogus command'
+       case ('READ','read')
+         call fingerprintRead
+       case ('WRITE','write')
+         call fingerprintWrite
+     end select
+     !
+     if (iverbose>=7) write(out,"('fingerprint/stop')") 
+     !
+   contains 
+     !
+     subroutine fingerprintWrite
+      !
+      integer(ik)  :: imode,istate,iso,iL2,ilxly
+      character(len=10) :: ifmt_modes,rfmt_atoms,rfmt_modes,rfmt_coords
+      !
+      write(chkptIO,"('Start Fingerprints')") 
+      !
+      !write(chkptIO,"(f8.1,'   <- Jrot, rotational angular momentum')") Jrot
+      !
+      write(chkptIO,"(a,'   Molecule')") job%molecule
+      !
+      write(chkptIO,"(4i7,'  <= Nestates,Nspinorbits,Nlxly,Nl2 ')") Nestates,Nspinorbits,Nlxly,Nl2 
+      write(chkptIO,"(2i7,'  <= Ntotal,Ntotalvib ')") Ntotal,Ntotalvib 
+      write(chkptIO,'(2f16.8,"  <= masses      ")')  m1,m2
+      !
+      write(chkptIO,'("Potentials: state, multi, lambda:  ")')
+      do istate = 1,nestates
+        write(chkptIO,'(3i6)')  istate,poten(istate)%multi,poten(istate)%lambda
+      enddo
+      !
+      if (Nspinorbits>0) write(chkptIO,'("Spin-orbits: i,states, spins:  ")')
+      do iso = 1,Nspinorbits
+        write(chkptIO,'(3i6,2f6.1)')  iso,spinorbit(iso)%istate,spinorbit(iso)%jstate,spinorbit(iso)%spini,spinorbit(iso)%spinj
+      enddo
+      !
+      if (Nlxly>0) write(chkptIO,'("Lxly: i,states, lambdas, spins:  ")')
+      do ilxly = 1,Nlxly
+        write(chkptIO,'(5i6,2f6.1)')  ilxly,lxly(ilxly)%istate,lxly(ilxly)%jstate,lxly(ilxly)%lambda,lxly(ilxly)%lambdaj,lxly(ilxly)%spini,lxly(ilxly)%spinj
+      enddo
+      !
+      if (NL2>0) write(chkptIO,'("L2: i,states, spins:  ")')
+      do iL2 = 1,NL2
+        write(chkptIO,'(5i6,2f6.1)')  iL2,l2(iL2)%istate,l2(iL2)%jstate,l2(iL2)%spini,l2(iL2)%spinj
+      enddo
+      !
+      write(chkptIO,"('End Fingerprints')") 
+      !
+    end subroutine fingerprintWrite
+    !  
+    subroutine fingerprintRead
+      !
+      integer(ik)  :: imode,PTorder_t,Nmodes_t,Natoms_t,Npolyads_t,jrot_t,Ntotal_,Ntotalvib_ 
+      character(len=18) :: buf
+      character(len=10) :: char_t
+      !
+      read(chkptIO,"(a18)") buf
+      if (buf/='Start Fingerprints') then
+        write (out,"(' fingerprintRead file has bogus header: ',a)") buf
+        stop 'fingerprintRead - bogus file header'
+      end if
+
+      read(chkptIO,"(2i7)") Ntotal_,Ntotalvib_ 
+
+      !
+      !read(chkptIO,*)  f_t(1:Nmodes_t)
+      !
+      !if (any(abs(f_t(:)-trove%fdstep(:))>sqrt(small_))) then
+      !  write (out,"(' fingerprintRead:  fdstep mismatch: ')")
+      !  write (out,"(' fingerprintRead:  actual: ',40f18.8)") trove%fdstep(:)
+      !  write (out,"(' fingerprintRead:  stored: ',40f18.8)") f_t(:)
+      !  stop 'fingerprintRead - enercut mismatch'
+      !end if
+      !
+      !read(chkptIO,*)  mass_t(1:Natoms_t)
+      !
+      !if (any(abs(mass_t(:)-trove%mass(:))>1e-7)) then
+      !  write (out,"(' fingerprintRead:  mass mismatch: ')")
+      !  write (out,"(' fingerprintRead:  actual: ',40f18.4)") trove%mass(:)
+      !  write (out,"(' fingerprintRead:  stored: ',40f18.4)") mass_t(:)
+      !  stop 'fingerprintRead - mass mismatch'
+      !end if
+      !
+      read(chkptIO,"(a16)") buf(1:16)
+      if (buf(1:16)/='End Fingerprints') then
+        write (out,"(' fingerprintRead file has bogus footer: ',a)") buf
+        stop 'fingerprintRead - bogus file footer'
+      end if
+      !
+    end subroutine fingerprintRead
+    !
+   end subroutine fingerprint
+
+
+
+
+
+
+
+
   !
 end module diatom_module
