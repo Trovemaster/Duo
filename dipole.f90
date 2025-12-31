@@ -2,7 +2,7 @@ module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          Dipole_omega_tot,nestates,setup_factorials_lookup
+                          Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -61,7 +61,7 @@ contains
 
     real(rk)             :: Jval_,Jval_min,Jmin, Jmax,exp_en, part, beta, energy
 
-    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu
+    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu,totalroots
     integer(ik)          :: iverbose = 4
 
     ! initialize array of J values
@@ -101,6 +101,8 @@ contains
        Jval_ = Jval_ + 1.0_rk
        Jval(jind) = Jval_
     end do
+    !
+    call check_point_eigenfunc('READ',iverbose,totalroots)
     !
     call duo_j0(iverbose,Jval)
     !

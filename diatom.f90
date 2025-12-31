@@ -592,7 +592,8 @@ module diatom_module
   public ReadInput,poten,spinorbit,l2,lxly,abinitio,brot,map_fields_onto_grid,fitting,&
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
     magnetictm,magnetrot,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
-    nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup
+    nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup,&
+    check_point_eigenfunc
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
@@ -17551,12 +17552,12 @@ contains
   end subroutine check_point_dipoles
 
 
-  subroutine check_point_eigenfunc(action,iverbose,Ntotal,icontr)
+  subroutine check_point_eigenfunc(action,iverbose,Ntotal)
 
    character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
    integer(ik),intent(in)            :: iverbose
    integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
-   type(quantaT),intent(in),optional :: icontr(:)
+   !type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_eigenvectors')
    select case (action)
