@@ -593,7 +593,7 @@ module diatom_module
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
     magnetictm,magnetrot,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
     nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup,&
-    check_point_eigenfunc
+    check_point_eigenfunc,check_point_dipoles
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
@@ -1182,7 +1182,7 @@ contains
             !
             call readu(w)
             !
-            if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then
+            if (all(trim(w)/=(/'READ','SAVE','NONE','CALC'/))) then
               call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
             endif
             !
@@ -7349,9 +7349,12 @@ contains
     real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:),kinmatcalc_(:,:)
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0,alpha_minus = -1.0d0
     real(rk),allocatable  :: threej(:,:,:,:,:)
-    integer(ik) :: ispin,jspin,idelta,nDeltaS,Nspin_max,jmulti
+    integer(ik) :: ispin,jspin,idelta,nDeltaS,Nspin_max,jmulti,igamma
     logical      :: integer_spin = .true.
     real(rk) :: spin_i,spin_j,sigma_i,sigma_j
+    type(quantaT),pointer  :: quanta_state
+    character(len=130) :: fmt_ !format for I/O specification
+    character(len=1) :: label_bound
     !
     ! open file for later (if option is set)
     if (job%print_rovibronic_energies_to_file ) &
@@ -8236,7 +8239,7 @@ contains
           if (associated(field_%matelem) .eqv. .false.) then
             !
             allocate(field_%matelem(nroots_i,nroots_j),stat=alloc)
-            call ArrayStart(field%name,alloc,size(field_%matelem),kind(field_%matelem))
+            call ArrayStart(field_%name,alloc,size(field_%matelem),kind(field_%matelem))
             !
             field_%matelem = 0
             field_%Nterms = totalroots
@@ -8956,7 +8959,7 @@ contains
                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
                 !
-                if (iobject==Nobjects-3.or.iobject==Nobjects) then
+                if (iobject>=Nobjects-5) then
                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
                 endif
                 !
@@ -9200,6 +9203,7 @@ contains
       write(iunit,'(" Nestates = ",i8)') nestates
       write(iunit,'(" Npoints   = ",i8)') grid%npoints
       write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
+      write(iunit,'(" Jrange  = ",2(1x,f8.5))') jmin,jmax
       !
       do k =1,nestates
         write(iunit, '(a,", ")',advance='no') trim(poten(k)%name)
@@ -10729,9 +10733,9 @@ contains
               if (job%IO_eigen=='SAVE') then
                 !
                 do k = 1,Ntotal
-                  write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
+                  write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4,1x,i4,1x,i8)') &
                     total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
-                    icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%ivib
+                    icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
                 enddo
                 !
               endif
@@ -10867,6 +10871,77 @@ contains
       write(iunit,"('End of eigenvector')")
       !
       close(unit = iunit, status='keep')
+      !
+      if (action%save_eigen_J) then 
+         !
+         filename =  trim(job%eigenfile%vectors)//'_values.chk'
+         write(ioname, '(a, i4)') 'Eigenvalues file '
+         call IOstart(trim(ioname),iunit)
+         open(unit = iunit, action = 'write',status='replace' , file = filename)
+         !
+         write(iunit,'(" Molecule = ",a,1x,a)' ) symbol1,symbol2
+         write(iunit,'(" masses   = ",2f20.12)') m1,m2
+         write(iunit,'(" Nroots   = ",i8)') Nroots
+         write(iunit,'(" Nbasis   = ",i8)') totalroots
+         write(iunit,'(" Nestates = ",i8)') nestates
+         write(iunit,'(" Npoints   = ",i8)') grid%npoints
+         write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
+         write(iunit,'(" Jrange  = ",2(1x,f8.5))') jmin,jmax
+         !
+         do k =1,nestates
+           write(iunit, '(a,", ")',advance='no') trim(poten(k)%name)
+         enddo
+         !
+         write(iunit,'(a)') '   <- States'
+         !
+         write(fmt_,'(A,i0,a,a)') "(i12,1x,f17.",10,",1x,f8.1,1x,i4,",&
+                      "1x,i4,1x,a10,1x,i3,1x,i2,1x,f8.1,1x,f8.1,i7)"
+         !
+         do irot = 1,nJ
+           !
+           jval = J_list(irot)
+           !
+           do igamma=1,sym%Nrepresen
+             !
+             nlevels = eigen(irot,igamma)%Nlevels
+             !
+             !dimen = eigen(indI,igammaI)%Ndimen
+             !
+             write(iunit,"(i12,2x,'<- Nlevels')") nlevels
+             write(iunit,"(i12,2x,'<- Ndimen')") eigen(irot,igamma)%Ndimen
+             !
+             do iroot = 1, nlevels
+                !
+                quanta_state => eigen(irot,igamma)%quanta(iroot)
+                !
+                write(iunit,fmt_,advance="no") & 
+                   iroot,eigen(irot,igamma)%val(iroot),jval,igamma,quanta_state%istate,trim(quanta_state%name),quanta_state%v,quanta_state%ilambda,&
+                   quanta_state%sigma,quanta_state%omega,quanta_state%ivib
+                !
+                if (intensity%unbound) then                          
+                  label_bound = "b"
+                  if (.not.quanta_state%bound) label_bound = "u"
+                   write(iunit,"(1x,a1)",advance="no") label_bound
+                   if (intensity%use_bound_rmax) then
+                     write(iunit,"(1x,f9.5)",advance="no") quanta_state%r_exp
+                   endif
+                  if (intensity%bound_eps_print) then
+                     write(iunit,"(1x,g8.2)",advance="no") quanta_state%epsilon
+                  endif
+                endif
+                !
+                write(iunit,"(a1)",advance="yes") ""
+                !
+             enddo
+           enddo
+           !
+         enddo
+         !
+         write(iunit,"('End of eigenvalues')")
+         !
+         close(unit = iunit, status='keep')
+         !
+      endif
       !
     endif
     !
@@ -17399,7 +17474,7 @@ contains
 
    character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
    integer(ik),intent(in)            :: iverbose
-   integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
+   integer(ik),intent(inout)         :: Ntotal ! size of the contracted basis set
    type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_dipoles')
@@ -17408,19 +17483,20 @@ contains
        write (out,"(' check_point_dipoles - action ',a,' is not valid')") trim(action)
        stop 'check_point_dipoles - bogus command'
      case ('SAVE','save')
-       call checkpointSave
+       call checkpointSave(Ntotal)
      case ('CLOSE','close')
        call checkpointClose
      case ('READ','read')
-       call checkpointRestore
+       call checkpointRestore(Ntotal)
    end select
    call TimerStop('check_point_dipoles')
 
    contains 
 
    !
-   subroutine checkpointSave
+   subroutine checkpointSave(Ntotal)
      !
+     integer(ik),intent(in) :: Ntotal
      character(len=cl)  :: unitfname,file
      integer(ik)        :: chkptIO,iterm
         !
@@ -17480,10 +17556,12 @@ contains
    end subroutine checkpointSave
    !
    !
-   subroutine checkpointRestore
-
+   subroutine checkpointRestore(Ntotal)
+ 
+     integer(ik),intent(out) :: Ntotal
      character(len=cl)  :: unitfname,file,buf
-     integer(ik)        :: chkptIO,iterm,Ntotal_,Ndipoles_,iterm_
+     integer(ik)        :: chkptIO,iterm,Ntotal_,Ndipoles_,iterm_,alloc,&
+                           nMagneticDipoles_,nMagneticRotDipoles_,nQuadrupoles_
         !
         unitfname ='External field: contrvib matrix elements'
         call IOStart(trim(unitfname),chkptIO)
@@ -17501,9 +17579,9 @@ contains
         !
         read(chkptIO) Ntotal_,Ndipoles_
         !
-        if (Ntotal_/=Ntotal.or.Ndipoles_/=Ndipoles) then
-          write (out,"(' Ntotal or Ndipoles stored ',2i,' are inconcistent with actual values',2i,': wrong checkpoint?')") Ntotal_,Ntotal,Ndipoles_,Ndipoles
-          stop 'check_point_external_read - check Ntotal or Ndipoles'
+        if (Ndipoles_/=Ndipoles) then
+          write (out,"(' Ndipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") Ndipoles_,Ndipoles
+          stop 'check_point_external_read - check Ndipoles'
         end if
         !
         do iterm = 1,Ndipoles
@@ -17515,16 +17593,93 @@ contains
             stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
           end if
           !
+          allocate(dipoletm(iterm)%matelem(Ntotal_,Ntotal_),stat=alloc)
+          call ArrayStart(dipoletm(iterm)%name,alloc,size(dipoletm(iterm)%matelem),kind(dipoletm(iterm)%matelem))
+          !
           read(chkptIO) dipoletm(iterm)%matelem
           !
         enddo
         !
-        read(chkptIO) buf(1:19)
+        read(chkptIO) Ntotal_,nMagneticDipoles_
         !
-        if (buf(1:19)/='external-field/start') then
-          write (out,"(' Checkpoint file ',a,' has bogus footer: ',a)") file, buf(1:19)
-          stop 'check_point_external_read - bogus file heade'
+        if (nMagneticDipoles_/=nMagneticDipoles) then
+          write (out,"(' nMagneticDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+                        nMagneticDipoles_,nMagneticDipoles
+          stop 'check_point_external_read - check nMagneticDipoles'
         end if
+        !
+        do iterm = 1,nMagneticDipoles
+          !
+          read(chkptIO) iterm_
+          !
+          if (iterm_/=iterm) then
+            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
+          end if
+          !
+          allocate(magnetictm(iterm)%matelem(Ntotal_,Ntotal_),stat=alloc)
+          call ArrayStart(magnetictm(iterm)%name,alloc,size(magnetictm(iterm)%matelem),kind(magnetictm(iterm)%matelem))
+          !
+          read(chkptIO) magnetictm(iterm)%matelem
+          !
+        enddo
+        !
+        read(chkptIO) Ntotal_,nMagneticRotDipoles_
+        !
+        if (nMagneticRotDipoles_/=nMagneticRotDipoles) then
+          write (out,"(' nMagneticRotDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+                        nMagneticRotDipoles_,nMagneticRotDipoles
+          stop 'check_point_external_read - check nMagneticRotDipoles'
+        end if
+        !
+        do iterm = 1,nMagneticRotDipoles
+          !
+          read(chkptIO) iterm_
+          !
+          if (iterm_/=iterm) then
+            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
+          end if
+          !
+          allocate(magnetrot(iterm)%matelem(Ntotal_,Ntotal_),stat=alloc)
+          call ArrayStart(magnetrot(iterm)%name,alloc,size(magnetrot(iterm)%matelem),kind(magnetrot(iterm)%matelem))
+          !
+          read(chkptIO) magnetrot(iterm)%matelem
+          !
+        enddo
+        !
+        read(chkptIO) Ntotal_,nQuadrupoles_
+        !
+        if (nQuadrupoles_/=nQuadrupoles) then
+          write (out,"(' nMagneticRotDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+                        nQuadrupoles_,nQuadrupoles
+          stop 'check_point_external_read - check nQuadrupoles'
+        end if
+        !
+        do iterm = 1,nQuadrupoles
+          !
+          read(chkptIO) iterm_
+          !
+          if (iterm_/=iterm) then
+            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
+          end if
+          !
+          allocate(quadrupoletm(iterm)%matelem(Ntotal_,Ntotal_),stat=alloc)
+          call ArrayStart(quadrupoletm(iterm)%name,alloc,size(quadrupoletm(iterm)%matelem),kind(quadrupoletm(iterm)%matelem))
+          !
+          read(chkptIO) quadrupoletm(iterm)%matelem
+          !
+        enddo
+        !
+        read(chkptIO) buf(1:18)
+        !
+        if (buf(1:18)/='external-field/end') then
+          write (out,"(' Checkpoint file ',a,' has bogus footer: ',a)") file, buf(1:18)
+          stop 'check_point_external_read - bogus file footer'
+        end if
+        !
+        Ntotal = Ntotal_
         !
         close(chkptIO,status='keep')
         !
@@ -17552,11 +17707,12 @@ contains
   end subroutine check_point_dipoles
 
 
-  subroutine check_point_eigenfunc(action,iverbose,Ntotal)
+  subroutine check_point_eigenfunc(action,iverbose,nJ,Jval,Ntotal)
 
    character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
-   integer(ik),intent(in)            :: iverbose
-   integer(ik),intent(in),optional   :: Ntotal ! size of the contracted basis set
+   integer(ik),intent(in)            :: iverbose,nJ
+   real(rk),intent(in)               :: Jval(nJ)
+   integer(ik),intent(inout) :: Ntotal ! size of the contracted basis set
    !type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_eigenvectors')
@@ -17565,7 +17721,8 @@ contains
        write (out,"(' check_point_eigenvectors - action ',a,' is not valid')") trim(action)
        stop 'check_point_eigenvectors - bogus command'
      case ('READ','read')
-       call checkpointRestore
+       call checkpointRestore_Eigenvalues(Ntotal)
+       call checkpointRestore(Ntotal)
    end select
    call TimerStop('check_point_eigenvectors')
 
@@ -17573,11 +17730,17 @@ contains
    contains 
    !
    !
-   subroutine checkpointRestore
-
-     character(len=cl)  :: filename,string1,string2,ioname
-     integer(ik)        :: Nroots_,totalroots_,nestates_,npoints_,iunit,k
-     real(rk)           :: m1_,m2_,rmin_,rmax_
+   subroutine checkpointRestore(Ntotal)
+     !
+     integer(ik),intent(in)   :: Ntotal
+     integer(ik)        :: Ndimen,Nlevels,nestates_,npoints_,iunit,k,ilevel,irot,irrep,Nroots_,totalroots_
+     integer(ik),parameter :: sl = 89
+     character(len=sl)  :: string1,string2
+     real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,jmin_,jmax_,Spin,Sigma,Omega,vect_
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,iState,v,Lambda,ivib,Ntotal_,ilevel_,iomega
+     character(len=cl)  :: poten_nam(nestates),filename,ioname
+     logical      :: integer_spin = .false.
+     type(quantaT),pointer  :: quanta_state
         !
         filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
         write(ioname, '(a, i4)') 'Eigenvectors file '
@@ -17591,16 +17754,172 @@ contains
         read(iunit,*) string1(1:7),string2(1:1),nestates_
         read(iunit,*) string1(1:8),string2(1:1),npoints_
         read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
         !
-        read(iunit,*) (poten(k)%name,k =1,nestates)
+        read(iunit,*) (poten_nam(k),k =1,nestates)
         !
         read(iunit,*) string1(1:1)
+        !
+        if (mod(nint(2.0_rk*Jval(1)+1.0_rk),2)==1) integer_spin = .true.
+        !
+        Ntotal_ = 0
+        !
+        do irot  = 1,nJ 
+           do irrep = 1,sym%NrepresCs
+             !
+             Nlevels = eigen(irot,irrep)%Nlevels
+             Ndimen = eigen(irot,irrep)%Ndimen
+             !
+             ! allocate the basis set descriptions
+             !
+             allocate(basis(irot)%icontr(Ndimen),stat=alloc)
+             !
+             do ilevel = 1,Nlevels
+                !
+                quanta_state => eigen(irot,irrep)%quanta(ilevel)
+                !
+                do i = 1,Ndimen
+                  !
+                  read(iunit,*) n_,Jvalue_,ipar_,vect_,iState,v,Lambda,Spin,Sigma,Omega,iomega,ivib,ilevel_
+                  !
+                  if ( n_/=ilevel .or. nint( abs( Jvalue_-Jval(irot) ) )/=0 .or. (ipar_/=irrep-1) ) then
+                     write(out,"('Error checkpointRestore: inconsisten state descriptions')")
+                     write(out,"('   i = ',2i8)") n_,ilevel
+                     write(out,"('   J = ',2f8.5)") Jvalue_,Jval(irot)
+                     write(out,"('   ipar = ',2i4)") ipar_,irrep-1
+                     stop "Error checkpointRestore: illegal state descriptions"
+                  endif
+                  !
+                  eigen(irot,irrep)%vect(i,ilevel) = vect_
+                  !
+                  if (ilevel==1) then 
+                    !
+                    basis(irot)%icontr(i)%istate = istate
+                    basis(irot)%icontr(i)%sigma  = sigma
+                    basis(irot)%icontr(i)%ilambda= Lambda
+                    basis(irot)%icontr(i)%spin   = spin
+                    basis(irot)%icontr(i)%omega  = omega  
+                    basis(irot)%icontr(i)%iomega = iomega 
+                    basis(irot)%icontr(i)%ivib   = ivib
+                    basis(irot)%icontr(i)%ilevel = ilevel_
+                    basis(irot)%icontr(i)%v      = v
+                   endif
+                   !
+                enddo
+                !
+                Ntotal_ = Ntotal_ + 1
+                !
+             enddo
+             !
+           enddo
+        enddo
+        !
+        read(iunit,"(a18)") string1(1:18)
+        !
+        if (string1(1:18)/="End of eigenvector") then 
+          write(out,"(a)") 'checkpointRestore_Eigenvalues: error illegal ending'
+          stop "checkpointRestore_Eigenvalues: error illegal ending"
+        endif
+        !
+        if (Ntotal/=Ntotal_) then 
+          write(out,"(a)") 'checkpointRestore_Eigenvalues: inconsisten number of states with _values',Ntotal_,Ntotal
+          stop "checkpointRestore_Eigenvalues: error inconsisten number of states"
+        endif 
         !
         close(iunit,status='keep')
         !
    end subroutine checkpointRestore
+   !
+   subroutine checkpointRestore_Eigenvalues(Ntotal)
 
-  end subroutine check_point_eigenfunc
+     integer(ik),intent(out)   :: Ntotal
+     integer(ik)        :: Nroots_,totalroots_,nestates_,npoints_,iunit,k,ilevel,irot,irrep
+     integer(ik),parameter :: sl = 89
+     character(len=sl)  :: string1,string2
+     real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,Jmin_,Jmax_
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma
+     character(len=cl)  :: poten_nam(nestates),filename,ioname
+     logical      :: integer_spin = .false.
+     type(quantaT),pointer  :: quanta_state
+     character(len=130) :: fmt_ !format for I/O specification
+        !
+        filename =  trim(job%eigenfile%vectors)//'_values.chk'
+        write(ioname, '(a, i4)') 'Eigenvalues file '
+        call IOstart(trim(ioname),iunit)
+        open(unit = iunit, action = 'read',status='old' , file = filename)
+        !
+        read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
+        read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
+        read(iunit,*) string1(1:6),string2(1:1),Nroots_
+        read(iunit,*) string1(1:6),string2(1:1),totalroots_
+        read(iunit,*) string1(1:7),string2(1:1),nestates_
+        read(iunit,*) string1(1:8),string2(1:1),npoints_
+        read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
+        !
+        read(iunit,*) (poten_nam(k),k =1,nestates)
+        !
+        allocate(eigen(nJ,sym%NrepresCs),basis(nJ),stat=alloc)
+        if (alloc/=0) stop 'problem allocating eigen'
+        !
+        ! initialize the following fields
+        do irot = 1,nJ
+          do irrep = 1,sym%NrepresCs
+            eigen(irot,irrep)%Nlevels = 0
+            eigen(irot,irrep)%Ndimen = 0
+          enddo
+        enddo
+        !
+        ! Now we count eigenvalues
+        !
+        if (mod(nint(2.0_rk*Jval(1)+1.0_rk),2)==1) integer_spin = .true.
+        !
+        write(fmt_,'(A,i0,a,a)') "(i12,1x,f17.",10,",1x,f8.1,1x,i4,",&
+                      "1x,i4,1x,a10,1x,i3,1x,i2,1x,f8.1,1x,f8.1,i7)"
+        !
+        Ntotal = 0
+        !
+        do irot  = 1,nJ 
+           do irrep = 1,sym%NrepresCs
+             !
+             read(iunit,*) Nlevels
+             read(iunit,*) NDimen
+             !
+             eigen(irot,irrep)%Nlevels = Nlevels
+             eigen(irot,irrep)%Ndimen = Ndimen
+             !
+             allocate(eigen(irot,irrep)%vect(Ndimen,Nlevels),eigen(irot,irrep)%val(Nlevels), &
+                      eigen(irot,irrep)%quanta(Nlevels),stat=alloc)
+             call ArrayStart('eigens',alloc,size(eigen(irot,irrep)%vect),kind(eigen(irot,irrep)%vect))
+             call ArrayStart('eigens',alloc,size(eigen(irot,irrep)%val),kind(eigen(irot,irrep)%val))
+             !
+             do ilevel = 1,Nlevels
+                !
+                quanta_state => eigen(irot,irrep)%quanta(ilevel)
+                !
+                read(iunit,fmt_) & 
+                   iroot,eigen(irot,irrep)%val(iroot),Jvalue_,igamma,quanta_state%istate,quanta_state%name,quanta_state%v,&
+                   quanta_state%ilambda,quanta_state%sigma,quanta_state%omega,quanta_state%ivib
+                !
+                Ntotal = Ntotal + 1
+                !
+             enddo
+             !
+           enddo
+        enddo
+        !
+        read(iunit,"(a18)") string1(1:18)
+        !
+        if (string1(1:18)/="End of eigenvalues") then 
+          write(out,"(a)") 'checkpointRestore_Eigenvalues: error illegal ending'
+          stop "checkpointRestore_Eigenvalues: error illegal ending"
+        endif
+        !
+        close(iunit,status='keep')
+        !
+   end subroutine checkpointRestore_Eigenvalues
+   !
+  end subroutine check_point_eigenfunc 
 
 
 

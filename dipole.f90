@@ -2,7 +2,7 @@ module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc
+                          Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -61,7 +61,7 @@ contains
 
     real(rk)             :: Jval_,Jval_min,Jmin, Jmax,exp_en, part, beta, energy
 
-    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu,totalroots
+    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu,totalroots,Ndimen_vib
     integer(ik)          :: iverbose = 4
 
     ! initialize array of J values
@@ -102,9 +102,21 @@ contains
        Jval(jind) = Jval_
     end do
     !
-    call check_point_eigenfunc('READ',iverbose,totalroots)
-    !
-    call duo_j0(iverbose,Jval)
+    if (trim(job%IO_eigen)=='READ') then
+       !
+       call check_point_eigenfunc('READ',iverbose,nJ,Jval,totalroots)
+       !
+       if (trim(job%IO_dipole)=='READ') then 
+          call check_point_dipoles('READ',iverbose,Ndimen_vib)
+       elseif(trim(job%IO_dipole)=='CALC') then
+          call duo_j0(iverbose,Jval)
+       else
+          stop 'IO_eigen = read with IO_dipole undefined is illegal'
+       endif
+       !
+    else
+       call duo_j0(iverbose,Jval)
+    endif
     !
     !call Sort_levels(iverbose,nJ, Jval(1:nJ))
     !
