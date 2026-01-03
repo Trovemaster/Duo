@@ -7,6 +7,7 @@ module magnetic_dipole
   use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
                            TimerReport,memory_limit,memory_now
   use symmetry,     only : sym,correlate_to_Cs
+  use dipole,       only : transitions_filter_from_fitting
 
   private
   public md_tranint
@@ -615,6 +616,16 @@ contains
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
+                !
                 if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
                 if (passed) then
@@ -1096,6 +1107,17 @@ contains
                 !call TimerStart('Intens_Filter-2')
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
+                !
                 if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
                 !call TimerStop('Intens_Filter-2')
@@ -1186,6 +1208,17 @@ contains
                 !call TimerStart('Intens_Filter-3')
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
+                !
                 if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
                 !call TimerStop('Intens_Filter-3')

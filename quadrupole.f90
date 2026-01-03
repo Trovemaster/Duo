@@ -10,6 +10,7 @@ use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
 use symmetry,      only : sym, correlate_to_Cs
+use dipole,        only : transitions_filter_from_fitting
 
 private
 public qm_tranint
@@ -538,6 +539,16 @@ contains
                 call intens_filter(jI, jF, energyI, energyF, &
                                    indSymI, indSymF, iGammaPair, &
                                    passed)
+                !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
 
                 if ( Intensity%matelem ) then
                   call matelem_filter(jI, jF, energyI, energyF, &
@@ -1008,6 +1019,17 @@ contains
                 ! overidden by mat. elem. filter if we want mat. elems.
                 call intens_filter(jI, jF, energyI, energyF, &
                   indSymI, indSymF, iGammaPair, passed)
+                !
+                !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
 
                 if ( Intensity%matelem ) then
                   call matelem_filter(jI, jF, energyI, energyF, &
@@ -1103,6 +1125,17 @@ contains
                 ! overidden by mat. elem. filter if we want mat elems.
                 call intens_filter(jI, jF, energyI, energyF, &
                   indSymI, indSymF, iGammaPair, passed)
+                !
+                if (intensity%use_fitting) then
+                  !
+                  quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
+                  !
+                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                       energyI,energyF,quantaI,quantaF,passed)
+
+                  !
+                endif
+
 
                 if ( Intensity%matelem ) then
                   call matelem_filter(jI, jF, energyI, energyF, &

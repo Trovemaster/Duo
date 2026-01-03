@@ -11,7 +11,7 @@ module dipole
 
 
  private
- public dm_tranint
+ public dm_tranint,transitions_filter_from_fitting
 
  real(rk),allocatable,save  :: dipole_me(:, :)
 
@@ -111,7 +111,7 @@ contains
           call check_point_dipoles('READ',iverbose,Ndimen_vib)
        elseif(trim(job%IO_dipole)=='CALC') then
           call check_point_basis_set('READ',iverbose,NVibBasis)
-          call compute_vib_integrals(NBasis)
+          call compute_vib_integrals(NVibBasis)
        else
           stop 'IO_eigen = read with IO_dipole undefined is illegal'
        endif
