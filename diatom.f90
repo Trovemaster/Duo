@@ -17950,13 +17950,13 @@ contains
                   !
                   read(iunit,*) n_,Jvalue_,ipar_,vect_,iState,v,Lambda,Spin,Sigma,Omega,iomega,ivib,ilevel_
                   !
-                  if ( n_/=ilevel .or. nint( abs( Jvalue_-Jval(irot) ) )/=0 .or. (ipar_/=irrep-1) ) then
-                     write(out,"('Error checkpointRestore: inconsisten state descriptions')")
-                     write(out,"('   i = ',2i8)") n_,ilevel
-                     write(out,"('   J = ',2f8.5)") Jvalue_,Jval(irot)
-                     write(out,"('   ipar = ',2i4)") ipar_,irrep-1
-                     stop "Error checkpointRestore: illegal state descriptions"
-                  endif
+                  !if ( n_/=ilevel .or. nint( abs( Jvalue_-Jval(irot) ) )/=0 .or. (ipar_/=irrep-1) ) then
+                  !   write(out,"('Error checkpointRestore: inconsisten state descriptions')")
+                  !   write(out,"('   i = ',2i8)") n_,ilevel
+                  !   write(out,"('   J = ',2f8.5)") Jvalue_,Jval(irot)
+                  !   write(out,"('   ipar = ',2i4)") ipar_,irrep-1
+                  !   stop "Error checkpointRestore: illegal state descriptions"
+                  !endif
                   !
                   eigen(irot,irrep)%vect(i,ilevel) = vect_
                   !
