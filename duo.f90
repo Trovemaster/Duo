@@ -75,9 +75,9 @@
         endif
         write(out, '(a)') '--End--'
         stop
-     endif   
+     endif
      !
-     if (action%fitting) then 
+     if (action%fitting) then
         !
         if (action%intensity) then 
            write(out, '(a)') 'Fitting and intensity should not be used at the same time'

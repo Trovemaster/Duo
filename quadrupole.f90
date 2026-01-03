@@ -4,7 +4,8 @@ use accuracy,      only : hik, ik, rk, ark, cl, out,&
                           vellgt, planck, avogno, boltz, pi, small_
 use diatom_module, only : job, Intensity, quantaT, eigen, basis,&
                           nQuadrupoles, quadrupoletm, duo_j0, fieldT, poten,&
-                          three_j, jmin_global
+                          three_j, jmin_global,&
+                          check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals
 use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
@@ -44,7 +45,7 @@ contains
 
     ! calculation variables
     real(rk)              :: energy, beta, expEn, part
-    integer(ik)           :: irrep
+    integer(ik)           :: irrep,totalroots,Ndimen_vib,NVibBasis
 
     real(rk), allocatable :: jVal(:), qPart(:,:)
 
@@ -94,9 +95,26 @@ contains
        Jval_ = Jval_ + 1.0_rk
        Jval(jind) = Jval_
     end do
-
-    call duo_j0(iverbose, jVal)
-
+    !
+    if (trim(job%IO_eigen)=='READ') then
+       !
+       call check_point_eigenfunc('READ',iverbose,nJ,Jval,totalroots)
+       !
+       if (trim(job%IO_dipole)=='READ') then 
+          call check_point_dipoles('READ',iverbose,Ndimen_vib)
+       elseif(trim(job%IO_dipole)=='CALC') then
+          call check_point_basis_set('READ',iverbose,NVibBasis)
+          call compute_vib_integrals(NVibBasis)
+       else
+          stop 'IO_eigen = read with IO_dipole undefined is illegal'
+       endif
+       !
+    else
+       call duo_j0(iverbose,Jval)
+    endif
+    !
+    !call duo_j0(iverbose, jVal)
+    !
     if  ( job%shift_to_zpe ) then
 
       do jInd = 1, nJ

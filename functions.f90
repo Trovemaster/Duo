@@ -1701,7 +1701,7 @@ module functions
     if (size(c).lt.13) stop 'Too few parameters, should have 7 expansion coeficients and 6 fitting parameters.'
     !
     ! Change of variable, the damped polynomial coordinate, z, which maps the r E [0,infty] -> z E [-1,+1] interval
-    z = 1-2*exp(-c(8)*x) 
+    z = 1.0_rk-2.0_rk*exp(-c(8)*x) 
     !
     ! check to see if the c0 is > 0
     if (c(8).lt.0.) stop 'c1 is unphysical. c1 should never be < 0!'
@@ -1719,7 +1719,7 @@ module functions
     ! Compute the Chebyshev expansion as a fucntion of z
     cheb_expansion=z*d-dd+c(1) ! not correct so far
     ! Compute the r-dependent, empirical term chi that multiplies the Chebyshev expansion
-    chi=(1-exp(-c(9)*x))**3/(sqrt((x**2-c(10)**2)**2+c(11)**2)*sqrt((x**2-c(12)**2)**2+c(13)**2)) ! correct
+    chi=(1.0_rk-exp(-c(9)*x))**3/(sqrt((x**2-c(10)**2)**2+c(11)**2)*sqrt((x**2-c(12)**2)**2+c(13)**2)) ! correct
     !
     ! Compute the irregular Chebysehv expansion DMC
     f=chi*cheb_expansion

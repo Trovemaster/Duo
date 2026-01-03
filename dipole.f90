@@ -2,7 +2,8 @@ module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
-                          Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles
+                          Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles,&
+                          check_point_basis_set,compute_vib_integrals,fitting
  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
@@ -61,7 +62,7 @@ contains
 
     real(rk)             :: Jval_,Jval_min,Jmin, Jmax,exp_en, part, beta, energy
 
-    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu,totalroots,Ndimen_vib
+    integer(ik)          :: ilevel, irrep,igamma,isym,istate,parity_gu,totalroots,Ndimen_vib,NVibBasis
     integer(ik)          :: iverbose = 4
 
     ! initialize array of J values
@@ -109,7 +110,8 @@ contains
        if (trim(job%IO_dipole)=='READ') then 
           call check_point_dipoles('READ',iverbose,Ndimen_vib)
        elseif(trim(job%IO_dipole)=='CALC') then
-          call duo_j0(iverbose,Jval)
+          call check_point_basis_set('READ',iverbose,NVibBasis)
+          call compute_vib_integrals(NBasis)
        else
           stop 'IO_eigen = read with IO_dipole undefined is illegal'
        endif
@@ -584,6 +586,7 @@ contains
            istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
            parity_gu = poten(istateI)%parity%gu
            isymI = correlate_to_Cs(igammaI,parity_gu)
+           quantaI => eigen(indI,igammaI)%quanta(ilevelI)
            !
            call energy_filter_lower(jI,energyI,passed)
            !
@@ -618,6 +621,16 @@ contains
                   isymF = correlate_to_Cs(igammaF,parity_gu)
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  !
+                  if (intensity%use_fitting) then
+                    !
+                    quantaF => eigen(indF,igammaF)%quanta(ilevelF)
+                    !
+                    call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                         energyI,energyF,quantaI,quantaF,passed)
+
+                    !
+                  endif
                   !
                   ! skip if the upper state is unbound states if the filter is on
                   !
@@ -1214,6 +1227,15 @@ contains
                   !call TimerStart('Intens_Filter-2')
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  !
+                  if (intensity%use_fitting) then
+                    !
+                    call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                         energyI,energyF,quantaI,quantaF,passed)
+
+                    !
+                  endif
+                  !
                   if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
                   !call TimerStop('Intens_Filter-2')
@@ -1409,12 +1431,12 @@ contains
                               write(out, "( (f5.1, 1x, a4, 3x),a2, (f5.1, 1x, a4, 3x),a1,&
                                          &(2x, f11.4,1x),a2,(1x, f11.4,1x),f11.4,2x,&
                                          & 3(1x, es16.8),&
-                                         & ' ( ',i2,1x,i3,1x,i2,2f8.1,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,' )')")  &
+                                         & ' ( ',i2,1x,i3,1x,i2,2f8.1,1x,i7,' )',a2,'( ',i2,1x,i3,1x,i2,2f8.1,1x,i7,' )')")  &
                                          jF,sym%label(isymF),dir,jI,sym%label(isymI),branch, &
                                          energyF-intensity%ZPE,dir,energyI-intensity%ZPE,nu_if,  &
                                          linestr2,A_einst,absorption_int,&
-                                         istateF,ivF,ilambdaF,sigmaF,omegaF,dir,&
-                                         istateI,ivI,ilambdaI,sigmaI,omegaI
+                                         istateF,ivF,ilambdaF,sigmaF,omegaF,ilevelF,dir,&
+                                         istateI,ivI,ilambdaI,sigmaI,omegaI,ilevelI
                                          !
                               !
                               !$omp end critical
@@ -2068,9 +2090,92 @@ contains
           endif
           !
      end subroutine intens_filter
-
-
-
+     !
+     subroutine transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
+                                                quantaI,quantaF,passed)
+        !
+        real(rk),intent(in) :: jI,jF,EnergyF,EnergyI
+        integer(ik),intent(in) :: indI,indF,isymI,isymF,ilevelI,ilevelF
+        type(quantaT),pointer,intent(in)  :: quantaI,quantaF
+        logical,intent(out)    :: passed
+        integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
+        integer(ik) :: istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,iparityF
+        real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
+        real(rk) :: jrot,jrot_
+        !
+        ! no need to check further if it is already false 
+        if (.not.passed) return
+        !
+        ivibI    = quantaI%ivib
+        vI       = quantaI%v
+        iStateI  = quantaI%iState
+        sigmaI   = quantaI%sigma
+        spinI    = quantaI%spin
+        ilambdaI = quantaI%ilambda
+        omegaI   = quantaI%omega
+        iparityI = quantaI%iparity
+        !
+        ivibF    = quantaF%ivib
+        vF       = quantaF%v
+        iStateF  = quantaF%iState
+        sigmaF   = quantaF%sigma
+        spinF    = quantaF%spin
+        ilambdaF = quantaF%ilambda
+        omegaF   = quantaF%omega
+        iparityF = quantaF%iparity
+        !
+        Nentries  = fitting%Nenergies
+        !
+        loop_freq : do ientry = 1,Nentries
+          !
+          jrot = fitting%obs(ientry)%jrot
+          itau = fitting%obs(ientry)%iparity+1
+          !
+          jrot_= fitting%obs(ientry)%jrot_
+          itau_= fitting%obs(ientry)%iparity_+1
+          !
+          N = fitting%obs(ientry)%N
+          N_= fitting%obs(ientry)%N_
+          !
+          if (abs(fitting%threshold_lock)<sqrt(small_)) then
+             !
+             if (nint(Jrot-JF)==0.and.nint(Jrot_-JI)==0 .and. isymF==itau .and. isymI==itau_ .and. &
+                 N == iLevelF .and. N_ == iLevelI  ) then
+                 !
+                 return 
+             endif
+             !
+          else
+             !
+             if ( abs( fitting%obs(ientry)%energy-( EnergyF-EnergyI )  )<= abs(fitting%threshold_lock).and.&
+                 ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
+                     abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
+                    vF==fitting%obs(ientry)%quanta%v.and.&
+                     nint(abs(sigmaF)-abs(fitting%obs(ientry)%quanta%sigma) )==0.and.&
+                     nint(abs(omegaF)-abs(fitting%obs(ientry)%quanta%omega) )==0.and.&
+                     !
+                     istateI==fitting%obs(ientry)%quanta_%istate.and.&
+                     abs(ilambdaI)==abs(fitting%obs(ientry)%quanta_%ilambda).and.&
+                     vI==fitting%obs(ientry)%quanta_%v.and.&
+                     nint(abs(sigmaI)-abs(fitting%obs(ientry)%quanta_%sigma))==0 .and.&
+                     nint(abs(omegaI)-abs(fitting%obs(ientry)%quanta_%omega))==0 ).or.&
+                     ! threshold_lock < 0, only frequency match 
+                   (  fitting%threshold_lock<0 ) ) ) then 
+                 !
+                 fitting%obs(ientry)%N = ilevelF
+                 fitting%obs(ientry)%N_= ilevelI
+                 return 
+                 !
+             endif 
+          endif
+          !
+        enddo loop_freq
+        !
+        passed = .false.
+        !
+        !
+     end subroutine transitions_filter_from_fitting
+     !
      subroutine matelem_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
         !
         implicit none

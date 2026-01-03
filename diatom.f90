@@ -371,6 +371,7 @@ module diatom_module
     logical :: overlap       = .false.
     logical :: hyperfine     = .false.
     logical :: save_eigen_J  = .false.
+
     !
   end type actionT
   !
@@ -457,6 +458,8 @@ module diatom_module
     real(rk)            :: asymptote=safe_max     ! Lowest asymptote
     logical             :: use_bound_rmax = .false.   ! flag to use <r> for unbound determination 
     logical             :: bound_eps_print = .false.  ! flag to print unbound density
+    logical             :: use_fitting = .false.  ! using fitting functionality for intensity selections
+                                                  ! when computing and for fitting (some day)
     !
   end type IntensityT
   !
@@ -593,7 +596,7 @@ module diatom_module
     jmin,jmax,vmax,fieldmap,Intensity,eigen,basis,Ndipoles,dipoletm,linkT,rangeT,three_j,quadrupoletm,&
     magnetictm,magnetrot,l_omega_obj,s_omega_obj,sr_omega_obj,brot_omega_obj,p2q_omega_obj,q_omega_obj,&
     nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup,&
-    check_point_eigenfunc,check_point_dipoles
+    check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals
   !
   save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
   !
@@ -1414,6 +1417,10 @@ contains
           case('TARGET_RMS')
             !
             call readf(fitting%target_rms)
+            !
+          case('INTENSITY')
+            !
+            intensity%use_fitting = .true.
             !
           case('FIT_TYPE','FIT-TYPE')
             !
@@ -3965,6 +3972,13 @@ contains
     if (jmax<jmin) jmax = jmin
     !
     jmin_global = Jmin
+    !
+    ! switch off the fitting for intensity calculations 
+    if (action%intensity) then 
+       if (action%fitting .and. intensity%use_fitting) then 
+          action%fitting = .false. 
+       endif
+    endif
     !
     ! check the L2 terms:
     !
@@ -7375,6 +7389,7 @@ contains
       allocate(J_list(nJ),stat=alloc)
       !
       J_list = J_list_
+      job%J_list = J_list 
       !
     else
       !
@@ -7383,6 +7398,8 @@ contains
       J_list = job%J_list
       !
     endif
+    Jmax = maxval(J_list)
+    Jmin = minval(J_list)
     !
     if (iverbose>=4) call TimerStart('Map on grid')
     !
@@ -9203,6 +9220,7 @@ contains
       write(iunit,'(" Nestates = ",i8)') nestates
       write(iunit,'(" Npoints   = ",i8)') grid%npoints
       write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
+      write(iunit,'(" nJs     = ",i8)') nJ
       write(iunit,'(" Jrange  = ",2(1x,f8.5))') jmin,jmax
       !
       do k =1,nestates
@@ -9217,6 +9235,9 @@ contains
       write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
       call IOstart(trim(ioname),vibunit)
       open(unit = vibunit, action = 'write',status='replace' , file = filename)
+      !
+      write(vibunit,'("totalroots   = ",i8)') totalroots
+      write(vibunit,'(" Npoints   = ",i8)') grid%npoints
       !
       do i = 1,totalroots
         istate = icontrvib(i)%istate
@@ -10886,6 +10907,7 @@ contains
          write(iunit,'(" Nestates = ",i8)') nestates
          write(iunit,'(" Npoints   = ",i8)') grid%npoints
          write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
+         write(iunit,'(" nJs     = ",i8)') nJ
          write(iunit,'(" Jrange  = ",2(1x,f8.5))') jmin,jmax
          !
          do k =1,nestates
@@ -17460,9 +17482,63 @@ contains
   end subroutine setup_factorials_lookup
   !
 
+  subroutine compute_vib_integrals(totalroots)
+    
+     integer(ik),intent(in) :: totalroots
+     integer(ik) :: iobject,iterm,Nmax,alloc,ilevel,jlevel
+     type(fieldT),pointer      :: field
 
-
-
+      Loop_objects : do iobject = 1,Nobjects
+        !
+        ! each field type constits of Nmax terms
+        !
+        Nmax = fieldmap(iobject)%Nfields
+        !
+        do iterm = 1,Nmax
+          !
+          select case (iobject)
+            !
+          case default 
+            cycle Loop_objects
+          case (Nobjects-5)
+            field => magnetrot(iterm)
+          case (Nobjects-4)
+            field => magnetictm(iterm)
+          case (Nobjects-3)
+            field => quadrupoletm(iterm)
+          case (Nobjects-2)
+            field => abinitio(iterm)
+          case (Nobjects)
+            field => dipoletm(iterm)
+          end select
+          !
+          ! check if the field wass not allocated at previous call to prevent multiple allocations
+          !
+          if (.not.fields_allocated) then
+            allocate(field%matelem(totalroots,totalroots),stat=alloc)
+            call ArrayStart(field%name,alloc,size(field%matelem),kind(field%matelem))
+          endif
+          !
+          field%matelem = 0
+          !
+          !$omp parallel do private(ilevel,jlevel) schedule(guided)
+          do ilevel = 1,totalroots
+            do jlevel = 1,ilevel
+              !
+              field%matelem(ilevel,jlevel)  = &
+                        sum(vibrational_contrfunc(:,ilevel)*(field%gridvalue(:))*vibrational_contrfunc(:,jlevel))
+              !
+              field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+              !
+              !
+            enddo
+          enddo
+          !
+        enddo
+        !
+      enddo  Loop_objects 
+      !
+  end subroutine compute_vib_integrals 
 
 
 
@@ -17707,12 +17783,103 @@ contains
   end subroutine check_point_dipoles
 
 
+  subroutine check_point_basis_set(action,iverbose,TotalRoots)
+
+   character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
+   integer(ik),intent(in)            :: iverbose
+   integer(ik),intent(out) :: TotalRoots ! size of the contracted basis set
+   !type(quantaT),intent(in),optional :: icontr(:)
+   !
+   call TimerStart('check_point_basis_set')
+   select case (action)
+     case default
+       write (out,"(' check_point_basis_set - action ',a,' is not valid')") trim(action)
+       stop 'check_point_basis_set - bogus command'
+     case ('READ','read')
+       !
+       call checkpointBasisRestore(TotalRoots)
+       !
+   end select
+   call TimerStop('check_point_basis_set')
+
+   contains 
+
+
+   subroutine checkpointBasisRestore(TotalRoots)
+     !
+     integer(ik),intent(out)   :: TotalRoots
+     integer(ik)        :: npoints_,istate,i,n,v,vibunit,totalroots_,alloc,ngrid,k
+     real(rk)           :: energy
+     character(len=cl)  :: filename,ioname,name
+     character(len=cl)  :: string1,string2
+        !
+      filename =  trim(job%eigenfile%vectors)//'_vib.chk'
+      write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
+      call IOstart(trim(ioname),vibunit)
+      open(unit = vibunit, action = 'read',status='old' , file = filename)
+      !
+      read(vibunit,*) string1(1:10),string2(1:1),totalroots_
+      read(vibunit,*) string1(1:8),string2(1:1),npoints_
+      !
+      if ( npoints_/=grid%npoints ) then
+         write(out,"('Error checkpointBasisRestore: inconsisten grid-npoints stored:',2I8)") npoints_,grid%npoints
+         stop "Error checkpointBasisRestore: inconsisten grid-npoints stored"
+      endif
+      !
+      totalroots = totalroots_
+      !
+      !allocate(contrenergy(ngrid*Nestates),stat=alloc)
+      !call ArrayStart('contrenergy',alloc,size(contrenergy),kind(contrenergy))
+      !
+      allocate(vibrational_contrfunc(grid%npoints,totalroots),stat=alloc)
+      call ArrayStart('vibrational_contrfunc',alloc,1_ik,kind(vibrational_contrfunc),size(vibrational_contrfunc,kind=hik))
+      !
+      do i = 1,totalroots
+        !istate = icontrvib(i)%istate 
+        ! ('i5,f18.6,3x,2i4,3x,a')
+        read(vibunit,*) n,energy,istate,v,name  
+        !
+        !icontrvib(i)%istate =  istate
+        !icontrvib(i)%v = v   
+        !contrenergy(i) = energy
+        !
+        if (i/=n) then
+           write(out,"('Error checkpointBasisRestore: inconsisten basis number :',2i)") i,n
+           stop "Error checkpointBasisRestore: inconsisten basis number"
+        endif 
+        !
+        if ( trim(poten(istate)%name)/=trim(name) ) then
+           write(out,"('Error checkpointBasisRestore: inconsisten sate name:',2a)") trim(poten(istate)%name),trim(name)
+           stop "Error checkpointBasisRestore: inconsisten sate name"
+        endif 
+        !
+        do k = 1,grid%npoints
+          read(vibunit,*) vibrational_contrfunc(k,i)
+        enddo
+        !
+      enddo
+      !
+      read(vibunit,"(a23)") string1(1:23)
+      !
+      if (string1(1:23)/="End of contracted basis") then 
+        write(out,"(a)") 'checkpointBasisRestore: error illegal footer'
+        stop "checkpointBasisRestore: error illegal footer"
+      endif
+      !
+      close(vibunit,status='keep') 
+      !
+   end subroutine checkpointBasisRestore
+
+
+
+  end subroutine check_point_basis_set
+
   subroutine check_point_eigenfunc(action,iverbose,nJ,Jval,Ntotal)
 
    character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
    integer(ik),intent(in)            :: iverbose,nJ
    real(rk),intent(in)               :: Jval(nJ)
-   integer(ik),intent(inout) :: Ntotal ! size of the contracted basis set
+   integer(ik),intent(inout) :: Ntotal 
    !type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_eigenvectors')
@@ -17737,7 +17904,7 @@ contains
      integer(ik),parameter :: sl = 89
      character(len=sl)  :: string1,string2
      real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,jmin_,jmax_,Spin,Sigma,Omega,vect_
-     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,iState,v,Lambda,ivib,Ntotal_,ilevel_,iomega
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,iState,v,Lambda,ivib,Ntotal_,ilevel_,iomega,nJ_
      character(len=cl)  :: poten_nam(nestates),filename,ioname
      logical      :: integer_spin = .false.
      type(quantaT),pointer  :: quanta_state
@@ -17754,6 +17921,7 @@ contains
         read(iunit,*) string1(1:7),string2(1:1),nestates_
         read(iunit,*) string1(1:8),string2(1:1),npoints_
         read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        read(iunit,*) string1(1:3),string2(1:1), nJ_
         read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
         !
         read(iunit,*) (poten_nam(k),k =1,nestates)
@@ -17764,7 +17932,7 @@ contains
         !
         Ntotal_ = 0
         !
-        do irot  = 1,nJ 
+        do irot  = 1,nJ_
            do irrep = 1,sym%NrepresCs
              !
              Nlevels = eigen(irot,irrep)%Nlevels
@@ -17837,7 +18005,7 @@ contains
      integer(ik),parameter :: sl = 89
      character(len=sl)  :: string1,string2
      real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,Jmin_,Jmax_
-     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma,nJ_
      character(len=cl)  :: poten_nam(nestates),filename,ioname
      logical      :: integer_spin = .false.
      type(quantaT),pointer  :: quanta_state
@@ -17848,22 +18016,30 @@ contains
         call IOstart(trim(ioname),iunit)
         open(unit = iunit, action = 'read',status='old' , file = filename)
         !
-        read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
-        read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
-        read(iunit,*) string1(1:6),string2(1:1),Nroots_
-        read(iunit,*) string1(1:6),string2(1:1),totalroots_
-        read(iunit,*) string1(1:7),string2(1:1),nestates_
-        read(iunit,*) string1(1:8),string2(1:1),npoints_
+        read(iunit,*) string1(1:8),string2(1:1), symbol1,symbol2
+        read(iunit,*) string1(1:6),string2(1:1), m1_,m2_
+        read(iunit,*) string1(1:6),string2(1:1), Nroots_
+        read(iunit,*) string1(1:6),string2(1:1), totalroots_
+        read(iunit,*) string1(1:7),string2(1:1), nestates_
+        read(iunit,*) string1(1:8),string2(1:1), npoints_
         read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        read(iunit,*) string1(1:3),string2(1:1), nJ_
         read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
         !
         read(iunit,*) (poten_nam(k),k =1,nestates)
         !
-        allocate(eigen(nJ,sym%NrepresCs),basis(nJ),stat=alloc)
+        ! Working Jmax cannot be larger than stored Jmax
+        !
+        if (intensity%j(2)>Jmax_) then
+          write(out,"('Eigen-Read: Working Jmax is larger than stored Jmax: Updating to ',f8.1)") Jmax_
+          intensity%j(2) = min(Jmax_,intensity%j(1))
+        endif
+        !
+        allocate(eigen(nJ_,sym%NrepresCs),basis(nJ_),stat=alloc)
         if (alloc/=0) stop 'problem allocating eigen'
         !
         ! initialize the following fields
-        do irot = 1,nJ
+        do irot = 1,nJ_
           do irrep = 1,sym%NrepresCs
             eigen(irot,irrep)%Nlevels = 0
             eigen(irot,irrep)%Ndimen = 0
@@ -17879,7 +18055,7 @@ contains
         !
         Ntotal = 0
         !
-        do irot  = 1,nJ 
+        do irot  = 1,nJ_
            do irrep = 1,sym%NrepresCs
              !
              read(iunit,*) Nlevels
@@ -17900,6 +18076,19 @@ contains
                 read(iunit,fmt_) & 
                    iroot,eigen(irot,irrep)%val(iroot),Jvalue_,igamma,quanta_state%istate,quanta_state%name,quanta_state%v,&
                    quanta_state%ilambda,quanta_state%sigma,quanta_state%omega,quanta_state%ivib
+                   !
+                ! The ZPE value can be obtained only for the first J in the J_list tau=1.
+                ! Otherwise the value from input must be used.
+                !
+                if (irot==1.and.job%shift_to_zpe.and.iverbose/=0) then
+                  !
+                  if (irrep==1) then
+                    job%ZPE = eigen(irot,irrep)%val(iroot)
+                  endif
+                  !
+                  intensity%ZPE = job%ZPE
+                  !
+                endif
                 !
                 Ntotal = Ntotal + 1
                 !
@@ -17907,6 +18096,7 @@ contains
              !
            enddo
         enddo
+        !
         !
         read(iunit,"(a18)") string1(1:18)
         !
@@ -17920,8 +18110,6 @@ contains
    end subroutine checkpointRestore_Eigenvalues
    !
   end subroutine check_point_eigenfunc 
-
-
 
    !
    !
@@ -18029,13 +18217,5 @@ contains
     end subroutine fingerprintRead
     !
    end subroutine fingerprint
-
-
-
-
-
-
-
-
   !
 end module diatom_module
