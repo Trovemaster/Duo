@@ -9211,25 +9211,10 @@ contains
       filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
       write(ioname, '(a, i4)') 'Eigenvectors file '
       call IOstart(trim(ioname),iunit)
-      open(unit = iunit, action = 'write',status='replace' , file = filename)
+      open(unit = iunit, form='unformatted', action = 'write',status='replace' , file = filename)
       !
-      write(iunit,'(" Molecule = ",a,1x,a)' ) symbol1,symbol2
-      write(iunit,'(" masses   = ",2f20.12)') m1,m2
-      write(iunit,'(" Nroots   = ",i8)') Nroots
-      write(iunit,'(" Nbasis   = ",i8)') totalroots
-      write(iunit,'(" Nestates = ",i8)') nestates
-      write(iunit,'(" Npoints   = ",i8)') grid%npoints
-      write(iunit,'(" range   = ",2f14.7)') grid%rmin,grid%rmax
-      write(iunit,'(" nJs     = ",i8)') nJ
-      write(iunit,'(" Jrange  = ",2(1x,f8.5))') jmin,jmax
-      !
-      do k =1,nestates
-        write(iunit, '(a,", ")',advance='no') trim(poten(k)%name)
-      enddo
-      !
-      write(iunit,'(a)') '   <- States'
-      !
-      write(iunit,"(6x,'|   # |    J | p |           Coeff.   | St vib Lambda Spin     Sigma    Omega ivib|')")
+      write(iunit) 'eigenvectors-chk/start'
+      write(iunit) nJ,jmin,jmax
       !
       filename =  trim(job%eigenfile%vectors)//'_vib.chk'
       write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -9683,6 +9668,21 @@ contains
             !
           enddo
         enddo
+        !
+        ! Store the basis set quantum numbers as part of the eigenfunciton checkpoint 
+        if (job%IO_eigen=='SAVE') then
+          !
+          write(iunit) Ntotal
+          !
+          do k = 1,Ntotal
+            !
+            write(iunit) icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                         icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
+          enddo
+          !
+          write(iunit) 'contr-basis/end'
+          !
+        endif
         !
         ! allocate the hamiltonian matrix and an array for the energies of this size Ntotal
         allocate(hmat(Ntotal,Ntotal),stat=alloc)
@@ -10288,6 +10288,12 @@ contains
             !
           endif
           !
+          if (job%IO_eigen=='SAVE') then
+            !
+            write(iunit) J_list(irot),irrep
+            !
+          endif
+          !
           if (intensity%renorm.or.intensity%bound.or.intensity%unbound) then
             allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
             call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
@@ -10753,11 +10759,13 @@ contains
               !
               if (job%IO_eigen=='SAVE') then
                 !
-                do k = 1,Ntotal
-                  write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4,1x,i4,1x,i8)') &
-                    total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
-                    icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
-                enddo
+                !do k = 1,Ntotal
+                !  write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4,1x,i4,1x,i8)') &
+                !    total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                !    icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
+                !enddo
+                !
+                write(iunit) total_roots,vec
                 !
               endif
               !
@@ -10889,7 +10897,9 @@ contains
     !
     if (job%IO_eigen=='SAVE') then
       !
-      write(iunit,"('End of eigenvector')")
+      !write(iunit,"('End of eigenvector')")
+      !
+      write(iunit) 'eigenvectors-chk/end'
       !
       close(unit = iunit, status='keep')
       !
@@ -17880,6 +17890,8 @@ contains
    integer(ik),intent(in)            :: iverbose,nJ
    real(rk),intent(in)               :: Jval(nJ)
    integer(ik),intent(inout) :: Ntotal 
+   integer(ik) :: nJstored
+   real(rk)    :: Jmin,Jmax
    !type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_eigenvectors')
@@ -17888,8 +17900,8 @@ contains
        write (out,"(' check_point_eigenvectors - action ',a,' is not valid')") trim(action)
        stop 'check_point_eigenvectors - bogus command'
      case ('READ','read')
-       call checkpointRestore_Eigenvalues(Ntotal)
-       call checkpointRestore(Ntotal)
+       call checkpointRestore_Eigenvalues(Ntotal,nJstored,Jmin,Jmax)
+       call checkpointRestore(Ntotal,nJstored,Jmin,Jmax)
    end select
    call TimerStop('check_point_eigenvectors')
 
@@ -17897,9 +17909,10 @@ contains
    contains 
    !
    !
-   subroutine checkpointRestore(Ntotal)
+   subroutine checkpointRestore(Ntotal,nJ,Jmin,Jmax)
      !
-     integer(ik),intent(in)   :: Ntotal
+     integer(ik),intent(in) :: Ntotal,nJ
+     real(rk),intent(in)    :: Jmin,Jmax
      integer(ik)        :: Ndimen,Nlevels,nestates_,npoints_,iunit,k,ilevel,irot,irrep,Nroots_,totalroots_
      integer(ik),parameter :: sl = 89
      character(len=sl)  :: string1,string2
@@ -17912,68 +17925,118 @@ contains
         filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
         write(ioname, '(a, i4)') 'Eigenvectors file '
         call IOstart(trim(ioname),iunit)
-        open(unit = iunit, action = 'read',status='old' , file = filename)
+        open(unit = iunit, form='unformatted', action = 'read',status='old' , file = filename)
         !
-        read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
-        read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
-        read(iunit,*) string1(1:6),string2(1:1),Nroots_
-        read(iunit,*) string1(1:6),string2(1:1),totalroots_
-        read(iunit,*) string1(1:7),string2(1:1),nestates_
-        read(iunit,*) string1(1:8),string2(1:1),npoints_
-        read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
-        read(iunit,*) string1(1:3),string2(1:1), nJ_
-        read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
+        !read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
+        !read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
+        !read(iunit,*) string1(1:6),string2(1:1),Nroots_
+        !read(iunit,*) string1(1:6),string2(1:1),totalroots_
+        !read(iunit,*) string1(1:7),string2(1:1),nestates_
+        !read(iunit,*) string1(1:8),string2(1:1),npoints_
+        !read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
+        !read(iunit,*) string1(1:3),string2(1:1), nJ_
+        !read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
         !
-        read(iunit,*) (poten_nam(k),k =1,nestates)
+        !read(iunit,*) (poten_nam(k),k =1,nestates)
         !
-        read(iunit,*) string1(1:1)
+        !read(iunit,*) string1(1:1)
         !
-        if (mod(nint(2.0_rk*Jval(1)+1.0_rk),2)==1) integer_spin = .true.
+        read(iunit) string1(1:22)
+        !
+        if (string1(1:22)/='eigenvectors-chk/start') then 
+          write(out,"(a)") 'checkpointRestore_Eigenvalues: error illegal header'
+          stop "checkpointRestore_Eigenvalues: error illegal header"
+        endif
+        !
+        read(iunit) nJ_,Jmin_,Jmax_
+        !
+        if (nJ_/=nJ.or.nint(Jmin_-Jmin)/=0.or.nint(Jmax_-Jmax)/=0) then
+          write(out,"(a,1x,i8,1x,2f8.1,'<>',i8,1x,2f8.1)") 'checkpointRestore: Inconsistent nJ, Jmin,Jmax, in two eigen chks ',&
+                      nJ_,Jmin_,Jmax_,nJ,Jmin,Jmax
+          stop "checkpointRestore: Inconsistent Inconsistent nJ, Jmin,Jmax, in two eigen chks"
+          
+        endif
         !
         Ntotal_ = 0
         !
         do irot  = 1,nJ_
+           !
+           ! allocate the basis set descriptions
+           !
+           read(iunit) Ndimen
+           !
+           allocate(basis(irot)%icontr(Ndimen),stat=alloc)
+           !
+           do i = 1,Ndimen
+             !
+             read(iunit) &
+                         basis(irot)%icontr(i)%istate,&
+                         basis(irot)%icontr(i)%v,&
+                         basis(irot)%icontr(i)%ilambda,&
+                         basis(irot)%icontr(i)%spin,&
+                         basis(irot)%icontr(i)%sigma,&
+                         basis(irot)%icontr(i)%omega,&
+                         basis(irot)%icontr(i)%iomega,&
+                         basis(irot)%icontr(i)%ivib,&
+                         basis(irot)%icontr(i)%ilevel
+              !
+           enddo 
+           !
+           read(iunit) string1(1:15)
+           !
+           if (string1(1:15)/='contr-basis/end') then 
+             write(out,"(a,1x,i5,1x,i4)") 'checkpointRestore: error finishing the contr-basis', irot,irrep
+             stop "checkpointRestore: error illegal ending"
+           endif
+           !
            do irrep = 1,sym%NrepresCs
              !
+             read(iunit)  Jvalue_,ipar_
+             if (irrep/=ipar_) then
+               write(out,"(a,1x,2i4)") 'checkpointRestore: Inconsistent irreps in contr-basis ', irrep,ipar_
+               stop "checkpointRestore: Inconsistent irreps in contr-basis"
+               
+             endif
+             if (nint(Jvalue_-Jval(irot))) then
+               write(out,"(a,1x,2f8.1)") 'checkpointRestore: Inconsistent Jvals in contr-basis ', Jvalue_,Jval(irot)
+               stop "checkpointRestore: Inconsistent Jvals in contr-basis"
+               
+             endif
+             !
              Nlevels = eigen(irot,irrep)%Nlevels
-             Ndimen = eigen(irot,irrep)%Ndimen
              !
-             ! allocate the basis set descriptions
-             !
-             allocate(basis(irot)%icontr(Ndimen),stat=alloc)
+             if (eigen(irot,irrep)%Ndimen/=Ndimen) then
+               write(out,"(a,1x,i5,1x,i4)") 'checkpointRestore: Inconsistent Ntotal in contr-basis for irot = ', irot
+               stop "checkpointRestore: Inconsistent Ntotal in contr-basis"
+               
+             endif
              !
              do ilevel = 1,Nlevels
                 !
-                quanta_state => eigen(irot,irrep)%quanta(ilevel)
+                !quanta_state => eigen(irot,irrep)%quanta(ilevel)
                 !
-                do i = 1,Ndimen
-                  !
-                  read(iunit,*) n_,Jvalue_,ipar_,vect_,iState,v,Lambda,Spin,Sigma,Omega,iomega,ivib,ilevel_
-                  !
-                  !if ( n_/=ilevel .or. nint( abs( Jvalue_-Jval(irot) ) )/=0 .or. (ipar_/=irrep-1) ) then
-                  !   write(out,"('Error checkpointRestore: inconsisten state descriptions')")
-                  !   write(out,"('   i = ',2i8)") n_,ilevel
-                  !   write(out,"('   J = ',2f8.5)") Jvalue_,Jval(irot)
-                  !   write(out,"('   ipar = ',2i4)") ipar_,irrep-1
-                  !   stop "Error checkpointRestore: illegal state descriptions"
-                  !endif
-                  !
-                  eigen(irot,irrep)%vect(i,ilevel) = vect_
-                  !
-                  if (ilevel==1) then 
-                    !
-                    basis(irot)%icontr(i)%istate = istate
-                    basis(irot)%icontr(i)%sigma  = sigma
-                    basis(irot)%icontr(i)%ilambda= Lambda
-                    basis(irot)%icontr(i)%spin   = spin
-                    basis(irot)%icontr(i)%omega  = omega  
-                    basis(irot)%icontr(i)%iomega = iomega 
-                    basis(irot)%icontr(i)%ivib   = ivib
-                    basis(irot)%icontr(i)%ilevel = ilevel_
-                    basis(irot)%icontr(i)%v      = v
-                   endif
-                   !
-                enddo
+                read(iunit)  n_,eigen(irot,irrep)%vect(:,ilevel)
+                !
+                !do i = 1,Ndimen
+                !  !
+                !  read(iunit,*) n_,Jvalue_,ipar_,vect_,iState,v,Lambda,Spin,Sigma,Omega,iomega,ivib,ilevel_
+                !  !
+                !  eigen(irot,irrep)%vect(i,ilevel) = vect_
+                !  !
+                !  if (ilevel==1) then 
+                !    !
+                !    basis(irot)%icontr(i)%istate = istate
+                !    basis(irot)%icontr(i)%sigma  = sigma
+                !    basis(irot)%icontr(i)%ilambda= Lambda
+                !    basis(irot)%icontr(i)%spin   = spin
+                !    basis(irot)%icontr(i)%omega  = omega  
+                !    basis(irot)%icontr(i)%iomega = iomega 
+                !    basis(irot)%icontr(i)%ivib   = ivib
+                !    basis(irot)%icontr(i)%ilevel = ilevel_
+                !    basis(irot)%icontr(i)%v      = v
+                !   endif
+                !   !
+                !enddo
                 !
                 Ntotal_ = Ntotal_ + 1
                 !
@@ -17982,30 +18045,31 @@ contains
            enddo
         enddo
         !
-        read(iunit,"(a18)") string1(1:18)
+        read(iunit) string1(1:20)
         !
-        if (string1(1:18)/="End of eigenvector") then 
-          write(out,"(a)") 'checkpointRestore_Eigenvalues: error illegal ending'
-          stop "checkpointRestore_Eigenvalues: error illegal ending"
+        if (string1(1:20)/='eigenvectors-chk/end') then 
+          write(out,"(a)") 'checkpointRestore: error illegal ending'
+          stop "checkpointRestore: error illegal ending"
         endif
         !
         if (Ntotal/=Ntotal_) then 
-          write(out,"(a)") 'checkpointRestore_Eigenvalues: inconsisten number of states with _values',Ntotal_,Ntotal
-          stop "checkpointRestore_Eigenvalues: error inconsisten number of states"
+          write(out,"(a)") 'checkpointRestore: inconsisten number of states with _values',Ntotal_,Ntotal
+          stop "checkpointRestore: error inconsisten number of states"
         endif 
         !
         close(iunit,status='keep')
         !
    end subroutine checkpointRestore
    !
-   subroutine checkpointRestore_Eigenvalues(Ntotal)
+   subroutine checkpointRestore_Eigenvalues(Ntotal,nJ_,Jmin_,Jmax_)
 
-     integer(ik),intent(out)   :: Ntotal
+     integer(ik),intent(out)   :: Ntotal,nJ_
+     real(rk),intent(out)   :: Jmin_,Jmax_
      integer(ik)        :: Nroots_,totalroots_,nestates_,npoints_,iunit,k,ilevel,irot,irrep
      integer(ik),parameter :: sl = 89
      character(len=sl)  :: string1,string2
-     real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,Jmin_,Jmax_
-     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma,nJ_
+     real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma
      character(len=cl)  :: poten_nam(nestates),filename,ioname
      logical      :: integer_spin = .false.
      type(quantaT),pointer  :: quanta_state
@@ -18096,7 +18160,6 @@ contains
              !
            enddo
         enddo
-        !
         !
         read(iunit,"(a18)") string1(1:18)
         !
