@@ -453,6 +453,7 @@ module diatom_module
     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
     logical             :: bound = .false.        ! filter bound states
     logical             :: unbound = .false.      ! filter and process unbound upper states only
+    logical             :: bound_filter = .false. ! switching the bound/unbound filter 
     logical             :: interpolate = .false.  ! use interpolation of Einstein coefficients on a grid of frequencies 
     logical             :: states_only = .false.  ! Only .states file is generated while .trans is skipped. Equivalent to setting negative freq-window
     real(rk)            :: asymptote=safe_max     ! Lowest asymptote
@@ -3436,15 +3437,18 @@ contains
             intensity%unbound = .true.
             intensity%bound = .false.
             intensity%interpolate = .true.
+            intensity%bound_filter = .true.
             !
           case('BOUND')
             !
             intensity%bound = .true.
+            intensity%bound_filter = .true.
             job%basis_set='KEEP'
             !
           case('UNBOUND')
             !
             intensity%unbound = .true.
+            intensity%bound_filter = .true.
             job%basis_set='KEEP'
             !
             if (nitems>1) call readu(w)
@@ -9964,7 +9968,7 @@ contains
         !
       end select
       !
-      if (intensity%bound.or.intensity%unbound) then
+      if (intensity%bound_filter) then
         !
         ! finding unboud states
         ! small interval at the edge of the box
@@ -10295,7 +10299,7 @@ contains
             !
           endif
           !
-          if (intensity%renorm.or.intensity%bound.or.intensity%unbound) then
+          if (intensity%renorm.or.intensity%bound_filter) then
             allocate(psi_vib(ngrid),vec_t(ngrid),vec0(Ntotal),stat=alloc)
             call ArrayStart('psi_vib',alloc,size(psi_vib),kind(psi_vib))
             call ArrayStart('psi_vib',alloc,size(vec_t),kind(vec_t))
@@ -10458,7 +10462,7 @@ contains
                 eigen(irot,irrep)%quanta(total_roots)%name = trim(poten(istate)%name)
                 !
                 !
-                if (intensity%bound.or.intensity%unbound) then
+                if (intensity%bound_filter) then
                   !
                   ! funding unboud states
                   !

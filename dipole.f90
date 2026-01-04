@@ -590,7 +590,7 @@ contains
            call energy_filter_lower(jI,energyI,passed)
            !
            ! skipping unbound lower states if the bound filter is on
-           if ( intensity%bound .and. .not. quantaI%bound ) passed = .false.
+           if ( intensity%bound_filter.and.intensity%bound .and. .not. quantaI%bound ) passed = .false.
            !
            if (.not.passed) cycle
            !
@@ -626,10 +626,10 @@ contains
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
                   ! skipping unbound upper states if the bound filter is on
-                  if ( intensity%bound .and. .not.quantaF%bound ) passed = .false.
+                  if ( intensity%bound_filter.and.intensity%bound .and. .not.quantaF%bound ) passed = .false.
                   !
                   ! skip if both the upper and lower states are bound states if the unbound filter is on
-                  if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
+                  if ( intensity%bound_filter.and.intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
                   !
                   if (intensity%use_fitting) then
                     !
@@ -1197,7 +1197,7 @@ contains
                 ! if (.not.quantaI%bound) passed = .false.
                 !
                 ! skipping unbound lower states if the bound filter is on
-                if (intensity%bound.and..not.quantaI%bound) passed = .false.
+                if (intensity%bound_filter.and.intensity%bound.and..not.quantaI%bound) passed = .false.
                 !
                 if (.not.passed) cycle
                 !
@@ -1239,7 +1239,7 @@ contains
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
                   ! skipping unbound upper states if the bound filter is on
-                  if (intensity%bound.and..not.quantaF%bound) passed = .false.
+                  if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
                   !
                   if (intensity%use_fitting) then
                     !
@@ -1352,10 +1352,10 @@ contains
                    !if (intensity%unbound.and.quantaF%bound) passed = .false.
 
                    ! skip if both the upper and lower states are bound states if the unbound filter is on
-                   if (intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
+                   if (intensity%bound_filter.and.intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
                    !
                    ! skipping unbound upper states if the bound filter is on
-                   if (intensity%bound.and..not.quantaF%bound) passed = .false.
+                   if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
                    !
                    if (.not.passed) cycle Flevels_loop
                    !
