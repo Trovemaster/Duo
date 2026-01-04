@@ -622,6 +622,10 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
+                  ! skip if the upper state is unbound states if the filter is on
+                  !
+                  if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                  !
                   if (intensity%use_fitting) then
                     !
                     quantaF => eigen(indF,igammaF)%quanta(ilevelF)
@@ -631,10 +635,6 @@ contains
 
                     !
                   endif
-                  !
-                  ! skip if the upper state is unbound states if the filter is on
-                  !
-                  if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
                   !
                   if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
@@ -834,7 +834,8 @@ contains
                  !
                endif
                !
-               ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+               !ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+               !
                write(my_fmt,'(A,i0,a,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,f13.6,1x,a1,1x,a1,",&
                             "1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
                !
@@ -889,7 +890,8 @@ contains
                !
              else
                !
-               ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+               !ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
+               !
                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
                !
                write(enunit,my_fmt,advance="no") & 

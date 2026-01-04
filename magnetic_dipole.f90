@@ -397,6 +397,10 @@ contains
     integer(ik),allocatable :: richunit(:,:)
     character(1)  :: let_LF ! richmol letters x,y,z
     !
+    ! bound/unbound,integer/non-integer labels
+    character(len=1) :: label_bound
+    character(len=7) :: print_J,print_omega,print_sigma
+    !
     call TimerStart('Intensity calculations')
     !
     if (sym%maxdegen>2) then
@@ -616,6 +620,10 @@ contains
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
+                ! skip if the upper state is unbound states if the filter is on
+                !
+                if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                !
                 if (intensity%use_fitting) then
                   !
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
@@ -731,6 +739,25 @@ contains
             ! By Lorenzo Lodi
             ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
             !
+            ! skip unbound states for the renormalisation case 
+            if (intensity%interpolate.and..not.quantaI%bound) then 
+                  iroot = iroot - 1
+               cycle
+            endif
+            ! 
+            label_bound = "b"
+            if (.not.quantaI%bound) label_bound = "u"
+            !
+            if (integer_spin) then 
+              write(print_J,"(i7)") nint(jI)
+              write(print_sigma,"(i7)") nint(sigmaI)
+              write(print_omega,"(i7)") nint(omegaI)
+            else
+              write(print_J,"(f7.1)") jI
+              write(print_sigma,"(f7.1)") sigmaI
+              write(print_omega,"(f7.1)") omegaI
+            endif
+            !
             !Mikhail Semenov: Lande g-factor for the selected eigenstate
             !
             if (intensity%lande_calc) then
@@ -738,20 +765,6 @@ contains
               lande = 0
               !
               vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
-              !
-              !do k = 1,dimenI
-              !  !
-              !  omegaF = basis(indI)%icontr(k)%omega
-              !  sigmaF = basis(indI)%icontr(k)%sigma
-              !  ilambdaF = basis(indI)%icontr(k)%ilambda
-              !  !
-              !  if ( Ji > 0) then
-              !    !
-              !    lande = lande + vecI(k)**2*( omegaF+sigmaF )*omegaF/real(Ji*(Ji + 1),rk)
-              !    !
-              !  endif
-              !  !
-              !enddo
               !
               ! This version of Lande factor takes into account the non-diagonal Sigma/Sigma+/-1 terms
               !
@@ -797,21 +810,24 @@ contains
                 !
               endif
               !
-              if (integer_spin) then
-                !
-                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enunit,my_fmt) &
-                  iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                  lande,pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
-                !
-              else
-                !
-                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enunit,my_fmt) &
-                  iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                  lande,pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                !
+              write(my_fmt,'(A,i0,a,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,f13.6,1x,a1,1x,a1,",&
+                           "1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
+              !
+              write(enunit,my_fmt,advance="no") & 
+                        iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),print_J,&
+                        lande,pm,ef,statename,ivI,(ilambdaI),print_sigma,print_omega
+                        !
+              if (intensity%unbound) then                          
+                 write(enunit,"(1x,a1)",advance="no") label_bound
+                 if (intensity%use_bound_rmax) then
+                   write(enunit,"(1x,f9.5)",advance="no") quantaI%r_exp
+                 endif
+                if (intensity%bound_eps_print) then
+                   write(enunit,"(1x,g8.2)",advance="no") quantaI%epsilon
+                endif
               endif
+              !
+              write(enunit,"(a1)",advance="yes") ""
               !
             elseif ( intensity%matelem ) then
               !
@@ -848,22 +864,23 @@ contains
               !
             else
               !
-              ndecimals=6-max(0, int( log10(abs(energyI-intensity%ZPE)+1.d-6)-4) )
-              if (integer_spin) then
-                !
-                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enunit,my_fmt) &
-                  iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),nint(jI),&
-                  pm,ef,statename,ivI,(ilambdaI),nint((sigmaI)),nint((omegaI))
-                !
-              else
-                !
-                write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enunit,my_fmt) &
-                  iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),jI,&
-                  pm,ef,statename,ivI,(ilambdaI),(sigmaI),(omegaI)
-                !
+              write(my_fmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
+              !
+              write(enunit,my_fmt,advance="no") & 
+                        iroot,energyI-intensity%ZPE,nint(intensity%gns(isymI)*( 2.0_rk*jI + 1.0_rk )),print_J,&
+                        pm,ef,statename,ivI,(ilambdaI),print_sigma,print_omega
+                        !
+              if (intensity%unbound) then                          
+                 write(enunit,"(1x,a1)",advance="no") label_bound
+                 if (intensity%use_bound_rmax) then
+                   write(enunit,"(1x,f9.5)",advance="no") quantaI%r_exp
+                 endif
+                if (intensity%bound_eps_print) then
+                   write(enunit,"(1x,g8.2)",advance="no") quantaI%epsilon
+                endif
               endif
+              !
+              write(enunit,"(a1)",advance="yes") ""
               !
             endif
             !
@@ -897,14 +914,10 @@ contains
     !
     if (iverbose>=4) write(out,"(/'Dipole moment integration (i)...')")
     !
-    ! prescreen all eigenfunctions, compact and store on the disk
-    !
-    !call TimerStart('Dipole moment integration (i)')
-    !
-    !allocate(vecI(sym%Maxdegen,dimenmax_swap),vecF(sym%Maxdegen,dimenmax), stat = info)
-    !if (info/=0)  stop 'vecI,vecF,icoeffF - out of memory'
-    !
-    !allocate(icoeffF(sym%Maxdegen,dimenmax), stat = info)
+    if (intensity%states_only) then 
+         write(out,"('The transition intensities are not requested (states_only option)')") 
+         return 
+    endif 
     !
     if (Ntransit==0) then
       write(out,"('md_intensity: the transition filters are too tight: no entry')")
@@ -1199,6 +1212,9 @@ contains
                 omegaF   = quantaF%omega
                 !
                 call energy_filter_upper(jF,energyF,passed)
+                !
+                ! skipping bound uppper states if only unbound transitions are needed 
+                if (intensity%unbound.and.quantaF%bound) passed = .false.
                 !
                 if (.not.passed) cycle Flevels_loop
                 !

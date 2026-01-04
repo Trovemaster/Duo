@@ -10019,6 +10019,8 @@ contains
         !
         Nsym_ = Nsym(irrep)
         !
+        ! Some parities can absent for example 1Sigma+ it is only e not f 
+        !
         if (Nsym_<1) cycle
         !
         if (iverbose>=3) write(out,'(/"       J      i        Energy/cm  State   v  lambda spin   sigma   omega  parity")')
@@ -10927,7 +10929,7 @@ contains
          write(iunit,'(a)') '   <- States'
          !
          write(fmt_,'(A,i0,a,a)') "(i12,1x,f17.",10,",1x,f8.1,1x,i4,",&
-                      "1x,i4,1x,a10,1x,i3,1x,i2,1x,f8.1,1x,f8.1,i7)"
+                      "1x,i4,1x,a10,1x,i7,1x,i2,1x,f8.1,1x,f8.1,1x,f8.1,1x,1x,i3,1x,i7,1x,L2,f12.5,g12.5)"
          !
          do irot = 1,nJ
            !
@@ -10946,23 +10948,10 @@ contains
                 !
                 quanta_state => eigen(irot,igamma)%quanta(iroot)
                 !
-                write(iunit,fmt_,advance="no") & 
-                   iroot,eigen(irot,igamma)%val(iroot),jval,igamma,quanta_state%istate,trim(quanta_state%name),quanta_state%v,quanta_state%ilambda,&
-                   quanta_state%sigma,quanta_state%omega,quanta_state%ivib
-                !
-                if (intensity%unbound) then                          
-                  label_bound = "b"
-                  if (.not.quanta_state%bound) label_bound = "u"
-                   write(iunit,"(1x,a1)",advance="no") label_bound
-                   if (intensity%use_bound_rmax) then
-                     write(iunit,"(1x,f9.5)",advance="no") quanta_state%r_exp
-                   endif
-                  if (intensity%bound_eps_print) then
-                     write(iunit,"(1x,g8.2)",advance="no") quanta_state%epsilon
-                  endif
-                endif
-                !
-                write(iunit,"(a1)",advance="yes") ""
+                write(iunit,fmt_) & 
+                   iroot,eigen(irot,igamma)%val(iroot),jval,igamma,quanta_state%istate,trim(quanta_state%name),&
+                   quanta_state%v,quanta_state%ilambda,quanta_state%sigma,quanta_state%omega,quanta_state%spin,&
+                   quanta_state%imulti,quanta_state%ivib,quanta_state%bound,quanta_state%r_exp,quanta_state%epsilon
                 !
              enddo
            enddo
@@ -17927,20 +17916,6 @@ contains
         call IOstart(trim(ioname),iunit)
         open(unit = iunit, form='unformatted', action = 'read',status='old' , file = filename)
         !
-        !read(iunit,*) string1(1:8),string2(1:1),symbol1,symbol2
-        !read(iunit,*) string1(1:6),string2(1:1),m1_,m2_
-        !read(iunit,*) string1(1:6),string2(1:1),Nroots_
-        !read(iunit,*) string1(1:6),string2(1:1),totalroots_
-        !read(iunit,*) string1(1:7),string2(1:1),nestates_
-        !read(iunit,*) string1(1:8),string2(1:1),npoints_
-        !read(iunit,*) string1(1:6),string2(1:1), rmin_,rmax_
-        !read(iunit,*) string1(1:3),string2(1:1), nJ_
-        !read(iunit,*) string1(1:6),string2(1:1), Jmin_,Jmax_
-        !
-        !read(iunit,*) (poten_nam(k),k =1,nestates)
-        !
-        !read(iunit,*) string1(1:1)
-        !
         read(iunit) string1(1:22)
         !
         if (string1(1:22)/='eigenvectors-chk/start') then 
@@ -17991,6 +17966,10 @@ contains
            !
            do irrep = 1,sym%NrepresCs
              !
+             Nlevels = eigen(irot,irrep)%Nlevels
+             !
+             if (Nlevels<1) cycle
+             !
              read(iunit)  Jvalue_,ipar_
              if (irrep/=ipar_) then
                write(out,"(a,1x,2i4)") 'checkpointRestore: Inconsistent irreps in contr-basis ', irrep,ipar_
@@ -18003,8 +17982,6 @@ contains
                
              endif
              !
-             Nlevels = eigen(irot,irrep)%Nlevels
-             !
              if (eigen(irot,irrep)%Ndimen/=Ndimen) then
                write(out,"(a,1x,i5,1x,i4)") 'checkpointRestore: Inconsistent Ntotal in contr-basis for irot = ', irot
                stop "checkpointRestore: Inconsistent Ntotal in contr-basis"
@@ -18016,27 +17993,6 @@ contains
                 !quanta_state => eigen(irot,irrep)%quanta(ilevel)
                 !
                 read(iunit)  n_,eigen(irot,irrep)%vect(:,ilevel)
-                !
-                !do i = 1,Ndimen
-                !  !
-                !  read(iunit,*) n_,Jvalue_,ipar_,vect_,iState,v,Lambda,Spin,Sigma,Omega,iomega,ivib,ilevel_
-                !  !
-                !  eigen(irot,irrep)%vect(i,ilevel) = vect_
-                !  !
-                !  if (ilevel==1) then 
-                !    !
-                !    basis(irot)%icontr(i)%istate = istate
-                !    basis(irot)%icontr(i)%sigma  = sigma
-                !    basis(irot)%icontr(i)%ilambda= Lambda
-                !    basis(irot)%icontr(i)%spin   = spin
-                !    basis(irot)%icontr(i)%omega  = omega  
-                !    basis(irot)%icontr(i)%iomega = iomega 
-                !    basis(irot)%icontr(i)%ivib   = ivib
-                !    basis(irot)%icontr(i)%ilevel = ilevel_
-                !    basis(irot)%icontr(i)%v      = v
-                !   endif
-                !   !
-                !enddo
                 !
                 Ntotal_ = Ntotal_ + 1
                 !
@@ -18071,7 +18027,6 @@ contains
      real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_
      integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,Nlevels,Ndimen,iroot,igamma
      character(len=cl)  :: poten_nam(nestates),filename,ioname
-     logical      :: integer_spin = .false.
      type(quantaT),pointer  :: quanta_state
      character(len=130) :: fmt_ !format for I/O specification
         !
@@ -18112,10 +18067,8 @@ contains
         !
         ! Now we count eigenvalues
         !
-        if (mod(nint(2.0_rk*Jval(1)+1.0_rk),2)==1) integer_spin = .true.
-        !
         write(fmt_,'(A,i0,a,a)') "(i12,1x,f17.",10,",1x,f8.1,1x,i4,",&
-                      "1x,i4,1x,a10,1x,i3,1x,i2,1x,f8.1,1x,f8.1,i7)"
+                      "1x,i4,1x,a10,1x,i7,1x,i2,1x,f8.1,1x,f8.1,1x,f8.1,1x,1x,i3,1x,i7,1x,L2,f12.5,g12.5)"
         !
         Ntotal = 0
         !
@@ -18124,6 +18077,8 @@ contains
              !
              read(iunit,*) Nlevels
              read(iunit,*) NDimen
+             !
+             if (Nlevels<1) cycle 
              !
              eigen(irot,irrep)%Nlevels = Nlevels
              eigen(irot,irrep)%Ndimen = Ndimen
@@ -18137,9 +18092,11 @@ contains
                 !
                 quanta_state => eigen(irot,irrep)%quanta(ilevel)
                 !
-                read(iunit,fmt_) & 
+                !read(iunit,fmt_) & 
+                read(iunit,*) & 
                    iroot,eigen(irot,irrep)%val(iroot),Jvalue_,igamma,quanta_state%istate,quanta_state%name,quanta_state%v,&
-                   quanta_state%ilambda,quanta_state%sigma,quanta_state%omega,quanta_state%ivib
+                   quanta_state%ilambda,quanta_state%sigma,quanta_state%omega,quanta_state%spin,quanta_state%imulti,&
+                   quanta_state%ivib,quanta_state%bound,quanta_state%r_exp,quanta_state%epsilon
                    !
                 ! The ZPE value can be obtained only for the first J in the J_list tau=1.
                 ! Otherwise the value from input must be used.

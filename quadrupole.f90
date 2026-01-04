@@ -325,6 +325,10 @@ contains
     ! logicals
     logical                   :: intSpin = .true.
     logical                   :: passed, passed_
+    !
+    ! bound/unbound,integer/non-integer labels
+    character(len=1) :: label_bound
+    character(len=7) :: print_J,print_omega,print_sigma
 
     call TimerStart('Intensity calculations')
 
@@ -540,6 +544,10 @@ contains
                                    indSymI, indSymF, iGammaPair, &
                                    passed)
                 !
+                ! skip if the upper state is unbound states if the filter is on
+                !
+                if (intensity%unbound.and.eigen(indF,indGammaF)%quanta(indLevelF)%bound) passed = .false.
+                !
                 if (intensity%use_fitting) then
                   !
                   quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
@@ -549,7 +557,7 @@ contains
 
                   !
                 endif
-
+                !
                 if ( Intensity%matelem ) then
                   call matelem_filter(jI, jF, energyI, energyF, &
                                       indSymI, indSymF, iGammaPair, &
@@ -648,6 +656,20 @@ contains
             nDecimals = 6 - max(0, &
               int(log10(abs(energyI - Intensity%ZPE) + 1.d-6) - 4))
 
+            ! 
+            label_bound = "b"
+            if (.not.quantaI%bound) label_bound = "u"
+            !
+            if (intSpin) then 
+              write(print_J,"(i7)") nint(jI)
+              write(print_sigma,"(i7)") nint(sigmaI)
+              write(print_omega,"(i7)") nint(omegaI)
+            else
+              write(print_J,"(f7.1)") jI
+              write(print_sigma,"(f7.1)") sigmaI
+              write(print_omega,"(f7.1)") omegaI
+            endif
+
             ! if requested, calculate and print the Lande g-factor for
             ! the selected eigenstate
             if ( Intensity%lande_calc ) then
@@ -704,28 +726,26 @@ contains
 
               endif
 
-              ! if integer spin, then integerise quantum numbers
-              if ( intSpin ) then
-                write(myFmt, '(A,i0,a)') &
-                  "(i12,1x,f12.",ndecimals,",1x,i6,1x,i7,1x,f13.6,1x,&
-                  &a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enunit, myFmt) &
-                  indRoot, energyI - Intensity%ZPE, &
-                  nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  nint(jI), lande, pm, ef, statename, &
-                  vI, ilambdaI, nint(sigmaI), nint(omegaI)
-              ! if not then write quantum numbers as reals
-              else
-                write(myFmt, '(A,i0,a)') &
-                  "(i12,1x,f12.",ndecimals,",1x,i6,1x,f7.1,1x,f13.6,1x,&
-                  &a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enunit, myFmt) &
-                  indRoot, (energyI - Intensity%ZPE), &
-                  nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  jI, lande, pm, ef, statename, &
-                  vI, ilambdaI, sigmaI, omegaI
-              endif
+              write(myFmt,'(A,i0,a,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,f13.6,1x,a1,1x,a1,",&
+                            "1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
 
+              write(enunit,myFmt,advance="no") & 
+                         indRoot,energyI-intensity%ZPE,nint(intensity%gns(indSymI)*( 2.0_rk*jI + 1.0_rk )),print_J,&
+                         lande,pm,ef,statename,vI,ilambdaI,print_sigma,print_omega
+                         !
+              if (intensity%unbound) then                          
+                 write(enunit,"(1x,a1)",advance="no") label_bound
+                 if (intensity%use_bound_rmax) then
+                   write(enunit,"(1x,f9.5)",advance="no") quantaI%r_exp
+                 endif
+                if (intensity%bound_eps_print) then
+                   write(enunit,"(1x,g8.2)",advance="no") quantaI%epsilon
+                endif
+              endif
+              !
+              !
+              write(enunit,"(a1)",advance="yes") ""
+              !
             ! alternative format for RichMol matrix elements
             elseif ( Intensity%matelem ) then
 
@@ -767,28 +787,28 @@ contains
                 int(log10(abs(energyI - Intensity%ZPE) + 1.d-6) - 4))
 
               ! if integer spin, then integerise quantum numbers
-              if ( intSpin ) then
-                write(myFmt, '(A,i0,a)') &
-                  "(i12,1x,f12.", ndecimals, &
-                  ",1x,i6,1x,i7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2i8)"
-                write(enunit, myFmt) &
-                  indRoot, energyI-Intensity%ZPE, &
-                  nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  nint(jI), pm, ef, statename, vI, ilambdaI, &
-                  nint(sigmaI), nint(omegaI)
 
-              ! if not then write quantum numbers as reals
-              else
-                write(myFmt, '(A,i0,a)') &
-                  "(i12,1x,f12.", ndecimals, &
-                  ",1x,i6,1x,f7.1,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,2f8.1)"
-                write(enunit, myFmt) &
-                  indRoot, energyI-Intensity%ZPE, &
-                  nint( Intensity%gns(indSymI)*(2.0_rk*jI + 1.0_rk) ), &
-                  jI, pm, ef, statename, vI, ilambdaI, sigmaI, omegaI
 
+              write(myFmt,'(A,i0,a)') "(i12,1x,f12.",ndecimals,",1x,i6,1x,a7,1x,a1,1x,a1,1x,a10,1x,i3,1x,i2,1x,a7,1x,a7)"
+              !
+              write(enunit,myFmt,advance="no") & 
+                        indRoot,energyI-intensity%ZPE,nint(intensity%gns(indSymI)*( 2.0_rk*jI + 1.0_rk )),print_J,&
+                        pm,ef,statename,vI,(ilambdaI),print_sigma,print_omega
+                        !
+              if (intensity%unbound) then                          
+                 write(enunit,"(1x,a1)",advance="no") label_bound
+                 if (intensity%use_bound_rmax) then
+                   write(enunit,"(1x,f9.5)",advance="no") quantaI%r_exp
+                 endif
+                if (intensity%bound_eps_print) then
+                   write(enunit,"(1x,g8.2)",advance="no") quantaI%epsilon
+                endif
               endif
+              !
+              write(enunit,"(a1)",advance="yes") ""
+              !
             endif
+            !
           endif
 
           call energy_filter_ul(jI, energyI, passed, 'upper')
@@ -823,7 +843,12 @@ contains
     if ( iVerbose >= 4 ) then
       write(out, "(/'Quadrupole moment integration (i)...')")
     endif
-
+    !
+    if (intensity%states_only) then 
+         write(out,"('The transition intensities are not requested (states_only option)')") 
+         return 
+    endif 
+    !
     if ( nTrans == 0 ) then
       write(out, "('qm_intensity: the transition filters are too tight:&
             & no entry')")
@@ -1014,6 +1039,11 @@ contains
                 ! reconstruct symmetry for C2v case
                 guParity = poten(istateF)%parity%gu
                 indSymF  = correlate_to_Cs(indGammaF, guParity)
+
+                ! skipping bound uppper states if only unbound transitions are needed 
+                if (intensity%unbound.and.quantaF%bound) passed = .false.
+                !
+                if (.not.passed) cycle 
 
                 ! apply transition intensity filter, result of which is
                 ! overidden by mat. elem. filter if we want mat. elems.
