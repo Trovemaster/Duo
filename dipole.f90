@@ -151,7 +151,6 @@ contains
       end do
       !
       if (iverbose>=2) write(out,'(/"Zero point energy (ZPE) = ",f18.6," (global zero, used for intensities)")') intensity%ZPE
-      if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
       !
     endif
     !
@@ -196,9 +195,9 @@ contains
             enddo
           end do
           !
-          if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
-          !
        endif
+       !
+       if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
        !
        call dm_intensity(Jval,iverbose)
        !
@@ -590,6 +589,9 @@ contains
            !
            call energy_filter_lower(jI,energyI,passed)
            !
+           ! skipping unbound lower states if the bound filter is on
+           if ( intensity%bound .and. .not. quantaI%bound ) passed = .false.
+           !
            if (.not.passed) cycle
            !
            nlower = nlower + 1
@@ -619,18 +621,21 @@ contains
                   istateF  = eigen(indF,igammaF)%quanta(ilevelF)%istate
                   parity_gu = poten(istateF)%parity%gu
                   isymF = correlate_to_Cs(igammaF,parity_gu)
+                  quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
-                  ! skip if the upper state is unbound states if the filter is on
+                  ! skipping unbound upper states if the bound filter is on
+                  if ( intensity%bound .and. .not.quantaF%bound ) passed = .false.
                   !
-                  if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                  ! skip if both the upper and lower states are bound states if the unbound filter is on
+                  if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
                   !
                   if (intensity%use_fitting) then
                     !
                     quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                     !
-                    call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                    call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                          energyI,energyF,quantaI,quantaF,passed)
 
                     !
@@ -1188,8 +1193,11 @@ contains
                 !
                 call energy_filter_lower(jI,energyI,passed)
                 !
-                ! currently, the lower states should be always selected as bound
-                if (.not.quantaI%bound) passed = .false.
+                ! currently, the lower states should be always selected as bound <- not anymore
+                ! if (.not.quantaI%bound) passed = .false.
+                !
+                ! skipping unbound lower states if the bound filter is on
+                if (intensity%bound.and..not.quantaI%bound) passed = .false.
                 !
                 if (.not.passed) cycle
                 !
@@ -1230,9 +1238,12 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
+                  ! skipping unbound upper states if the bound filter is on
+                  if (intensity%bound.and..not.quantaF%bound) passed = .false.
+                  !
                   if (intensity%use_fitting) then
                     !
-                    call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                    call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                          energyI,energyF,quantaI,quantaF,passed)
 
                     !
@@ -1337,8 +1348,14 @@ contains
                    !
                    call energy_filter_upper(jF,energyF,passed)
                    !
-                   ! skipping bound uppper states if only unbound transitions are needed 
-                   if (intensity%unbound.and.quantaF%bound) passed = .false.
+                   ! skipping bound uppper states if only unbound transitions are needed <- We now relax this condition
+                   !if (intensity%unbound.and.quantaF%bound) passed = .false.
+
+                   ! skip if both the upper and lower states are bound states if the unbound filter is on
+                   if (intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
+                   !
+                   ! skipping unbound upper states if the bound filter is on
+                   if (intensity%bound.and..not.quantaF%bound) passed = .false.
                    !
                    if (.not.passed) cycle Flevels_loop
                    !
@@ -1351,7 +1368,7 @@ contains
                    !
                    if (intensity%use_fitting) then
                      !
-                     call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                     call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                           energyI,energyF,quantaI,quantaF,passed)
                  
                      !
@@ -2102,15 +2119,15 @@ contains
           !
      end subroutine intens_filter
      !
-     subroutine transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
+     subroutine transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
                                                 quantaI,quantaF,passed)
         !
         real(rk),intent(in) :: jI,jF,EnergyF,EnergyI
-        integer(ik),intent(in) :: indI,indF,isymI,isymF,ilevelI,ilevelF
+        integer(ik),intent(in) :: isymI,isymF,ilevelI,ilevelF
         type(quantaT),pointer,intent(in)  :: quantaI,quantaF
         logical,intent(out)    :: passed
         integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
-        integer(ik) :: istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,iparityF
+        integer(ik) :: istateI,istateF,ivibI,ivibF,ilambdaI,ilambdaF,iparityI,iparityF
         real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
         real(rk) :: jrot,jrot_
         !

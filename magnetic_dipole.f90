@@ -585,8 +585,12 @@ contains
           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
           parity_gu = poten(istateI)%parity%gu
           isymI = correlate_to_Cs(igammaI,parity_gu)
+          quantaI => eigen(indI,igammaI)%quanta(ilevelI)
           !
           call energy_filter_lower(jI,energyI,passed)
+          !
+          ! skipping unbound lower states if the bound filter is on
+          if ( intensity%bound .and. .not. quantaI%bound ) passed = .false.
           !
           if (.not.passed) cycle
           !
@@ -617,18 +621,23 @@ contains
                 istateF  = eigen(indF,igammaF)%quanta(ilevelF)%istate
                 parity_gu = poten(istateF)%parity%gu
                 isymF = correlate_to_Cs(igammaF,parity_gu)
+                quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
                 ! skip if the upper state is unbound states if the filter is on
                 !
-                if (intensity%unbound.and.eigen(indF,igammaF)%quanta(ilevelF)%bound) passed = .false.
+                ! skipping unbound upper states if the bound filter is on
+                if ( intensity%bound .and. .not.quantaF%bound ) passed = .false.
+                !
+                ! skip if both the upper and lower states are bound states if the unbound filter is on
+                if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
                 !
                 if (intensity%use_fitting) then
                   !
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                  call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !
@@ -1082,6 +1091,9 @@ contains
               !
               call energy_filter_lower(jI,energyI,passed)
               !
+              ! skipping unbound lower states if the bound filter is on
+              if (intensity%bound.and..not.quantaI%bound) passed = .false.
+              !
               if (.not.passed) cycle
               !
               vecI(1:dimenI) = eigen(indI,igammaI)%vect(1:dimenI,ilevelI)
@@ -1121,11 +1133,14 @@ contains
                 !
                 call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                 !
+                ! skipping unbound upper states if the bound filter is on
+                if (intensity%bound.and..not.quantaF%bound) passed = .false.
+                !
                 if (intensity%use_fitting) then
                   !
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                  call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !
@@ -1213,8 +1228,11 @@ contains
                 !
                 call energy_filter_upper(jF,energyF,passed)
                 !
-                ! skipping bound uppper states if only unbound transitions are needed 
-                if (intensity%unbound.and.quantaF%bound) passed = .false.
+                ! skip if both the upper and lower states are bound states if the unbound filter is on
+                if (intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
+                !
+                ! skipping unbound upper states if the bound filter is on
+                if (intensity%bound.and..not.quantaF%bound) passed = .false.
                 !
                 if (.not.passed) cycle Flevels_loop
                 !
@@ -1229,7 +1247,7 @@ contains
                   !
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,isymI,isymF,ilevelI,ilevelF,&
+                  call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !

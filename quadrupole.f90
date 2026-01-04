@@ -513,9 +513,14 @@ contains
           istateI = eigen(indI, indGammaI)%quanta(indLevelI)%iState
           guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
+          quantaI => eigen(indI,indGammaI)%quanta(indLevelI)
 
           ! check energy of lower state is in range and > ZPE
           call energy_filter_ul(jI, energyI, passed, 'lower')
+          !
+          ! skipping unbound lower states if the bound filter is on
+          if ( intensity%bound .and. .not. quantaI%bound ) passed = .false.
+
           if ( .not. passed ) cycle
 
           nLower = nLower + 1
@@ -538,21 +543,24 @@ contains
                             %quanta(indLevelF)%iState
                 guParity = poten(istateF)%parity%gu
                 indSymF = correlate_to_Cs(indGammaF, guParity)
+                quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
 
                 ! check the Intensity of the transition passes filter
                 call intens_filter(jI, jF, energyI, energyF, &
                                    indSymI, indSymF, iGammaPair, &
                                    passed)
                 !
-                ! skip if the upper state is unbound states if the filter is on
+                ! skipping unbound upper states if the bound filter is on
+                if ( intensity%bound .and. .not.quantaF%bound ) passed = .false.
                 !
-                if (intensity%unbound.and.eigen(indF,indGammaF)%quanta(indLevelF)%bound) passed = .false.
+                ! skip if both the upper and lower states are bound states if the unbound filter is on
+                if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
                 !
                 if (intensity%use_fitting) then
                   !
                   quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                  call transitions_filter_from_fitting(jI,jF,indSymI,indSymF,indLevelI,indLevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !
@@ -1009,6 +1017,10 @@ contains
 
               ! apply energy filter to initial (lower) state
               call energy_filter_ul(jI, energyI, passed, 'lower')
+              !
+              ! skipping unbound lower states if the bound filter is on
+              if (intensity%bound.and..not.quantaI%bound) passed = .false.
+              !
               if ( .not. passed ) cycle loopLevelsI
 
               ! vector of basis state coefficients for inital state
@@ -1041,7 +1053,10 @@ contains
                 indSymF  = correlate_to_Cs(indGammaF, guParity)
 
                 ! skipping bound uppper states if only unbound transitions are needed 
-                if (intensity%unbound.and.quantaF%bound) passed = .false.
+                !if (intensity%unbound.and.quantaF%bound) passed = .false.
+                !
+                ! skipping unbound upper states if the bound filter is on
+                if (intensity%bound.and..not.quantaF%bound) passed = .false.
                 !
                 if (.not.passed) cycle 
 
@@ -1055,7 +1070,7 @@ contains
                   !
                   quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                  call transitions_filter_from_fitting(jI,jF,indSymI,indSymF,indLevelI,indLevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !
@@ -1149,6 +1164,13 @@ contains
 
                 ! apply energy filter to final (upper) state
                 call energy_filter_ul(jF, energyF, passed, 'upper')
+                !
+                ! skip if both the upper and lower states are bound states if the unbound filter is on
+                if (intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
+                !
+                ! skipping unbound upper states if the bound filter is on
+                if (intensity%bound.and..not.quantaF%bound) passed = .false.
+                !
                 if ( .not. passed ) cycle loopLevelsF
 
                 ! apply transition intensity filter, result of which is
@@ -1160,7 +1182,7 @@ contains
                   !
                   quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
                   !
-                  call transitions_filter_from_fitting(jI,jF,indI,indF,indSymI,indSymF,indLevelI,indLevelF,&
+                  call transitions_filter_from_fitting(jI,jF,indSymI,indSymF,indLevelI,indLevelF,&
                        energyI,energyF,quantaI,quantaF,passed)
 
                   !

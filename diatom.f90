@@ -7346,7 +7346,7 @@ contains
     real(rk),allocatable       :: mu_rr(:)
     !real(rk),allocatable      :: contrfunc_rk(:,:),vibmat_rk(:,:),matelem_rk(:,:),grid_rk(:)
     character(len=cl)          :: filename,ioname
-    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_,ibobrot
+    integer(ik)                :: iunit,vibunit,imaxcontr,i0,imaxcontr_,mterm_,iroot,jroot,iomega_,jomega_
     !
     real(rk)                   :: psi1,psi2,amplit1,amplit2,amplit3,diff,sum_wv,rhonorm,energy_unbound_sqrsqr,sum_wv_average
     integer(ik)                :: npoints_last,icount_max,ipoint_first
@@ -7368,7 +7368,6 @@ contains
     real(rk) :: spin_i,spin_j,sigma_i,sigma_j
     type(quantaT),pointer  :: quanta_state
     character(len=130) :: fmt_ !format for I/O specification
-    character(len=1) :: label_bound
     !
     ! open file for later (if option is set)
     if (job%print_rovibronic_energies_to_file ) &
@@ -17545,12 +17544,11 @@ contains
   ! read-write the matrix elements of the external field (e.g. dipole): 
   ! all actions
   !
-  subroutine check_point_dipoles(action,iverbose,Ntotal,icontr)
+  subroutine check_point_dipoles(action,iverbose,Ntotal)
 
    character(len=*), intent(in)      :: action ! 'SAVE' or 'READ'
    integer(ik),intent(in)            :: iverbose
    integer(ik),intent(inout)         :: Ntotal ! size of the contracted basis set
-   type(quantaT),intent(in),optional :: icontr(:)
    !
    call TimerStart('check_point_dipoles')
    select case (action)
@@ -17655,7 +17653,7 @@ contains
         read(chkptIO) Ntotal_,Ndipoles_
         !
         if (Ndipoles_/=Ndipoles) then
-          write (out,"(' Ndipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") Ndipoles_,Ndipoles
+          write (out,"(' Ndipoles stored ',i5,' is inconcistent with actual values',i5,': wrong checkpoint?')") Ndipoles_,Ndipoles
           stop 'check_point_external_read - check Ndipoles'
         end if
         !
@@ -17664,7 +17662,7 @@ contains
           read(chkptIO) iterm_
           !
           if (iterm_/=iterm) then
-            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            write (out,"(' iterm (stored) ',i8,' /= iterm (actual): wrong checkpoint?',i8)") iterm_,iterm
             stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
           end if
           !
@@ -17678,7 +17676,7 @@ contains
         read(chkptIO) Ntotal_,nMagneticDipoles_
         !
         if (nMagneticDipoles_/=nMagneticDipoles) then
-          write (out,"(' nMagneticDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+          write (out,"(' nMagneticDipoles stored ',i8,' is inconcistent with actual values',i8,': wrong checkpoint?')") &
                         nMagneticDipoles_,nMagneticDipoles
           stop 'check_point_external_read - check nMagneticDipoles'
         end if
@@ -17688,7 +17686,7 @@ contains
           read(chkptIO) iterm_
           !
           if (iterm_/=iterm) then
-            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            write (out,"(' iterm (stored) ',i8,' /= iterm (actual): wrong checkpoint?',i8)") iterm_,iterm
             stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
           end if
           !
@@ -17702,7 +17700,7 @@ contains
         read(chkptIO) Ntotal_,nMagneticRotDipoles_
         !
         if (nMagneticRotDipoles_/=nMagneticRotDipoles) then
-          write (out,"(' nMagneticRotDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+          write (out,"(' nMagneticRotDipoles stored ',i8,' is inconcistent with actual values',i8,': wrong checkpoint?')") &
                         nMagneticRotDipoles_,nMagneticRotDipoles
           stop 'check_point_external_read - check nMagneticRotDipoles'
         end if
@@ -17712,7 +17710,7 @@ contains
           read(chkptIO) iterm_
           !
           if (iterm_/=iterm) then
-            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            write (out,"(' iterm (stored) ',i8,' /= iterm (actual): wrong checkpoint?',i8)") iterm_,iterm
             stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
           end if
           !
@@ -17726,7 +17724,7 @@ contains
         read(chkptIO) Ntotal_,nQuadrupoles_
         !
         if (nQuadrupoles_/=nQuadrupoles) then
-          write (out,"(' nMagneticRotDipoles stored ',i,' is inconcistent with actual values',i,': wrong checkpoint?')") &
+          write (out,"(' nMagneticRotDipoles stored ',i8,' is inconcistent with actual values',i8,': wrong checkpoint?')") &
                         nQuadrupoles_,nQuadrupoles
           stop 'check_point_external_read - check nQuadrupoles'
         end if
@@ -17736,7 +17734,7 @@ contains
           read(chkptIO) iterm_
           !
           if (iterm_/=iterm) then
-            write (out,"(' iterm (stored) ',i,' /= iterm (actual): wrong checkpoint?',i)") iterm_,iterm
+            write (out,"(' iterm (stored) ',i8,' /= iterm (actual): wrong checkpoint?',i8)") iterm_,iterm
             stop 'check_point_external_read - bogus header iterm (wrong checkpoint?)'
           end if
           !
@@ -17843,7 +17841,7 @@ contains
         !contrenergy(i) = energy
         !
         if (i/=n) then
-           write(out,"('Error checkpointBasisRestore: inconsisten basis number :',2i)") i,n
+           write(out,"('Error checkpointBasisRestore: inconsisten basis number :',2i8)") i,n
            stop "Error checkpointBasisRestore: inconsisten basis number"
         endif 
         !
@@ -17967,6 +17965,7 @@ contains
            do irrep = 1,sym%NrepresCs
              !
              Nlevels = eigen(irot,irrep)%Nlevels
+             Jvalue = Jval(irot)
              !
              if (Nlevels<1) cycle
              !
@@ -17976,8 +17975,8 @@ contains
                stop "checkpointRestore: Inconsistent irreps in contr-basis"
                
              endif
-             if (nint(Jvalue_-Jval(irot))) then
-               write(out,"(a,1x,2f8.1)") 'checkpointRestore: Inconsistent Jvals in contr-basis ', Jvalue_,Jval(irot)
+             if (nint(Jvalue_-Jvalue)/=0) then
+               write(out,"(a,1x,2f8.1)") 'checkpointRestore: Inconsistent Jvals in contr-basis ', Jvalue_,Jvalue
                stop "checkpointRestore: Inconsistent Jvals in contr-basis"
                
              endif
