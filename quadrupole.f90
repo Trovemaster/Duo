@@ -1052,19 +1052,15 @@ contains
                 guParity = poten(istateF)%parity%gu
                 indSymF  = correlate_to_Cs(indGammaF, guParity)
 
-                ! skipping bound uppper states if only unbound transitions are needed 
-                !if (intensity%unbound.and.quantaF%bound) passed = .false.
-                !
-                ! skipping unbound upper states if the bound filter is on
-                if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
-                !
-                if (.not.passed) cycle 
-
                 ! apply transition intensity filter, result of which is
                 ! overidden by mat. elem. filter if we want mat. elems.
                 call intens_filter(jI, jF, energyI, energyF, &
                   indSymI, indSymF, iGammaPair, passed)
                 !
+                ! skipping unbound upper states if the bound filter is on
+                if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
+                !
+                if (.not.passed) cycle 
                 !
                 if (intensity%use_fitting) then
                   !
