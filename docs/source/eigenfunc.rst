@@ -1,234 +1,163 @@
-Checkpointing (wavefunctions, moments, and reduced density)
-==========================================================
-.. _checkpointing:
+Eigenfunctions and reduced density
+==================================
+: .. _Eigenfunctions and reduced density:
 
-Duo can *checkpoint* (save) and later *reuse* the key numerical objects required for post-processing:
-rovibronic eigenvalues and eigenvectors, vibrational basis functions on the radial grid, and (optionally)
-matrix elements of transition-moment operators (electric dipole, magnetic dipole, electric quadrupole, etc.).
-This enables intensity calculations **without recomputing** the eigenproblem, basis functions, or (previously
-computed) transition-moment integrals.
-
-The checkpointing workflow is controlled by the ``checkpoint`` input block.
-
-Overview of the ``checkpoint`` block
-------------------------------------
-
-Basic structure:
+The computed eigenfunctions can be printed out into a sperate file (checkpoint). This option can be enabled via the section ``Checkpoint``:
 ::
 
-  checkpoint
-    eigenfunc <save|read>
-    dipole   <save|read|calc>
-    filename <prefix>
-  end
-
-The keyword ``filename`` defines the checkpoint prefix (for example ``YO_01``), which is used to name the
-produced files.
-
-What gets written: checkpoint files
------------------------------------
-
-When checkpointing is enabled, Duo creates up to four files:
-
-* ``<prefix>_values.chk`` (ASCII)
-    Rovibronic eigenvalues together with descriptors (e.g., quantum numbers, state labels, properties).
-    The **first ~10 lines** form a *fingerprint* of the calculation (molecule, masses, basis size, grid, state list, etc.).
-    When reading checkpoints, Duo compares this fingerprint with the current input to avoid mixing incompatible files.
-
-* ``<prefix>_vectors.chk`` (binary)
-    Rovibronic eigenvectors for all computed solutions.
-
-* ``<prefix>_vib.chk`` (ASCII)
-    Vibrational (contracted) basis functions tabulated on the radial grid.
-
-* ``external.chk`` (binary)
-    Stored matrix elements of transition moments (electric/magnetic dipole, quadrupole, etc.), written when
-    ``dipole save`` is used.  (Despite the generic name, this file belongs to the checkpoint dataset and should be kept
-    together with the other ``<prefix>_*`` files.)
-
-.. note::
-   The exact set of operators stored in ``external.chk`` depends on what transition-moment curves are present in the input
-   and enabled in the calculation (e.g., electric dipole, magnetic dipole, quadrupole).
-
-Writing checkpoints for later intensity work
---------------------------------------------
-
-A typical setup to compute energies/eigenvectors (and optionally moment matrix elements) and write them to disk is:
-::
-
-  checkpoint
-    eigenfunc save
-    dipole   save
-    filename YO_01
-  end
-
-This writes ``YO_01_values.chk``, ``YO_01_vectors.chk``, ``YO_01_vib.chk``, and ``external.chk``.
-
-Controlling the J-range that is saved
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The range of :math:`J` values to be computed (and thus stored) can be defined either in the ``intensity`` block or via
-the global ``jrot`` line.
-
-Example using the ``intensity`` block:
-::
-
-  intensity
-    absorption
-    states-only
-    thresh_coeff  1e-60
-    thresh_dipole 1e-9
-    temperature   300.0
-    J,  0.5, 6.5
-    freq-window  -0.001,  20000.0
-    energy low   -0.001,  3000.00, upper   -0.00, 23000.0
-  end
-
-Here, ``states-only`` tells Duo *not* to generate intensities during this run. The calculation still produces and stores
-all rovibronic states for :math:`J = 0.5 \dots 6.5` (as requested), which can then be reused later.
-
-Alternatively, you can define the rotational range globally:
-::
-
-  jrot 0.5  -  6.5
-
-.. tip::
-   Using ``states-only`` together with checkpointing is a convenient way to generate and store states once, and perform
-   intensity calculations later (potentially split into multiple runs).
-
-Reading checkpoints to compute intensities (no recomputation)
-------------------------------------------------------------
-
-Once the checkpoint data exist, Duo can compute intensities **directly from the saved information**.
-
-Use:
-::
-
-  checkpoint
-    eigenfunc read
-    dipole   read
-    filename YO_01
-  end
-
-and provide an ``intensity`` block for the transitions you want:
-::
-
-  intensity
-    absorption
-    thresh_coeff  1e-60
-    thresh_dipole 1e-9
-    temperature   300.0
-    Qstat  337.0515
-    J,  5.5, 6.5
-    freq-window  -0.001,  20000.0
-    energy low   -0.001,  3000.00, upper   -0.00, 23000.0
-  end
-
-In this example, Duo reads the stored eigenvalues/eigenvectors/basis and transition-moment matrix elements and computes
-intensities only for :math:`J = 5.5 \dots 6.5`.
-
-Main advantage: split and parallelise intensity production
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Because intensities can be computed for *subsets* of :math:`J` (or different frequency/energy windows) from the same
-checkpoint dataset, large spectra can be split into independent jobs, e.g.
-
-* compute and store states once for a broad :math:`J` range;
-* run multiple intensity jobs in parallel, each handling different :math:`J` intervals or spectral windows;
-* run “test” intensity calculations with different thresholds/windows without re-solving the Schrödinger equation.
-
-Recomputing moment matrix elements with new dipole curves (``dipole calc``)
---------------------------------------------------------------------------
-
-Another common use case is to keep eigenfunctions fixed while changing the transition-moment curves
-(e.g. refining an electric dipole moment function to experimental intensities).
-
-In this mode Duo reads the stored wavefunctions/basis from checkpoint files, **recomputes the transition-moment matrix
-elements**, and writes them (so that intensities can then be generated consistently with the updated moments):
-::
-
-  checkpoint
-    eigenfunc read
-    dipole   calc
-    filename YO_01
-  end
-
-You would then run an intensity calculation using the updated matrix elements (either in the same run, or in a
-subsequent ``dipole read`` run, depending on your workflow).
-
-Example: structure of ``*_values.chk`` (eigenvalue checkpoint file)
--------------------------------------------------------------------
-
-Below is an excerpt from ``KH_01_values.chk`` (KH project):
-::
-
-  Molecule = K               H
-  masses   =      38.963706486430      1.007825032230
-  Nroots   =       20
-  Nbasis   =      160
-  Nestates =        4
-  Npoints   =      501
-  range   =      0.9000000    16.0000000
-  nJs     =       11
-  Jrange  =   0.00000 10.00000
-  X1Sigma+, A1Sigma+, B1Pi, C1Sigma+,    <- States
-           140  <- Nlevels
-           140  <- Ndimen
-             1    492.2960321790      0.0    1    1   X1Sigma+       0  0      0.0      0.0      0.0    1       1  T     2.20122 0.11673E-29
-             2   1448.1762331140      0.0    1    1   X1Sigma+       1  0      0.0      0.0      0.0    1       1  T     2.26446 0.97793E-30
-             3   2374.1127556956      0.0    1    1   X1Sigma+       2  0      0.0      0.0      0.0    1       1  T     2.32626 0.32747E-29
-             4   3271.0297066643      0.0    1    1   X1Sigma+       3  0      0.0      0.0      0.0    1       1  T  ...
-  ...
-  End of eigenvalues
-
-The header (roughly the first 10 lines) is used as a **fingerprint** of the project. Duo checks it against the current
-input to ensure that checkpoint files are not accidentally reused across different models, parameter sets, grids, or
-molecules.
-
-Reduced density checkpoint (optional)
--------------------------------------
-
-In addition to wavefunction/moment checkpointing, Duo can compute and store the vibrational reduced density on the radial
-grid. Enable it via:
-::
-
-  checkpoint
+   Checkpoint
     density save
-    filename <prefix>
-  end
+    eigenvectors save
+    Filename xxxxx
+   End
 
-The reduced density :math:`\rho(r)` is computed as:
-.. math::
+The keywords ``eigenvectors save`` are to stitch the corresponding checkpointing on.
 
-   \rho(r) =
-   \sum_{v,v'} \sum_{\mathrm{State},\Lambda,\Sigma}
-   \left[C_{v,\mathrm{State},\Lambda,\Sigma}^{(i)}\right]^*
-   C_{v',\mathrm{State},\Lambda,\Sigma}^{(i)}
-   \,\phi_v(r)^* \phi_{v'}(r)\,\Delta r .
-
-A typical density checkpoint record looks like:
+The eigenfunction-checkpoints consist of two files, ``eigen_vectors.chk`` and ``eigen_vib.chk``. The file ``eigen_vib.chk``
+contains the vibrational part of the basis set in the grid representation in the following format (example):
 ::
 
-  0.545190480438E-08 ||      1.5  0       1
-  0.286121234769E-07 ||      1.5  0       1
-  0.134835397210E-06 ||      1.5  0       1
-  ...
+     1          0.000000      1   0   A1Sigma+
+     0.124132175316E-13
+    -0.952336606315E-14
+     0.982508543282E-14
+  ......
 
-The first column is the density value at grid point :math:`r_i`, followed by delimiter ``||``, total angular momentum
-:math:`J`, parity :math:`\tau`, and the state number (as in the Duo output).
 
-Notes on terminology and legacy keywords
-----------------------------------------
+where the each basis function is given in a block. The first line specifies the sate (number, energy, electronic state and vibrational 
+quantum number) followed by the grid values.
 
-Older inputs and parts of the manual may refer to ``eigenvectors save`` or use default prefixes such as ``eigen_*``.
-In the current syntax, the recommended form is:
+The file ``eigen_vectors.chk`` contains the expansion coefficients of the eigenfunction in terms 
+of the Duo ro-vibronic basis set functions using the following format (example):
+::
 
-* ``eigenfunc save`` / ``eigenfunc read`` for wavefunction checkpointing
-* ``dipole save`` / ``dipole read`` / ``dipole calc`` for moment matrix elements
-* ``filename <prefix>`` to control output names
 
-.. rubric:: Footnote
+    Molecule = Ca-40           O-16
+    masses   =      39.962590600000     15.994914630000
+    Nroots   =       10
+    Nbasis   =       50
+    Nestates =        5
+    Npoints   =      501
+    range   =      1.0000000     4.0000000
+    X1Sigma+, Ap1Pi, a3Pi, b3Sigma+, A1Sigma+,    <- States
+     |   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega ivib|
+         1      0.0  0   0.999999782551E+00   1   1   0      0.0      0.0    0
+         .....
 
-.. [#1] Strictly speaking, :math:`\mathbf{J} = \mathbf{R} + \mathbf{L} + \mathbf{S}`
-   is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only if
-   the nuclear angular momentum :math:`\mathbf{I}` is zero (or neglected).
+Here the first eight lines represent a `signature` of the spectroscopic model (atoms, masses, specification of the basis), 
+the line 9 is a header followed by the records with the eigen-coefficients and corresponding quantum numbers and labels using the 
+following format: running number within the :math:`J`,parity(`p`)-block :math:`i`, :math:`J`, :math:`p`, 
+the coefficient :math:`C_i^{J,p}`, State, :math:`v`, :math:`\Lambda`, :math:`\Sigma` and vibrational basis set number 
+(a combined number representing the contracted vibrational basis set function from  for all electronic states combined).
+
+The optional keyword ``Filename`` (alias ``Vector-Filename``) is to change  the checkpoint-prefix ``eigen`` 
+to ``filename``. The default name is ``eigen_vectors.chk``.
+
+The option ``density save`` is to compute the vibrational reduced density for all eigenfuncitons on a grid of bond length points, computed as follows 
+
+:math:`\rho_(r) = \sum_{v,v'} \sum_{{\rm State},\Lambda,\Sigma} [C_{v,{\rm State},\Lambda,\Sigma}^{i}]^* C_{v',{\rm State},\Lambda,\Sigma}^i \phi_{v}(r)^* \phi_{v'}(r) \Delta r`
+
+
+
+
+Writing the wave functions to disk
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Both the vibrational (`J=0`, uncoupled) basis functions and the coefficients of the expansion of the
+final (`J>0` and coupled) wave functions can be written to disk by including in the Duo input a section
+with the following structure:
+::
+
+   checkpoint
+     eigenfunc save
+     filename CO
+   end
+
+
+Two files will be produced, called in our example ``CO_vib.chk`` and ``CO_vectors.chk``. 
+The file ``CO_vib.chk`` contains the values of the vibrational basis functions at the grid points
+and has the following structure:
+::
+
+
+     1          0.000000      1   0   A_1Sigma+
+     0.417251193034E-06
+     0.913182486541E-06
+     0.140429031525E-05
+     0.191466765349E-05
+     0.243955552609E-05
+     0.298913870277E-05
+     0.356440215967E-05
+     0.417282770822E-05
+     0.481737299860E-05
+     0.550475969611E-05
+     0.623909577848E-05
+
+
+The first line describes the assignment of the vibrational basis function; the first number is a counter over all
+vibrational wave functions; the second is the energy in cm\ :sup:`-1`; the third is the `state` quantum
+number indicating the electronic state; the fourth is the :math:`v` vibrational quantum number; finally, the label of the
+electronic state is reported. What follows is the value of the vibrational wave function at the grid points.
+The file ends with the line
+::
+
+   End of contracted basis
+
+
+The file ``CO_vectors.chk`` contains the values of the expansion coefficients of the final wave functions.
+The structure is as follows:
+::
+
+    Molecule = C-12            O-16
+    masses   =      12.000000000000     15.994914504752
+    Nroots   =        3
+    Nbasis   =        0
+    Nestates =        1
+    Npoints   =      100
+    range   =      0.6500000     3.0000000
+    Morse_   <- States
+         |   # |    J | p |           Coeff.   | St vib Lambda  Sigma  Omega|
+            1      0.0  1   0.100000000000E+01   1   1   0      0.0      0.0
+            1      0.0  1   0.000000000000E+00   1   2   0      0.0      0.0
+            1      0.0  1   0.000000000000E+00   1   3   0      0.0      0.0
+            2      0.0  1   0.000000000000E+00   1   1   0      0.0      0.0
+            2      0.0  1   0.100000000000E+01   1   2   0      0.0      0.0
+            2      0.0  1   0.000000000000E+00   1   3   0      0.0      0.0
+            3      0.0  1   0.000000000000E+00   1   1   0      0.0      0.0
+            3      0.0  1   0.000000000000E+00   1   2   0      0.0      0.0
+            3      0.0  1   0.100000000000E+01   1   3   0      0.0      0.0
+    End of eigenvector
+
+The first seven lines are a header containing the names of the atoms, the atomic masses, the number of wave functions
+computed, the total dimension of the :math:`J>0` or coupled Hamiltonian matrix,
+the number of electronic states in the calculations, the number of grid points and range of the grid (in \AA).
+The numbers following are: ``#`` is a counter over the rovibronic wave functions; `J` is the total  [#1]_
+
+
+The density checkpoint file has the following structure:
+:: 
+
+
+      0.545190480438E-08 ||      1.5  0       1
+      0.286121234769E-07 ||      1.5  0       1
+      0.134835397210E-06 ||      1.5  0       1
+      0.572802754694E-06 ||      1.5  0       1
+      0.220181930274E-05 ||      1.5  0       1
+      0.768598025530E-05 ||      1.5  0       1
+      0.244490197607E-04 ||      1.5  0       1
+
+
+Where the first column represent the reduced density value on a grid point :math:`r_i`, followed by a dilemeter ``||``, :math:`J`, parity :math:`\tau` 
+and the state number as in the Duo output. 
+
+
+
+
+.. rubric:: Footnotes
+
+.. [#1] Stricly speaking, :math:`\mathbf{J}  = \mathbf{R} + \mathbf{L}  + \mathbf{S}`
+   is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only 
+   if the nuclear angular momentum :math:`\mathbf{I}` is zero (or is neglected).} angular momentum; `p` 
+   is the total :math:`\pm` parity (0 for :math:`+` and 1 for :math:`-`); `Coeff.` is the value of the 
+   coefficient in the expansion; following are the quantum number of the basis function 
+   (electronic, vibrational, :math:`\Lambda`, :math:`\Sigma` and :math:`\Omega`).
