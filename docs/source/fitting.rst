@@ -117,187 +117,234 @@ Conceptually, the bound enforces
      f_i &\leftarrow \min(f_i, f_{\rm max}).
    \end{split}
 
+
+
+
 Keywords
 --------
 
-* ``FITTING``
+.. glossary::
+   :sorted:
 
-  Marks the beginning of the fitting input section. The whole section can be
-  deactivated by writing ``FITTING off`` or ``FITTING none``.
+   FITTING
+      Marks the beginning of the fitting input section.
 
-* ``jlist`` (aliases: ``jrot``, ``J``)
+      The whole section can be deactivated by writing ``FITTING off`` or
+      ``FITTING none``. This is useful to disable fitting without removing the
+      block from the input file.
 
-  Specifies which :math:`J` values are used in the fit. Individual values can be
-  separated by spaces or commas; ranges are specified by a hyphen (hyphens should
-  be surrounded by spaces). The first :math:`J` value is used to determine ZPE.
+   jlist
+      (Aliases: ``jrot``, ``J``)
 
-  Example:
-  ::
+      Specifies which values of the total angular momentum quantum number
+      :math:`J` are used in the fit. Individual values can be separated by
+      spaces or commas; ranges are specified by a hyphen (hyphens should be
+      surrounded by spaces). The **first** :math:`J` value in ``jlist`` is used
+      to determine the zero-point energy (ZPE) reference for fitting output.
 
-    JLIST  1.5, 5.5, 15.5 - 25.5, 112.5
+      Example:
+      ::
 
-* ``itmax`` (alias: ``itermax``)
+         JLIST  1.5, 5.5, 15.5 - 25.5, 112.5
 
-  Maximum number of fitting iterations. Setting ``itmax 0`` performs a
-  “straight-through” calculation: no fit is done, but obs.–calc residuals are
-  printed.
+   itmax
+      (Alias: ``itermax``)
 
-  Example:
-  ::
+      Maximum number of fitting iterations.
 
-    itmax 15
+      Setting ``itmax 0`` performs a straight-through calculation (no parameter
+      updates), but prints obs.–calc residuals.
 
-* ``fit_factor``
+      Example:
+      ::
 
-  Controls the relative weighting of experimental data vs any reference
-  (``abinitio``) curves. This factor scales the experimental weights.
+         itmax 15
 
-  - Large values (e.g. :math:`10^6`) weaken the constraint to the reference curve
-    so the fit primarily targets experimental obs.–calc residuals.
-  - Small values (e.g. :math:`10^{-6}`) enforce close agreement with the
-    reference curve.
-  - Extremely small values (below :math:`10^{-16}`) effectively ignore
-    experimental data (fit to the reference only).
+   fit_factor
+      Controls the relative importance of experimental data versus reference
+      (``abinitio``) constraints by scaling the **experimental** fitting weights.
 
-  Example:
-  ::
+      * Large values (e.g. :math:`10^6`) weaken the constraint to the reference
+        curve, so the fit primarily targets experimental obs.–calc residuals.
+      * Small values (e.g. :math:`10^{-6}`) enforce close agreement with the
+        reference curve.
+      * Extremely small values (below :math:`10^{-16}`) effectively ignore
+        experimental data (fit to the reference only).
 
-    fit_factor 1e2
+      Example:
+      ::
 
-* ``lock`` (alias: ``thresh_assign``)
+         fit_factor 1e2
 
-  Assignment/locking threshold (cm\ :sup:`-1`). When enabled, Duo uses the
-  quantum numbers (state, :math:`v`, :math:`|\Lambda|`, :math:`|\Sigma|`,
-  :math:`|\Omega|`) to identify and lock levels/transitions within the threshold,
-  instead of relying only on the running number within a :math:`(J,\tau)` block.
+   lock
+      (Alias: ``thresh_assign``)
 
-  - ``lock`` missing or ``lock 0``: feature off (match by running number).
-  - ``lock > 0``: match/lock by quantum numbers within the threshold.
-  - ``lock < 0``: attempt matching using closest energies only (no label locking).
+      Assignment/locking threshold (cm\ :sup:`-1`).
 
-  Example:
-  ::
+      When enabled, Duo uses quantum numbers (state, :math:`v`,
+      :math:`|\Lambda|`, :math:`|\Sigma|`, :math:`|\Omega|`) to identify and lock
+      levels/transitions within the threshold instead of relying only on the
+      running number within a :math:`(J,\tau)` block.
 
-    lock 20.0
+      * Missing or ``lock 0``: feature off (match by running number).
+      * ``lock > 0``: match/lock by quantum numbers within the threshold.
+      * ``lock < 0``: attempt matching using closest energies only (no label
+        locking).
 
-* ``thresh_obs-calc``
+      Example:
+      ::
 
-  Excludes data from the fit if the absolute obs.–calc residual exceeds the given
-  threshold. Useful when assignments swap repeatedly and ``lock`` is insufficient.
-  Default is 0 (off).
+         lock 20.0
 
-* ``range``
+   thresh_obs-calc
+      Excludes data from the fit if the absolute obs.–calc residual exceeds the
+      given threshold.
 
-  Specifies bounds for a fitted parameter (see “Fitting ranges” above).
+      This can be useful when assignments swap repeatedly and ``lock`` is
+      insufficient. Default is 0 (off).
 
-* ``robust``
+   range
+      Specifies bounds for a fitted parameter. The keyword ``range`` must appear
+      on the same line as the parameter value (typically after ``fit``), e.g.
+      ::
 
-  Enables Watson’s robust fitting procedure. A value of ``0`` switches it off;
-  any positive value switches it on and sets the target weighted RMS error.
+         RE  1.81413234392416e+00  fit  range 1.7, 1.9
 
-  Example:
-  ::
+      The bounds enforce :math:`f_{\rm min} \le f_i \le f_{\rm max}` during the
+      fit.
 
-    robust 0.01
+   robust
+      Enables Watson’s robust fitting procedure.
 
-* ``target_rms``
+      * ``robust 0``: off
+      * ``robust > 0``: on, with the value setting the target weighted RMS error
 
-  Convergence threshold (cm\ :sup:`-1`) for the unweighted RMS error.
+      Example:
+      ::
 
-  Example:
-  ::
+         robust 0.01
 
-    target_rms 0.1
+   target_rms
+      Convergence threshold (cm\ :sup:`-1`) for the **unweighted** RMS error.
 
-* ``output``
+      Example:
+      ::
 
-  Output prefix for the auxiliary files ``<output>.en``, ``<output>.freq``, and
-  ``<output>.pot`` containing per-iteration diagnostics.
+         target_rms 0.1
 
-  Example:
-  ::
+   output
+      Output prefix used for auxiliary per-iteration files:
 
-    output NaH_fit
+      * ``<output>.en``   (term values / obs.–calc diagnostics)
+      * ``<output>.freq`` (line positions / obs.–calc diagnostics, if using
+        ``frequencies``)
+      * ``<output>.pot``  (residuals to reference curve, if present)
 
-* ``linear_search``
+      Example:
+      ::
 
-  Enables a damped Gauss–Newton line search for a scaling factor :math:`\alpha`
-  applied to the parameter update:
-  :math:`{\bf x}_{i+1} = {\bf x}_i + \alpha \Delta{\bf x}`, with
-  :math:`0 \le \alpha \le 1`.
-  Duo tests decreasing values starting from :math:`\alpha=1` in steps of
-  :math:`1/N` (Armijo condition).
+         output NaH_fit
 
-  Example:
-  ::
+   linear_search
+      Enables a damped Gauss–Newton line search for a scaling factor
+      :math:`\alpha` applied to the parameter update:
 
-    linear_search 5
+      :math:`{\bf x}_{i+1} = {\bf x}_i + \alpha\,\Delta{\bf x}`, with
+      :math:`0 \le \alpha \le 1`.
 
-* ``fit_type``
+      Duo tests decreasing values starting from :math:`\alpha = 1` in steps of
+      :math:`1/N` (Armijo condition), where ``N`` is the integer argument.
 
-  Chooses the linear solver: ``DGELSS`` (LAPACK) or ``LINUR`` (internal).
-  ``DGELSS`` can be more stable for strongly correlated problems; ``LINUR`` may
-  converge faster. In many cases they are equivalent.
+      Example:
+      ::
 
-* ``fit_scale``
+         linear_search 5
 
-  Fixed scaling factor :math:`\alpha` applied to parameter updates (a constant
-  alternative to line search). Ignored when a line search is active.
+   fit_type
+      Chooses the linear solver used in the Gauss–Newton step.
 
-  Example:
-  ::
+      Supported values:
 
-    fit_scale 0.5
+      * ``DGELSS`` (LAPACK; often more stable for strongly correlated problems)
+      * ``LINUR``  (internal; can be faster in some cases)
 
-* ``energies``
+      Examples:
+      ::
 
-  Starts a table of term values to be fitted. Format:
-  ::
+         fit_type dgelss
+         fit_type linur
 
-    energies
-      J  parity  N  energy_cm-1   state  v  Lambda  Sigma  Omega  weight
-      ...
-    end
+   fit_scale
+      Fixed scaling factor :math:`\alpha` applied to the parameter update
+      :math:`\Delta{\bf x}` (a constant alternative to line search).
 
-  Column meanings:
+      This is ignored when a line search is active.
 
-  1. :math:`J` — total angular momentum quantum number.
-  2. parity — either total parity :math:`\tau=\pm` or :math:`e/f` parity.
-  3. :math:`N` — running number counting levels in ascending energy order within
-     each :math:`(J,\tau)` block.
-  4. :math:`\tilde{E}` — term value (cm\ :sup:`-1`).
-  5. state — electronic state index/label as in ``potential`` sections.
-  6. :math:`v` — vibrational quantum number.
-  7. :math:`\Lambda` — projection of electronic orbital angular momentum (integer;
-     matched by absolute value).
-  8. :math:`\Sigma` — projection of electronic spin (integer or half-integer;
-     matched by absolute value).
-  9. :math:`\Omega` — projection of total electronic angular momentum (integer or
-     half-integer; matched by absolute value).
-  10. weight — typically :math:`\sigma^{-2}`, where :math:`\sigma` is the
-      experimental uncertainty.
+      Example:
+      ::
 
-* ``frequencies`` (aliases: ``frequency``, ``wavenumbers``)
+         fit_scale 0.5
 
-  Starts a table of line positions (cm\ :sup:`-1`) to be fitted. Example:
-  ::
+   energies
+      Starts a table of experimental term values to be fitted.
 
-    frequencies
-      0.0  +   2   0.0  +   1   720.0000   2  0   1  -1.0   0.5    1  0   0   0.0   0.0  1.00
-      2.0  +  17   3.0  -   2  5638.1376   4  0   0   1.0   1.0    2  0  -1  -1.0  -2.0  1.00
-      ...
-    end
+      Example:
+      ::
 
-  The quantities are (upper/lower indicated by prime/double prime):
-  :math:`J'`, :math:`\tau'`, :math:`N'`, :math:`J''`, :math:`\tau''`, :math:`N''`;
-  frequency; state\ :math:`'`, :math:`v'`, :math:`\Lambda'`, :math:`\Sigma'`,
-  :math:`\Omega'`; state\ :math:`''`, :math:`v''`, :math:`\Lambda''`,
-  :math:`\Sigma''`, :math:`\Omega''`; weight.
+         energies
+           0.5   +    1     0.0000  1  0  0   0.5   0.5  1.00
+           0.5   +    2   965.4519  1  1  0   0.5   0.5  0.90
+           0.5   +    3  1916.8596  1  2  0   0.5   0.5  0.80
+         end
 
-* ``off``, ``none``
+      Column meanings:
 
-  Can be used to disable blocks such as ``FITTING``, ``intensity``, or ``overlap``
-  when placed next to the corresponding keyword.
+      1. :math:`J` — total angular momentum quantum number.
+      2. parity — either total parity :math:`\tau=\pm` or :math:`e/f` parity.
+      3. :math:`N` — running number counting levels in ascending order of energy
+         within a :math:`(J,\tau)` symmetry block.
+      4. :math:`\tilde{E}` — term value (cm\ :sup:`-1`).
+      5. state — electronic state index/label as defined in ``potential``.
+      6. :math:`v` — vibrational quantum number.
+      7. :math:`\Lambda` — projection of electronic orbital angular momentum
+         (integer; matched by absolute value).
+      8. :math:`\Sigma` — projection of electronic spin (integer or half-integer;
+         matched by absolute value).
+      9. :math:`\Omega` — projection of total electronic angular momentum (integer
+         or half-integer; matched by absolute value).
+      10. weight — typically :math:`\sigma^{-2}`, where :math:`\sigma` is the
+          experimental uncertainty.
+
+   frequencies
+      (Aliases: ``frequency``, ``wavenumbers``)
+
+      Starts a table of experimental line positions (cm\ :sup:`-1`) to be fitted.
+
+      Example:
+      ::
+
+         frequencies
+           0.0  +   2   0.0  +   1   720.0000   2  0   1  -1.0   0.5    1  0   0   0.0   0.0  1.00
+           2.0  +  17   3.0  -   2  5638.1376   4  0   0   1.0   1.0    2  0  -1  -1.0  -2.0  1.00
+           4.0  +  17   5.0  -   2  5627.5270   4  0   0   1.0   1.0    2  0  -1  -1.0  -2.0  1.00
+           4.0  +  18   7.0  -   2  5616.7976   4  0   0   0.0   0.0    2  0  -1  -1.0  -2.0  1.00
+         end
+
+      The quantities are (upper/lower indicated by prime/double prime):
+
+      :math:`J'`, :math:`\tau'`, :math:`N'`, :math:`J''`, :math:`\tau''`,
+      :math:`N''`; frequency (cm\ :sup:`-1`); state\ :math:`'`, :math:`v'`,
+      :math:`\Lambda'`, :math:`\Sigma'`, :math:`\Omega'`; state\ :math:`''`,
+      :math:`v''`, :math:`\Lambda''`, :math:`\Sigma''`, :math:`\Omega''`; weight.
+
+   off
+      (Synonym: ``none``)
+
+      Can be used to disable input blocks such as ``FITTING`` when placed next to
+      the corresponding keyword, e.g. ``FITTING off``.
+
+
+
 
 Structure of the fitting output
 -------------------------------
