@@ -24,10 +24,10 @@ contains the vibrational part of the basis set in the grid representation in the
   ......
 
 
-where the each basis function is given in a block. The first line specifies the sate (number, energy, electronic state and vibrational 
+where the each basis function is given in a block. The first line specifies the sate (number, energy, electronic state and vibrational
 quantum number) followed by the grid values.
 
-The file ``eigen_vectors.chk`` contains the expansion coefficients of the eigenfunction in terms 
+The file ``eigen_vectors.chk`` contains the expansion coefficients of the eigenfunction in terms
 of the Duo ro-vibronic basis set functions using the following format (example):
 ::
 
@@ -44,16 +44,16 @@ of the Duo ro-vibronic basis set functions using the following format (example):
          1      0.0  0   0.999999782551E+00   1   1   0      0.0      0.0    0
          .....
 
-Here the first eight lines represent a `signature` of the spectroscopic model (atoms, masses, specification of the basis), 
-the line 9 is a header followed by the records with the eigen-coefficients and corresponding quantum numbers and labels using the 
-following format: running number within the :math:`J`,parity(`p`)-block :math:`i`, :math:`J`, :math:`p`, 
-the coefficient :math:`C_i^{J,p}`, State, :math:`v`, :math:`\Lambda`, :math:`\Sigma` and vibrational basis set number 
+Here the first eight lines represent a `signature` of the spectroscopic model (atoms, masses, specification of the basis),
+the line 9 is a header followed by the records with the eigen-coefficients and corresponding quantum numbers and labels using the
+following format: running number within the :math:`J`,parity(`p`)-block :math:`i`, :math:`J`, :math:`p`,
+the coefficient :math:`C_i^{J,p}`, State, :math:`v`, :math:`\Lambda`, :math:`\Sigma` and vibrational basis set number
 (a combined number representing the contracted vibrational basis set function from  for all electronic states combined).
 
-The optional keyword ``Filename`` (alias ``Vector-Filename``) is to change  the checkpoint-prefix ``eigen`` 
+The optional keyword ``Filename`` (alias ``Vector-Filename``) is to change  the checkpoint-prefix ``eigen``
 to ``filename``. The default name is ``eigen_vectors.chk``.
 
-The option ``density save`` is to compute the vibrational reduced density for all eigenfuncitons on a grid of bond length points, computed as follows 
+The option ``density save`` is to compute the vibrational reduced density for all eigenfuncitons on a grid of bond length points, computed as follows
 
 :math:`\rho_(r) = \sum_{v,v'} \sum_{{\rm State},\Lambda,\Sigma} [C_{v,{\rm State},\Lambda,\Sigma}^{i}]^* C_{v',{\rm State},\Lambda,\Sigma}^i \phi_{v}(r)^* \phi_{v'}(r) \Delta r`
 
@@ -74,7 +74,7 @@ with the following structure:
    end
 
 
-Two files will be produced, called in our example ``CO_vib.chk`` and ``CO_vectors.chk``. 
+Two files will be produced, called in our example ``CO_vib.chk`` and ``CO_vectors.chk``.
 The file ``CO_vib.chk`` contains the values of the vibrational basis functions at the grid points
 and has the following structure:
 ::
@@ -135,7 +135,7 @@ The numbers following are: ``#`` is a counter over the rovibronic wave functions
 
 
 The density checkpoint file has the following structure:
-:: 
+::
 
 
       0.545190480438E-08 ||      1.5  0       1
@@ -147,8 +147,8 @@ The density checkpoint file has the following structure:
       0.244490197607E-04 ||      1.5  0       1
 
 
-Where the first column represent the reduced density value on a grid point :math:`r_i`, followed by a dilemeter ``||``, :math:`J`, parity :math:`\tau` 
-and the state number as in the Duo output. 
+Where the first column represent the reduced density value on a grid point :math:`r_i`, followed by a dilemeter ``||``, :math:`J`, parity :math:`\tau`
+and the state number as in the Duo output.
 
 
 
@@ -156,8 +156,8 @@ and the state number as in the Duo output.
 .. rubric:: Footnotes
 
 .. [#1] Stricly speaking, :math:`\mathbf{J}  = \mathbf{R} + \mathbf{L}  + \mathbf{S}`
-   is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only 
-   if the nuclear angular momentum :math:`\mathbf{I}` is zero (or is neglected).} angular momentum; `p` 
-   is the total :math:`\pm` parity (0 for :math:`+` and 1 for :math:`-`); `Coeff.` is the value of the 
-   coefficient in the expansion; following are the quantum number of the basis function 
+   is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only
+   if the nuclear angular momentum :math:`\mathbf{I}` is zero (or is neglected).} angular momentum; `p`
+   is the total :math:`\pm` parity (0 for :math:`+` and 1 for :math:`-`); `Coeff.` is the value of the
+   coefficient in the expansion; following are the quantum number of the basis function
    (electronic, vibrational, :math:`\Lambda`, :math:`\Sigma` and :math:`\Omega`).
