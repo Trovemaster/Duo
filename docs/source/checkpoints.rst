@@ -49,3 +49,80 @@ When checkpointing is enabled, Duo creates up to four files:
 .. note::
    The exact set of operators stored in ``external.chk`` depends on what transition-moment curves are present in the input
    and enabled in the calculation (e.g., electric dipole, magnetic dipole, quadrupole).
+   
+Writing checkpoints for later intensity work
+--------------------------------------------
+
+A typical setup to compute energies/eigenvectors (and optionally moment matrix elements) and write them to disk is:
+::
+
+  checkpoint
+    eigenfunc save
+    dipole   save
+    filename YO_01
+  end
+
+This writes ``YO_01_values.chk``, ``YO_01_vectors.chk``, ``YO_01_vib.chk``, and ``external.chk``.
+
+Controlling the J-range that is saved
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The range of :math:`J` values to be computed (and thus stored) can be defined either in the ``intensity`` block or via
+the global ``jrot`` line.
+
+Example using the ``intensity`` block:
+::
+
+  intensity
+    absorption
+    states-only
+    thresh_coeff  1e-60
+    thresh_dipole 1e-9
+    temperature   300.0
+    J,  0.5, 6.5
+    freq-window  -0.001,  20000.0
+    energy low   -0.001,  3000.00, upper   -0.00, 23000.0
+  end
+
+Here, ``states-only`` tells Duo *not* to generate intensities during this run. The calculation still produces and stores
+all rovibronic states for :math:`J = 0.5 \dots 6.5` (as requested), which can then be reused later.
+
+Alternatively, you can define the rotational range globally:
+::
+
+  jrot 0.5  -  6.5
+
+.. tip::
+   Using ``states-only`` together with checkpointing is a convenient way to generate and store states once, and perform
+   intensity calculations later (potentially split into multiple runs).
+
+Reading checkpoints to compute intensities (no recomputation)
+------------------------------------------------------------
+
+Once the checkpoint data exist, Duo can compute intensities **directly from the saved information**.
+
+Use:
+::
+
+  checkpoint
+    eigenfunc read
+    dipole   read
+    filename YO_01
+  end
+
+and provide an ``intensity`` block for the transitions you want:
+::
+
+  intensity
+    absorption
+    thresh_coeff  1e-60
+    thresh_dipole 1e-9
+    temperature   300.0
+    Qstat  337.0515
+    J,  5.5, 6.5
+    freq-window  -0.001,  20000.0
+    energy low   -0.001,  3000.00, upper   -0.00, 23000.0
+  end
+
+In this example, Duo reads the stored eigenvalues/eigenvectors/basis and transition-moment matrix elements and computes
+intensities only for :math:`J = 5.5 \dots 6.5`.   
