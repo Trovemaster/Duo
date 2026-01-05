@@ -17,6 +17,7 @@ Welcome to Duo's documentation!
    fitting
    grid
    eigenfunc
+   checkpoints
    unbound
    keywords
    hyperfine
