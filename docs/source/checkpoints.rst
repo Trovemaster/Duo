@@ -2,11 +2,11 @@ Checkpointing (wavefunctions, moments, and reduced density)
 ==========================================================
 .. _checkpointing:
 
-Duo can *checkpoint* (save) and later *reuse* the key numerical objects required for post-processing:
-rovibronic eigenvalues and eigenvectors, vibrational basis functions on the radial grid, and (optionally)
-matrix elements of transition-moment operators (electric dipole, magnetic dipole, electric quadrupole, etc.).
-This enables intensity calculations **without recomputing** the eigenproblem, basis functions, or (previously
-computed) transition-moment integrals.
+Duo can *checkpoint* (save) and later *reuse* the following numerical objects: rovibronic eigenvalues and eigenvectors, vibrational basis functions on the radial grid, and (optionally) matrix elements of transition-moment operators (electric dipole, magnetic dipole, electric quadrupole, etc.).
+This enables intensity calculations **bypassing** the eigenvalue problem completely. This functionally allows one to decouple the intensity production from the solutions of the Schrödinger equation. This can be especially useful when the intensities for different values of :math:`J` are processed simultaneously and potentially for refining the dipole/quadupole curves by fitting to experimental intensities. 
+
+Other common usage of checkpointing is to generate reduced densities or to obtain expectation values. 
+
 
 The checkpointing workflow is controlled by the ``checkpoint`` input block.
 
@@ -17,39 +17,44 @@ Basic structure:
 ::
 
   checkpoint
-    eigenfunc <save|read>
+    eigenfunc <save|read|none>
+    density  <save|read>
     dipole   <save|read|calc>
     filename <prefix>
   end
 
-The keyword ``filename`` defines the checkpoint prefix (for example ``YO_01``), which is used to name the
-produced files.
+The keyword ``filename`` defines the checkpoint prefix (for example ``YO``), which is used to name the
+produced files; ``save``, ``read``, ``calc`` and ``none`` (not case sensitive) are allowed parameters defining the intended workflow. 
+
+The keyword ``eigenfunc`` (aliases ``Eigenvectors`` and ``Eigenvect``) is to checkpoint eigenvalues, eigen-coefficients and underlying vibrational basis functions on a grid of bond-length values. The latter two objects fully define the eigenvectors for any external use.
+
+The keyword ``Density`` controls the calculation and storage of reduced densities (see below). 
 
 What gets written: checkpoint files
 -----------------------------------
 
-When checkpointing is enabled, Duo creates up to four files:
+When ``eigenfunc`` is set to ``save ``, the following files are stored:
 
-* ``<prefix>_values.chk`` (ASCII)
-    Rovibronic eigenvalues together with descriptors (e.g., quantum numbers, state labels, properties).
-    The **first ~10 lines** form a *fingerprint* of the calculation (molecule, masses, basis size, grid, state list, etc.).
-    When reading checkpoints, Duo compares this fingerprint with the current input to avoid mixing incompatible files.
+*  ``<prefix>_values.chk`` (ASCII)
+    Rovibronic eigenvalues together with descriptors (quantum numbers, state labels, properties etc).
 
-* ``<prefix>_vectors.chk`` (binary)
+*  ``<prefix>_vectors.chk`` (binary)
     Rovibronic eigenvectors for all computed solutions.
 
-* ``<prefix>_vib.chk`` (ASCII)
+*  ``<prefix>_vib.chk`` (ASCII)
     Vibrational (contracted) basis functions tabulated on the radial grid.
 
+When ``dipole`` is set to ``save ``,  the following files are stored: 
+
 * ``external.chk`` (binary)
-    Stored matrix elements of transition moments (electric/magnetic dipole, quadrupole, etc.), written when
-    ``dipole save`` is used.  (Despite the generic name, this file belongs to the checkpoint dataset and should be kept
+    Stored vibrational matrix elements of transition moments (electric/magnetic iona-magneticdipole and quadrupole) are saved. 
+    (Despite the generic name, this file belongs to the checkpoint dataset and should be kept
     together with the other ``<prefix>_*`` files.)
 
 .. note::
    The exact set of operators stored in ``external.chk`` depends on what transition-moment curves are present in the input
    and enabled in the calculation (e.g., electric dipole, magnetic dipole, quadrupole).
-   
+
 Writing checkpoints for later intensity work
 --------------------------------------------
 
@@ -59,16 +64,16 @@ A typical setup to compute energies/eigenvectors (and optionally moment matrix e
   checkpoint
     eigenfunc save
     dipole   save
-    filename YO_01
+    filename YO
   end
 
-This writes ``YO_01_values.chk``, ``YO_01_vectors.chk``, ``YO_01_vib.chk``, and ``external.chk``.
+This writes ``YO_values.chk``, ``YO_vectors.chk``, ``YO_vib.chk``, and ``external.chk``.
 
 Controlling the J-range that is saved
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The range of :math:`J` values to be computed (and thus stored) can be defined either in the ``intensity`` block or via
-the global ``jrot`` line.
+the global ``jrot`` line at the top of the Duo input file. 
 
 Example using the ``intensity`` block:
 ::
@@ -76,9 +81,6 @@ Example using the ``intensity`` block:
   intensity
     absorption
     states-only
-    thresh_coeff  1e-60
-    thresh_dipole 1e-9
-    temperature   300.0
     J,  0.5, 6.5
     freq-window  -0.001,  20000.0
     energy low   -0.001,  3000.00, upper   -0.00, 23000.0
@@ -94,12 +96,12 @@ Alternatively, you can define the rotational range globally:
 
 .. tip::
    Using ``states-only`` together with checkpointing is a convenient way to generate and store states once, and perform
-   intensity calculations later (potentially split into multiple runs).
+   intensity calculations later (potentially split into multiple runs for different :math:`J`).
 
 Reading checkpoints to compute intensities (no recomputation)
-------------------------------------------------------------
+-------------------------------------------------------------
 
-Once the checkpoint data exist, Duo can compute intensities **directly from the saved information**.
+Once the checkpoint data exist, Duo can compute intensities **directly from the stored checkpoints**.
 
 Use:
 ::
@@ -107,7 +109,7 @@ Use:
   checkpoint
     eigenfunc read
     dipole   read
-    filename YO_01
+    filename YO
   end
 
 and provide an ``intensity`` block for the transitions you want:
@@ -135,7 +137,7 @@ checkpoint dataset, large spectra can be split into independent jobs, e.g.
 
 * compute and store states once for a broad :math:`J` range;
 * run multiple intensity jobs in parallel, each handling different :math:`J` intervals or spectral windows;
-* run “test” intensity calculations with different thresholds/windows without re-solving the Schrödinger equation.
+* run "test" intensity calculations with different thresholds/windows without re-solving the Schrödinger equation.
 
 Recomputing moment matrix elements with new dipole curves (``dipole calc``)
 --------------------------------------------------------------------------
@@ -144,22 +146,21 @@ Another common use case is to keep eigenfunctions fixed while changing the trans
 (e.g. refining an electric dipole moment function to experimental intensities).
 
 In this mode Duo reads the stored wavefunctions/basis from checkpoint files, **recomputes the transition-moment matrix
-elements**, and writes them (so that intensities can then be generated consistently with the updated moments):
+elements**:
 ::
 
   checkpoint
     eigenfunc read
     dipole   calc
-    filename YO_01
+    filename YO
   end
 
-You would then run an intensity calculation using the updated matrix elements (either in the same run, or in a
-subsequent ``dipole read`` run, depending on your workflow).
+One would then run an intensity calculation using the updated matrix elements in the same run.
 
 Example: structure of ``*_values.chk`` (eigenvalue checkpoint file)
 -------------------------------------------------------------------
 
-Below is an excerpt from ``KH_01_values.chk`` (KH project):
+Below is an excerpt from ``KH_values.chk`` (KH project) illustrating the structure of an eigenvalues-checkpoint file:
 ::
 
   Molecule = K               H
@@ -181,15 +182,15 @@ Below is an excerpt from ``KH_01_values.chk`` (KH project):
   ...
   End of eigenvalues
 
-The header (roughly the first 10 lines) is used as a **fingerprint** of the project. Duo checks it against the current
-input to ensure that checkpoint files are not accidentally reused across different models, parameter sets, grids, or
+
+The **first ~10 lines** form a *fingerprint* of the calculation (molecule, masses, basis size, grid, state list, etc.).     When reading checkpoints, Duo checks it against the current input to ensure that checkpoint files are not accidentally reused across different models, parameter sets, grids, or
 molecules.
 
-Reduced density checkpoint (optional)
--------------------------------------
+Reduced density calculations
+----------------------------
 
 In addition to wavefunction/moment checkpointing, Duo can compute and store the vibrational reduced density on the radial
-grid. Enable it via:
+grid. This is enabled via:
 ::
 
   checkpoint
@@ -206,7 +207,7 @@ The reduced density :math:`\rho(r)` is computed as:
    C_{v',\mathrm{State},\Lambda,\Sigma}^{(i)}
    \,\phi_v(r)^* \phi_{v'}(r)\,\Delta r .
 
-A typical density checkpoint record looks like:
+A typical density checkpoint record has the following form:
 ::
 
   0.545190480438E-08 ||      1.5  0       1
@@ -215,7 +216,7 @@ A typical density checkpoint record looks like:
   ...
 
 The first column is the density value at grid point :math:`r_i`, followed by delimiter ``||``, total angular momentum
-:math:`J`, parity :math:`\tau`, and the state number (as in the Duo output).
+:math:`J` [#1]_ , parity :math:`\tau`, and the state number (as in the Duo output).
 
 Notes on terminology and legacy keywords
 ----------------------------------------
@@ -231,4 +232,4 @@ In the current syntax, the recommended form is:
 
 .. [#1] Strictly speaking, :math:`\mathbf{J} = \mathbf{R} + \mathbf{L} + \mathbf{S}`
    is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only if
-   the nuclear angular momentum :math:`\mathbf{I}` is zero (or neglected).   
+   the nuclear angular momentum :math:`\mathbf{I}` is zero (or neglected).
