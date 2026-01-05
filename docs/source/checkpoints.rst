@@ -125,4 +125,62 @@ and provide an ``intensity`` block for the transitions you want:
   end
 
 In this example, Duo reads the stored eigenvalues/eigenvectors/basis and transition-moment matrix elements and computes
-intensities only for :math:`J = 5.5 \dots 6.5`.   
+intensities only for :math:`J = 5.5 \dots 6.5`.
+
+Main advantage: split and parallelise intensity production
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because intensities can be computed for *subsets* of :math:`J` (or different frequency/energy windows) from the same
+checkpoint dataset, large spectra can be split into independent jobs, e.g.
+
+* compute and store states once for a broad :math:`J` range;
+* run multiple intensity jobs in parallel, each handling different :math:`J` intervals or spectral windows;
+* run “test” intensity calculations with different thresholds/windows without re-solving the Schrödinger equation.
+
+Recomputing moment matrix elements with new dipole curves (``dipole calc``)
+--------------------------------------------------------------------------
+
+Another common use case is to keep eigenfunctions fixed while changing the transition-moment curves
+(e.g. refining an electric dipole moment function to experimental intensities).
+
+In this mode Duo reads the stored wavefunctions/basis from checkpoint files, **recomputes the transition-moment matrix
+elements**, and writes them (so that intensities can then be generated consistently with the updated moments):
+::
+
+  checkpoint
+    eigenfunc read
+    dipole   calc
+    filename YO_01
+  end
+
+You would then run an intensity calculation using the updated matrix elements (either in the same run, or in a
+subsequent ``dipole read`` run, depending on your workflow).
+
+Example: structure of ``*_values.chk`` (eigenvalue checkpoint file)
+-------------------------------------------------------------------
+
+Below is an excerpt from ``KH_01_values.chk`` (KH project):
+::
+
+  Molecule = K               H
+  masses   =      38.963706486430      1.007825032230
+  Nroots   =       20
+  Nbasis   =      160
+  Nestates =        4
+  Npoints   =      501
+  range   =      0.9000000    16.0000000
+  nJs     =       11
+  Jrange  =   0.00000 10.00000
+  X1Sigma+, A1Sigma+, B1Pi, C1Sigma+,    <- States
+           140  <- Nlevels
+           140  <- Ndimen
+             1    492.2960321790      0.0    1    1   X1Sigma+       0  0      0.0      0.0      0.0    1       1  T     2.20122 0.11673E-29
+             2   1448.1762331140      0.0    1    1   X1Sigma+       1  0      0.0      0.0      0.0    1       1  T     2.26446 0.97793E-30
+             3   2374.1127556956      0.0    1    1   X1Sigma+       2  0      0.0      0.0      0.0    1       1  T     2.32626 0.32747E-29
+             4   3271.0297066643      0.0    1    1   X1Sigma+       3  0      0.0      0.0      0.0    1       1  T  ...
+  ...
+  End of eigenvalues
+
+The header (roughly the first 10 lines) is used as a **fingerprint** of the project. Duo checks it against the current
+input to ensure that checkpoint files are not accidentally reused across different models, parameter sets, grids, or
+molecules.   
