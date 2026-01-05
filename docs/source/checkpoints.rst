@@ -183,4 +183,52 @@ Below is an excerpt from ``KH_01_values.chk`` (KH project):
 
 The header (roughly the first 10 lines) is used as a **fingerprint** of the project. Duo checks it against the current
 input to ensure that checkpoint files are not accidentally reused across different models, parameter sets, grids, or
-molecules.   
+molecules.
+
+Reduced density checkpoint (optional)
+-------------------------------------
+
+In addition to wavefunction/moment checkpointing, Duo can compute and store the vibrational reduced density on the radial
+grid. Enable it via:
+::
+
+  checkpoint
+    density save
+    filename <prefix>
+  end
+
+The reduced density :math:`\rho(r)` is computed as:
+.. math::
+
+   \rho(r) =
+   \sum_{v,v'} \sum_{\mathrm{State},\Lambda,\Sigma}
+   \left[C_{v,\mathrm{State},\Lambda,\Sigma}^{(i)}\right]^*
+   C_{v',\mathrm{State},\Lambda,\Sigma}^{(i)}
+   \,\phi_v(r)^* \phi_{v'}(r)\,\Delta r .
+
+A typical density checkpoint record looks like:
+::
+
+  0.545190480438E-08 ||      1.5  0       1
+  0.286121234769E-07 ||      1.5  0       1
+  0.134835397210E-06 ||      1.5  0       1
+  ...
+
+The first column is the density value at grid point :math:`r_i`, followed by delimiter ``||``, total angular momentum
+:math:`J`, parity :math:`\tau`, and the state number (as in the Duo output).
+
+Notes on terminology and legacy keywords
+----------------------------------------
+
+Older inputs and parts of the manual may refer to ``eigenvectors save`` or use default prefixes such as ``eigen_*``.
+In the current syntax, the recommended form is:
+
+* ``eigenfunc save`` / ``eigenfunc read`` for wavefunction checkpointing
+* ``dipole save`` / ``dipole read`` / ``dipole calc`` for moment matrix elements
+* ``filename <prefix>`` to control output names
+
+.. rubric:: Footnote
+
+.. [#1] Strictly speaking, :math:`\mathbf{J} = \mathbf{R} + \mathbf{L} + \mathbf{S}`
+   is the sum of the rotational and total electronic angular momenta; it is the total angular momentum only if
+   the nuclear angular momentum :math:`\mathbf{I}` is zero (or neglected).   
