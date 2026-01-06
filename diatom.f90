@@ -860,30 +860,6 @@ contains
         allocate(job%j_list(i),stat=alloc)
         !
         job%J_list(1:i) = J_list_(1:i)
-        !
-        !case ("JROT")
-        !  !
-        !  call readf(jmin)
-        !  !
-        !  if (nitems>2) then
-        !    !
-        !    call readf(jmax)
-        !    !
-        !  else
-        !    !
-        !    jmax = jmin
-        !    !
-        !  endif
-        !  !
-        !  ! check the multiplicity
-        !  !
-        !  if (mod(nint(2.0_rk*jmin+1.0_rk),2)==1) integer_spin = .true.
-        !  !
-        !  if (mod(nint(2.0_rk*jmax+1.0_rk),2)==0.and.integer_spin) then
-        !    !
-        !    call report("The multiplicities of jmin and jmax are inconsistent",.true.)
-        !    !
-        !  endif
         !  !
       case ("NSTATES","NESTATES","STATES")
         !
@@ -7391,13 +7367,18 @@ contains
       !
       allocate(J_list(nJ),stat=alloc)
       !
-      J_list = J_list_
-      job%J_list = J_list 
+      if (associated(job%j_list)) deallocate(job%j_list)
+      !
+      allocate(job%j_list(nJ),stat=alloc)
+      !
+      J_list(1:nJ) = J_list_(1:nJ)
+      job%J_list(1:nJ) = J_list(1:nJ)
       !
     else
       !
       nJ = size(job%J_list)
       allocate(J_list(nJ),stat=alloc)
+      !
       J_list = job%J_list
       !
     endif
