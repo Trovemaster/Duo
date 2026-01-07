@@ -697,7 +697,8 @@ contains
           !
           energyI = eigen(indI,igammaI)%val(ilevelI)
           !
-          istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+          quantaI => eigen(indI,igammaI)%quanta(ilevelI)
+          istateI  = quantaI%istate
           parity_gu = poten(istateI)%parity%gu
           ! Obtain the C2v/Cs symmetry
           isymI = correlate_to_Cs(igammaI,parity_gu)
@@ -705,8 +706,19 @@ contains
           ! ignore states with zero nuclear weight
           if (intensity%gns(isymI)<small_) cycle
           !
+          ! skipping unbound lower states if the bound filter is on
+          if ( intensity%bound_filter.and.intensity%bound .and. .not. quantaI%bound ) cycle
+          !
           iroot = iroot + 1
           eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+          !
+          call energy_filter_upper(jI,energyI,passed)
+          !
+          call energy_filter_lower(jI,energyI,passed_)
+          !
+          passed = passed.or.passed_
+          !
+          if (.not.passed) cycle
           !
           if (trim(intensity%linelist_file)/="NONE") then
             !
@@ -894,12 +906,6 @@ contains
             endif
             !
           endif
-          !
-          call energy_filter_upper(jI,energyI,passed)
-          !
-          call energy_filter_lower(jI,energyI,passed_)
-          !
-          if (.not.passed.and..not.passed_) cycle
           !
           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
           parity_gu = poten(istateI)%parity%gu

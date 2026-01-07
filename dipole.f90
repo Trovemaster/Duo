@@ -699,15 +699,14 @@ contains
          dimenI = eigen(indI,igammaI)%Ndimen
          !
          !
-         !omp parallel do private(ilevelI,jI,energyI,igammaI,quantaI,ilevelF,jF,energyF,igammaF,quantaF,passed) & 
-         !                      & schedule(guided) reduction(+:Ntransit,nlevelI)
          do ilevelI = 1, nlevelsI
            !
            !energy energy and and the symmetry of the state
            !
            energyI = eigen(indI,igammaI)%val(ilevelI)
+           quantaI => eigen(indI,igammaI)%quanta(ilevelI)
            !
-           istateI  = eigen(indI,igammaI)%quanta(ilevelI)%istate
+           istateI  = quantaI%istate
            parity_gu = poten(istateI)%parity%gu
            ! Obtain the C2v/Cs symmetry 
            isymI = correlate_to_Cs(igammaI,parity_gu)
@@ -715,16 +714,21 @@ contains
            ! ignore states with zero nuclear weight 
            if (intensity%gns(isymI)<small_) cycle 
            !
-           ! apply the energy filters
+           ! skipping unbound lower states if the bound filter is on
+           if ( intensity%bound_filter.and.intensity%bound .and. .not. quantaI%bound ) cycle
            !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
+           !
+           ! apply the energy filters
            !
            call energy_filter_upper(jI,energyI,passed)
            !
            call energy_filter_lower(jI,energyI,passed_)
            !
-           if (.not.passed.and..not.passed_) cycle
+           passed = passed.or.passed_
+           !
+           if (.not.passed_) cycle
            !
            if (trim(intensity%linelist_file)/="NONE") then
              !

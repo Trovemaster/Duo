@@ -17897,15 +17897,15 @@ contains
    contains 
    !
    !
-   subroutine checkpointRestore(Ntotal,nJ,Jmin,Jmax)
+   subroutine checkpointRestore(Ntotal,nJstored,Jmin,Jmax)
      !
-     integer(ik),intent(in) :: Ntotal,nJ
+     integer(ik),intent(in) :: Ntotal,nJstored
      real(rk),intent(in)    :: Jmin,Jmax
      integer(ik)        :: Ndimen,Nlevels,nestates_,npoints_,iunit,k,ilevel,irot,irrep,Nroots_,totalroots_
      integer(ik),parameter :: sl = 89
      character(len=sl)  :: string1,string2
      real(rk)           :: m1_,m2_,rmin_,rmax_,Jvalue,Jvalue_,jmin_,jmax_,Spin,Sigma,Omega,vect_
-     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,iState,v,Lambda,ivib,Ntotal_,ilevel_,iomega,nJ_
+     integer(ik)        :: Nsizemax,alloc,N_,i,N,ipar,ipar_,total_roots,iState,v,Lambda,ivib,Ntotal_,ilevel_,iomega,nJ_,nJ
      character(len=cl)  :: poten_nam(nestates),filename,ioname
      logical      :: integer_spin = .false.
      type(quantaT),pointer  :: quanta_state
@@ -17924,16 +17924,19 @@ contains
         !
         read(iunit) nJ_,Jmin_,Jmax_
         !
-        if (nJ_/=nJ.or.nint(Jmin_-Jmin)/=0.or.nint(Jmax_-Jmax)/=0) then
-          write(out,"(a,1x,i8,1x,2f8.1,'<>',i8,1x,2f8.1)") 'checkpointRestore: Inconsistent nJ, Jmin,Jmax, in two eigen chks ',&
-                      nJ_,Jmin_,Jmax_,nJ,Jmin,Jmax
-          stop "checkpointRestore: Inconsistent Inconsistent nJ, Jmin,Jmax, in two eigen chks"
+        if (nJ_/=nJstored.or.nint(Jmin_-Jmin)/=0.or.nint(Jmax_-Jmax)/=0) then
+          write(out,"(a,1x,i8,1x,2f8.1,'<>',i8,1x,2f8.1)") 'checkpointRestore: Inconsistent nJs, Jmin,Jmax, in two eigen chks ',&
+                      nJ_,Jmin_,Jmax_,nJstored,Jmin,Jmax
+          stop "checkpointRestore: Inconsistent Inconsistent nJs, Jmin,Jmax, in two eigen chks"
           
         endif
         !
+        ! Max number of Js for the current job:
+        nJ = size(Jval)
+        !
         Ntotal_ = 0
         !
-        do irot  = 1,nJ_
+        do irot  = 1,min(nJ_,nJ)
            !
            ! allocate the basis set descriptions
            !
@@ -18001,16 +18004,20 @@ contains
            enddo
         enddo
         !
-        read(iunit) string1(1:20)
-        !
-        if (string1(1:20)/='eigenvectors-chk/end') then 
-          write(out,"(a)") 'checkpointRestore: error illegal ending'
-          stop "checkpointRestore: error illegal ending"
-        endif
-        !
-        if (Ntotal/=Ntotal_) then 
-          write(out,"(a)") 'checkpointRestore: inconsisten number of states with _values',Ntotal_,Ntotal
-          stop "checkpointRestore: error inconsisten number of states"
+        if (nJ_==nJ) then 
+           !
+           read(iunit) string1(1:20)
+           !
+           if (string1(1:20)/='eigenvectors-chk/end') then 
+             write(out,"(a)") 'checkpointRestore: error illegal ending'
+             stop "checkpointRestore: error illegal ending"
+           endif
+           !
+           if (Ntotal/=Ntotal_) then 
+             write(out,"(a)") 'checkpointRestore: inconsisten number of states with _values',Ntotal_,Ntotal
+             stop "checkpointRestore: error inconsisten number of states"
+           endif 
+           !
         endif 
         !
         close(iunit,status='keep')

@@ -609,18 +609,29 @@ contains
 
           ! obtain the energy of the initial state
           energyI = eigen(indI, indGammaI)%val(indLevelI)
-
+          !
           ! obtain the symmetry of the state
-          istateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
+          quantaI => eigen(indI,indGammaI)%quanta(indLevelI)
+          istateI = quantaI%istate
           guParity = poten(istateI)%parity%gu
           indSymI = correlate_to_Cs(indGammaI, guParity)
 
           ! ignore states with zero nuclear spin statistical weighting
           if  ( Intensity%gns(indSymI) < small_ ) cycle
+          !
+          ! skipping unbound lower states if the bound filter is on
+          if (intensity%bound_filter.and.intensity%bound.and..not.quantaI%bound) cycle
 
           ! indRoot is a running number over states
           indRoot = indRoot + 1
           eigen(indI, indGammaI)%quanta(indLevelI)%iroot = indRoot
+          !
+          call energy_filter_ul(jI, energyI, passed, 'upper')
+          call energy_filter_ul(jI, energyI, passed_, 'lower')
+          !
+          passed = passed.or.passed_
+          !
+          if ( .not. passed ) cycle
 
           if ( trim(Intensity%linelist_file) /= 'NONE') then
 
@@ -818,12 +829,6 @@ contains
             endif
             !
           endif
-
-          call energy_filter_ul(jI, energyI, passed, 'upper')
-          call energy_filter_ul(jI, energyI, passed_, 'lower')
-
-          if (      .not. passed &
-              .and. .not. passed_) cycle
 
           istateI = eigen(indI, indGammaI)%quanta(indLevelI)%istate
           guParity = poten(istateI)%parity%gu
