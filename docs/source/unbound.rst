@@ -1,4 +1,4 @@
-.. _unboud states
+.. _unbound states
 
 Treating unbound states
 =======================
@@ -9,11 +9,10 @@ Identifying unbound states using density
 Unbound states appear above the state dissociations. The Duo is developed to treat bound state problems
 with an effective  boundary condition for the rovibronic eigenfunctions to vanish at the borders of the simulation grid.
 However it is a typical problem when an electronic system contans unbound region between states  or above  their dissociations,
-where unboud solutions are possible. Moreover, some of these unbound eigenfunctions are exactly zero at
+where unbound solutions are possible. Moreover, some of these unbound eigenfunctions are exactly zero at
 :math:`r= r_{\rm max}` (other side is automatically zero duo to the steep repulsive wall).
 Duo methodology can be applied also to compute the unbound spectra, here we show how to remove the spurious unbound states from the spectra (line lists)
-calculations and thus to produce bound a line list. The unbound wavefunctions :math:`\psi_{\lambda}(r)` can be identified based on their asymptotic properties
-via non-zero density in the small region of :math:`\delta` at the right border :math:`r= r_{\rm max}`:
+calculations and thus to produce bound a line list. The unbound wavefunctions :math:`\psi_{\lambda}(r)` can be identified based on their asymptotic properties via non-zero density in the small region of :math:`\delta` at the right border :math:`r= r_{\rm max}`:
 
 .. math::
 
@@ -144,7 +143,7 @@ Here is an example excluding  bound upper states using the criterium for the bon
     bound
     thresh_intens 1e-50
     thresh_bound  1e-6
-    thresh_bound_rmax  2
+    thresh_bound_rmax  3
     temperature 3000 (K)
     linelist AlCl-37_61_J160
     J 0, 20
@@ -153,13 +152,28 @@ Here is an example excluding  bound upper states using the criterium for the bon
   end
 
 
-where ``thresh_bound_rmax`` defines the value of :math:`r_{\rm max}` in the equation above.
+where ``thresh_bound_rmax`` defines the value of :math:`r_{\rm max}` in the equation above. The keyword `thresh_bound_rmax`` can assume different :math:`r_{\rm max}` values for different states as in the following example:
+::
+
+  intensity
+    absorption
+    unbound
+    ......
+    thresh_bound_rmax  3 5.5 4 
+    ....
+  end
+
+where the entries are applied in the same order as the electronic states are defined (e.g. using the keyword ``States``). 
 
 
-Printing unbound state properties in the .states file 
+.. note:: The  selection criteria :math:`r_{\rm max}` (``thresh_bound_rmax``) takes the priority over :math:`\epsilon_{\rm thr}` (``thresh_bound``) when assigning **bound** states. A rovibronic state is assigned **bound** whenever the criterium  :math:`\langle r \rangle < r_{\rm thresh}` is satisfied regardless the criterium   :math:` \epsilon > \epsilon_{\rm thr}`. The state is assigned **unbound** if any of these two criteria are satisfied. 
+
+
+
+Printing unbound state properties in the .states file
 -----------------------------------------------------
 
-By default, the unbound calculations will introduce the labels "b"/"u" (Bound/Unbound) in the States file. When the expectation value of the bond length :math:`\bar{r}` is requested with ``THRESH_BOUND_RMAX`` in the ``Intensity`` block, the corresponding value of :math:`\bar{r}` will also appear next to the label "b"/"u". Additionally the expectation values the unbound densities :math:`\epsilon` can be also included by adding the keyword ``PRINT_BOUND_DENSITY``, e.g. 
+By default, the unbound calculations will introduce the labels "b"/"u" (Bound/Unbound) in the States file. When the expectation value of the bond length :math:`\bar{r}` is requested with ``THRESH_BOUND_RMAX`` in the ``Intensity`` block, the corresponding value of :math:`\bar{r}` will also appear next to the label "b"/"u". Additionally the expectation values the unbound densities :math:`\epsilon` can be also included by adding the keyword ``PRINT_BOUND_DENSITY``, e.g.
 ::
 
      INTENSITY
@@ -175,12 +189,12 @@ By default, the unbound calculations will introduce the labels "b"/"u" (Bound/Un
        freq-window    0, 50000
        energy low   -0.001, 20000.00, upper   -0.00, 50000.0
      END
-     
-     
-Here is an example of the States file generated: 
+
+
+Here is an example of the States file generated:
 ::
-     
-     
+
+
            1     0.000000      4     0.5 + e X2Pi         0  1    -0.5     0.5 b   1.13934 0.58E-21
            2  2720.584833      4     0.5 + e X2Pi         1  1    -0.5     0.5 b   1.17893 0.17E-21
            3  5314.682367      4     0.5 + e X2Pi         2  1    -0.5     0.5 b   1.22026 0.47E-21
@@ -192,6 +206,6 @@ Here is an example of the States file generated:
            9 27905.414170      4     0.5 + e B2Sigma-     3  0     0.5     0.5 u   4.96461 0.18
           10 27947.636255      4     0.5 + e B2Sigma-     4  0     0.5     0.5 u   4.79088 0.28
           ..................
-      
- 
+
+
 

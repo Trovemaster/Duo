@@ -404,7 +404,7 @@ module diatom_module
     ! calculated at the edge of the box whioch must be small for bound states
     real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
     real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density (Angstrom)
-    real(rk) :: bound_rmax      = sqrt(safe_max) ! threshold defining the unbound state based on the expectatiob value of the bond length
+    real(rk),pointer :: bound_rmax(:)  ! threshold defining the unbound state based on the expectatiob value of the bond length
     !
   end type thresholdsT
   !
@@ -915,6 +915,9 @@ contains
         job%vibenermax = enermax
         !
         allocate(abinitio(nestates*Nobjects+5*ncouples),stat=alloc)
+        !
+        ! This object is need for bound/unbound selection based on <r> 
+        allocate(intensity%threshold%bound_rmax(nestates))
         !
       case ("NREFSTATES")
         !
@@ -3476,7 +3479,20 @@ contains
             !
           case('THRESH_BOUND_RMAX')
             !
-            call readf(intensity%threshold%bound_rmax)
+            if (Nitems<2) intensity%threshold%bound_rmax = sqrt(safe_max)
+            !
+            ! in some cases (omega) we will need more entries than nestates
+            if (Nestates<Nitems-1) then 
+              deallocate(intensity%threshold%bound_rmax)
+              allocate(intensity%threshold%bound_rmax(Nitems-1),stat=alloc)
+            endif
+            !
+            do i = 1,min(Nitems-1,size(intensity%threshold%bound_rmax))
+              call readf(intensity%threshold%bound_rmax(i))
+              intensity%threshold%bound_rmax(i+1:) = intensity%threshold%bound_rmax(i)
+            enddo
+            !
+            !call readf(intensity%threshold%bound_rmax)
             intensity%use_bound_rmax = .true.
             !
           case('PRINT_BOUND_EPSILON','PRINT_BOUND_EPS','PRINT_BOUND_DENSITY')
@@ -10494,7 +10510,7 @@ contains
                     eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
                     !
-                    if (intensity%use_bound_rmax .and. r_exp<intensity%threshold%bound_rmax) then 
+                    if (intensity%use_bound_rmax .and. r_exp<intensity%threshold%bound_rmax(istate)) then 
                       eigen(irot,irrep)%quanta(total_roots)%bound = .true.
                       bound_state = .true.
                       !
@@ -10502,7 +10518,7 @@ contains
                     !
                   endif
                   !
-                  if (intensity%use_bound_rmax.and.r_exp>intensity%threshold%bound_rmax) then 
+                  if (intensity%use_bound_rmax.and.r_exp>intensity%threshold%bound_rmax(istate)) then 
                     eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
                     !
