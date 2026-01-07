@@ -629,9 +629,8 @@ contains
           call energy_filter_ul(jI, energyI, passed, 'upper')
           call energy_filter_ul(jI, energyI, passed_, 'lower')
           !
-          passed = passed.or.passed_
-          !
-          if ( .not. passed ) cycle
+          if (      .not. passed &
+              .and. .not. passed_) cycle
 
           if ( trim(Intensity%linelist_file) /= 'NONE') then
 

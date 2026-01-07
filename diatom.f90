@@ -10511,9 +10511,7 @@ contains
                     bound_state = .false.
                     !
                     if (intensity%use_bound_rmax .and. r_exp<intensity%threshold%bound_rmax(istate)) then 
-                      eigen(irot,irrep)%quanta(total_roots)%bound = .true.
                       bound_state = .true.
-                      !
                     endif
                     !
                   endif
@@ -10521,8 +10519,9 @@ contains
                   if (intensity%use_bound_rmax.and.r_exp>intensity%threshold%bound_rmax(istate)) then 
                     eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
-                    !
                   endif
+                  !
+                  eigen(irot,irrep)%quanta(total_roots)%bound = bound_state
                   !
                   if (iverbose>=4) call TimerStop('Find unbound states')
                   !

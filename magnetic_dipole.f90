@@ -716,9 +716,7 @@ contains
           !
           call energy_filter_lower(jI,energyI,passed_)
           !
-          passed = passed.or.passed_
-          !
-          if (.not.passed) cycle
+          if ( .not. passed.and. .not. passed_) cycle
           !
           if (trim(intensity%linelist_file)/="NONE") then
             !
