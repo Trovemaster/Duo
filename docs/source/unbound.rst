@@ -326,24 +326,3 @@ Keywords
          print_bound_density
 
 
-Aliases (uppercase spellings)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. glossary::
-   :sorted:
-
-   THRESH_BOUND
-      Alias for :term:`thresh_bound`.
-
-   THRESH_DELTA_R
-      Alias for :term:`thresh_delta_r`.
-
-   THRESH_AVERAGE_DENSITY
-      Alias for :term:`thresh_average_density`.
-
-   THRESH_BOUND_RMAX
-      Alias for :term:`thresh_bound_rmax`.
-
-   PRINT_BOUND_DENSITY
-      Alias for :term:`print_bound_density`.
-
