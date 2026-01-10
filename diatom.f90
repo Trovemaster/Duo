@@ -452,7 +452,9 @@ module diatom_module
     character(cl)       :: RWF_type="GAUSSIAN"    ! Type of RWH
     logical             :: renorm = .false.       ! renormalize the continuum/unbound wavefunctions to sin(kr) for r -> infty
     logical             :: bound = .false.        ! filter bound states
-    logical             :: unbound = .false.      ! filter and process unbound upper states only
+    logical             :: unbound = .false.      ! filter to process unbound lower and upper states
+    logical             :: unbound_upper = .false. ! filter to process unbound upper states only
+    logical             :: unbound_lower = .false. ! filter to process unbound lower states only
     logical             :: bound_filter = .false. ! switching the bound/unbound filter 
     logical             :: interpolate = .false.  ! use interpolation of Einstein coefficients on a grid of frequencies 
     logical             :: states_only = .false.  ! Only .states file is generated while .trans is skipped. Equivalent to setting negative freq-window
@@ -3423,6 +3425,8 @@ contains
             intensity%bound = .true.
             intensity%bound_filter = .true.
             job%basis_set='KEEP'
+            intensity%unbound_lower = .false.
+            intensity%unbound_upper = .false.
             !
           case('UNBOUND')
             !
@@ -3430,13 +3434,27 @@ contains
             intensity%bound_filter = .true.
             job%basis_set='KEEP'
             !
-            if (nitems>1) call readu(w)
-            if (trim(w)=="INTERPOLATE") intensity%interpolate = .true.
-            !
-            if (trim(w)=="RENORM") then 
-               intensity%interpolate = .true.
-               intensity%renorm = .true.
-               job%basis_set='KEEP'
+            if (nitems>1) then 
+               call readu(w)
+               !
+               select case (trim(w))
+                  !
+               case ("UPPER") 
+                  intensity%unbound_upper = .true.
+                  intensity%unbound_lower = .false.
+               case ("LOWER") 
+                  intensity%unbound_lower = .true.
+                  intensity%unbound_upper = .false.
+               case ("INTERPOLATE") 
+                  intensity%interpolate = .true.
+               case ("RENORM")
+                  intensity%interpolate = .true.
+                  intensity%renorm = .true.
+                  job%basis_set='KEEP'
+               case default
+                  call report ("Unrecognized UNBOUND option "//trim(w),.true.)
+               end select
+               !
             endif
             !
           case('VIB-DIPOLE','MU','TDM','PRINT-TDM')
@@ -10760,12 +10778,6 @@ contains
               !
               if (job%IO_eigen=='SAVE') then
                 !
-                !do k = 1,Ntotal
-                !  write(iunit,'(2x,i8,1x,f8.1,1x,i4,1x,e20.12,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4,1x,i4,1x,i8)') &
-                !    total_roots,J_list(irot),irrep-1,vec(k),icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
-                !    icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
-                !enddo
-                !
                 write(iunit) total_roots,vec
                 !
               endif
@@ -10928,13 +10940,13 @@ contains
          write(iunit,'(a)') '   <- States'
          !
          write(fmt_,'(A,i0,a,a)') "(i12,1x,f17.",10,",1x,f8.1,1x,i4,",&
-                      "1x,i4,1x,a10,1x,i7,1x,i2,1x,f8.1,1x,f8.1,1x,f8.1,1x,1x,i3,1x,i7,1x,L2,f12.5,g12.5)"
+                      "1x,i4,1x,a10,1x,i7,1x,i2,1x,f8.1,1x,f8.1,1x,f8.1,1x,1x,i3,1x,i7,1x,L2,f12.5,2x,g12.5)"
          !
          do irot = 1,nJ
            !
            jval = J_list(irot)
            !
-           do igamma=1,sym%Nrepresen
+           do igamma=1,sym%NrepresCs
              !
              nlevels = eigen(irot,igamma)%Nlevels
              !

@@ -625,11 +625,17 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
-                  ! skipping unbound upper states if the bound filter is on
-                  if ( intensity%bound_filter.and.intensity%bound .and. .not.quantaF%bound ) passed = .false.
-                  !
-                  ! skip if both the upper and lower states are bound states if the unbound filter is on
-                  if ( intensity%bound_filter.and.intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
+                  if ( intensity%bound_filter) then
+                     ! skipping unbound upper states if the bound filter is on                  
+                     if( intensity%bound .and. .not.quantaF%bound ) passed = .false.
+                     !
+                     ! skip if both the upper and lower states are bound states if the unbound filter is on
+                     if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false.
+                     !
+                     ! skip if the upper states is bound states for unbound_upper as true 
+                     if ( intensity%unbound_upper.and.quantaF%bound ) passed = .false.
+                     !
+                  endif
                   !
                   if (intensity%use_fitting) then
                     !
@@ -637,7 +643,6 @@ contains
                     !
                     call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
                          energyI,energyF,quantaI,quantaF,passed)
-
                     !
                   endif
                   !
@@ -698,7 +703,6 @@ contains
          !
          dimenI = eigen(indI,igammaI)%Ndimen
          !
-         !
          do ilevelI = 1, nlevelsI
            !
            !energy energy and and the symmetry of the state
@@ -714,8 +718,15 @@ contains
            ! ignore states with zero nuclear weight 
            if (intensity%gns(isymI)<small_) cycle 
            !
-           ! skipping unbound lower states if the bound filter is on
-           if ( intensity%bound_filter.and.intensity%bound .and. .not. quantaI%bound ) cycle
+           if ( intensity%bound_filter) then
+              !
+              ! skipping unbound lower states if the bound filter is on                
+              if( intensity%bound .and. .not.quantaI%bound ) passed = .false.
+              !
+              ! skip if the lower state is unbound  but the filter unbound_lower is false
+              if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
+              !
+           endif
            !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
@@ -1195,11 +1206,15 @@ contains
                 !
                 call energy_filter_lower(jI,energyI,passed)
                 !
-                ! currently, the lower states should be always selected as bound <- not anymore
-                ! if (.not.quantaI%bound) passed = .false.
-                !
-                ! skipping unbound lower states if the bound filter is on
-                if (intensity%bound_filter.and.intensity%bound.and..not.quantaI%bound) passed = .false.
+                if ( intensity%bound_filter) then
+                   !
+                   ! skipping unbound lower states if the bound filter is on                
+                   if( intensity%bound .and. .not.quantaI%bound ) passed = .false.
+                   !
+                   ! skip if the lower state is unbound  but the filter unbound_lower is false
+                   if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
+                   !
+                endif
                 !
                 if (.not.passed) cycle
                 !
@@ -1240,8 +1255,15 @@ contains
                   !
                   call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
                   !
-                  ! skipping unbound upper states if the bound filter is on
-                  if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
+                  if ( intensity%bound_filter) then
+                     !
+                     ! skipping unbound upper states if the bound filter is on                  
+                     if( intensity%bound .and. .not.quantaF%bound ) passed = .false.
+                     !
+                     ! skip if the upper states is bound states for unbound_upper as true 
+                     if ( intensity%unbound_upper.and.quantaF%bound ) passed = .false.
+                     !
+                  endif
                   !
                   if (intensity%use_fitting) then
                     !
@@ -1352,12 +1374,18 @@ contains
                    !
                    ! skipping bound uppper states if only unbound transitions are needed <- We now relax this condition
                    !if (intensity%unbound.and.quantaF%bound) passed = .false.
-
-                   ! skip if both the upper and lower states are bound states if the unbound filter is on
-                   if (intensity%bound_filter.and.intensity%unbound.and.(quantaF%bound.and.quantaI%bound)) passed = .false.
                    !
-                   ! skipping unbound upper states if the bound filter is on
-                   if (intensity%bound_filter.and.intensity%bound.and..not.quantaF%bound) passed = .false.
+                   if ( intensity%bound_filter) then
+                      !
+                      if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false. 
+                      !
+                      ! skipping unbound upper states if the bound filter is on                  
+                      if( intensity%bound .and. .not.quantaF%bound ) passed = .false.
+                      !
+                      ! skip if the upper states is bound states for unbound_upper as true 
+                      if ( intensity%unbound_upper.and.quantaF%bound ) passed = .false.
+                      !
+                   endif
                    !
                    if (.not.passed) cycle Flevels_loop
                    !
