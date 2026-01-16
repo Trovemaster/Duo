@@ -3,8 +3,9 @@ module magnetic_dipole
   use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_, g_s, safe_min
   use diatom_module,only : job,Intensity,quantaT,eigen,basis,duo_j0,fieldT,poten,three_j,&
                            jmin_global,overlap_matelem,nMagneticDipoles,magnetictm,nMagneticRotDipoles,magnetrot,&
-                           check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals
-  use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
+                           check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals,&
+                           fitting
+  use timer,        only : IOstart,IOstop,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport,&
                            TimerReport,memory_limit,memory_now
   use symmetry,     only : sym,correlate_to_Cs
   use dipole,       only : transitions_filter_from_fitting
@@ -367,7 +368,7 @@ contains
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    integer(ik)  :: ivF_,ilambdaF_
+    integer(ik)  :: ivF_,ilambdaF_,iEntry_fitting
     real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
     integer(hik) :: matsize
     !
@@ -384,7 +385,7 @@ contains
     !
     character(len=130) :: my_fmt !format for I/O specification
     integer :: ndecimals
-    integer(ik)  :: enunit,transunit
+    integer(ik)  :: enunit,transunit,intunit
     character(len=cl) :: filename,ioname
     !
     logical     :: integer_spin = .true.
@@ -510,6 +511,15 @@ contains
         enddo
       endif
       !
+    endif
+    !
+    if (intensity%use_fitting) then
+       !
+       filename =  trim(fitting%output_file)//'.int'
+       write(ioname, '(a)') 'Selected intensities'
+       call IOstart(trim(ioname),intunit)
+       open(unit = intunit, action = 'write',status='replace' , file = filename)
+       !
     endif
     !
     ! maximal size of basis functions
@@ -1250,8 +1260,8 @@ contains
               end if
               !
               !$omp do private(ilevelF,energyF,dimenF,quantaF,istateF,ivibF,ivF,sigmaF,spinF,ilambdaF,omegaF,passed,&
-              !$omp& parity_gu,isymF,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm) schedule(static) &
-              !$omp                                                                             & reduction(+:itransit)
+              !$omp& parity_gu,isymF,iEntry_fitting,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm)  &
+              !$omp& schedule(static) reduction(+:itransit)
               Flevels_loop: do ilevelF = 1,nlevelsF
                 !
                 !energy and and quanta of the final state
@@ -1306,7 +1316,7 @@ contains
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
                   call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
-                       energyI,energyF,quantaI,quantaF,passed)
+                       energyI,energyF,quantaI,quantaF,passed,iEntry_fitting)
 
                   !
                 endif
@@ -1432,6 +1442,23 @@ contains
                           !
                         endif
                         !
+                        if (intensity%use_fitting .and. iEntry_fitting>0) then
+                            write(intunit, &
+                            ! Fixed width output
+                            "(a2,1x,f5.1,1x,a2,1x,f5.1,1x,a2,1x,a1,1x,&
+                            &f11.4,1x,f11.4,1x,f11.4,1x,&
+                            &es16.8,1x,es16.8,1x,es16.8,1x,es16.8,1x,&
+                            &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x,&
+                            &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x)")&
+                            !
+                            dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
+                            energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                            linestr2, A_einst, absorption_int,fitting%obs(iEntry_fitting)%weight,&
+                            istateF, ivF, ilambdaF, sigmaF, omegaF, &
+                            istateI, ivI, ilambdaI, sigmaI, omegaI   
+                            !                     
+                        endif
+                        !
                         !$omp end critical
                         !
                     endif
@@ -1540,6 +1567,11 @@ contains
     call ArrayStop('half_linestr')
     !
     if (trim(intensity%linelist_file)/="NONE") close(transunit,status="keep")
+    !
+    if (intensity%use_fitting) then
+       call IOstop('Selected intensities')
+       close(unit = intunit,status="keep")
+    endif
     !
     call TimerStop('Intensity calculations')
     !

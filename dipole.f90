@@ -4,7 +4,7 @@ module dipole
  use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
                           Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles,&
                           check_point_basis_set,compute_vib_integrals,fitting
- use timer,        only : IOstart,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
+ use timer,        only : IOstart,IOstop,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
 
@@ -325,7 +325,7 @@ contains
     integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich,Nomegas,Nomegas_max,iomegaI,idelta
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
-    integer(ik)  :: ivF_,ilambdaF_,NomegaMax,iomegaF
+    integer(ik)  :: ivF_,ilambdaF_,NomegaMax,iomegaF,iEntry_fitting
     real(rk)     :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF,sigmaF_,omegaF_,spinF_
     integer(hik) :: matsize
     !
@@ -344,7 +344,7 @@ contains
     character(len=1) :: label_bound
     !
     integer :: ndecimals
-    integer(ik)  :: enunit,transunit,icount,ncount
+    integer(ik)  :: enunit,transunit,intunit,icount,ncount
     character(len=cl) :: filename,ioname
     !
     logical     :: integer_spin = .true.,intensity_do = .true.
@@ -471,6 +471,15 @@ contains
         enddo
       endif 
       !
+    endif
+    !
+    if (intensity%use_fitting) then
+       !
+       filename =  trim(fitting%output_file)//'.int'
+       write(ioname, '(a)') 'Selected intensities'
+       call IOstart(trim(ioname),intunit)
+       open(unit = intunit, action = 'write',status='replace' , file = filename)
+       !
     endif
     !
     Jmax_ = nint(maxval(Jval(:)))
@@ -1268,7 +1277,7 @@ contains
                   if (intensity%use_fitting) then
                     !
                     call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
-                         energyI,energyF,quantaI,quantaF,passed)
+                         energyI,energyF,quantaI,quantaF,passed,iEntry_fitting)
 
                     !
                   endif
@@ -1496,6 +1505,23 @@ contains
                                          istateF,ivF,ilambdaF,sigmaF,omegaF,ilevelF,dir,&
                                          istateI,ivI,ilambdaI,sigmaI,omegaI,ilevelI
                                          !
+                              !
+                              if (intensity%use_fitting .and. iEntry_fitting>0) then
+                                  write(intunit, &
+                                  ! Fixed width output
+                                  "(a2,1x,f5.1,1x,a2,1x,f5.1,1x,a2,1x,a1,1x,&
+                                  &f11.4,1x,f11.4,1x,f11.4,1x,&
+                                  &es16.8,1x,es16.8,1x,es16.8,1x,es16.8,1x,&
+                                  &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x,&
+                                  &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x)")&
+                                  !
+                                  dir, jF, sym%label(isymF), jI, sym%label(isymI), branch, &
+                                  energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                                  linestr2, A_einst, absorption_int,fitting%obs(iEntry_fitting)%weight,&
+                                  istateF, ivF, ilambdaF, sigmaF, omegaF, &
+                                  istateI, ivI, ilambdaI, sigmaI, omegaI   
+                                  !                     
+                              endif
                               !
                               !$omp end critical
                               !
@@ -1917,6 +1943,11 @@ contains
     !
     if (trim(intensity%linelist_file)/="NONE") close(transunit,status="keep")
     !
+    if (intensity%use_fitting) then
+       call IOstop('Selected intensities')
+       close(unit = intunit,status="keep")
+    endif
+    !
     call TimerStop('Intensity calculations')
     !
   end subroutine dm_intensity
@@ -2150,19 +2181,23 @@ contains
      end subroutine intens_filter
      !
      subroutine transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
-                                                quantaI,quantaF,passed)
+                                                quantaI,quantaF,passed,iEntry_found)
         !
         real(rk),intent(in) :: jI,jF,EnergyF,EnergyI
         integer(ik),intent(in) :: isymI,isymF,ilevelI,ilevelF
         type(quantaT),pointer,intent(in)  :: quantaI,quantaF
         logical,intent(out)    :: passed
+        integer(ik),optional :: iEntry_found
         integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
         integer(ik) :: istateI,istateF,ivibI,ivibF,ilambdaI,ilambdaF,iparityI,iparityF
         real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
-        real(rk) :: jrot,jrot_
+        real(rk) :: jrot,jrot_,lock_factor
+        integer(ik) :: maxiter_as = 3, iter_th,irot,irot_
         !
         ! no need to check further if it is already false 
         if (.not.passed) return
+        !
+        if ( present(iEntry_found) ) iEntry_found = -1
         !
         ivibI    = quantaI%ivib
         vI       = quantaI%v
@@ -2189,42 +2224,59 @@ contains
           jrot = fitting%obs(ientry)%jrot
           itau = fitting%obs(ientry)%iparity+1
           !
+          if (nint( jF-jrot )/=0) cycle
+          if (isymF/=itau) cycle
+          !
           jrot_= fitting%obs(ientry)%jrot_
           itau_= fitting%obs(ientry)%iparity_+1
+          !
+          if (nint( jI-jrot_ )/=0) cycle
+          if (isymI/=itau_) cycle
           !
           N = fitting%obs(ientry)%N
           N_= fitting%obs(ientry)%N_
           !
           if (abs(fitting%threshold_lock)<sqrt(small_)) then
              !
-             if (nint(Jrot-JF)==0.and.nint(Jrot_-JI)==0 .and. isymF==itau .and. isymI==itau_ .and. &
-                 N == iLevelF .and. N_ == iLevelI  ) then
+             if ( N == iLevelF .and. N_ == iLevelI  ) then
+                 !
+                 if (present(iEntry_found)) iEntry_found = ientry
                  !
                  return 
              endif
              !
           else
              !
-             if ( abs( fitting%obs(ientry)%energy-( EnergyF-EnergyI )  )<= abs(fitting%threshold_lock).and.&
-                 ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
-                     abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
-                    vF==fitting%obs(ientry)%quanta%v.and.&
-                     nint(abs(sigmaF)-abs(fitting%obs(ientry)%quanta%sigma) )==0.and.&
-                     nint(abs(omegaF)-abs(fitting%obs(ientry)%quanta%omega) )==0.and.&
-                     !
-                     istateI==fitting%obs(ientry)%quanta_%istate.and.&
-                     abs(ilambdaI)==abs(fitting%obs(ientry)%quanta_%ilambda).and.&
-                     vI==fitting%obs(ientry)%quanta_%v.and.&
-                     nint(abs(sigmaI)-abs(fitting%obs(ientry)%quanta_%sigma))==0 .and.&
-                     nint(abs(omegaI)-abs(fitting%obs(ientry)%quanta_%omega))==0 ).or.&
-                     ! threshold_lock < 0, only frequency match 
-                   (  fitting%threshold_lock<0 ) ) ) then 
-                 !
-                 fitting%obs(ientry)%N = ilevelF
-                 fitting%obs(ientry)%N_= ilevelI
-                 return 
-                 !
-             endif 
+             if (fitting%threshold_lock<0)  maxiter_as = 1
+             !
+             loop_thresh_u : do iter_th = 1,maxiter_as
+               !
+               lock_factor = real(iter_th,8)
+               !
+               if ( abs( fitting%obs(ientry)%energy-( EnergyF-EnergyI )  )<= abs(lock_factor*fitting%threshold_lock).and.&
+                   ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
+                       abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
+                      vF==fitting%obs(ientry)%quanta%v.and.&
+                       nint(abs(sigmaF)-abs(fitting%obs(ientry)%quanta%sigma) )==0.and.&
+                       nint(abs(omegaF)-abs(fitting%obs(ientry)%quanta%omega) )==0.and.&
+                       !
+                       istateI==fitting%obs(ientry)%quanta_%istate.and.&
+                       abs(ilambdaI)==abs(fitting%obs(ientry)%quanta_%ilambda).and.&
+                       vI==fitting%obs(ientry)%quanta_%v.and.&
+                       nint(abs(sigmaI)-abs(fitting%obs(ientry)%quanta_%sigma))==0 .and.&
+                       nint(abs(omegaI)-abs(fitting%obs(ientry)%quanta_%omega))==0 ).or.&
+                       ! threshold_lock < 0, only frequency match 
+                     (  fitting%threshold_lock<0 ) ) ) then 
+                   !
+                   fitting%obs(ientry)%N = ilevelF
+                   fitting%obs(ientry)%N_= ilevelI
+                   !
+                   if (present(iEntry_found)) iEntry_found = ientry
+                   !
+                   return 
+                   !
+               endif 
+             enddo loop_thresh_u
           endif
           !
         enddo loop_freq

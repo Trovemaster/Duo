@@ -9601,6 +9601,8 @@ contains
         !
         call define_quanta_bookkeeping(iverbose,jval,Nestates,Nlambdasigmas)
         !
+        if (Nlambdasigmas==0) cycle loop_jval
+        !
         if (iverbose>=3) write(out,'("...done!")')
         !
         ! Now we combine together the vibrational and sigma-lambda basis functions (as product)

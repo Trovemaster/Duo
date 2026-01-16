@@ -4,9 +4,9 @@ use accuracy,      only : hik, ik, rk, ark, cl, out,&
                           vellgt, planck, avogno, boltz, pi, small_
 use diatom_module, only : job, Intensity, quantaT, eigen, basis,&
                           nQuadrupoles, quadrupoletm, duo_j0, fieldT, poten,&
-                          three_j, jmin_global,&
-                          check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals
-use timer,         only : IOstart, Arraystart, Arraystop, ArrayMinus,&
+                          three_j, jmin_global,check_point_eigenfunc,check_point_dipoles,&
+                          check_point_basis_set,compute_vib_integrals,fitting
+use timer,         only : IOstart,IOstop, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
 use symmetry,      only : sym, correlate_to_Cs
@@ -277,7 +277,7 @@ contains
 
     ! filenames, identifiers, etc.
     character(len=cl)         :: filename, ioname
-    integer(ik)               :: enunit, transUnit, info
+    integer(ik)               :: enunit, transUnit,intunit, info
     integer(ik), allocatable  :: richUnit(:, :)
     character(len=130)        :: myFmt
     character(len=12)         :: char_Jf, char_Ji, char_LF
@@ -301,7 +301,7 @@ contains
     type(quantaT), pointer    :: quantaI, quantaF
     real(rk)                  :: j_, jI, jF
     integer(ik)               :: ivibI, ivibF, vI, vF, ilambdaI, ilambdaF,parityI
-    integer(ik)               :: vF_, ilambdaF_
+    integer(ik)               :: vF_, ilambdaF_,iEntry_fitting
     real(rk)                  :: spinI, spinF, sigmaI, sigmaF, &
                                  omegaI, omegaF
     real(rk)                  :: spinF_, sigmaF_, iomegaF_
@@ -468,7 +468,16 @@ contains
         enddo
       endif
     endif
-
+    !
+    if (intensity%use_fitting) then
+       !
+       filename =  trim(fitting%output_file)//'.int'
+       write(ioname, '(a)') 'Selected intensities'
+       call IOstart(trim(ioname),intunit)
+       open(unit = intunit, action = 'write',status='replace' , file = filename)
+       !
+    endif
+    !
     ! estimate the maximum size of the basis set
     dimenMax = 0
     do indJ = 1, nJ
@@ -1237,7 +1246,7 @@ contains
                   quantaF => eigen(indF,indGammaF)%quanta(indLevelF)
                   !
                   call transitions_filter_from_fitting(jI,jF,indSymI,indSymF,indLevelI,indLevelF,&
-                       energyI,energyF,quantaI,quantaF,passed)
+                       energyI,energyF,quantaI,quantaF,passed,iEntry_fitting)
 
                   !
                 endif
@@ -1309,7 +1318,7 @@ contains
                         / Intensity%part_func
 
                     endif
-
+                    !
                     if ( linestr2 >= Intensity%threshold%linestrength &
                         .and. absorption_int >= Intensity%threshold%intensity &
                         ) then
@@ -1380,6 +1389,28 @@ contains
                             endif
                             !$omp end critical
                        endif
+                       !
+                       if (intensity%use_fitting .and. iEntry_fitting>0) then
+                           !
+                           !$omp critical
+                           write(intunit, &
+                           ! Fixed width output
+                           "(a2,1x,f5.1,1x,a2,1x,f5.1,1x,a2,1x,a1,1x,&
+                           &f11.4,1x,f11.4,1x,f11.4,1x,&
+                           &es16.8,1x,es16.8,1x,es16.8,1x,es16.8,1x,&
+                           &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x,&
+                           &i2,1x,i3,1x,i2,1x,f8.1,1x,f8.1,1x)")&
+                           !
+                           dir, jF, sym%label(indSymF), jI, sym%label(indSymI), branch, &
+                           energyF - Intensity%ZPE, energyI - Intensity%ZPE, nu_if, &
+                           linestr2, A_einst, absorption_int,fitting%obs(iEntry_fitting)%weight,&
+                           istateF, vF, ilambdaF, sigmaF, omegaF, &
+                           istateI, vI, ilambdaI, sigmaI, omegaI
+                           !
+                           !$omp end critical
+                           !                     
+                       endif                       
+                       !
                     endif
                     !
                   case('TM')
@@ -1482,7 +1513,12 @@ contains
     if (  trim(intensity%linelist_file) /= 'NONE' ) then
       close(transUnit, status='keep')
     endif
-
+    !
+    if (intensity%use_fitting) then
+       call IOstop('Selected intensities')
+       close(unit = intunit,status="keep")
+    endif
+    !
     call TimerStop('Intensity calculations')
 
   end subroutine qm_intensity
