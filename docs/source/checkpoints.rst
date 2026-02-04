@@ -199,6 +199,7 @@ grid. This is enabled via:
   end
 
 The reduced density :math:`\rho(r)` is computed as:
+
 .. math::
 
    \rho(r) =

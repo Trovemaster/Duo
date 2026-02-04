@@ -2479,6 +2479,10 @@ contains
     !
     Neigenlevels = nroots
     !
+    if (iverbose>=2) write(out,"('...done!')")
+    !
+    call TimerStop('Sort eigenvalues')
+    !
     return
     !
     allocate(Elevel(Neigenlevels),stat = info)
@@ -2544,10 +2548,6 @@ contains
       enddo
       !
     enddo
-    !
-    if (iverbose>=2) write(out,"('...done!')")
-    !
-    call TimerStop('Sort eigenvalues')
     !
  end subroutine Sort_levels
 

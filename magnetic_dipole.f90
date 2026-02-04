@@ -1989,6 +1989,8 @@ contains
     !
     Neigenlevels = nroots
     !
+    call TimerStop('Sort eigenvalues')
+    !
     return
     !
     allocate(Elevel(Neigenlevels),stat = info)
@@ -2056,8 +2058,6 @@ contains
     enddo
     !
     if (iverbose>=2) write(out,"('...done!')")
-    !
-    call TimerStop('Sort eigenvalues')
     !
   end subroutine Sort_levels
 
@@ -2252,7 +2252,9 @@ contains
             !
             ls = 0
             !
-            if (abs(nint(omegaF - omegaI))==0) then
+            !if (nint(omegaF - omegaI)==0.and.nint(jI - jF)==0) then
+            !
+            if (nint(omegaF - omegaI)==0) then
               !
               g00 = -2.0_rk/sqrt(3.0_rk)*f_t
               f6j = Wigner6j(0.0_rk, 1.0_rk, 1.0_rk, jF, jI, jF)
@@ -2266,12 +2268,12 @@ contains
               f6j = Wigner6j(2.0_rk, 1.0_rk, 1.0_rk, jF, jI, jF)
               f3j = three_j(jI, 2.0_rk, jF, -omegaI, 0.0_rk, omegaF)
               !
-              ls = ls  + sqrt(3.0_rk)*g20*f6j*f3j
+              ls = ls  + sqrt(5.0_rk)*g20*f6j*f3j
               !
             endif
             !
             !add rotational magnetic moment
-            half_ls(icontrF) = half_ls(icontrF) + (-1.0_rk)**(iomegaI_)*ls
+            half_ls(icontrF) = half_ls(icontrF) - (-1.0_rk)**(iomegaI_)*ls
             !
            enddo loop_magnetrot
            !
