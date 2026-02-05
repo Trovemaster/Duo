@@ -288,6 +288,7 @@ module diatom_module
     real(rk),pointer    :: j_list(:)     ! J values processed
     integer(ik)         :: nJ = 1        ! Number of J values processed
     character(len=cl)   :: IO_eigen = 'NONE'   ! we can either SAVE to or READ from the eigenfunctions from an external file
+    logical             :: IO_eigen_ascii=.false.
     character(len=cl)   :: IO_density = 'NONE'  ! we can SAVE reduced density to an external file
     character(len=cl)   :: IO_dipole = 'NONE'  ! we can either SAVE to or READ from an external file the dipole moment
     character(len=cl)   :: basis_set = 'NONE'   ! we can keep the vibrational basis functions for further usage
@@ -1133,6 +1134,21 @@ contains
             !
             if (all(trim(w)/=(/'READ','SAVE','NONE'/))) then
               call report('ReadInput: illegal key in CHECK_POINT '//trim(w),.true.)
+            endif
+            !
+            if (Nitems>2) then 
+              !
+              call readu(w)
+              !
+              select case(trim(w))
+              case('ASCII')
+                job%IO_eigen_ascii = .true.
+              case('BIN')
+                job%IO_eigen_ascii = .false.
+              case default
+                call report('ReadInput: illegal key in eigenfunc save'//trim(w),.true.)
+              end select            
+              !
             endif
             !
           case('DENSITY','DENS')
@@ -9229,10 +9245,15 @@ contains
       filename =  trim(job%eigenfile%vectors)//'_vectors.chk'
       write(ioname, '(a, i4)') 'Eigenvectors file '
       call IOstart(trim(ioname),iunit)
-      open(unit = iunit, form='unformatted', action = 'write',status='replace' , file = filename)
       !
-      write(iunit) 'eigenvectors-chk/start'
-      write(iunit) nJ,jmin,jmax
+      if (job%IO_eigen_ascii) then
+         open(iunit,form='formatted',action='write',status='replace',file=filename) 
+         write(iunit,"('J range:',2f8.1)") jmin,jmax
+      else
+         open(unit = iunit, form='unformatted', action = 'write',status='replace' , file = filename)
+         write(iunit) 'eigenvectors-chk/start'
+         write(iunit) nJ,jmin,jmax
+      endif
       !
       filename =  trim(job%eigenfile%vectors)//'_vib.chk'
       write(ioname, '(a, i4)') 'Contracted vib basis set on the grid'
@@ -9692,15 +9713,32 @@ contains
         ! Store the basis set quantum numbers as part of the eigenfunciton checkpoint 
         if (job%IO_eigen=='SAVE') then
           !
-          write(iunit) Ntotal
-          !
-          do k = 1,Ntotal
+          if (job%IO_eigen_ascii) then
             !
-            write(iunit) icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
-                         icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
-          enddo
-          !
-          write(iunit) 'contr-basis/end'
+            write(iunit,"(a)") 'basis set quantum nummbers/start'
+            write(iunit,"(a)") 'State      v    ilambda  spin  Sigma Omega iomega'
+            !
+            do k = 1,Ntotal
+              !
+              write(iunit,'(i8,1x,i7,1x,i2,1x,3f8.1,3i4)') icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega !,icontr(k)%ivib,icontr(k)%ilevel
+            enddo
+            !
+            write(iunit,"(a)") 'basis set quantum nummbers/end'
+            !
+          else
+            !
+            write(iunit) Ntotal
+            !
+            do k = 1,Ntotal
+              !
+              write(iunit) icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
+                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
+            enddo
+            !
+            write(iunit) 'contr-basis/end'
+            !
+          endif
           !
         endif
         !
@@ -10312,7 +10350,11 @@ contains
           !
           if (job%IO_eigen=='SAVE') then
             !
-            write(iunit) J_list(irot),irrep
+            if (job%IO_eigen_ascii) then
+               write(iunit,"('J = ',f8.1,' Symmetry = ',i3)") J_list(irot),irrep
+            else
+               write(iunit) J_list(irot),irrep
+            endif
             !
           endif
           !
@@ -10780,8 +10822,14 @@ contains
               !
               if (job%IO_eigen=='SAVE') then
                 !
-                write(iunit) total_roots,vec
-                !
+                if (job%IO_eigen_ascii) then
+                  write(iunit,"('Root = ',i9,' Size = ',i9)") total_roots,size(vec)
+                  do k = 1,size(vec)
+                     write(iunit,'(e20.12)') vec(k)
+                  enddo
+                else
+                  write(iunit) total_roots,vec
+                endif
               endif
               !
               if (job%IO_density=='SAVE') then
@@ -10912,9 +10960,9 @@ contains
     !
     if (job%IO_eigen=='SAVE') then
       !
-      !write(iunit,"('End of eigenvector')")
-      !
-      write(iunit) 'eigenvectors-chk/end'
+      if (.not.job%IO_eigen_ascii) then
+        write(iunit) 'eigenvectors-chk/end'
+      endif     
       !
       close(unit = iunit, status='keep')
       !

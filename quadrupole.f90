@@ -2141,7 +2141,9 @@ contains
 
     ! total number of levels to be processed, a global variable
     Neigenlevels = nroots
-
+    !
+    call TimerStop('Sort eigenvalues')
+    !
     return
 
     allocate(Elevel(Neigenlevels),stat = info)
@@ -2211,8 +2213,7 @@ contains
     enddo
 
     if (iverbose >= 2) write(out,"('...done!')")
-
-    call TimerStop('Sort eigenvalues')
+  
     !
   end subroutine Sort_levels
 

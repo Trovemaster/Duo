@@ -2479,7 +2479,7 @@ contains
     !
     Neigenlevels = nroots
     !
-    if (iverbose>=2) write(out,"('...done!')")
+    if (iverbose>=2) write(out,"('...3one!')")
     !
     call TimerStop('Sort eigenvalues')
     !
