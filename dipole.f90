@@ -1068,7 +1068,7 @@ contains
               !$omp parallel default(shared) &
               !$omp& private(ilevelI, energyI, quantaI, istateI, ivibI, ivI, sigmaI, spinI, ilambdaI, omegaI, parity_gu, isymI) &
               !$omp& private(ilevelF, energyF, quantaF, istateF, ivibF, ivF, sigmaF, spinF, ilambdaF, omegaF, isymF) &
-              !$omp& private(passed, info, alloc_p, iEntry_fitting) &
+              !$omp& private(passed, alloc_p, iEntry_fitting) &
               !$omp& private(nu_if, branch, linestr, linestr2, A_einst, boltz_fc, absorption_int, tm) &
               !$omp& private(vecI, vecF, half_linestr) & 
               !$omp& private(acoef_RAM, nu_RAM, indexf_RAM, indexi_RAM) &
@@ -1082,9 +1082,9 @@ contains
               ! it starts as "not allocated" in this thread.
               ! We simply allocate it here.
               !
-              allocate(vecI(dimenmax), vecF(dimenmax), half_linestr(dimenmax), stat=info)
+              allocate(vecI(dimenmax), vecF(dimenmax), half_linestr(dimenmax), stat=alloc_p)
               !  
-              if (info /= 0) then 
+              if (alloc_p /= 0) then 
                   !  write(out,*) "OMP FAIL: Thread", omp_get_thread_num(), " size:", dimenmax
                   write(out,*) "OMP FAIL: Allocation failed. size:", dimenmax
                   stop "Alloc fail"
@@ -1092,12 +1092,12 @@ contains
               !
               ! Only allocate linelist arrays if needed
               if (trim(intensity%linelist_file)/="NONE") then
-                  allocate(acoef_RAM(nlevelsF), nu_RAM(nlevelsF), stat=info)
-                  allocate(indexf_RAM(nlevelsF), indexi_RAM(nlevelsF), stat=info)
+                  allocate(acoef_RAM(nlevelsF), nu_RAM(nlevelsF), stat=alloc_p)
+                  allocate(indexf_RAM(nlevelsF), indexi_RAM(nlevelsF), stat=alloc_p)
                   !
                   if (intensity%interpolate) then
-                      allocate(acoef_norm(intensity%npoints), stat=info)
-                      allocate(spline_grid(nlevelsF), stat=info)
+                      allocate(acoef_norm(intensity%npoints), stat=alloc_p)
+                      allocate(spline_grid(nlevelsF), stat=alloc_p)
                   endif
               endif
               !
