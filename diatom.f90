@@ -575,7 +575,7 @@ module diatom_module
                    nMagneticDipoles,nMagneticRotDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
-  real(rk)      :: jmin_global,spin_max
+  real(rk)      :: jmin_global,spin_max,jmax_
   !
   !type(fieldT),pointer :: refined(:)
   type(fieldmapT) :: fieldmap(Nobjects)
@@ -3362,14 +3362,14 @@ contains
           !
           select case(w)
             !
-          case('NONE','ABSORPTION','EMISSION','TM','DIPOLE-TM','PARTFUNC')
+          case('NONE','ABSORPTION','EMISSION','PARTFUNC')
             !
             intensity%action = trim(w)
             !
-            if (trim(intensity%action)=='DIPOLE-TM') intensity%action = 'TM'
+            !if (trim(intensity%action)=='DIPOLE-TM') intensity%action = 'TM'
             !
             ! L Lodi: character length must be specified in the array constructor for Fortran 2003 conformance
-            if (any(trim(intensity%action)==(/ character(len=wl) :: 'TM','ABSORPTION','EMISSION','PARTFUNC'/))) then
+            if (any(trim(intensity%action)==(/ character(len=wl) :: 'ABSORPTION','EMISSION','PARTFUNC'/))) then
               !
               action%intensity = .true.
               intensity%do = .true.
@@ -4003,6 +4003,14 @@ contains
     !
     jmin_global = Jmin
     !
+    jmax_ = max(jmax,intensity%j(2))
+    !
+    if (associated(fitting%J_list)) then 
+      jmax_ = max(jmax_,maxval(fitting%J_list))
+    endif 
+    !
+    call setup_factorials_lookup(jmax_)
+    !
     ! switch off the fitting for intensity calculations 
     if (action%intensity) then 
        if (action%fitting .and. intensity%use_fitting) then 
@@ -4180,17 +4188,6 @@ contains
       endif
       !
     end subroutine transfer_field_properties
-
-
-    !subroutine transfer_allocated_property(src,dst)
-    !  type(fieldT),pointer,intent(in)  :: src
-    !  type(fieldT),pointer,intent(out)  :: dst
-    !  !
-    !  !
-    !end subroutine transfer_allocated_property
-
-
-
     !
     subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
       !
@@ -7473,8 +7470,6 @@ contains
     if (alloc /= 0) stop 'duo_j0 allocation error: threej - out of memory'
     !
     threej = 0
-    !
-    !call setup_factorials_lookup
     !
     do ispin = 0,Nspin_max
        spin_i = real(ispin,rk)
@@ -17441,6 +17436,7 @@ contains
     !     compute delta(abc)
     !
     !     delta=sqrt(fakt(a+b-c)*fakt(a+c-b)*fakt(b+c-a)/fakt(a+b+c+1.0_rk))
+    !
     delta_log = faclog(a+b-c)+faclog(a+c-b)+faclog(b+c-a)-faclog(a+b+c+one)
     !
     ! delta=sqrt(exp(delta_log))
@@ -17451,7 +17447,6 @@ contains
     !term3=fakt(c+ga)*fakt(c-ga)
     !
     !term=sqrt( (2.0_rk*c+1.0_rk)*term1*term2*term3 )
-    !
     !
     term1=faclog(a+al)+faclog(a-al)
     term2=faclog(b-be)+faclog(b+be)
@@ -17512,25 +17507,28 @@ contains
     real(rk),intent(in) ::  a
     real(rk)            :: v
     integer(ik) k,j
-
-    k=nint(a)
-    !v = factorials_lookup(k)
     !
-    v = 0
-    if(k>=2) then
-      do j=2,k
-        v=v+log(real(j,rk))
-      enddo
-    endif
+    k=nint(a)
+    !
+    v = factorials_lookup(k)
+    !
+    !v = 0
+    !if(k>=2) then
+    !  do j=2,k
+    !    v=v+log(real(j,rk))
+    !  enddo
+    !endif
     !
   end function faclog
   !
-  subroutine setup_factorials_lookup
-    integer :: j, jmax_upper
+  subroutine setup_factorials_lookup(jmax)
     !
-    jmax_upper = nint(jmax)
+    real(rk),intent(in) :: jmax
+    integer(ik) :: j, jmax_upper
     !
-    allocate(factorials_lookup( 0 : 2*jmax_upper ))
+    jmax_upper = nint(jmax)+2
+    !
+    allocate(factorials_lookup( 0 : 2*jmax_upper))
     !
     factorials_lookup = 0 ! for 0!, 1!
     if (jmax_upper>=2) then
@@ -17538,7 +17536,7 @@ contains
         factorials_lookup(j) = factorials_lookup(j-1) + log(real(j,rk))
       enddo
     endif
-    
+    !
   end subroutine setup_factorials_lookup
   !
 

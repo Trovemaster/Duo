@@ -10,7 +10,7 @@
     !use polarizability
     !use compilation_details, only: write_compilation_details
     use header_info, only: write_logo
-    use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action,setup_factorials_lookup !, check_and_set_atomic_data
+    use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action
 
     use F1_hyperfine, only: F1_hyperfine_structrure
     use F1_intensity, only: F1_hyperfine_intensity
@@ -48,11 +48,8 @@
      !
      call ReadInput
      !
-     call setup_factorials_lookup
-     !
      !call check_and_set_atomic_data(verbose)
      !
-
      if(action%hyperfine) then
         action%save_eigen_J = .true.
         job%basis_set = 'KEEP'
