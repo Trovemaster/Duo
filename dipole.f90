@@ -571,8 +571,6 @@ contains
     !
     Ntransit=1
     !
-    call TimerStop('Intens_Filter-1')
-    !
     !loop over final states -> count states for each symmetry
     !
     nlevelsG = 0
@@ -1621,6 +1619,8 @@ contains
        write(out,"(' Total number of lower states = ',i8)") nlower
        write(out,"(' Total number of transitions  = ',i8)") Ntransit
     end if
+    !
+    call TimerStop('Intens_Filter-1')
     ! 
   end subroutine count_transitions
   !
