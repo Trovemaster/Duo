@@ -9710,13 +9710,13 @@ contains
           !
           if (job%IO_eigen_ascii) then
             !
-            write(iunit,"(a)") 'basis set quantum nummbers/start'
-            write(iunit,"(a)") 'State      v    ilambda  spin  Sigma Omega iomega'
+            write(iunit,"(a)") 'basis set quantum numbers/start'
+            write(iunit,"(a)") 'State      v    ilambda  spin  Sigma Omega'
             !
             do k = 1,Ntotal
               !
               write(iunit,'(i8,1x,i7,1x,i2,1x,3f8.1,3i4)') icontr(k)%istate,icontr(k)%v,icontr(k)%ilambda,&
-                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega,icontr(k)%iomega !,icontr(k)%ivib,icontr(k)%ilevel
+                           icontr(k)%spin,icontr(k)%sigma,icontr(k)%omega !,icontr(k)%iomega,icontr(k)%ivib,icontr(k)%ilevel
             enddo
             !
             write(iunit,"(a)") 'basis set quantum nummbers/end'
