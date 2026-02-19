@@ -1796,7 +1796,7 @@ contains
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
-           "MAGNETIC","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
+           "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2")
         !
         ibraket = 0
@@ -2665,22 +2665,34 @@ contains
                 !
                 unit_field = ev
                 !
-              case ('HARTREE','EH','A.U.', 'AU')
+              case ('HARTREE','EH','A.U.','AU')
                 !
                 unit_field = hartree
                 !
-                if (trim(field%class)=="DIPOLE") unit_field = todebye
-                if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
+                select case(trim(field%class))
+                case("DIPOLE","ABINITIO-DIPOLE")
+                  unit_field = todebye
+                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                  unit_field = 1.0_rk
+                end select
                 !
               case ('EA0')
                 !
-                if (trim(field%class)=="DIPOLE") unit_field = todebye
-                if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
+                select case(trim(field%class))
+                case("DIPOLE","ABINITIO-DIPOLE")
+                  unit_field = todebye
+                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                  unit_field = 1.0_rk
+                end select
                 !
               case ('EA02')
                 !
-                if (trim(field%class)=="DIPOLE") unit_field = todebye
-                if (trim(field%class)=="QUADRUPOLE") unit_field = 1.0_rk
+                select case(trim(field%class))
+                case("DIPOLE","ABINITIO-DIPOLE")
+                  unit_field = todebye
+                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                  unit_field = 1.0_rk
+                end select
                 !
               case ('DEBYE')
                 !
@@ -3850,7 +3862,7 @@ contains
       ! Check if it has been defined before
       skip_magnetic = .false.
       do istate=1,nMagneticDipoles
-        if ( magnetictm(ilxly)%iref==magnetictm(istate)%jref ) then
+        if ( magnetictm(ilxly)%iref==magnetictm(istate)%iref .and. magnetictm(ilxly)%jref==magnetictm(istate)%jref ) then
           skip_magnetic = .true.
           exit
         endif
@@ -3885,7 +3897,7 @@ contains
       ! Check if it has been defined before
       skip_magnetic = .false.
       do istate=1,nMagneticRotDipoles
-        if ( magnetrot(ibobrot)%iref==magnetrot(ibobrot)%jref ) then
+        if ( magnetrot(ibobrot)%iref==magnetrot(ibobrot)%iref .and. magnetrot(ibobrot)%jref==magnetrot(ibobrot)%jref) then
           skip_magnetic = .true.
           exit
         endif
@@ -10568,18 +10580,18 @@ contains
                   if (sum_wv>intensity%threshold%bound_density.or.&
                       sum_wv_average>intensity%threshold%bound_aver_density) then
                     !
-                    eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
+                    eigen(irot,irrep)%quanta(total_roots)%bound = bound_state
                     !
-                    if (intensity%use_bound_rmax .and. r_exp<intensity%threshold%bound_rmax(istate)) then 
-                      bound_state = .true.
-                    endif
+                    !if (intensity%use_bound_rmax .and. r_exp<intensity%threshold%bound_rmax(istate)) then 
+                    !  bound_state = .true.
+                    !endif
                     !
                   endif
                   !
                   if (intensity%use_bound_rmax.and.r_exp>intensity%threshold%bound_rmax(istate)) then 
-                    eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                     bound_state = .false.
+                    eigen(irot,irrep)%quanta(total_roots)%bound = .false.
                   endif
                   !
                   eigen(irot,irrep)%quanta(total_roots)%bound = bound_state
@@ -18669,15 +18681,16 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
   subroutine setup_factorials_lookup(jmax)
     !
     real(rk),intent(in) :: jmax
-    integer(ik) :: j, jmax_upper
+    integer(ik) :: j, jmax_upper,Nsize
     !
-    jmax_upper = nint(jmax)+2
+    jmax_upper = nint(jmax)*2
+    Nsize= 2*jmax_upper+1
     !
-    allocate(factorials_lookup( 0 : 2*jmax_upper))
+    allocate(factorials_lookup( 0 : Nsize))
     !
     factorials_lookup = 0 ! for 0!, 1!
     if (jmax_upper>=2) then
-      do j = 2, 2*jmax_upper
+      do j = 2, Nsize
         factorials_lookup(j) = factorials_lookup(j-1) + log(real(j,rk))
       enddo
     endif

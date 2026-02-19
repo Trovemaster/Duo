@@ -594,6 +594,8 @@ contains
     allocate(vecI(dimenmax), stat = info)
     call ArrayStart('intensity-vecI',info,size(vecI),kind(vecI))
     !
+    iroot = 0
+    !
     do indI = 1, nJ
        !
        ! rotational quantum number 
