@@ -51,7 +51,9 @@ A complementary indicator of continuum-like behaviour is the expectation value o
 
 Duo can flag a state as unbound if :math:`\langle r \rangle` exceeds a user-defined threshold :math:`r_{\rm thresh}`. This threshold is specified via ``thresh_bound_rmax``.
 
-When both criteria are enabled, the :math:`\langle r \rangle` criterion takes priority over the density criterion (it can be used as a “boundness safeguard” for long-range grids).
+
+.. note::
+       When both criteria are enabled, to be a bound state, it must satisfy both criteria, for  :math:`\langle r \rangle < r_{\rm thresh}` and  :math:`\epsilon < \epsilon_{\rm thr}`. That is, a state is unbound if any of these two conditions is satisfied. 
 
 The ``.states`` file can include the bound/unbound label (``b``/``u``) and the value of :math:`\langle r \rangle` used for classification (last column), e.g.
 ::
