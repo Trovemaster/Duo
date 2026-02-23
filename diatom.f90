@@ -9017,7 +9017,7 @@ contains
                 ! If intensity%threshold%dipole is given and TM is smaller than this threshold set the TM-value to zero
                 ! is applied to the dipole (iobject=Nobjects) and quadrupole (iobject=Nobjects-3) moments
                 !
-                if (iobject>=Nobjects-5) then
+                if (iobject==Nobjects-5.or.iobject==Nobjects-4.or.iobject==Nobjects-3) then
                   if (abs(field%matelem(ilevel,jlevel))<intensity%threshold%dipole) field%matelem(ilevel,jlevel) = 0
                 endif
                 !
