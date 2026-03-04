@@ -418,7 +418,7 @@ module diatom_module
     character(cl)       :: action = "ABSORPTION"    ! type of the intensity calculations:
     ! absorption (default), emission, tm (transition moments),
     !  raman, and so on.
-    real(rk)            :: temperature      ! temperature in K
+    real(rk)            :: temperature=3000.0_rk  ! temperature in K
     real(rk)            :: part_func=0      ! partition function
     real(rk)            :: ZPE=0            ! zero point energy
     type(thresholdsT)   :: threshold        ! different thresholds

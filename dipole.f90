@@ -625,15 +625,15 @@ contains
            ! ignore states with zero nuclear weight 
            if (intensity%gns(isymI)<small_) cycle 
            !
-           if ( intensity%bound_filter) then
-              !
-              ! skipping unbound lower states if the bound filter is on                
-              if( intensity%bound .and. .not.quantaI%bound ) passed = .false.
-              !
-              ! skip if the lower state is unbound  but the filter unbound_lower is false
-              if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
-              !
-           endif
+           !if ( intensity%bound_filter) then
+           !   !
+           !   ! skipping unbound lower states if the bound filter is on                
+           !   if( intensity%bound .and. .not.quantaI%bound ) passed = .false.
+           !   !
+           !   ! skip if the lower state is unbound  but the filter unbound_lower is false
+           !   if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
+           !   !
+           !endif
            !
            iroot = iroot + 1
            eigen(indI,igammaI)%quanta(ilevelI)%iroot = iroot
@@ -1131,7 +1131,8 @@ contains
                   !
                   if ( intensity%bound_filter) then
                      if( intensity%bound .and. .not.quantaI%bound ) passed = .false.
-                     if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
+                     !if ( .not.intensity%unbound_lower.and..not.quantaI%bound ) passed = .false.
+                     if ( intensity%unbound_lower.and.quantaI%bound ) passed = .false.
                   endif
                   !
                   if (.not.passed) cycle
