@@ -1059,6 +1059,10 @@ contains
               nlevelsF = eigen(indF,igammaF)%Nlevels
               dimenF = eigen(indF,igammaF)%Ndimen
               !
+              call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+              !
+              if (.not.passed) cycle
+              !
               ! -------------------------------------------------------------------------
               ! START PARALLEL REGION
               ! -------------------------------------------------------------------------
@@ -1160,11 +1164,12 @@ contains
                     parity_gu = poten(istateF)%parity%gu
                     isymF = correlate_to_Cs(igammaF,parity_gu)
                     !
-                    call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                    call intens_filter(isymI,isymF,energyI,energyF,igamma_pair,passed)
                     !
                     if ( intensity%bound_filter) then
                        if( intensity%bound .and. .not.quantaF%bound ) passed = .false.
                        if ( intensity%unbound_upper.and.quantaF%bound ) passed = .false.
+                       if ( intensity%unbound_lower.and..not.quantaF%bound ) passed = .false.
                     endif
                     !
                     if (intensity%use_fitting) then
@@ -1234,6 +1239,7 @@ contains
                         if ( intensity%unbound.and.(quantaF%bound.and.quantaI%bound) ) passed = .false. 
                         if( intensity%bound .and. .not.quantaF%bound ) passed = .false.
                         if ( intensity%unbound_upper.and.quantaF%bound ) passed = .false.
+                        if ( intensity%unbound_lower.and..not.quantaF%bound ) passed = .false.
                      endif
                      !
                      if (.not.passed) cycle Inner_F_Loop
@@ -1241,7 +1247,7 @@ contains
                      parity_gu = poten(istateF)%parity%gu
                      isymF = correlate_to_Cs(igammaF,parity_gu)
                      !
-                     call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                     call intens_filter(isymI,isymF,energyI,energyF,igamma_pair,passed)
                      !
                      if (intensity%use_fitting) then
                        call transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,&
@@ -1556,6 +1562,10 @@ contains
               !
               do igammaF=1,Nrepresen
                 !
+                call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+                !
+                if (.not.passed) cycle
+                !
                 nlevelsF = eigen(indF,igammaF)%Nlevels
                 !
                 !call Jgamma_filter(jI,jF,igammaI,igammaF,igamma_pair,passed)
@@ -1575,7 +1585,7 @@ contains
                   isymF = correlate_to_Cs(igammaF,parity_gu)
                   quantaF => eigen(indF,igammaF)%quanta(ilevelF)
                   !
-                  call intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  call intens_filter(isymI,isymF,energyI,energyF,igamma_pair,passed)
                   !
                   if ( intensity%bound_filter) then
                      ! skipping unbound upper states if the bound filter is on                  
@@ -1783,15 +1793,51 @@ contains
 
      end subroutine energy_filter_upper
 
-
-
-     subroutine intens_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+     subroutine intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
         !
         implicit none
         !
         real(rk),intent(in) :: jI,jF
-        integer(ik),intent(in) :: isymI,isymF
+        integer(ik),intent(in) :: igammaI,igammaF
+        logical,intent(out)    :: passed
+          !
+          passed = .false.
+          !
+          if (jI>=intensity%J(1).and.   &
+              jI<=intensity%J(2).and.   &
+              jF>=intensity%J(1).and.   &
+              jF<=intensity%J(2) ) then
+              !
+              passed = .true.
+              !
+          endif 
+          !
+          if (trim(intensity%action)=='TM') return
+          !
+          passed = passed.and.                                              &
+          !
+          (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.  &
+          !
+          !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
+          ( intensity%J(1)+intensity%J(2)>0 ).and. &
+          !
+          ! selection rules: 
+          !
+          igammaI/=igammaF.and.  &
+          !
+          ! selection rules from the 3j-symbols
+          !
+          abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1
+          !
+     end subroutine intens_filter_J_Symmetry
+     !
+
+     subroutine intens_filter(isymI,isymF,energyI,energyF,igamma_pair,passed)
+        !
+        implicit none
+        !
         real(rk),intent(in)    :: energyI,energyF
+        integer(ik),intent(in) :: isymI,isymF
         integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
         real(rk)               :: nu_if
         logical,intent(out)    :: passed
@@ -1807,12 +1853,6 @@ contains
               nu_if>=intensity%freq_window(1).and.                         &
               nu_if<=intensity%freq_window(2).and.                         &
               !
-              jI>=intensity%J(1).and.                                      &
-              jI<=intensity%J(2).and.                                      &
-              !
-              jF>=intensity%J(1).and.                                      &
-              jF<=intensity%J(2).and.                                      &
-              !
               energyI-intensity%ZPE>=intensity%erange_low(1).and.          &
               energyI-intensity%ZPE<=intensity%erange_low(2).and.          &
               !
@@ -1821,37 +1861,27 @@ contains
               !
               passed = .true.
               !
+          else
+              !
+              return
+              !
           endif 
           !
+          passed = passed.and.nu_if>small_   
           !
-          if (trim(intensity%action)=='TM') return
+          ! nuclear stat.weight; and absorption/emission go only in one direction
+          passed = passed.and.intensity%gns(isymI)>small_
           !
-          if (trim(intensity%action)=='ABSORPTION'.or.trim(intensity%action)=='EMISSION') then 
-             !
-             ! nuclear stat.weight; and absorption/emission go only in one direction
-             passed = passed.and.intensity%gns(isymI)>small_.and. nu_if>small_   
-             !
-             ! In order to avoid double counting of transitions
-             ! we exclude jI=jF==intensity%J(2), i.e. Q branch for the highest J is never considered:
-             !
-             passed = passed.and.                                              &
-             !
-             (nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0.or.nint(jI+jF)==1).and.  &
-             !
-             !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
-             ( intensity%J(1)+intensity%J(2)>0 ).and. &
-             !
-             ! selection rules: 
-             !
-             intensity%isym_pairs(isymI)==intensity%isym_pairs(isymF).and.  &
-             !
-             igamma_pair(isymI)==isymF.and.                                 &
-             !
-             ! selection rules from the 3j-symbols
-             !
-             abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1
-             !
-          endif
+          ! In order to avoid double counting of transitions
+          ! we exclude jI=jF==intensity%J(2), i.e. Q branch for the highest J is never considered:
+          !
+          passed = passed.and.  &
+          !
+          ! selection rules: 
+          !
+          intensity%isym_pairs(isymI)==intensity%isym_pairs(isymF).and.  &
+          !
+          igamma_pair(isymI)==isymF
           !
      end subroutine intens_filter
      !
