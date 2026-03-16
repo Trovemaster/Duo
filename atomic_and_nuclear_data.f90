@@ -2278,8 +2278,12 @@ pure function element_name(zin, ain)
      element_name = 'Unknown'
    case(1) ! special case for hydrogen
      element_name = Name(zin)
-     if( present(ain) .and. ain == 2) element_name = 'Deuterium'
-     if( present(ain) .and. ain == 3) element_name = 'Tritium'
+     if( present(ain) ) then 
+        if ( ain == 2) element_name = 'Deuterium'
+     endif
+     if( present(ain) ) then 
+        if ( ain == 3) element_name = 'Tritium'
+     endif
    case(2:zmax)
     element_name = Name(zin)
   end select
