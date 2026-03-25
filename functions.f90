@@ -160,6 +160,10 @@ module functions
       !
       fanalytic_field => irreg_chebyshev_DMC
       !
+    case("IRREG_CHEBYSHEV_2024")
+      !
+      fanalytic_field => irreg_chebyshev_DMC_2024
+      !
     case("POLYNOM", "POLYNOMIAL")
       !
       fanalytic_field => poten_polynom
@@ -1727,6 +1731,34 @@ module functions
   end function irreg_chebyshev_DMC
   !
   !
+  function irreg_chebyshev_DMC_2024(r,c) result(f)   ! based on  https://doi.org/10.1080/00268976.2024.2429740
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: c(:) ! potential parameters
+    real(rk)               :: z,f,t1,t2,t3,a0,a1
+    integer(ik)            :: k,nb,i
+     !
+     a0 = c(1)
+     a1 = c(2)
+     !
+     nb = size(c)
+     !
+     z = -exp(-a0*r)*(1.0_rk + a0*r + (a0*r)**2/2.0_rk)*2.0_rk + 1.0_rk
+     !
+     t1 = 0 ; t2 = 0
+     do i = nb, 2+2, -1
+         t3 = t1
+         t1 = 2.0_rk*z*t1 - t2 + c(i)
+         t2 = t3
+     enddo
+     !
+     f = (z*t1 - t2 + c(3))*(1.0d0-dexp(-a1*r))**7/r**4    
+     !
+  end function irreg_chebyshev_DMC_2024
+  
+  
+  
+ !
  function poten_exponential(r, parameters) result(fun)
   ! expansion in powers of y = e^(-a(r-re)),
   !   F = sum_{n=0}^m c_n y^n = c(1) + c(3)*exp( -a*r ) + ...
