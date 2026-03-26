@@ -5,6 +5,12 @@ Duo Functions
 
 This section shows examples of the definitions of the analytical functions supported in Duo.
 
+.. note::
+   Duo function ``type`` names are **case-insensitive** in the input. In this manual we use the canonical
+   spelling shown in the section headings (typically uppercase) and format function names as ``LIKE_THIS``.
+
+Citations are given consistently as DOI links where available.
+
 
 Potential energy functions
 --------------------------
@@ -1487,6 +1493,68 @@ Example:
 
 
 
+
+``IRREG_CHEBYSHEV_2024``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+This functional form was introduced by `Meshkov et al., Mol. Phys. (2024) <https://doi.org/10.1080/00268976.2024.2429740>`_ as an
+*irregular* analytic representation suitable for permanent dipole-moment curves (DMCs) over a very wide range of
+interatomic distances. In Duo it is implemented for generic :math:`r`-dependent fields, and is typically used for
+permanent dipoles.
+
+The function is defined as
+
+.. math::
+
+   z(r) = 1 - 2\,e^{-a_0 r}\left(1+a_0 r + \frac{(a_0 r)^2}{2}\right),
+
+.. math::
+
+   P(z) = \sum_{k=0}^{N} b_{k+1}\,T_k(z),
+
+.. math::
+
+   F(r) = P\!\left(z(r)\right)\,\frac{\left(1-e^{-a_1 r}\right)^{7}}{r^{4}},
+
+where :math:`T_k(z)` are Chebyshev polynomials of the first kind.
+
+The parameters are supplied in the ``values`` block as:
+
+* ``a0`` and ``a1`` (real);
+* Chebyshev coefficients ``b1, b2, ..., b_{N+1}``.
+
+.. note::
+   Internally, the Chebyshev series is evaluated using a stable Clenshaw recurrence. The coefficients ``b1..`` correspond
+   to :math:`T_0, T_1, \ldots` in the order written in the input (i.e. ``b1`` multiplies :math:`T_0(z)`).
+
+Example (permanent dipole moment curve):
+::
+
+   dipole  1 1
+   name "<X1Sigma+|DMZ|X1Sigma+>"
+   spin   0.0 0.0
+   lambda  0  0
+   type   IRREG_CHEBYSHEV_2024
+   factor   1
+   values
+     a0   2.93767d0
+     a1   0.76042d0
+     b1     588.66060d0
+     b2   -1095.24464d0
+     b3    1163.00881d0
+     b4   -1020.26040d0
+     b5     755.18055d0
+     b6    -566.96168d0
+     b7     329.26551d0
+     b8    -208.85637d0
+     b9      89.53594d0
+     b10    -46.60804d0
+     b11     11.64195d0
+     b12     -4.51507d0
+   end
+
+
+
 Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1811,3 +1879,170 @@ options needs to be added as part of the ``case select`` section in the ``subrou
       fanalytical_field => poten_EMO
 
 
+
+
+Glossary
+--------
+
+.. glossary::
+   :sorted:
+
+   bob-z-m-switch
+      Born–Oppenheimer breakdown Z–M switching form (hyphenated alias).
+      Use as ``type BOB-Z-M-SWITCH``.
+
+   bob_z_m_switch
+      Born–Oppenheimer breakdown Z–M switching form.
+      Use as ``type BOB_Z_M_SWITCH``.
+
+   bobleroy
+      Le Roy-style BOB function (BobLeroy).
+      Use as ``type BobLeroy``.
+
+   bobleroy_damp
+      Damped Le Roy-style BOB function (BobLeroy with damping).
+      Use as ``type BobLeroy_damp``.
+
+   bobna
+      Born–Oppenheimer breakdown (BOB) function of NA type (see section).
+      Use as ``type BOBNA``.
+
+   chebyshev
+      Chebyshev polynomial expansion in the reduced coordinate.
+      Use as ``type Chebyshev``.
+
+   co_x_ubos
+      CO X-state UBOS-specific functional form (see section).
+      Use as ``type CO_X_UBOS``.
+
+   cosh-poly
+      Hyperbolic-cosine polynomial form (cosh + polynomial) for r-dependent fields.
+      Use as ``type COSH-POLY``.
+
+   coupled_emo_repulsive
+      Coupled EMO + repulsive term functional form.
+      Use as ``type COUPLED_EMO_REPULSIVE``.
+
+   ehh
+      Extended Hulburt–Hirschfelder (EHH) potential-energy function.
+      Use as ``type EHH``.
+
+   emo
+      Extended Morse Oscillator potential-energy function.
+      Use as ``type EMO``.
+
+   emo-switch
+      EMO potential combined with a switching function (EMO-SWITCH).
+      Use as ``type EMO-SWITCH``.
+
+   irreg_chebyshev_2024
+      Irregular Chebyshev representation introduced by `Meshkov et al., Mol. Phys. (2024) <https://doi.org/10.1080/00268976.2024.2429740>`_.
+      Use as ``type IRREG_CHEBYSHEV_2024``.
+
+   irreg_chebyshev_dmc
+      Irregular Chebyshev representation for dipole-moment curves (legacy name).
+      Use as ``type irreg_chebyshev_DMC``.
+
+   lorentz
+      Lorentz-type line-shape / damping functional form for r-dependent fields.
+      Use as ``type LORENTZ``.
+
+   lorentz-surkus
+      Lorentz-type form expressed in a Surkus-mapped coordinate.
+      Use as ``type LORENTZ-SURKUS``.
+
+   m-s
+      Morse–Surkus (M–S) type functional form (see section).
+      Use as ``type M-S``.
+
+   marquardt
+      Potential-energy functional form referred to as Marquardt in Duo.
+      Use as ``type Marquardt``.
+
+   medvedev_sing2
+      Medvedev-style SING2 variant (see section for definition).
+      Use as ``type MEDVEDEV_SING2``.
+
+   mlj
+      MLJ functional form for r-dependent fields (see section).
+      Use as ``type MLJ``.
+
+   mlr
+      Morse Long-Range potential-energy function.
+      Use as ``type MLR``.
+
+   mlr_3
+      Coxon & Hajigeorgiou MLR3 Morse Long-Range potential with Douketis damping.
+      Use as ``type MLR_3``.
+
+   modified-morse
+      Modified Morse potential-energy function (MMorse-style).
+      Use as ``type Modified-Morse``.
+
+   morse
+      Morse potential-energy function.
+      Use as ``type Morse``.
+
+   morse_damp
+      Damped Morse-type functional form (Morse with additional damping/regularisation).
+      Use as ``type Morse_damp``.
+
+   pade2
+      Pade-type rational functional form (order 2) for r-dependent fields.
+      Use as ``type PADE2``.
+
+   pade_goodisman2
+      Goodisman-style Pade-type rational functional form (order 2).
+      Use as ``type PADE_GOODISMAN2``.
+
+   polynom_decay_24
+      Polynomial with decay form introduced/updated in 2024 (see section for definition).
+      Use as ``type POLYNOM_DECAY_24``.
+
+   polynom_decay_damp
+      Polynomial with exponential decay and damping (see section for definition).
+      Use as ``type POLYNOM_DECAY_DAMP``.
+
+   polynom_dimensionless
+      Dimensionless polynomial expansion (see section for reduced coordinate).
+      Use as ``type POLYNOM_DIMENSIONLESS``.
+
+   polynomial
+      Simple polynomial expansion in r (or reduced variable, as defined in the section).
+      Use as ``type Polynomial``.
+
+   repulsive
+      Repulsive-wall style analytic form for r-dependent fields.
+      Use as ``type REPULSIVE``.
+
+   sigmoid
+      Sigmoid switching/morphing function used to interpolate between functional forms.
+      Use as ``type SIGMOID``.
+
+   sing2
+      Singular/irregular functional form (SING2) used for certain r-dependent fields.
+      Use as ``type SING2``.
+
+   spf
+      Switching/partition (switch) function used to combine fields piecewise.
+      Use as ``type SPF``.
+
+   sqrt_lorentz
+      Square-root Lorentz-type functional form for r-dependent fields.
+      Use as ``type SQRT(LORENTZ)``.
+
+   surkus
+      Surkus variable / Surkus mapping used to define reduced coordinates.
+      Use as ``type Surkus``.
+
+   surkus-damp
+      Surkus mapping with additional damping factor.
+      Use as ``type Surkus-damp``.
+
+   two_coupled_bobs
+      Two coupled BOB functions/fields (see section).
+      Use as ``type TWO_COUPLED_BOBS``.
+
+   two_coupled_emos
+      Two coupled EMO potentials (coupled-PEC form).
+      Use as ``type TWO_COUPLED_EMOS``.

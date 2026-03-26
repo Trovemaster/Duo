@@ -482,8 +482,8 @@ Additionally, the units must be specified via the ``units`` keyword. For example
 
 Aliases: ``MAGNETIC-DIPOLE``,``MAGNETIC-X``. Specifies the magnetic dipoles used in magnetic dipole intensity calculations, its electronic orbital  angular momentum contribution :math:`\hat{L}_\alpha`:
 .. math::
-
-   \mu_\alpha = \hat{S}_\alpha + \hat{L}_\alpha, 
+    
+    \mu_\alpha = \hat{S}_\alpha + \hat{L}_\alpha, 
     
 where :math:`\alpha= x,y,z`. If ``Magnetic`` fields are not provided for ``magdipole`` intensity calculations, the corresponding fields ``Lx`` are used instead. 
 
