@@ -113,15 +113,15 @@ Example:
      a8        0.00000000000000E+00
    end
 
-Coxon and Hajigeorgiou's MLR3 Morse Long-Range with Douketis Damping ``MLR_3``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Coxon and Hajigeorgiou's MLR3 Morse Long-Range with Douketis Damping ``MLR3``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The MLR3 potential function is described by `Coxon and Hajigeorgiou, JCP 132 (2010) <https://doi.org/10.1063/1.3319739>`_ -  an adapted form of the standard MLR potential with an additional parameter :math:`a` in the radial variable :math:`y`. The form of the potential is given by:
 
 .. math::
-        V(r) = D_{e} + \left(1 - \frac{u_{\textrm{LR}}(r)} {u_{\textrm{LR}}(r_e)} \exp\left\{ -\phi_{\rm MLR3}(r) y_{p,a}(r, r_e)\right\}\right)^2, \text{ where } y_{p, a}(r, r_e) = \frac{r^p - r_e^p}{r^p - ar_e^p}
+        V(r) = V_0 + (A_{e}-V_0) \left(1 - \frac{u_{\textrm{LR}}(r)} {u_{\textrm{LR}}(r_e)} \exp\left\{ -\phi_{\rm MLR3}(r) y_{p,a}(r, r_e)\right\}\right)^2, \text{ where } y_{p, a}(r, r_e) = \frac{r^p - r_e^p}{r^p - ar_e^p}
 
-and the long-range potential function is given by:
+where Here, :math:`V_0` is the minimu  and the long-range potential function is given by:
 
 .. math::
         u_{\rm LR}(r) = \sum_{n} D_n(r) \frac{C_n}{r^n}
@@ -142,7 +142,7 @@ where
 
         y_{m,q} (r, r_\text{ref}) = \left( \frac{r^{m,q} - r_\text{ref}^{m,q} }{r^m + r_\text{ref}^{m,q}} \right) \text{ and } \phi_\text{MLR3}(\infty) = \ln\left(\frac{2D_e}{u_\text{LR}(r_e)}\right)
 
-where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\text{ref} >> r_e`.
+where :math:`r_\text{ref}` is some expansion centre, usually :math:`r_\text{ref} \gg r_e`.
 
 
 Most parameters in the input file have a one-to-one correspondence with those in the above equations. The parameter ``V0`` can be set greater than zero if the dissociation energy, :math:`D_e` is not defined relative to the potential minimum (i.e :math:`D_e \rightarrow D_e - V_0`).

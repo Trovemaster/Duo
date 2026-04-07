@@ -112,6 +112,7 @@ module functions
     case("MLR3") ! "MLR3 with Douketis damping (see Coxon & Hajigeorgiou 2010)
       !
       fanalytic_field => poten_MLR3
+      !
     case("MARQUARDT") ! "Marquardt"
       !
       fanalytic_field => poten_Marquardt
@@ -1264,7 +1265,7 @@ module functions
     nPhis = nint(parameters(14+2*nPwrs)) ! number of phi coefficients
     allocate ( phis(nPhis) )
     phis  = parameters(15+2*nPwrs:) ! the phi coefficients for MLR3 (arb. number)
-
+    !
     ! check the no. of power term and phi coefficients given matches the number specified
     if ((size(phis) .NE. nPhis) .OR. (size(pwrs) .NE. nPwrs)) then
       write(out, "('poten_MLR3: Number of power terms or phi coefficients&
@@ -1279,13 +1280,13 @@ module functions
       stop 'poten_MLR3: Requires more than zero phi coefficients&
         & and more than zero power terms'
     endif
-
+    !
     ! if rRef not given, equals equilibrium bond length
     if (rRef .LE. 0.0_rk) then
       write(out, "('poten_MLR3: rRef equal to zero or less, using rRef = r0')")
       rRef = r0
     endif
-
+    !
     ! calculate U_LR (Long-range potential) by summing over power terms
     uLR = 0.0_rk
     uLRe = 0.0_rk
@@ -1298,7 +1299,7 @@ module functions
       Dne = (1.0_rk - exp( -b*rho*r0/real(n,rk) - c*(rho*r0)**2/real(n,rk)**.5_rk ))**(n+s)
       uLRe= uLRe + (Dne * coefs(j)/r0**n)
     enddo
-
+    !
     ! calculate phi_MLR3(r) - sum of
     phiInf = log(2.0_rk*De/uLRe)
     ym     = (r**m - rRef**m)/(r**m + rRef**m)
@@ -1308,10 +1309,11 @@ module functions
       sumPhis = sumPhis + phis(i) * yq**(i-1)
     enddo
     sumPhis = sumPhis*(1.0_rk - ym) + phiInf*ym
-
+    !
     ! put parts together to give total potential
     ypa = (r**p - r0**p)/(r**p + a*r0**p)
-    f = De*( 1.0_rk - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+    f = v0+De*( 1.0_rk - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+    !
   end function poten_MLR3
   !
   function poten_Marquardt(r,parameters) result(f)
