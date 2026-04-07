@@ -10769,7 +10769,7 @@ contains
                       !
                       eigen(irot,irrep)%vect(:,total_roots) = vec(:)
                       !
-                      if (diff>1e-3) then
+                      if (diff>1e-10) then
                         !
                         write(out,'(2x,i8,1x,f8.1,1x,i2,1x,3e12.5,1x,i3,1x,i3,1x,i3,1x,f8.1,1x,f8.1,1x,f8.1,1x,i4)') &
                           total_roots,J_list(irot),irrep-1,amplit1,amplit2,amplit3 !,icontr(k)%istate,&
