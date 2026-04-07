@@ -514,7 +514,7 @@ contains
              omegaF = iomegaI+real(idelta,rk)
              if (omegaF<0.or.omegaF>jF) cycle
              !
-             threej(indI,iomegaI,nint(jF - jI), idelta) = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
+             !threej(indI,iomegaI,nint(jF - jI), idelta) = three_j(jI, 1.0_rk, jF, omegaI, omegaF - omegaI, -omegaF)
              !
            enddo
         enddo

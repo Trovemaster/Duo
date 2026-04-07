@@ -358,7 +358,7 @@ expressed as a simple power series in the reduced variable:
 
 with :math:`p` as a parameter. The damping function is give by
 
-:math:`f_{\rm Damp}(r) = ( 1.0+\epsilon_6*(-(r_s/r)^6) ) \left( 1+\epsilon_8*(-(r_s/r)^8) \right)`
+:math:`f_{\rm Damp}(r) = ( 1.0+\epsilon_6(-(r_s/r)^6) ) \left( 1+\epsilon_8(-(r_s/r)^8) \right)`
 
 
 Example:
