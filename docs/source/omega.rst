@@ -190,7 +190,7 @@ Keywords
 References
 ----------
 
-.. [21BeJoLi] P. F. Bernath, R. Johnson, J. Liévin, *J. Quant. Spectrosc. Radiat. Transf.* **272**, 107772 (2021), Line lists for the b $^1\Sigma^+$–X $^3\Sigma^{-}$ and a $^1\Delta$–X $^3\Sigma^{-}$ transitions of SO. DOI: 10.1016/j.jqsrt.2021.107772.
+.. [21BeJoLi] P. F. Bernath, R. Johnson, J. Liévin, *J. Quant. Spectrosc. Radiat. Transf.* **272**, 107772 (2021), Line lists for the b :math:`^1\Sigma^+$–X $^3\Sigma^{-}` and a :math:`^1\Delta–X $^3\Sigma^{-}` transitions of SO. DOI: 10.1016/j.jqsrt.2021.107772.
 
 .. [19PaEvAn] P. Pokhilko, E. Epifanovsky, A. I. Krylov, *J. Chem. Phys.* **151**, 034106 (2019), General framework for calculating spin–orbit couplings using spinless one-particle density matrices: theory and application to the equation-of-motion coupled-cluster wave functions. DOI: 10.1063/1.5108762.
 
@@ -200,7 +200,7 @@ References
 
 .. [54BoHu] M. Born, K. Huang, *Dynamical Theory of Crystal Lattices* (1954).
 
-.. [10TaKlKr] M. Tamanis, I. Klincare, A. Kruzins, O. Nikolayeva, R. Ferber, E. A. Pazyuk, A. V. Stolyarov, *Phys. Rev. A* **82**, 032506 (2010), Direct excitation of the “dark” b $^3\Pi$ state predicted by deperturbation analysis of the A $^1\Sigma^{+}$–b $^3\Pi$ complex in KCs. DOI: 10.1103/PhysRevA.82.032506.
+.. [10TaKlKr] M. Tamanis, I. Klincare, A. Kruzins, O. Nikolayeva, R. Ferber, E. A. Pazyuk, A. V. Stolyarov, *Phys. Rev. A* **82**, 032506 (2010), Direct excitation of the “dark” b :math:`^3\Pi` state predicted by deperturbation analysis of the A :math:`^1\Sigma^{+}$–b $^3\Pi` complex in KCs. DOI: 10.1103/PhysRevA.82.032506.
 
 .. [00Baer] M. Baer, *Chem. Phys.* **259(2–3)**, 123–147 (2000), Topological effects in molecular systems: an attempt towards a complete theory. DOI: 10.1016/S0301-0104(00)00193-2.
 
@@ -210,8 +210,8 @@ References
 
 .. [00BaAl] M. Baer, A. Alijah, *Chem. Phys. Lett.* **319(5–6)**, 489–493 (2000), Quantized non-adiabatic coupling terms to ensure diabatic potentials. DOI: 10.1016/S0009-2614(00)00195-0.
 
-.. [10KrKlNi] A. Kruzins, I. Klincare, O. Nikolayeva, M. Tamanis, R. Ferber, E. A. Pazyuk, A. V. Stolyarov, *Phys. Rev. A* **81(4)**, 042509 (2010), Fourier-transform spectroscopy and coupled-channels deperturbation treatment of the A $^1\Sigma^{+}$–b $^3\Pi$ complex of KCs. DOI: 10.1103/PhysRevA.81.042509.
+.. [10KrKlNi] A. Kruzins, I. Klincare, O. Nikolayeva, M. Tamanis, R. Ferber, E. A. Pazyuk, A. V. Stolyarov, *Phys. Rev. A* **81(4)**, 042509 (2010), Fourier-transform spectroscopy and coupled-channels deperturbation treatment of the A :math:`^1\Sigma^{+}$–b $^3\Pi` complex of KCs. DOI: 10.1103/PhysRevA.81.042509.
 
 .. [LEVEL] R. J. Le Roy, *J. Quant. Spectrosc. Radiat. Transf.* **186**, 167–178 (2017), LEVEL: A computer program for solving the radial Schrödinger equation for bound and quasibound levels. DOI: 10.1016/j.jqsrt.2016.05.028.
 
-.. [26BrYu] R. P. Brady, S. N. Yurchenko, *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact $\Omega$-representation.
+.. [26BrYu] R. P. Brady, S. N. Yurchenko, *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact :math:`\Omega`-representation.
