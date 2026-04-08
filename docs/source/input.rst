@@ -466,13 +466,6 @@ This option can be enabled via the section ``Checkpoint``:
    End
 
 
-See :ref:`Eigenfunctions and reduced density`. 
-
-
-
-
-
-
 Control keys
 ------------
 

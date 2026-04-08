@@ -362,14 +362,22 @@ During fitting Duo prints per-iteration residuals. The first line below (numbers
 Column meanings:
 
 1. line counter :math:`i` over all lines;
+
 2. counter :math:`N` within each :math:`(J,\tau)` block;
+
 3. :math:`J`;
+
 4. parity :math:`\tau`;
-5–6. observed and calculated value;
+
+5 - 6. observed and calculated value;
+
 7. obs.–calc residual;
+
 8. weight;
-9–14. lower-state quantum numbers (state, :math:`v`, :math:`\Lambda`, :math:`\Sigma`, :math:`\Omega`, :math:`S`);
-15–20. upper-state quantum numbers (same ordering as 9–14).
+
+9 – 14. lower-state quantum numbers (state, :math:`v`, :math:`\Lambda`, :math:`\Sigma`, :math:`\Omega`, :math:`S`);
+
+15 – 20. upper-state quantum numbers (same ordering as 9–14).
 
 Auxiliary files: ``.en``, ``.freq``, ``.pot``
 ---------------------------------------------

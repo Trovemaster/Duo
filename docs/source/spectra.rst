@@ -338,10 +338,8 @@ the threshold ``enermax`` specified in the general setup.
 * ``Richmol`` (`matelem`) is to generate the **RichMol** checkpoints.
 
 The **RichMol** checkpoint files ``.rchk`` can be used for laser-driven molecular dynamics;
-see :cite:`18OwYa`.
+see `- .. [18OwYa] RichMol: A. Owens and A. Yachmenev, *J. Chem. Phys*, **148**, 124102 (2018),  A general variational approach for rovibrational molecular dynamics in external electric fields. <https://doi.org/10.1063/1.5023874>`_.
 
-
-:cite:`18OwYa`.
 
 * ``Raman`` or ``Polarizability`` is to generate the matrix elements for the **Raman** intensity calculations with Richmol.
 

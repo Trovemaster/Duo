@@ -697,10 +697,12 @@ This keyword can be used to add a constant value to the values of the potential,
 
 Examples:
 ::
-  adjust -42 cm-1
+
+    adjust -42 cm-1
 
 ::
-  adjust
+
+    adjust
 
 Example:
 ::

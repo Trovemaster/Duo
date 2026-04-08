@@ -149,7 +149,9 @@ Most parameters in the input file have a one-to-one correspondence with those in
 
 Further parameters that do not have obvious definitions are ``NPWRS`` and ``NPHIS``. The former specifies the number of inverse power terms to include in the long-range function, and is followed by the order of each power term (in the example below, the first power term is :math:`\frac{1}{r^6}`, the second is  :math:`\frac{1}{r^8}`, etc.), the coefficients :math:`C_n` are then specified (``COEF1``, ``COEF2``, etc.). The parameter ``NPHIS`` specifies the number of :math:`\phi_i` terms to include in the exponent function, and is followed by a list of their values.
 
-An example input is given below for HF molecule. The parameters are taken from `Coxon & Hajigeorgiou, JQSRT 151, 133-154 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>.`_
+
+An example input is given below for HF molecule. The parameters are taken from `Coxon & Hajigeorgiou, JQSRT 151, 133–154 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>`_.
+
 
 ::
 
@@ -672,7 +674,7 @@ Example:
 
 
 ``irreg_chebyshev_DMC``
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 based on eq.(3) of https://doi.org/10.1016/j.jqsrt.2022.108255
 
@@ -791,7 +793,7 @@ Example
 
 
 ``POLYNOM_DECAY_DAMP``
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 This function is similar to a long-range Taylor expansion with  ``Surkus``, but with a Douketis type short-range damping:
 
@@ -1495,7 +1497,7 @@ Example:
 
 
 ``IRREG_CHEBYSHEV_2024``
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 This functional form was introduced by `Meshkov et al., Mol. Phys. (2024) <https://doi.org/10.1080/00268976.2024.2429740>`_ as an
 *irregular* analytic representation suitable for permanent dipole-moment curves (DMCs) over a very wide range of
@@ -1560,16 +1562,22 @@ Mass-dependent BOB non-adiabatic Surkus-polynomial expansion ``BOBNA``
 
 BOB-correction.
 
-:math:`F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},`
+.. math::
+
+     F(r) =  (1-y_p^{\textrm{eq}}) t(r) + y_p^{\textrm{eq}} t_{\rm inf},
 
 
 where :math:`y_p^{\textrm{eq}}` is the Surkus variable, :math:`t(r)` is given by
 
-:math:`t(r) = \mu_a \sum_{i\geq 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\geq 0} b_i [y_p^{\textrm{eq}}]^i`,
+.. math::
+
+     t(r) = \mu_a \sum_{i\geq 0} a_i [y_p^{\textrm{eq}}]^i + \mu_b \sum_{i\geq 0} b_i [y_p^{\textrm{eq}}]^i,
 
 :math:`t_{\rm inf}` is the asymptote of the potential at :math:`r\to \infty` as given by
 
-:math:`t_{\rm inf} = \mu_a a_{\rm inf} + \mu_b b_{\rm inf} `.
+.. math::
+
+    t_{\rm inf} = \mu_a a_{\rm inf} + \mu_b b_{\rm inf}
 
 The mass-dependent factors are given by
 

@@ -32,7 +32,7 @@ In a Hund’s case (a) basis, the coupled rovibronic Schrödinger equation can b
    + \mathbf{V}(r) + \mathbf{H}_{\rm SO}(r)
    \right]\vec{\chi}(r) = E_i\,\vec{\chi}(r),
 
-where :math:`\mu` is the reduced mass, :math:`r` is the internuclear separation, :math:`\hat{\mathbf{R}}` is the nuclear rotational angular momentum operator, :math:`\mathbf{V}` contains diagonal Born–Oppenheimer PECs [27BoOpxx.diabat]_, [54BoHu]_, and :math:`\mathbf{H}_{\rm SO}` contains spin–orbit matrix elements (e.g. from *ab initio* electronic-structure calculations).
+where :math:`\mu` is the reduced mass, :math:`r` is the internuclear separation, :math:`\hat{\mathbf{R}}` is the nuclear rotational angular momentum operator, :math:`\mathbf{V}` contains diagonal Born–Oppenheimer PECs [27BoOp]_, [54BoHu]_, and :math:`\mathbf{H}_{\rm SO}` contains spin–orbit matrix elements (e.g. from *ab initio* electronic-structure calculations).
 
 State-interacting diagonalisation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -79,7 +79,7 @@ where
 is a skew-Hermitian matrix of derivative couplings. The diagonal elements of :math:`\mathbf{W}^2` act as additional diagonal corrections (analogous in spirit to DBOC-like terms), while off-diagonal terms mediate non-adiabatic transitions between channels of the same :math:`\Omega`.
 
 .. note::
-   In the :math:`\Omega` representation, “simplifying” the potential by diagonalisation relocates the physics into  induced non-adiabatic terms. Neglecting these terms can lead to substantial errors in energies and wavefunctions, and therefore also in intensities and lifetimes (see, e.g. [10TaKlKr.KCs]_, [24BrDrYu]_, [26BrYu]_).
+   In the :math:`\Omega` representation, “simplifying” the potential by diagonalisation relocates the physics into  induced non-adiabatic terms. Neglecting these terms can lead to substantial errors in energies and wavefunctions, and therefore also in intensities and lifetimes (see, e.g. [10TaKlKr_, [24BrDrYu]_, [26BrYu]_).
 
 How to use the Omega representation in Duo
 ------------------------------------------
@@ -190,7 +190,7 @@ Keywords
 References
 ----------
 
-.. [21BeJoLi] P. F. Bernath, R. Johnson, J. Liévin, *J. Quant. Spectrosc. Radiat. Transf.* **272**, 107772 (2021), Line lists for the b :math:`^1\Sigma^+$–X $^3\Sigma^{-}` and a :math:`^1\Delta–X $^3\Sigma^{-}` transitions of SO. DOI: 10.1016/j.jqsrt.2021.107772.
+.. [21BeJoLi] P. F. Bernath, R. Johnson, J. Liévin, *J. Quant. Spectrosc. Radiat. Transf.* **272**, 107772 (2021), Line lists for the b :math:`^1\Sigma^+–X ^3\Sigma^{-}` and a :math:`^1\Delta–X ^3\Sigma^{-}` transitions of SO. DOI: 10.1016/j.jqsrt.2021.107772.
 
 .. [19PaEvAn] P. Pokhilko, E. Epifanovsky, A. I. Krylov, *J. Chem. Phys.* **151**, 034106 (2019), General framework for calculating spin–orbit couplings using spinless one-particle density matrices: theory and application to the equation-of-motion coupled-cluster wave functions. DOI: 10.1063/1.5108762.
 
@@ -214,4 +214,3 @@ References
 
 .. [LEVEL] R. J. Le Roy, *J. Quant. Spectrosc. Radiat. Transf.* **186**, 167–178 (2017), LEVEL: A computer program for solving the radial Schrödinger equation for bound and quasibound levels. DOI: 10.1016/j.jqsrt.2016.05.028.
 
-.. [26BrYu] R. P. Brady, S. N. Yurchenko, *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact :math:`\Omega`-representation.

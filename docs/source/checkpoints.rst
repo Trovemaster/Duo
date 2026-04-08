@@ -137,7 +137,7 @@ checkpoint dataset, large spectra can be split into independent jobs, e.g.
 * run "test" intensity calculations with different thresholds/windows without re-solving the Schrödinger equation.
 
 Recomputing moment matrix elements with new dipole curves (``dipole calc``)
---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 Another common use case is to keep eigenfunctions fixed while changing the transition-moment curves
 (e.g. refining an electric dipole moment function to experimental intensities).
@@ -155,7 +155,7 @@ elements**:
 One would then run an intensity calculation using the updated matrix elements in the same run.
 
 Controlling the format of ``*_vectors.chk`` (binary vs ascii)
-------------------------------------------------------------
+-------------------------------------------------------------
 
 By default Duo writes ``<prefix>_vectors.chk`` as a **binary unformatted** file (for speed and compactness). Duo can also
 write an **ascii** version, which is larger but human-readable and convenient for debugging or post-processing.
@@ -251,7 +251,7 @@ The implementation in ``diatomic.f90`` follows the pattern:
    write(iunit) 'eigenvectors-chk/end'
 
 Contracted-basis quantum numbers
-"""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""
 
 Each basis-function record stores the quantum numbers and identifiers needed to interpret the coefficient vectors:
 
