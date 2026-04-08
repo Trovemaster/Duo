@@ -111,6 +111,7 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
 3. Use these vibrational functions to compute vibrational matrix elements of all required operators and curves (PECs, DMCs, couplings) in the :math:`\Omega` representation.
 
 4. Construct the final rovibronic basis and Hamiltonian. Schematically,
+
    .. math::
 
       \Phi_{J,\Omega,v} \;=\; |J,\Omega\rangle\,|\Omega,v\rangle,
