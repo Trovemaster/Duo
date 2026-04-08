@@ -1,20 +1,20 @@
-.. _omega-representation:
+Ôªø.. _omega-representation:
 
 Omega representation
 ====================
 
-Duo traditionally works in a Hundís case (a) electronic basis,
-:math:`|\mathrm{state},\Lambda,S,\Sigma\rangle`, i.e. the ``LambdañS`` (or ``vib``) contraction.
-Duo can now also work in an :math:`\Omega`-based contracted representation, where the electronic + spinñorbit
+Duo traditionally works in a Hund‚Äôs case (a) electronic basis,
+:math:`|\mathrm{state},\Lambda,S,\Sigma\rangle`, i.e. the ``Lambda‚ÄìS`` (or ``vib``) contraction.
+Duo can now also work in an :math:`\Omega`-based contracted representation, where the electronic + spin‚Äìorbit
 problem is diagonalised at each bond length and the resulting :math:`\Omega`-labelled channels are used for
 vibrational contraction and for the final rovibronic basis.
 
 The :math:`\Lambda S \rightarrow \Omega` transformation (often called the *state-interacting* method) has been widely
-used to simplify the treatment of spinñorbit coupling in rovibronic calculations; see, e.g.,
+used to simplify the treatment of spin‚Äìorbit coupling in rovibronic calculations; see, e.g.,
 :cite:`21BeJoLi.SO,19PaEvAn.ai,11YuBixx.SO`. The key idea is to diagonalise the electronic Hamiltonian together with
-the BreitñPauli spinñorbit Hamiltonian to obtain effective potentials for each spinñorbit component. While this can
-make the problem look ìsingle-state-likeî, strict equivalence with the original :math:`\Lambda S` formulation requires
-transforming the *full* nuclear-motion Hamiltonian, which introduces spinñorbit-induced non-adiabatic couplings (NACs);
+the Breit‚ÄìPauli spin‚Äìorbit Hamiltonian to obtain effective potentials for each spin‚Äìorbit component. While this can
+make the problem look ‚Äúsingle-state-like‚Äù, strict equivalence with the original :math:`\Lambda S` formulation requires
+transforming the *full* nuclear-motion Hamiltonian, which introduces spin‚Äìorbit-induced non-adiabatic couplings (NACs);
 see, e.g., :cite:`10TaKlKr.KCs,24BrDrYu.diabat,25Brady.diabat`.
 
 Transforming to the :math:`\Omega` representation
@@ -22,11 +22,11 @@ Transforming to the :math:`\Omega` representation
 
 A general workflow for building the :math:`\Omega` representation is:
 
-1. Solve the electronic Schrˆdinger equation to obtain electronic wavefunctions, and construct potential energy curves
-   and spinñorbit coupling curves for the electronic states of interest.
-2. Build, at each bond length :math:`r`, the electronic + spinñorbit Hamiltonian matrix
+1. Solve the electronic Schr√∂dinger equation to obtain electronic wavefunctions, and construct potential energy curves
+   and spin‚Äìorbit coupling curves for the electronic states of interest.
+2. Build, at each bond length :math:`r`, the electronic + spin‚Äìorbit Hamiltonian matrix
    :math:`\mathbf{H}_\Omega(r) = \mathbf{V}(r) + \mathbf{H}_{\rm SO}(r)` in the chosen electronic basis.
-3. Diagonalise :math:`\mathbf{H}_\Omega(r)` at each :math:`r` to obtain spinñorbit-decoupled channels and effective
+3. Diagonalise :math:`\mathbf{H}_\Omega(r)` at each :math:`r` to obtain spin‚Äìorbit-decoupled channels and effective
    potentials labelled by :math:`\Omega`.
 4. To achieve exact equivalence with the original :math:`\Lambda S` representation, apply the same *r-dependent*
    unitary transformation to the remaining parts of the rovibronic Hamiltonian. In particular, transforming radial
@@ -35,7 +35,7 @@ A general workflow for building the :math:`\Omega` representation is:
 The diatom in the :math:`\Lambda S` and :math:`\Omega` representations
 ---------------------------------------------------------------------
 
-In a Hundís case (a) basis, the coupled rovibronic Schrˆdinger equation can be written as
+In a Hund‚Äôs case (a) basis, the coupled rovibronic Schr√∂dinger equation can be written as
 (see also the standard Duo theory in the manual):
 .. math::
    :label: eq-diatomic-schrodinger-lambdas
@@ -46,8 +46,8 @@ In a Hundís case (a) basis, the coupled rovibronic Schrˆdinger equation can be w
    \right]\vec{\chi}(r) = E_i\,\vec{\chi}(r),
 
 where :math:`\mu` is the reduced mass, :math:`r` is the internuclear separation, :math:`\hat{\mathbf{R}}` is the
-nuclear rotational angular momentum operator, :math:`\mathbf{V}` contains diagonal BornñOppenheimer PECs
-:cite:`27BoOpxx.diabat,54BoHuxx.diabat`, and :math:`\mathbf{H}_{\rm SO}` contains spinñorbit matrix elements
+nuclear rotational angular momentum operator, :math:`\mathbf{V}` contains diagonal Born‚ÄìOppenheimer PECs
+:cite:`27BoOpxx.diabat,54BoHuxx.diabat`, and :math:`\mathbf{H}_{\rm SO}` contains spin‚Äìorbit matrix elements
 (e.g. from *ab initio* electronic-structure calculations).
 
 State-interacting diagonalisation
@@ -72,7 +72,7 @@ It is tempting to assume that :math:`\mathbf{V}_\Omega(r)` yields fully decouple
 However, to remain formally consistent, the kinetic-energy operators in Eq. :eq:`eq-diatomic-schrodinger-lambdas`
 must also be transformed. The transformation of radial derivatives introduces NAC terms.
 
-Spinñorbit-induced NACs from the vibrational kinetic energy
+Spin‚Äìorbit-induced NACs from the vibrational kinetic energy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Upon transforming the radial kinetic-energy operator, one obtains additional terms of the standard adiabatic/NAC form
@@ -98,14 +98,14 @@ diagonal corrections (analogous in spirit to DBOC-like terms), while off-diagona
 transitions between channels of the same :math:`\Omega`.
 
 .. note::
-   In the :math:`\Omega` representation, ìsimplifyingî the potential by diagonalisation relocates the physics into
+   In the :math:`\Omega` representation, ‚Äúsimplifying‚Äù the potential by diagonalisation relocates the physics into
    induced non-adiabatic terms. Neglecting these terms can lead to substantial errors in energies and wavefunctions,
    and therefore also in intensities and lifetimes (see, e.g. :cite:`10TaKlKr.KCs,24BrDrYu.diabat,26BrYu`).
 
 How to use the Omega representation in Duo
 ------------------------------------------
 
-Switching from the standard ``LambdañS`` contraction to the :math:`\Omega` contraction requires only a change in the
+Switching from the standard ``Lambda‚ÄìS`` contraction to the :math:`\Omega` contraction requires only a change in the
 ``contraction`` block:
 
 ::
@@ -115,7 +115,7 @@ Switching from the standard ``LambdañS`` contraction to the :math:`\Omega` contr
     vmax 20 40 40
   end
 
-Here the usual ``vib`` (``LambdañS``) option is replaced by ``omega``.
+Here the usual ``vib`` (``Lambda‚ÄìS``) option is replaced by ``omega``.
 
 High-level algorithm used by Duo (omega mode)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -128,9 +128,9 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
    :math:`r`-dependence of :math:`\mathbf{U}(r)`.
 
    .. note::
-      The ìextended matrixî used for diagonalisation includes spinñorbit together with other *J*-independent electronic
+      The ‚Äúextended matrix‚Äù used for diagonalisation includes spin‚Äìorbit together with other *J*-independent electronic
       terms available in the model. Any terms not included at this stage are still handled in the full rovibronic
-      Hamiltonian, but the precise partitioning of terms between ìdiagonalisationî and ìfinal Hamiltonianî affects the
+      Hamiltonian, but the precise partitioning of terms between ‚Äúdiagonalisation‚Äù and ‚Äúfinal Hamiltonian‚Äù affects the
       structure of the induced NACs and should be treated consistently.
 
 2. Solve the pure vibrational problems for each :math:`\Omega` channel using the chosen DVR method (e.g. sinc DVR),
@@ -146,12 +146,12 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
 
    which are then symmetrised (Wang functions) and used to build and diagonalise the rovibronic Hamiltonian.
 
-5. If requested, compute rovibronic intensities and/or line lists using the same workflows as in the ``LambdañS`` mode.
+5. If requested, compute rovibronic intensities and/or line lists using the same workflows as in the ``Lambda‚ÄìS`` mode.
 
 Omega-specific output
 ---------------------
 
-The output is similar to the standard ``LambdañS`` mode, but includes additional diagnostics for curves and operators
+The output is similar to the standard ``Lambda‚ÄìS`` mode, but includes additional diagnostics for curves and operators
 transformed to the :math:`\Omega` representation. For example, Duo can print PECs labelled by :math:`\Omega`:
 
 ::
@@ -187,12 +187,12 @@ Warning and words of caution
    The :math:`\Omega` representation in Duo is currently a work in progress. It has been tested on a limited set of
    systems and couplings (see :cite:`26BrYu`) and may produce incorrect results for models involving additional
    couplings or corrections not yet fully validated in ``omega`` mode. If you use ``omega`` mode beyond the tested
-   scope, it is strongly recommended to validate against the standard ``LambdañS`` calculation.
+   scope, it is strongly recommended to validate against the standard ``Lambda‚ÄìS`` calculation.
 
 Even when technically available, the fully decoupled (single-state) :math:`\Omega` approximation should not be used
 blindly. Transforming to the :math:`\Omega` representation unavoidably introduces induced NAC terms which may be
 essential for accurate energies and transition properties, especially for spin-forbidden bands. The broader lesson is
-that unitary ìsimplificationsî must be accompanied by an accounting of the physics moved elsewhere in the Hamiltonian
+that unitary ‚Äúsimplifications‚Äù must be accompanied by an accounting of the physics moved elsewhere in the Hamiltonian
 (see discussion and examples in :cite:`26BrYu`).
 
 Keywords
@@ -215,8 +215,8 @@ Keywords
          end
 
    vib
-      Standard option in the ``contraction`` block for the Hundís case (a) ``LambdañS`` representation
-      (the default behaviour in Duo). In this manual it may also be referred to as the ``LambdañS`` contraction.
+      Standard option in the ``contraction`` block for the Hund‚Äôs case (a) ``Lambda‚ÄìS`` representation
+      (the default behaviour in Duo). In this manual it may also be referred to as the ``Lambda‚ÄìS`` contraction.
 
       Example:
       ::

@@ -698,7 +698,6 @@ This keyword can be used to add a constant value to the values of the potential,
 Examples:
 ::
   adjust -42 cm-1
-::
 
 ::
   adjust
@@ -864,7 +863,7 @@ Example of the corresponding output
 
 
 .. warning::
-   The ``link`` feature, where the associated value is replaced with the value the associated parameter is linked to,   currently only works when the fitting is on. For all other cases the ``link`` keyword is ignored and the actual input value of the given parameter is used, not the one it is linked to. Therefore, to be on the safe side, the correct (fitted) value must be transferred to the place next to the parameter. 
+   The ``link`` feature, where the associated value is replaced with the value the associated parameter is linked to,   currently only works when the fitting is on. For all other cases the ``link`` keyword is ignored and the actual input value of the given parameter is used, not the one it is linked to. Therefore, to be on the safe side, the correct (fitted) value must be transferred to the place next to the parameter.
 
 
 
