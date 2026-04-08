@@ -18,6 +18,7 @@ Welcome to Duo's documentation!
    grid
    checkpoints
    unbound
+   omega
    keywords
    hyperfine
    license
