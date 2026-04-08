@@ -26,7 +26,7 @@ References
 Duo-related publications
 ========================
 
-.. [26BrYu] R. P. Brady, S. N. Yurchenko, JCTC (in press), *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact $\Omega$-representation.
+.. [26BrYu] R. P. Brady, S. N. Yurchenko, JCTC (in press), *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact :math:`\Omega`-representation.
 
 
 .. [25SoBrYu] A. Sokolov, R.P. Brady, S.N. Yurchenko, J. Tennyson, *Mon. Not. R. Astron. Soc.* **543**, 1435-1446 (2025), ExoMol photodissociation cross-sections: IV. Photodissociation rates of the CH radical. `<http://dx.doi.org/10.1093/mnras/staf1563>`_
@@ -59,7 +59,7 @@ Duo-related publications
 
 .. [23QuYuTe] Q. Qu, S.N. Yurchenko, J. Tennyson, *J. Mol. Spectrosc.* **391**, 111733 (2023), An empirical spectroscopic model for eleven electronic states of VO. `<http://dx.doi.org/10.1016/j.jms.2022.111733>`_
 
-.. [22YuNoAz] S.N. Yurchenko, E. Nogué, A.A.A. Azzam, J. Tennyson, *Mon. Not. R. Astron. Soc.* **520**(4), 5183-5191 (2022), ExoMol line lists - XLVII. Rovibronic spectrum of aluminium monochloride (AlCl). `<http://dx.doi.org/10.1093/mnras/stac3757>`_
+.. [22YuNoAz] S.N. Yurchenko, E. Nogué, A.A.A. Azzam, J. Tennyson, *Mon. Not. R. Astron. Soc.* **520**, 5183-5191 (2022), ExoMol line lists - XLVII. Rovibronic spectrum of aluminium monochloride (AlCl). `<http://dx.doi.org/10.1093/mnras/stac3757>`_
 
 .. [22SeClYu] M. Semenov, N. Clark, S.N. Yurchenko, G.-S. Kim, J. Tennyson, *Mon. Not. R. Astron. Soc.* **516**, 1158-1169 (2022), ExoMol line lists - XLVI. Empirical rovibronic spectra of silicon mononitrate (SiN) covering the six lowest electronic states and four isotopologues. `<http://dx.doi.org/10.1093/mnras/stac2004>`_
 
@@ -113,10 +113,11 @@ Duo-related publications
 
 .. [17WoYuBe] A. Wong, S.N. Yurchenko, P. Bernath, H.S.P. Müller, S. McConkey, J. Tennyson, *Mon. Not. R. Astron. Soc.* **470**, 882-897 (2017), ExoMol line list - XXI. Nitric Oxide (NO). 
 
-.. [16YuBl] `S. N. Yurchenko, A. Blissett, U. Asari, M. Vasilios, C. Hill, and J. Tennyson, *Mon. Not. R. Astron. Soc.* **456**, 4524–4532 (2016), ExoMol molecular line lists – XIII. The spectrum of CaO,  <http://dx.doi.org/10.1093/mnras/stv2858>`_
+.. [16YuBl] S. N. Yurchenko, A. Blissett, U. Asari, M. Vasilios, C. Hill, and J. Tennyson, *Mon. Not. R. Astron. Soc.* **456**, 4524–4532 (2016), ExoMol molecular line lists – XIII. The spectrum of CaO,  `<http://dx.doi.org/10.1093/mnras/stv2858>`_
 
-.. [16McYu] `L. K. McKemmish, S. N. Yurchenko, and J. Tennyson, *Mol. Phys.* **114**, 3232–3248 (2016), Ab initio calculations to support accurate modelling of the rovibronic spectroscopy calculations of vanadium monoxide (VO) <http://dx.doi.org/10.1088/0953-4075/49/4/044002>`_
+.. [16McYu] L. K. McKemmish, S. N. Yurchenko, and J. Tennyson, *Mol. Phys.* **114**, 3232–3248 (2016), Ab initio calculations to support accurate modelling of the rovibronic spectroscopy calculations of vanadium monoxide (VO) `<http://dx.doi.org/10.1088/0953-4075/49/4/044002>`_
 
-.. [15LoYu] `L. Lodi, S. N. Yurchenko, and J. Tennyson, *Mol. Phys.* **113**, 1998–2011 (2015), The calculated rovibronic spectrum of scandium hydride, ScH <http://dx.doi.org/10.1080/00268976.2015.1029996>`_
+.. [15LoYu] L. Lodi, S. N. Yurchenko, and J. Tennyson, *Mol. Phys.* **113**, 1998–2011 (2015), The calculated rovibronic spectrum of scandium hydride, ScH `<http://dx.doi.org/10.1080/00268976.2015.1029996>`_
 
-.. [14PaHi] `A. T. Patrascu, C. Hill, J. Tennyson, and S. N. Yurchenko, *J. Chem. Phys.* **141**, 144312 (2014) Study of the electronic and rovibronic structure of the X :sup:`2` Σ:sup:`+` , A :sup:`2` Π, and B :sup:`2` Σ:sup:`+`  states of AlO <https://doi.org/10.1063/1.4897589>`_ 
+.. [14PaHi] A. T. Patrascu, C. Hill, J. Tennyson, and S. N. Yurchenko, *J. Chem. Phys.* **141**, 144312 (2014) Study of the electronic and rovibronic structure of the X :sup:`2` Σ:sup:`+` , A :sup:`2` Π, and B :sup:`2` Σ:sup:`+`  states of AlO `<https://doi.org/10.1063/1.4897589>`_ 
+
