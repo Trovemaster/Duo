@@ -3,19 +3,10 @@
 Omega representation
 ====================
 
-Duo traditionally works in a Hund’s case (a) electronic basis,
-:math:`|\mathrm{state},\Lambda,S,\Sigma\rangle`, i.e. the ``Lambda–S`` (or ``vib``) contraction.
-Duo can now also work in an :math:`\Omega`-based contracted representation, where the electronic + spin–orbit
-problem is diagonalised at each bond length and the resulting :math:`\Omega`-labelled channels are used for
-vibrational contraction and for the final rovibronic basis.
+Duo traditionally works in a Hund’s case (a) electronic basis, :math:`|\mathrm{state},\Lambda,S,\Sigma\rangle`, i.e. the ``Lambda–S`` (or ``vib``) contraction. Duo can now also work in an :math:`\Omega`-based contracted representation, where the electronic + spin–orbit problem is diagonalised at each bond length and the resulting :math:`\Omega`-labelled channels are used for vibrational contraction and for the final rovibronic basis.
 
-The :math:`\Lambda S \rightarrow \Omega` transformation (often called the *state-interacting* method) has been widely
-used to simplify the treatment of spin–orbit coupling in rovibronic calculations; see, e.g.,
-:cite:`21BeJoLi.SO,19PaEvAn.ai,11YuBixx.SO`. The key idea is to diagonalise the electronic Hamiltonian together with
-the Breit–Pauli spin–orbit Hamiltonian to obtain effective potentials for each spin–orbit component. While this can
-make the problem look “single-state-like”, strict equivalence with the original :math:`\Lambda S` formulation requires
-transforming the *full* nuclear-motion Hamiltonian, which introduces spin–orbit-induced non-adiabatic couplings (NACs);
-see, e.g., :cite:`10TaKlKr.KCs,24BrDrYu.diabat,25Brady.diabat`.
+The :math:`\Lambda S \rightarrow \Omega` transformation (often called the *state-interacting* method) has been widely used to simplify the treatment of spin–orbit coupling in rovibronic calculations; see, e.g., []_:`21BeJoLi.SO,19PaEvAn.ai,11YuBixx.SO`. The key idea is to diagonalise the electronic Hamiltonian together with the Breit–Pauli spin–orbit Hamiltonian to obtain effective potentials for each spin–orbit component. While this can make the problem look “single-state-like”, strict equivalence with the original :math:`\Lambda S` formulation requires
+transforming the *full* nuclear-motion Hamiltonian, which introduces spin–orbit-induced non-adiabatic couplings (NACs); see, e.g., :cite:`10TaKlKr.KCs,24BrDrYu.diabat,25Brady.diabat`.
 
 Transforming to the :math:`\Omega` representation
 -------------------------------------------------
@@ -37,6 +28,7 @@ The diatom in the :math:`\Lambda S` and :math:`\Omega` representations
 
 In a Hund’s case (a) basis, the coupled rovibronic Schrödinger equation can be written as
 (see also the standard Duo theory in the manual):
+
 .. math::
    :label: eq-diatomic-schrodinger-lambdas
 
@@ -55,6 +47,7 @@ State-interacting diagonalisation
 
 The state-interacting :math:`\Omega` transformation is defined by diagonalising :math:`\mathbf{V}+\mathbf{H}_{\rm SO}`
 at each :math:`r`:
+
 .. math::
    :label: eq-omega-diagonalisation
 
@@ -63,6 +56,7 @@ at each :math:`r`:
 
 where :math:`\mathbf{U}(r)` is an :math:`r`-dependent unitary matrix and :math:`\mathbf{V}_\Omega(r)` is diagonal.
 This defines the transformation of the electronic basis
+
 .. math::
    :label: eq-omega-basis
 
@@ -77,6 +71,7 @@ Spin–orbit-induced NACs from the vibrational kinetic energy
 
 Upon transforming the radial kinetic-energy operator, one obtains additional terms of the standard adiabatic/NAC form
 (see diabatisation theory, e.g. :cite:`00Baer.diabat,00BaAlxx.diabat,24BrDrYu.diabat,25Brady.diabat`):
+
 .. math::
    :label: eq-so-nacs
 
@@ -89,6 +84,7 @@ Upon transforming the radial kinetic-energy operator, one obtains additional ter
    \right],
 
 where
+
 .. math::
 
    \mathbf{W}(r) = \mathbf{U}(r)\,\frac{d\mathbf{U}^\dagger(r)}{dr}

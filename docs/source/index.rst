@@ -21,6 +21,7 @@ Welcome to Duo's documentation!
    omega
    keywords
    hyperfine
+   references
    license
 
 News

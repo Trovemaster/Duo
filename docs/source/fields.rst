@@ -781,7 +781,7 @@ For that reason, the \Lambda-representation is the native representation for Duo
 tensorial components, for example ``dipole``, ``spin-orbit``, ``L+``/``L-`` (and related operators), etc.
 
 Cartesian input
----------------
+===============
 
 Duo can also accept input in the **Cartesian representation**, which is often the most direct output of quantum-chemistry
 calculations. In this case Duo assumes that both the electronic wavefunctions *and* the property operator are given in the
@@ -792,7 +792,7 @@ Cartesian input Duo typically requires **only the x component**.
 In this case, use the ``*-x`` object names, e.g. ``dipole-x``, ``spin-orbit-x`` and ``Lx``.
 
 Transformation to the Lambda-representation
--------------------------------------------
+===========================================
 
 For Cartesian input, Duo transforms the supplied matrix elements to the \Lambda-representation on the fly using a
 :math:`2\times 2` unitary transformation,
@@ -832,8 +832,7 @@ Definition of the function or a grid
 
 * ``values``
 
-This keyword starts the subsection containing the numerical values defining the object. For one of the ``type``s corresponding to an analytic function,
-the input between ``values`` and ``end`` contains the values of the parameters of the function. The input consists in two columns separated by spaces containing (i) a string label identifying the parameter and (ii) the value of the parameter (a real number).
+This keyword starts the subsection containing the numerical values defining the object. For one of the ``type``s corresponding to an analytic function, the input between ``values`` and ``end`` contains the values of the parameters of the function. The input consists in two columns separated by spaces containing (i) a string label identifying the parameter and (ii) the value of the parameter (a real number).
 
 In case of ``fitting`` (see :ref:`fitting`) a third column should also be provided; the parameters which are permitted to vary during fitting
 must have in the third column the string ``fit`` or, alternatively, the letter ``f`` or the number 1. Any other string or number (for example, the string ``nofit`` or the number 0) implies the parameter should be kept at its initial value. In the case of fitting, the keyword ``link``
