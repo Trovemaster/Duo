@@ -22,7 +22,7 @@ Duo-related publications
 .. [26BrYu] R. P. Brady, S. N. Yurchenko, JCTC (in press), *arXiv*, arXiv:2603.06306 (2026), Spin–orbit induced non-adiabatic dynamics: an exact $\Omega$-representation.
 
 
-.. [25SoBrYu] A. Sokolov, R.P. Brady, S.N. Yurchenko, J. Tennyson, *Mon. Not. R. Astron. Soc.* **543**, 1435-1446 (2025), ExoMol photodissociation cross-sections: IV. Photodissociation rates of the CH radical.
+.. [25SoBrYu] A. Sokolov, R.P. Brady, S.N. Yurchenko, J. Tennyson, *Mon. Not. R. Astron. Soc.* **543**, 1435-1446 (2025), ExoMol photodissociation cross-sections: IV. Photodissociation rates of the CH radical. `<http://dx.doi.org/10.1093/mnras/staf1563>`_
 
 .. [25BrYuEq] R.P. Brady, S.N. Yurchenko, *J. Comput. Chem.* **46**, e70181 (2025), Exact rovibronic equivalence of the adiabatic and diabatic representations of N-coupled state diatomic systems.
 
@@ -104,4 +104,4 @@ Duo-related publications
 
 .. [17PrJaLo] L. Prajapat, P. Jagoda, L. Lodi, M.N. Gorman, S.N. Yurchenko, J. Tennyson, *Mon. Not. R. Astron. Soc.* **472**, 3648-3658 (2017), ExoMol molecular line lists - XXIII. Spectra of PO and PS.
 
-.. [17WoYuBe] A. Wong, S.N. Yurchenko, P. Bernath, H.S.P. MÃ¼ller, S. McConkey, J. Tennyson, *Mon. Not. R. Astron. Soc.* **470**, 882-897 (2017), ExoMol line list - XXI. Nitric Oxide (NO). 
+.. [17WoYuBe] A. Wong, S.N. Yurchenko, P. Bernath, H.S.P. Müller, S. McConkey, J. Tennyson, *Mon. Not. R. Astron. Soc.* **470**, 882-897 (2017), ExoMol line list - XXI. Nitric Oxide (NO). 
