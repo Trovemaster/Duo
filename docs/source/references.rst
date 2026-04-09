@@ -32,6 +32,6 @@ References
 
 The list below is generated automatically from ``duo.bib``.
 
-.. bibliography:: references.bib
+.. bibliography:: duo.bib
    :all:
    :style: unsrt
