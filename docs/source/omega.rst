@@ -19,7 +19,7 @@ A general workflow for building the :math:`\Omega` representation is:
 4. To achieve exact equivalence with the original :math:`\Lambda S` representation, apply the same *r-dependent* unitary transformation to the remaining parts of the rovibronic Hamiltonian. In particular, transforming radial  derivative operators generates NAC terms that must be included for accurate energies, wavefunctions, and intensities.
 
 The diatom in the :math:`\Lambda S` and :math:`\Omega` representations
----------------------------------------------------------------------
+----------------------------------------------------------------------
 
 In a Hund’s case (a) basis, the coupled rovibronic Schrödinger equation can be written as
 (see also the standard Duo theory in the manual):
@@ -190,5 +190,5 @@ Keywords
 References
 ----------
 
-.. bibliography:: references.bib exomol.bib
+.. bibliography:: 
 

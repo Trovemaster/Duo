@@ -368,6 +368,8 @@ Example:
       1.81260          0.0785487308
       1.81280          0.0790196317
      end
+     
+
 ::
 
      diabatic D D
@@ -493,7 +495,7 @@ where :math:`\alpha= x,y,z`. If ``Magnetic`` fields are not provided for ``magdi
 
 
 ``MAGNETROT``
-^^^^^^^^^^^^
+^^^^^^^^^^^^^
 
 Aliases: ``MAGNETIC-ROT``,``MAGNET-ROT``. Specifies the rotational magnetic dipoles used in magnetic dipole intensity calculations. This contribution corresponds to the rotational g-factor, which is the same as the ``BOB-ROT`` component. If ``MagnetRot`` fields are not provided for ``magdipole`` intensity calculations, the corresponding fields ``Bob-Rot`` are used instead.
 
@@ -768,10 +770,10 @@ and the spherical (tensorial) components of the body-fixed dipole moment are
 
 where :math:`\hat{L}_x`, :math:`\hat{L}_y`, :math:`\hat{\mu}_x`, and :math:`\hat{\mu}_y` are Cartesian components.
 
-Most quantum-chemistry programs (for example **Molpro** :cite:`MOLPRO2024`) use real electronic wavefunctions and compute
+Most quantum-chemistry programs (for example **Molpro** :cite:`MOLPRO2020`) use real electronic wavefunctions and compute
 matrix elements of multi-component properties (spin–orbit, electronic angular momentum, dipole moments, etc.) in a
 Cartesian representation. In this representation, electronic functions are ultimately expressed in terms of real
-Cartesian components (e.g. :cite:`Marian2001`) :math:`|x\rangle`, :math:`|y\rangle`, :math:`|z\rangle`,
+Cartesian components (e.g. :cite:`01Marian`) :math:`|x\rangle`, :math:`|y\rangle`, :math:`|z\rangle`,
 :math:`|xy\rangle`, etc.
 
 It can be shown that, with appropriate phase choices for the complex Hund’s-case-(a) functions

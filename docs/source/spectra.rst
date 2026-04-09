@@ -356,12 +356,11 @@ The default is on, for switching of:
 
 Example:
 ::
-
+   
    freq-window 0.001, 25000.0
+    
 
-
-* ``gns``  nuclear statistical weight (deprecated). **It is now automatically estimated using nuclear spin values
-from the internal atomic and nuclear database.**
+* ``gns``  nuclear statistical weight (deprecated). **It is now automatically estimated using nuclear spin values from the internal atomic and nuclear database.**
 
 ``gns`` specifies the nuclear statistical weight, which for heteronuclear diatomics
 is given by :math:`g_{ns} = (2 I_1+1)(2I_2+1)`, where :math:`I_1` and :math:`I_2` are the spins of the two nuclei.
@@ -531,7 +530,7 @@ Thresholds
 
 * ``states-only``, ``states_only``: to switch off the transition intensity when building the line list. When this option is given in
 the INTENSITY block, only a .states file is generated.
-
+ 
 
 
 

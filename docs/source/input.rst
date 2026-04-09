@@ -339,11 +339,11 @@ form the vibrational part of the basis set.
 The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``) 
 by the keywords ``vib`` (``lambda-sigma``) or ``omega``. 
 
-
-    VibrationalBasis             options for the vibrational uncoupled problem
-      vmax  10                   compute     vmax vibrational states
-    end                          end of vibrational specifications
-
+    
+    VibrationalBasis             (options for the vibrational uncoupled problem)
+      vmax  10                   (compute     vmax vibrational states)
+    end                          (end of vibrational specifications)
+    
 
 See :ref:`Contractions`. 
 
@@ -696,7 +696,6 @@ See [The ab initio ground-state potential energy function of beryllium monohydri
 
 The ground electronic state of BeH is a doublet (2Sigma+), see [https://www.ucl.ac.uk/~ucapsy0/diatomics.html](https://www.ucl.ac.uk/~ucapsy0/diatomics.html).
 
-.. _energy_BeH:
 
 Example: BeH in its ground electronic state 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
