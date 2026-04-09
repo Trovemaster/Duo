@@ -11,7 +11,7 @@
 
 * :math:`\Omega` representation: :cite:p:`26BrYu`.
 
-* Hyperfine solver in Duo: :cite:p:`22QuYuMe`.
+* Hyperfine solver in Duo: :cite:p:`22QuYuTeb`.
 
 * Electric quadrupole calculations: :cite:p:`21SoYuYa,24SoYuKi`.
 

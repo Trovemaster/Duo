@@ -6,7 +6,7 @@ Omega representation
 Duo traditionally works in a Hund’s case (a) electronic basis, :math:`|\mathrm{state},\Lambda,S,\Sigma\rangle`, i.e. the ``Lambda–S`` (or ``vib``) contraction. Duo can now also work in an :math:`\Omega`-based contracted representation, where the electronic + spin–orbit problem is diagonalised at each bond length and the resulting :math:`\Omega`-labelled channels are used for vibrational contraction and for the final rovibronic basis.
 
 The :math:`\Lambda S \rightarrow \Omega` transformation (often called the *state-interacting* method) has been widely used to simplify the treatment of spin–orbit coupling in rovibronic calculations; see, e.g., [21BeJoLi]_, [19PaEvAn]_, [11YuBi]_. The key idea is to diagonalise the electronic Hamiltonian together with the Breit–Pauli spin–orbit Hamiltonian to obtain effective potentials for each spin–orbit component. While this can make the problem look “single-state-like”, strict equivalence with the original :math:`\Lambda S` formulation requires
-transforming the *full* nuclear-motion Hamiltonian, which introduces spin–orbit-induced non-adiabatic couplings (NACs); see, e.g., [10TaKlKr]_, [24BrDrYu]_, [25Brady]_.
+transforming the *full* nuclear-motion Hamiltonian, which introduces spin–orbit-induced non-adiabatic couplings (NACs); see, e.g., [10TaKlKr]_, :cite:p:`24BrDrYu`, [25Brady]_.
 
 Transforming to the :math:`\Omega` representation
 -------------------------------------------------
