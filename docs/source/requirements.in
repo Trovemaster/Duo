@@ -1,0 +1,3 @@
+sphinxcontrib-bibtex>=2.6
+pybtex>=0.24
+pybtex-docutils>=1.0
