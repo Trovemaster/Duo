@@ -540,7 +540,7 @@ the INTENSITY block, only a .states file is generated.
 .. _ExoCross-tutorial: https://github.com/Trovemaster/exocross/wiki/Configuring-the-ExoCross-session
 
 
-.. bibliography:: references.bib
+.. bibliography:: exomol.bib
 
 
 

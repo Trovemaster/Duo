@@ -183,7 +183,7 @@ html_favicon = 'favicon.ico'
 
 # List your BibTeX files here (relative to this directory).
 # You can keep using your existing BibTeX keys (e.g. Duo, 24BrDrYu.diabat).
-bibtex_bibfiles = ['references.bib']
+bibtex_bibfiles = ['references.bib','exomol.bib']
 
 # Numeric style similar to LaTeX 'unsrt' (order of first citation).
 bibtex_default_style = 'unsrt'

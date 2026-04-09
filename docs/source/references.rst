@@ -22,6 +22,6 @@
 References
 ==========
 
-.. bibliography:: references.bib
+.. bibliography:: exomol.bib
    :all:
    :style: unsrt
