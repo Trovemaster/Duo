@@ -1,14 +1,6 @@
 ﻿How to cite Duo
 ***************
 
-This manual uses BibTeX-based citations via the Sphinx extension
-``sphinxcontrib-bibtex``.
-
-Use the ``:cite:p:`` role for parenthetical citations and ``:cite:t:`` for
-textual citations.
-
-Examples
-========
 
 * Main program reference: :cite:p:`Duo`.
 
@@ -28,7 +20,7 @@ Examples
 * Lande g-factors: :cite:p:`16SeYuTe`.
 
 References
-**********
+==========
 
 .. bibliography:: references.bib
    :all:
