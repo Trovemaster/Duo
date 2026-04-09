@@ -190,5 +190,5 @@ Keywords
 References
 ----------
 
-.. bibliography:: exomol.bib
+.. bibliography:: references.bib,exomol.bib
 
