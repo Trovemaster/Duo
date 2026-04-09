@@ -3,6 +3,7 @@
 Treating unbound states
 =======================
 
+
 Duo is primarily designed for bound-state rovibronic problems, using an effective boundary condition that wavefunctions vanish at the borders of the radial grid (:math:`r_{\rm min}` and :math:`r_{\rm max}`). In practice, however, many diatomic models include electronic states with dissociation limits inside the energy range of interest, or with continua above dissociation. In such cases Duo may produce solutions that are formally “eigenstates” on the finite grid but correspond to continuum-like (unbound) behaviour. These states can contaminate spectra and line lists if not treated carefully.
 
 This section describes two practical criteria implemented in Duo to identify (un)bound character and how to use them to include or exclude states in intensity/line-list calculations. It also explains how to separate bound–continuum and continuum–bound contributions in intensity calculations.
@@ -65,7 +66,7 @@ The ``.states`` file can include the bound/unbound label (``b``/``u``) and the v
    5  9977.930743      4     0.5 + e X2Pi         4  1    -0.5     0.5 b   1.314642
    6 25367.675041      4     0.5 + e B2Sigma-     0  0     0.5     0.5 b   1.229628
 
-Excluding unbound states (bound–bound spectra)
+Excluding unbound states (bound-bound spectra)
 ----------------------------------------------
 
 Once unbound states are identified, they can be excluded from intensity or line-list calculations by adding the keyword ``bound`` to the ``intensity`` section. This instructs Duo to compute **bound–bound** transitions only.
@@ -127,8 +128,8 @@ Duo can include transitions involving continuum-like states using the keyword ``
 
 By default, a single keyword ``unbound`` enables **both** of the following classes of transitions:
 
-* **bound → unbound** (unbound upper states), sometimes referred to as *bound–continuum*;
-* **unbound → bound** (unbound lower states), sometimes referred to as *continuum–bound*.
+* **bound - unbound** (unbound upper states), sometimes referred to as *bound–continuum*;
+* **unbound - bound** (unbound lower states), sometimes referred to as *continuum–bound*.
 
 To process these two contributions independently, Duo accepts an optional second selector after ``unbound``:
 
@@ -140,7 +141,7 @@ If the selector is omitted, ``unbound`` is equivalent to requesting both ``upper
 Examples
 ^^^^^^^^
 
-Bound → unbound (unbound *upper* states only):
+Bound - unbound (unbound *upper* states only):
 ::
 
   intensity
@@ -149,7 +150,7 @@ Bound → unbound (unbound *upper* states only):
     ...
   end
 
-Unbound → bound (unbound *lower* states only):
+Unbound - bound (unbound *lower* states only):
 ::
 
   intensity
@@ -252,9 +253,9 @@ Keywords
    unbound
       Used inside the ``intensity`` block to include transitions involving unbound states.
 
-      * ``unbound`` (without a selector) enables both classes simultaneously: bound→unbound and unbound→bound.
-      * ``unbound upper`` keeps only transitions whose **upper** level is classified as unbound (bound→unbound).
-      * ``unbound lower`` keeps only transitions whose **lower** level is classified as unbound (unbound→bound).
+      * ``unbound`` (without a selector) enables both classes simultaneously: bound-unbound and unbound-bound.
+      * ``unbound upper`` keeps only transitions whose **upper** level is classified as unbound (bound-unbound).
+      * ``unbound lower`` keeps only transitions whose **lower** level is classified as unbound (unbound-bound).
 
       Examples:
       ::
@@ -275,11 +276,11 @@ Keywords
 
    upper
       Selector used only as a second keyword after :term:`unbound` in the ``intensity`` block.
-      ``unbound upper`` keeps transitions with **unbound upper** levels (bound→unbound).
+      ``unbound upper`` keeps transitions with **unbound upper** levels (bound-unbound).
 
    lower
       Selector used only as a second keyword after :term:`unbound` in the ``intensity`` block.
-      ``unbound lower`` keeps transitions with **unbound lower** levels (unbound→bound).
+      ``unbound lower`` keeps transitions with **unbound lower** levels (unbound-bound).
 
    thresh_bound
       Threshold :math:`\epsilon_{\rm thr}` used in the boundary-density criterion. Duo evaluates

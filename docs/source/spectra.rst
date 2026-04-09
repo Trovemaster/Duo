@@ -60,7 +60,7 @@ Example:
 
 
 ** ``bound`` used in INTENSITY calculations to produce bound-only spectra or linelists. For ``bound``, Duo
-identifies bound wavefunctions corresponding to the upper state and uses them to compute bound transition intensities. See also :ref:`unbound states`.
+identifies bound wavefunctions corresponding to the upper state and uses them to compute bound transition intensities. See also :ref:`unbound-states`.
 ::
 
   intensity
@@ -77,7 +77,7 @@ identifies bound wavefunctions corresponding to the upper state and uses them to
 
 
 ** ``unbound`` (opposite of ``bound``) used in INTENSITY calculations to produce unbound-only spectra or linelists. For ``unbound``, Duo
-identifies unbound wavefunctions corresponding to the upper state and uses them to compute unbound transition intensities. See also :ref:`unbound states`.
+identifies unbound wavefunctions corresponding to the upper state and uses them to compute unbound transition intensities. See also :ref:`unbound-states`.
 
 
 
