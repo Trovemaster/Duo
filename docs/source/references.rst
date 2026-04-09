@@ -30,8 +30,6 @@ Examples
 References
 **********
 
-The list below is generated automatically from ``duo.bib``.
-
-.. bibliography:: duo.bib
+.. bibliography:: references.bib
    :all:
    :style: unsrt
