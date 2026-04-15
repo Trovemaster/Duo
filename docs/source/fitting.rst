@@ -3,22 +3,16 @@
 Duo fitting
 ===========
 
-Duo can refine (fit) potential energy curves (PECs) and coupling curves by
-least-squares fitting to experimental term values (energies) or wavenumbers
+Duo can refine (fit) potential energy curves (PECs) and coupling curves by least-squares fitting to experimental term values (energies) or wavenumbers
 (line positions).
 
-Duo uses a Gauss–Newton least-squares procedure with Marquardt damping.
-Optionally, this can be combined with a simple line search (``linear_search``).
-The linear least-squares problem is solved using either the LAPACK routine
-``DGELSS`` or Duo’s internal solver ``LINUR``, controlled by ``fit_type``
+Duo uses a Gauss–Newton least-squares procedure with Marquardt damping. Optionally, this can be combined with a simple line search (``linear_search``).
+The linear least-squares problem is solved using either the LAPACK routine ``DGELSS`` or Duo’s internal solver ``LINUR``, controlled by ``fit_type``
 (aliases: ``fit_type``, ``fit-type``, ``FIT_TYPE``).
 
-Fitting is the most delicate part of a Duo workflow. While forward calculations
-(energies and spectra for fixed PECs/couplings/dipoles) are usually
-straightforward—provided the phase conventions for coupling terms are
-consistent—fitting often requires careful data selection and some trial and
-error. It is also an area where further development is expected in future
-versions.
+Fitting is the most delicate part of a Duo workflow. While forward calculations (energies and spectra for fixed PECs/couplings/dipoles) are usually
+straightforward—provided the phase conventions for coupling terms are consistent—fitting often requires careful data selection and some trial and
+error. It is also an area where further development is expected in future versions.
 
 Example
 -------
@@ -77,16 +71,13 @@ then the same labels should be used in the ``energies`` / ``frequencies`` tables
   end
 
 .. note::
-   If you use the ``states`` option to restrict the electronic states, it is
-   recommended to keep the lowest (ground) PEC included, even if it is not used
-   directly in the fit. Otherwise Duo may not be able to determine a consistent
-   zero-point energy (ZPE) shift, leading to very large obs.–calc residuals.
+   If you use the ``states`` option to restrict the electronic states, it is  recommended to keep the lowest (ground) PEC included, even if it is not used
+   directly in the fit. Otherwise Duo may not be able to determine a consistent  zero-point energy (ZPE) shift, leading to very large obs.–calc residuals.
 
 Fitting ranges (parameter bounds)
 ---------------------------------
 
-Bounds on fitted parameters can be specified using the keyword ``range`` on the
-same line as the parameter:
+Bounds on fitted parameters can be specified using the keyword ``range`` on the same line as the parameter:
 ::
 
   poten Ap
@@ -105,8 +96,7 @@ same line as the parameter:
       B3     0.000000000000000000
     end
 
-The keywords ``fit`` and ``range`` are complementary; their order on the line is
-not important as long as they appear after the parameter value.
+The keywords ``fit`` and ``range`` are complementary; their order on the line is not important as long as they appear after the parameter value.
 
 Conceptually, the bound enforces
 :math:`f_{\rm min} \le f_i \le f_{\rm max}` at each iteration:
@@ -486,12 +476,12 @@ weights in the ``values`` table:
       1.600000   7101.7478  0.9
       1.650000   3562.3190  1.0
 
-Alternatively, weights can be generated via ``weighting`` using the predefined
-function ``PS1997`` (Partridge & Schwenke, 1997):
+Alternatively, weights can be generated via ``weighting`` using the predefined function ``PS1997`` (Partridge & Schwenke, 1997):
+
 .. math::
-
+  
   w(r) = \frac{\tanh\!\left(-\beta\left[(V(r)-V_{\rm min})-V_{\rm top}\right] + 1.000020000200002\right)}{2.000020000200002}
-
+  
 where :math:`\beta` and :math:`V_{\rm top}` are parameters and :math:`V(r)-V_{\rm min}`
 is the corresponding potential shifted to its minimum.
 
@@ -531,8 +521,7 @@ For example:
       ...
     end
 
-For a non-diagonal coupling between states :math:`i` and :math:`j`, Duo uses the
-potential of the first index (:math:`i`) to define :math:`V(r)-V_{\rm min}`.
+For a non-diagonal coupling between states :math:`i` and :math:`j`, Duo uses the potential of the first index (:math:`i`) to define :math:`V(r)-V_{\rm min}`.
 
 Example: refinement of the BeH PEC
 ----------------------------------
