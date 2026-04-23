@@ -11,7 +11,7 @@ The linear least-squares problem is solved using either the LAPACK routine ``DGE
 (aliases: ``fit_type``, ``fit-type``, ``FIT_TYPE``).
 
 Fitting is the most delicate part of a Duo workflow. While forward calculations (energies and spectra for fixed PECs/couplings/dipoles) are usually
-straightforward—provided the phase conventions for coupling terms are consistent—fitting often requires careful data selection and some trial and
+straightforward-provided the phase conventions for coupling terms are consistent-fitting often requires careful data selection and some trial and
 error. It is also an area where further development is expected in future versions.
 
 Example
@@ -289,20 +289,20 @@ Keywords
 
       Column meanings:
 
-      1. :math:`J` — total angular momentum quantum number.
-      2. parity — either total parity :math:`\tau=\pm` or :math:`e/f` parity.
-      3. :math:`N` — running number counting levels in ascending order of energy
+      1. :math:`J` - total angular momentum quantum number.
+      2. parity - either total parity :math:`\tau=\pm` or :math:`e/f` parity.
+      3. :math:`N` - running number counting levels in ascending order of energy
          within a :math:`(J,\tau)` symmetry block.
-      4. :math:`\tilde{E}` — term value (cm\ :sup:`-1`).
-      5. state — electronic state index/label as defined in ``potential``.
-      6. :math:`v` — vibrational quantum number.
-      7. :math:`\Lambda` — projection of electronic orbital angular momentum
+      4. :math:`\tilde{E}` - term value (cm\ :sup:`-1`).
+      5. state - electronic state index/label as defined in ``potential``.
+      6. :math:`v` - vibrational quantum number.
+      7. :math:`\Lambda` - projection of electronic orbital angular momentum
          (integer; matched by absolute value).
-      8. :math:`\Sigma` — projection of electronic spin (integer or half-integer;
+      8. :math:`\Sigma` - projection of electronic spin (integer or half-integer;
          matched by absolute value).
-      9. :math:`\Omega` — projection of total electronic angular momentum (integer
+      9. :math:`\Omega` - projection of total electronic angular momentum (integer
          or half-integer; matched by absolute value).
-      10. weight — typically :math:`\sigma^{-2}`, where :math:`\sigma` is the
+      10. weight - typically :math:`\sigma^{-2}`, where :math:`\sigma` is the
           experimental uncertainty.
 
    frequencies
