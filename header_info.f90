@@ -23,7 +23,7 @@ subroutine write_logo
     write(out,'(a)')
     write(out,'(a)') "Please refer to:"
     write(out,'(a)') " Sergei N. Yurchenko, Lorenzo Lodi, Jonathan Tennyson and Andrey V. Stolyarov, "
-    write(out,'(a)') " `DUO: A general program for calculating spectra of diatomic molecules',"
+    write(out,'(a)') " `Duo: A general program for calculating spectra of diatomic molecules',"
     write(out,'(a)') "  Computer Physics Communication, Volume 202, May 2016, pages 262-275"
     write(out,'(a)') "  Contacts: s.yurchenko@ucl.ac.uk; l.lodi@ucl.ac.uk; j.tennyson@ucl.ac.uk; "
     write(out,'(a)') "            avstol@phys.chem.msu.ru"
