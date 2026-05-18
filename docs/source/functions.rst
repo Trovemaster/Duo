@@ -22,11 +22,15 @@ Extended Morse Oscillator ``EMO``
 
 which has the form of a Morse potential with a exponential tail and the distance-dependent exponent coefficient
 
-:math:`\beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i`,
+.. math::
+
+\beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i,
 
 expressed as a simple power series in the reduced variable:
 
-:math:`y_p^{\rm e}(r) = \frac{r^p-r_{\rm e}^p}{r^p+r_{\rm e}^p}`
+.. math::
+
+y_p^{\rm e}(r) = \frac{r^p-r_{\rm e}^p}{r^p+r_{\rm e}^p}
 
 with :math:`p` as a parameter. This form guarantees the correct dissociation limit and allows for extra flexibility in the degree of the polynomial on the left or on the right sides of a reference position :math:`R_{\rm ref}` which we take at :math:`R_{\rm ref} = r_{\rm e}`. This is specified by the parameters :math:`N=` :math:`N_{l}` (:math:`N_{r}`) and  :math:`p=` :math:`p_{l}` (:math:`p_{r}`),
 respectively.
@@ -222,17 +226,17 @@ An example input is given below for HF molecule. The parameters are taken from `
 Hajigeorgiou and Le Roy's MLJ Morse/Lennard-Jones oscillator ``MLJ``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The MLJ potential function is described by `Hajigeorgiou and R. J. Le Roy, J. Chem. Phys. 112, 3949 (2000) <https://doi.org/10.1063/1.480946>`_ and 
+The MLJ potential function is described by `Hajigeorgiou and R. J. Le Roy, J. Chem. Phys. 112, 3949 (2000) <https://doi.org/10.1063/1.480946>`_ and
  `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_  in the radial variable :math:`r`. The form of the potential is given by:
 
 .. math::
-        V(r) = V_e + (A_{e}-D_e)  \left[1 - \left(\frac{R_e}{R}\right)^n \exp\left\{ -\phi(r) z(r, r_e)\right\}\right]^2, 
-        
+        V(r) = V_e + (A_{e}-D_e)  \left[1 - \left(\frac{R_e}{R}\right)^n \exp\left\{ -\phi(r) z(r, r_e)\right\}\right]^2,
+
 where
-      
+
 .. math::
        z(r, r_e) = 2\frac{r - r_e}{r + r_e}
-        
+
 and
 
 .. math::
@@ -243,18 +247,18 @@ with the switching function defined as:
 .. math::
         f_{\rm sw}(r) = \frac{1}{1+e^{\delta (r-r_{1/2})}}.
 
-In case the long-range coefficient (leading term) :math:`C_n` is known, :math:`\phi_{\infty}` can be estimated as 
+In case the long-range coefficient (leading term) :math:`C_n` is known, :math:`\phi_{\infty}` can be estimated as
 
 .. math::
         f_{\rm sw}(r) = \frac{1}{2} ln\left( \frac{2 D_e r_e^n}{C_n}\right).
 
-Otherwise it can be obtained through a fit. 
+Otherwise it can be obtained through a fit.
 
 
 An example input is given below for LiH molecule. The parameters are taken from `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_
 
 ::
-        
+
         poten X
         name "X1Sigma+"
         symmetry +
@@ -284,7 +288,7 @@ An example input is given below for LiH molecule. The parameters are taken from 
         phi12        -34.8674
         phi13        15.7635
         end
-        
+
 
 
 Diagonal BO-breakdown functions (rotationless) ``BOB-Z-M-SWITCH``, ``BOB_Z_M_SWITCH``
@@ -293,26 +297,26 @@ Diagonal BO-breakdown functions (rotationless) ``BOB-Z-M-SWITCH``, ``BOB_Z_M_SWI
 This form is taken from  `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_. The BOB ``diabatic`` potential is given by:
 
 .. math::
-        V(r) = \frac{m_e}{M_1} U_1(r) +  \frac{m_e}{M_2} U_2(r) , 
+        V(r) = \frac{m_e}{M_1} U_1(r) +  \frac{m_e}{M_2} U_2(r) ,
 
-where 
+where
 
 .. math::
         U_i(r) = f^{(i)}_{\rm sw}(r) \sum_{m=1} u_m^{(i)} z^m  +  u_{\infty}^{(i)} \left[1-\frac{ f^{(i)}_{\rm sw}(r) }{f^{(i)}_{\rm sw}(r_e)}\right] ,
-    
+
 .. math::
        z(r, r_e) = 2\frac{r - r_e}{r + r_e}
 
 with the switching function defined as:
-        
+
 .. math::
         f^{(i)}_{\rm sw}(r) = \frac{1}{1+e^{\delta (r-r^{(i)}_{1/2})}}.
 
 
-An example input for ``BOB-Z-M-SWITCH`` for LiH molecule is given by 
+An example input for ``BOB-Z-M-SWITCH`` for LiH molecule is given by
 
 ::
-     
+
      diabatic X X
      name "X1Sigma+"
      symmetry +
@@ -339,7 +343,7 @@ An example input for ``BOB-Z-M-SWITCH`` for LiH molecule is given by
      U4         1.39309e-5
      U5         -0.67490e-5
      end
-     
+
 
 The parameters are taken from `Coxon and Dickinson, J. Chem. Phys. 121, 9378–9388 (2004) <https://doi.org/10.1063/1.1788659>`_
 
@@ -1387,7 +1391,48 @@ Example:
 
 
 
+Coxon-type Surkus-polynomial expansion ``BobCoxon``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+(alias ``Bob-Coxon-Surkus``)
+
+.. math::
+
+    `V(r) = (1-y_q^{\textrm{eq}}) \sum_{i\ge 0} a_i [z_p^{\textrm{eq}}]^i + y_q^{\textrm{eq}} a_{\rm inf},
+
+
+where :math:`y_q^{\textrm{eq}}` and :math:`z_p^{\textrm{eq}}` are Surkus variables with :math:`r_\textrm{ref} = r_\textrm{eq}` and two different values of :math:`q` and :math:`p`:
+
+.. math::
+
+   \begin{split}
+      y_q^{\textrm{ref}} &= \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}, \\
+      z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p}, \\
+
+and :math:`a_{\rm inf}` is the asymptote of the funciton at :math:`r\to \infty`.
+
+See also Eq.() in `Coxon and Hajigeorgiou, JQSRT 151, 133 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>`_
+
+Example:
+::
+
+    BobCoxon  1 1
+    name "<a2Pi|BR|a2Pi>"
+    spin   0.5 0.5
+    lambda 1 1
+    type  BOBLEROY
+    factor    1.0   (0, 1 or i)
+    values
+     re         0.17700000000000E+01
+     rref      -0.10000000000000E+01
+     p          6
+     q          2
+     a0        -0.63452015232176E+02
+     a1        -0.20566444179565E+01
+     a2        -0.13784613913938E+02
+     a3         0.00000000000000E+00
+     ainf      -0.56030500000000E+02
+    end
 
 
 

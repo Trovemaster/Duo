@@ -125,6 +125,10 @@ module functions
       !
       fanalytic_field => poten_BOBLeRoy
       !
+    case("BOBCOXON","BOB-COXON-SURKUS") ! "BOB expansion of Coxon with two Surkus"
+      !
+      fanalytic_field => poten_BOBCoxon
+      !
     case("BOBNA") ! "BOB-NA expansion"
       !
       fanalytic_field => poten_BOBna
@@ -1431,6 +1435,35 @@ module functions
     f = ( (1.0_rk-z)*t+z*tinf )*f_damp+t_0*(1.0_rk-f_damp)
     !
   end function poten_BOBLeRoy_damp
+  !
+  function poten_BOBCoxon(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,rref,z,t,tinf,y
+    integer(ik)            :: k,N,p,q
+    !
+    r0 = parameters(1)
+    !
+    rref = parameters(2)
+    !
+    p = nint(parameters(3))
+    q = nint(parameters(4))
+    N = size(parameters)-4-2
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    y = (r**q-r0**q)/(r**q+r0**q)
+    !
+    t = 0
+    do k=0,N
+     t = t + parameters(k+6)*z**k
+    enddo
+    !
+    tinf = parameters(N+6)
+    !
+    f = (1.0_rk-y)*t+y*tinf
+    !
+  end function poten_BOBCoxon
   !
   function poten_BOBna(r,parameters) result(f)
     !
