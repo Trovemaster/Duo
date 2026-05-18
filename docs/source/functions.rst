@@ -1407,11 +1407,12 @@ where :math:`y_q^{\textrm{eq}}` and :math:`z_p^{\textrm{eq}}` are Surkus variabl
 
    \begin{split}
       y_q^{\textrm{ref}} &= \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}, \\
-      z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p}, \\
+      z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p} 
+   \end{split}
 
 and :math:`a_{\rm inf}` is the asymptote of the funciton at :math:`r\to \infty`.
 
-See also Eq.() in `Coxon and Hajigeorgiou, JQSRT 151, 133 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>`_
+See also Eq.(26) in `Coxon and Hajigeorgiou, JQSRT 151, 133 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>`_
 
 Example:
 ::
