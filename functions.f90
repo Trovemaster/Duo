@@ -1456,7 +1456,7 @@ module functions
     !
     t = 0
     do k=0,N
-     t = t + parameters(k+6)*z**k
+     t = t + parameters(k+5)*z**k
     enddo
     !
     tinf = parameters(N+6)
