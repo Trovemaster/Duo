@@ -719,7 +719,7 @@ Example
 
 A hyperbolic expansion used to represent repulsive potential functions:
 
-:math:`V(r) = \sum_{i=0}^N a_i \frac{1}{r^i}.`
+:math:`V(r) = \sum_{i=1}^N a_i \frac{1}{r^i}.`
 
 Example:
 ::
@@ -747,9 +747,42 @@ Example:
       end
 
 
+``REPULSIVE_EXP``
+^^^^^^^^^^^^^^^^^
+
+A repulsive curve constructed from an van der Waals type and a combination of an inverse power :math:`r^{-\gamma}` and a decaying exponential :math:`e^{-\delta/r}`  as given by (see `Elander et al 1979 Phys. Scr. 20 631 <https://doi.org/10.1088/0031-8949/20/5-6/015>`_)
+
+.. math::
+   
+  `V(r) = V_0 + \frac{A e^{-\delta/r}}{r^\gamma} +  \sum_{i=1}^N b_i \frac{1}{r^i} `
+
+Example:
+::
 
 
+      poten 2
+      name "b3Sigmau+"
+      lambda 0
+      symmetry + u
+      mult   3
+      type  REPULSIVE_EXP
+      values
+       V0           2.93740000000000E+04
+       A            2.21181499541738e+05  
+       DELTA        3.03481499953155E-01
+       GAMMA        5.50000000000000E+00
+       B1           0.00000000000000E+00
+       B2           0.00000000000000E+00
+       B3           0.00000000000000E+00
+       B4           0.00000000000000E+00
+       B5           0.00000000000000E+00
+       B6          -6.95400000000000E+04
+       B7           0.00000000000000E+00
+       B8           0.00000000000000E+00
+      end
 
+
+Here, an arbitrary number of lines containing :math:`b_i` entries (:math:`i=1,\ldots,N`) can be provided. 
 
 
 ``POLYNOM_DECAY_24``
@@ -1407,7 +1440,7 @@ where :math:`y_q^{\textrm{eq}}` and :math:`z_p^{\textrm{eq}}` are Surkus variabl
 
    \begin{split}
       y_q^{\textrm{ref}} &= \frac{r^q - r_\textrm{ref}^q}{r^q + r_\textrm{ref}^q}, \\
-      z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p} 
+      z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p}
    \end{split}
 
 and :math:`a_{\rm inf}` is the asymptote of the funciton at :math:`r\to \infty`.

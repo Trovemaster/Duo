@@ -253,6 +253,10 @@ module functions
       !
       fanalytic_field => poten_repulsive
       !
+    case("REPULSIVE_EXP")
+      !
+      fanalytic_field => poten_repulsive_exp
+      !
     case("LORENTZ","LORENTZIAN")
       !
       fanalytic_field => poten_lorentzian_polynom
@@ -2419,6 +2423,36 @@ module functions
     !
   end function poten_repulsive
 
+  ! Repulsive long range PEC from Eq.(41) of Elander et al 1979 Phys. Scr. 20 631 
+  function poten_repulsive_exp(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,f,uLR,VLR,A,gamma,delta
+    integer(ik)            :: k,N,n0
+    !
+    v0 = parameters(1)
+    A  = parameters(2)
+    delta = parameters(3)
+    gamma = parameters(4)
+    !
+    n = size(parameters) 
+    !
+    ! long-range part
+    !
+    VLR = A*exp(-delta/r)/r**gamma
+    !
+    n0 = 5
+    !
+    uLR = V0
+    do k=n0,N
+     uLR = uLR + parameters(k)/r**(k-n0+1)
+    enddo
+    !
+    f = uLR+VLR
+    !
+  end function poten_repulsive_exp  
+  
 
   function poten_two_coupled_EMO_repulsive(r,parameters) result(f)
     !
