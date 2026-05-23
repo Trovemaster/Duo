@@ -754,7 +754,7 @@ A repulsive curve constructed from an van der Waals type and a combination of an
 
 .. math::
    
-  `V(r) = V_0 + \frac{A e^{-\delta/r}}{r^\gamma} +  \sum_{i=1}^N b_i \frac{1}{r^i} `
+  `V(r) = V_0 + \frac{A e^{-\delta/r}}{r^\gamma} +  \sum_{i=1}^N  \frac{B_i}{r^i}`
 
 Example:
 ::
@@ -782,7 +782,7 @@ Example:
       end
 
 
-Here, an arbitrary number of lines containing :math:`b_i` entries (:math:`i=1,\ldots,N`) can be provided. 
+Here, an arbitrary number of lines containing the :math:`B_i` entries (:math:`i=1,\ldots,N`) can be provided. 
 
 
 ``POLYNOM_DECAY_24``
