@@ -257,6 +257,10 @@ module functions
       !
       fanalytic_field => poten_repulsive_exp
       !
+    case("PEC_EXP_R2")
+      !
+      fanalytic_field => poten_exp_R2
+      !
     case("LORENTZ","LORENTZIAN")
       !
       fanalytic_field => poten_lorentzian_polynom
@@ -2455,6 +2459,31 @@ module functions
     !
   end function poten_repulsive_exp  
   
+  ! PEC used for X state of O2
+  ! Bytautas eta al., J. Chem. Phys. 132, 074307 (2010)
+  ! V = sum_i a_k exp(-alpha beta^k R^2)
+  function poten_exp_R2(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,f,alpha,beta
+    integer(ik)            :: k,N,n0,i
+    !
+    v0  = parameters(1)
+    alpha = parameters(2)
+    beta = parameters(3)
+    !
+    n = size(parameters) 
+    !
+    n0 = 4
+    !
+    f = v0
+    do k=n0,N
+       i = k - n0
+     f = f + parameters(k)*exp(-alpha*beta**i*r**2)
+    enddo
+    !
+  end function poten_exp_R2  
 
 
   function poten_two_coupled_EMO_repulsive(r,parameters) result(f)
