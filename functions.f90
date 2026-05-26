@@ -2423,7 +2423,9 @@ module functions
     !
   end function poten_repulsive
 
-  ! Repulsive long range PEC from Eq.(41) of Elander et al 1979 Phys. Scr. 20 631 
+  !
+  ! Repulsive -C_n/r^n + A exp(-delta/r )/R^gamma
+  ! Elander et al 1979 Phys. Scr. 20 631
   function poten_repulsive_exp(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -2453,6 +2455,7 @@ module functions
     !
   end function poten_repulsive_exp  
   
+
 
   function poten_two_coupled_EMO_repulsive(r,parameters) result(f)
     !
