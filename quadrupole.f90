@@ -282,7 +282,7 @@ contains
     character(len=130)        :: myFmt
     character(len=12)         :: char_Jf, char_Ji, char_LF
     character(len=1)          :: letLFa, letLFb
-    character(len=2)          :: letLF, dir
+    character(len=2)          :: letLF, dir = "<-"
     integer(ik)               :: nDecimals, alloc_p
 
     ! indexes and counters
@@ -1190,8 +1190,8 @@ contains
               endif
 
               !$omp  do private(indLevelF, energyF, quantaF, istateF, ivibF, vF, spinF, sigmaF, ilambdaF, omegaF, &
-              !$omp&  dimenF, guParity, indSymF, passed, branch, nu_if, lineStr, linestr2, A_einst, boltz_fc, absorption_int, tm) &
-              !$omp&  schedule(static) reduction(+:indTrans)
+              !$omp&  dimenF, guParity, indSymF, passed, iEntry_fitting, branch, nu_if, lineStr, linestr2, A_einst, boltz_fc, & 
+              !$omp&  absorption_int, tm) schedule(static) reduction(+:indTrans)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
 

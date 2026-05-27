@@ -1896,7 +1896,7 @@ contains
         integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
         integer(ik) :: istateI,istateF,ivibI,ivibF,ilambdaI,ilambdaF,iparityI,iparityF
         real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
-        real(rk) :: jrot,jrot_,lock_factor
+        real(rk) :: jrot,jrot_,lock_factor,nu
         integer(ik) :: maxiter_as = 3, iter_th,irot,irot_
         !
         ! no need to check further if it is already false 
@@ -1929,6 +1929,8 @@ contains
           jrot = fitting%obs(ientry)%jrot
           itau = fitting%obs(ientry)%iparity+1
           !
+          nu = fitting%obs(ientry)%energy
+          !
           if (nint( jF-jrot )/=0) cycle
           if (isymF/=itau) cycle
           !
@@ -1958,7 +1960,7 @@ contains
                !
                lock_factor = real(iter_th,8)
                !
-               if ( abs( fitting%obs(ientry)%energy-( EnergyF-EnergyI )  )<= abs(lock_factor*fitting%threshold_lock).and.&
+               if ( abs( nu-( EnergyF-EnergyI )  )<= abs(lock_factor*fitting%threshold_lock).and.&
                    ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
                        abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
                       vF==fitting%obs(ientry)%quanta%v.and.&
