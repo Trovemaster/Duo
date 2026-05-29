@@ -27,8 +27,8 @@ Two output files are generated after calculation.
 The one named ``hyperfine.states`` contains nuclear hyperfine resolved states.
 The columns in this file are:
 1. counting number, 2. energy [cm-1], 3. total degeneracy,
-4. :math:`F`,  5. :math:`I`,
-6. parity, 7. :math:`J`, 8. state, 9. :math:`v`,
+4. :math:`F`, 5. symmetry label, 6. total nuclear spin :math:`I`,
+7. :math:`J`, 8. state, 9. :math:`v`,
 10. :math:`\Lambda`, 11. :math:`\Sigma`,
 12. :math:`\Omega`, respectively.
 
