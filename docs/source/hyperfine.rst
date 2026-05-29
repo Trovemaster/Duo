@@ -4,8 +4,9 @@ Nuclear hyperfine structure
 Provided nuclear hyperfine interaction curves,
 Duo calculates field-free hyperfine structure of diatomic molecules.
 Currently,
-Duo supports cases where one of the nuclei possess nuclear spin,
-e.g., 14N16O and 24MgH.
+Duo supports two cases: 
+1. only one of the nuclei possess non-zero nuclear spin, e.g., 14N16O and 24MgH.
+2. two identical nuclei with non-zero nuclear spin, e.g., H2 and D2. 
 Nuclear electric quadrupole interaction 
 and nuclear magnetic dipole interactions
 including Fermi-contact, nuclear spin-electron spin dipole-dipole,
@@ -19,7 +20,7 @@ with the following section:
         I 1
     end
 
-where the value after the keyword ``I`` indicates the nuclear spin.
+where the value after the keyword ``I`` indicates the nuclear spin of each individual nucleus.
 
 
 Two output files are generated after calculation.
@@ -74,7 +75,8 @@ The global setup of ``J``,
     jrot 0.5 - 3.5
 
 affects the maximum of ``F``.
-:math:`F_{max} = J_{max}-I`.
+:math:`F_{max} = J_{max}-I_{max}`.
+`I-{max}` is the maximum value of total nuclear spin.
 The minimum of ``F`` is always 0 or 1/2.
 
 Currently, Duo does not support refinement of hyperfine curves.
