@@ -5,14 +5,16 @@ Provided nuclear hyperfine interaction curves,
 Duo calculates field-free hyperfine structure of diatomic molecules.
 Currently,
 Duo supports two cases: 
+
 1. only one of the nuclei possess non-zero nuclear spin, e.g., 14N16O and 24MgH.
 2. two identical nuclei with non-zero nuclear spin, e.g., H2 and D2. 
+
 Nuclear electric quadrupole interaction 
 and nuclear magnetic dipole interactions
 including Fermi-contact, nuclear spin-electron spin dipole-dipole,
-nuclear spin-orbit, nuclear spin-rotation,
+nuclear spin-orbit, nuclear spin-rotation, nuclear spin-nuclear spin dipole-dipole, 
 can be involved in the calculation.
-The hyperfine calculation is turn on 
+The hyperfine calculation is turned on 
 with the following section:
 ::
     
@@ -75,8 +77,8 @@ The global setup of ``J``,
     jrot 0.5 - 3.5
 
 affects the maximum of ``F``.
-:math:`F_{max} = J_{max}-I_{max}`.
-`I-{max}` is the maximum value of total nuclear spin.
+:math:`F_\mathrm{max} = J_\mathrm{max}-I_\mathrm{max}`,
+where :math:`I_\mathrm{max}` is the maximum value of total nuclear spin.
 The minimum of ``F`` is always 0 or 1/2.
 
 Currently, Duo does not support refinement of hyperfine curves.
@@ -198,12 +200,12 @@ for a :math:`^1\Sigma` state of a nuclear spin 1/2 molecule.
 
 ``hfcc-ii``  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The nuclear - nuclear spin dipolar interaction curve is defined by an ``hfcc-ii`` section.
+The nuclear spin-nuclear spin dipole-dipole interaction curve is defined by an ``hfcc-ii`` section.
 This term is used for homonuclear molecules with two equivalent non-zero nuclear spins.
 ::
 
     hfcc-ii 1
-    name "<X1Sigma+|II|X1Sigma+>" (Nuclear spin--nuclear spin dipole--dipole)
+    name "<X1Sigma+|II|X1Sigma+>" (Nuclear spin-nuclear spin dipole-dipole)
     factor 1.0
     type polynom
     values 
