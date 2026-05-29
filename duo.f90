@@ -12,8 +12,8 @@
     use header_info, only: write_logo
     use diatom_module,only : duo_j0,verbose,job,readinput,map_fields_onto_grid,action
 
-    use F1_hyperfine, only: F1_hyperfine_structrure
-    use F1_intensity, only: F1_hyperfine_intensity
+    use F1_hyperfine, only: hyperfine_structure
+    use F1_intensity, only: hyperfine_transition
     !use F1_fitting, only: F1_refinement_init, F1_refine
 
     interface ! used for isatty
@@ -55,8 +55,8 @@
         job%basis_set = 'KEEP'
         if (action%intensity) then            
             call duo_j0
-            call F1_hyperfine_structrure(verbose)
-            call F1_hyperfine_intensity
+            call hyperfine_structure(verbose)
+            call hyperfine_transition
             stop
         else if (action%fitting) then
             write(out, '(a)') 'Fitting and hyperfine should not be used at the same time'
@@ -68,7 +68,7 @@
         !     stop
         else
             call duo_j0
-            call F1_hyperfine_structrure(verbose)
+            call hyperfine_structure(verbose)
         endif
         write(out, '(a)') '--End--'
         stop
