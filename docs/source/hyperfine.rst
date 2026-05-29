@@ -81,8 +81,8 @@ Currently, Duo does not support refinement of hyperfine curves.
 Thus, ``fitting`` and ``hyperfine`` sections cannot be activated simultaneously.
 
 
-The nuclear hyperfine interaction curves are introduced with the following seven key words: 
-``hfcc-a``, ``hfcc-bF``, ``hfcc-c``, ``hfcc-d``, ``hfcc-ci``, ``hfcc-eqq0`` and ``hfcc-eqq2``.
+The nuclear hyperfine interaction curves are introduced with the following eight key words: 
+``hfcc-a``, ``hfcc-bF``, ``hfcc-c``, ``hfcc-d``, ``hfcc-ci``, ``hfcc-eqq0``, ``hfcc-eqq2`` and ``hfcc-ii``.
 The default units are ``angstrom`` and ``cm-1``.
 Hyperfine couplings between electronic states are not allowed at present.
 
@@ -193,3 +193,17 @@ for a :math:`^1\Sigma` state of a nuclear spin 1/2 molecule.
     values 
         A0           0.1
     end
+
+``hfcc-ii``  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The nuclear - nuclear spin dipolar interaction curve is defined by an ``hfcc-ii`` section.
+This term is used for homonuclear molecules with two equivalent non-zero nuclear spins.
+::
+
+    hfcc-ii 1
+    name "<X1Sigma+|II|X1Sigma+>" (Nuclear spin--nuclear spin dipole--dipole)
+    factor 1.0
+    type polynom
+    values 
+        A0           0.1
+    end 
