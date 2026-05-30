@@ -353,7 +353,7 @@ contains
     integer(ik)    :: nJ,dimenmax
     integer(ik)    :: ilevelI, ilevelF
     integer(ik)    :: nlevelsG(sym%Nrepresen)
-    integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
+    integer(ik)    :: info,indI,indF,Ntransit,Nrepresen
     integer(ik)    :: igammaI,igammaF
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
     real(rk)       :: energyI, energyF, nu_if,linestr,ener_,linestr2
@@ -1073,8 +1073,6 @@ contains
     ! the actual intensity calculations
     ! ---------------------------------
     !
-    itransit = 0
-    !
     ! loop over initial states
     !
     do indI = 1, nJ
@@ -1261,7 +1259,7 @@ contains
               !
               !$omp do private(ilevelF,energyF,dimenF,quantaF,istateF,ivibF,ivF,sigmaF,spinF,ilambdaF,omegaF,passed,&
               !$omp& parity_gu,isymF,iEntry_fitting,branch,nu_if,linestr,linestr2,A_einst,boltz_fc,absorption_int,tm)  &
-              !$omp& schedule(static) reduction(+:itransit)
+              !$omp& schedule(static)
               Flevels_loop: do ilevelF = 1,nlevelsF
                 !
                 !energy and and quanta of the final state
@@ -1336,10 +1334,6 @@ contains
                 ! no zero-frequency transitions should be produced
                 if ( nu_if < small_) cycle
                 !if (trim(intensity%action)=='EMISSION') nu_if = -nu_if
-                !
-                ! Count the processed transitions
-                !
-                itransit = itransit + 1
                 !
                 vecF(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
                 !
@@ -1479,7 +1473,7 @@ contains
                                  &f15.8)") &
                                  !
                                  jI,sym%label(isymI),jF,sym%label(isymF),branch, &
-                                 linestr,itransit,tm
+                                 linestr,0,tm
                     !$omp end critical
                   endif
                   !

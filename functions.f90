@@ -2137,8 +2137,6 @@ module functions
     !
   end function dipole_polynom_exp_damp
 
-
-
   !
   function SO_arctan(r,parameters) result(fun)
      implicit none
