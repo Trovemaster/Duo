@@ -2672,7 +2672,7 @@ contains
                 select case(trim(field%class))
                 case("DIPOLE","ABINITIO-DIPOLE")
                   unit_field = todebye
-                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                case("QUADRUPOLE","ABINITIO-QUADRUPOLE")
                   unit_field = 1.0_rk
                 end select
                 !
@@ -2681,7 +2681,7 @@ contains
                 select case(trim(field%class))
                 case("DIPOLE","ABINITIO-DIPOLE")
                   unit_field = todebye
-                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                case("QUADRUPOLE","ABINITIO-QUADRUPOLE")
                   unit_field = 1.0_rk
                 end select
                 !
@@ -2690,7 +2690,7 @@ contains
                 select case(trim(field%class))
                 case("DIPOLE","ABINITIO-DIPOLE")
                   unit_field = todebye
-                case("DIPOLEQUADRUPOLE","ABINITIO-QUADRUPOLE")
+                case("QUADRUPOLE","ABINITIO-QUADRUPOLE")
                   unit_field = 1.0_rk
                 end select
                 !
@@ -9753,11 +9753,11 @@ contains
         allocate(hmat(Ntotal,Ntotal),stat=alloc)
         call ArrayStart('hmat',alloc,size(hmat),kind(hmat))
         !
-        !call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
-        !                                                                   sc,icontr,contrenergy,Nspin_max,multi_max,threej,hmat)
-
-        call Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
+        call Compute_rovibronic_Hamiltonian_in_lambda_sigma_representation(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
                                                                            sc,icontr,contrenergy,Nspin_max,multi_max,threej,hmat)
+
+        !call Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,Ntotal,Nlambdasigmas,&
+        !                                                                   sc,icontr,contrenergy,Nspin_max,multi_max,threej,hmat)
 
         !
         ! Transformation to the symmetrized basis set
