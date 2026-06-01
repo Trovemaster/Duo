@@ -288,7 +288,7 @@ contains
     ! indexes and counters
     integer(ik)               :: nJ, Jmax_, indJ, indI, indF, IDj
     integer(ik)               :: iLFa, iLFb, iLF, iflag_rich
-    integer(ik)               :: nTrans, indTrans, nLower
+    integer(ik)               :: nTrans, nLower
     integer(ik)               :: indGamma, guParity, indTau, &
                                  indGammaI, indGammaF, indSymI, indSymF
     integer(ik)               :: nLevels, nLevelsI, nLevelsF,&
@@ -1000,9 +1000,6 @@ contains
     ! now begin the actual line intensity calculations
     ! ------------------------------------------------
 
-    ! counter for the no. transitions
-    indTrans = 0
-
     ! loop over initial J states and assign corresponding J value
     do indI = 1, nJ
       jI = jVal(indI)
@@ -1162,7 +1159,6 @@ contains
                   stop 'TM is not yet coded'
 
               end select
-
               !
               ! allocating all different arrays to keep the data in RAM in the exomol and matelem format
               if (trim(intensity%linelist_file)/="NONE") then
@@ -1191,7 +1187,7 @@ contains
 
               !$omp  do private(indLevelF, energyF, quantaF, istateF, ivibF, vF, spinF, sigmaF, ilambdaF, omegaF, &
               !$omp&  dimenF, guParity, indSymF, passed, iEntry_fitting, branch, nu_if, lineStr, linestr2, A_einst, boltz_fc, & 
-              !$omp&  absorption_int, tm) schedule(static) reduction(+:indTrans)
+              !$omp&  absorption_int, tm) schedule(static)
               ! loop over levels in the final state
               loopLevelsF : do indLevelF = 1, nLevelsF
 
@@ -1267,7 +1263,7 @@ contains
                 if ( nu_if < small_) cycle
 
                 ! increment transition counter for valid transition
-                indTrans = indTrans + 1
+                !indTrans = indTrans + 1
 
                 ! vector of basis state coefficients for final state
                 vecF(1:dimenF) = eigen(indF, indGammaF)&
@@ -1415,7 +1411,9 @@ contains
                     !
                   case('TM')
 
-                    tm = &
+                     !
+                     stop 'TM option in quadrupole has been deactivated'
+                     tm = &
                       dot_product(halfLineStr(1:dimenF), vecF(1:dimenF))
 
                     lineStr = tm
@@ -1427,7 +1425,7 @@ contains
                         &(2x, f13.6,1x),'->',(1x, f13.6,1x),f12.6, &
                         &f15.8)") &
                         jI, sym%label(indSymI), jF, sym%label(indSymF),&
-                        branch, lineStr, indTrans, tm
+                        branch, lineStr, tm
                       !$omp end critical
                     endif
                 end select

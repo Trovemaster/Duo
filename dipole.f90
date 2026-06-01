@@ -310,7 +310,7 @@ contains
     integer(ik)    :: nJ,dimenmax
     integer(ik)    :: ilevelI, ilevelF
     integer(ik)    :: nlevelsG(sym%Nrepresen)
-    integer(ik)    :: info,indI,indF,itransit,Ntransit,Nrepresen
+    integer(ik)    :: info,indI,indF,Ntransit,Nrepresen
     integer(ik)    :: igammaI,igammaF
     integer(ik)    :: dimenI,dimenF,nmax,parity_gu,isymI,isymF
     real(rk)       :: energyI, energyF, nu_if,linestr,ener_,linestr2
@@ -1033,8 +1033,6 @@ contains
     ! the actual intensity calculations
     ! --------------------------------- 
     !
-    itransit = 0
-    !
     ! loop over initial states
     !
     do indI = 1, nJ
@@ -1078,8 +1076,7 @@ contains
               !$omp& private(acoef_RAM, nu_RAM, indexf_RAM, indexi_RAM) &
               !$omp& private(acoef_norm, acoef_spin_grid, nu_spin_grid, ncount_spin_grid, spline_grid) &
               !$omp& private(acoef_total, acoef_grid, acoef_norm_tot, ileft, coeff, b, x1, x2, y1, y2, inu, icount, ncount) &
-              !$omp& private(Ap1, Apn, ispin_component, iomegaF) &
-              !$omp& reduction(+:itransit)
+              !$omp& private(Ap1, Apn, ispin_component, iomegaF)
               !
               ! --- 1. PER-THREAD ALLOCATION SETUP ---
               ! Because vecI is declared 'allocatable' and 'private', 
@@ -1261,8 +1258,6 @@ contains
                      branch = PQR_branch(jI,jF)
                      !
                      if ( intensity_do.and.nu_if < small_) cycle Inner_F_Loop
-                     !
-                     itransit = itransit + 1
                      !
                      vecF(1:dimenF) = eigen(indF,igammaF)%vect(1:dimenF,ilevelF)
                      !
