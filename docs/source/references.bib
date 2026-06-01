@@ -1,10 +1,210 @@
-@article{18OwYa,
-  title={RichMol: A general variational approach for rovibrational molecular dynamics in external electric fields},
-  author={Owens, Alec and Yachmenev, Andrey},
-  journal={J. Chem. Phys.},
-  volume={148},
-  number={12},
-  pages={124102},
-  year={2018},
-  publisher={AIP Publishing}
+﻿@string{AA = {A\&A}}
+@string{AAR = {A\&A Rev}}
+@string{AAS = {A\&AS}}
+@string{ACP = {Atmos. Chem. Phys.}}
+@string{ADNDT = {At. Data Nucl. Data Tables}}
+@string{AJ = {AJ.}}
+@string{AO = {Appl. Optics}}
+@string{AP = {Ann. Phys.}}
+@string{APB-LO = {Appl. Phys. B-Lasers Opt.}}
+@string{ApJ = {ApJ}}
+@string{ApJL = {ApJL}}
+@string{ApJS = {ApJS}}
+@string{ARAA = {ARA\&A}}
+@string{ASPCS = {Astron. Soc. Pac. Conf. Ser.}}
+@string{ASS = {Astrophys. Space Sci.}}
+@string{CJC = {Can. J. Chem.}}
+@string{CJP = {Can. J. Phys.}}
+@string{CP = {Chem. Phys.}}
+@string{CPC = {Comput. Phys. Commun.}}
+@string{CPL = {Chem. Phys. Lett.}}
+@string{EPJD = {Eur. Phys. J. D}}
+@string{GCA = {Geochim. Cosmochim. Acta}}
+@string{GRL = {Geophys. Res. Lett.}}
+%@string{ICARUS = {Icarus}}
+@string{IJMS = {Intern. J. Mass Spectrometry}}
+@string{IJQC = {Intern. J. Quantum Chem.}}
+@string{JACS = {J. Am. Chem. Soc.}}
+@string{JAP = {J. Appl. Phys.}}
+@string{JCAM = {J. Comput. Appl. Math.}}
+@string{JCC = {J. Comput. Chem.}}
+@string{JCP = {J. Chem. Phys.}}
+@string{JCTC = {J. Chem. Theory Comput.}}
+@string{JGR = {J.  Geophys.  Res. }}
+@string{JGRA = {J. Geophys. Res. A}}
+@string{JGRP = {J.  Geophys.  Res.: Planets}}
+@string{JMS = {J. Mol. Spectrosc.}}
+@string{JOSAB = {J. Opt. Soc. Am. B}}
+@string{JPA = {J. Phys. A: Math. Gen.}}
+@string{JPB = {J. Phys. B: At. Mol. Opt. Phys.}}
+@string{JPBX = {J. Phys.B: At. Mol. Phys.}}
+@string{JPC = {J. Phys. Chem.}}
+@string{JPCA = {J. Phys. Chem. A}}
+@string{JPCB = {J. Phys. Chem. B}}
+@string{JPCC = {J. Phys. Chem. C}}
+@string{JPCL = {J. Phys. Chem. Lett.}}
+@string{JPCRD = {J. Phys. Chem. Ref. Data}}
+@string{JPCS = {J. Phys. Conf. Ser.}}
+@string{JPD  = {J. Phys.D: Appl. Phys.}}
+@string{JQSRT = {J. Quant. Spectrosc. Radiat. Transf.}}
+@string{MNRAS = {MNRAS}}
+@string{MP  = {Mol. Phys.}}
+@string{NJP = {New J. Phys}}
+@string{NP = {Nucl. Phys.}}
+@string{OC = {Opt. Commun.}}
+@string{OL = {Opt. Lett.}}
+@string{OS = {Opt. Spectrosc.}}
+@string{PASJ = {PASJ}}
+@string{PASP = {PASP}}
+@string{PCCP = {Phys. Chem. Chem. Phys.}}
+@string{PL = {Phys. Lett.}}
+@string{PNAS = {Proc. Nat. Acad. Sci.}}
+@string{PPCF = {Plasma Phys. Controlled Fusion}}
+@string{PR = {Phys. Rev.}}
+@string{PRA = {Phys. Rev. A}}
+@string{PRB = {Phys. Rev. B}}
+@string{PRC = {Phys. Rev. C}}
+@string{PRL = {Phys. Rev. Lett.}}
+@string{PRSLA = {Proc. R. Soc. London, Ser. A}}
+@string{PRSLB = {Proc. R. Soc. London, Ser. B}}
+@string{PS = {Phys. Scr.}}
+@string{PSS = {Planet Space Sci.}}
+@string{PSST = {Plasma Sources Sci. Technol.}}
+@string{QJRAS = {QJRAS}}
+@string{RMP = {Rev. Mod. Phys.}}
+@string{SCAA = {Spectra Chimica Acta A}}
+@string{SCAB = {Spectra Chimica Acta B}}
+@string{SerbAJ = {Serb. Astron. J.}}
+@string{SP = {Sol. Phys.}}
+@string{SvA = {SvA}}
+@string{RASTI = {RASTI}}
+@string{TCA = {Theor. Chem. Acc.}}
+@string{THEOCHEM = {J. Molec. Struct. (THEOCHEM)}}
+@string{UCL = {University College London}}
+@string{ZPD = {Z. Phys. D-Atoms Mol. Clusters}}
+
+
+@article{19PaEvAn.ai,
+    author = {Pokhilko, Pavel and Epifanovsky, Evgeny and Krylov, Anna I.},
+    title = {{General framework for calculating spin–orbit couplings using spinless one-particle density matrices: Theory and application to the equation-of-motion coupled-cluster wave functions}},
+    journal = JCP,
+    volume = {151},
+    pages = {034106},
+    year = {2019},
+    doi = {10.1063/1.5108762},
 }
+
+
+
+@article{ 21BeJoLia.SO,
+Author = {Bernath, Peter F. and Johnson, Ryan and Lievin, Jacques},
+Title = {{Line lists for the b(1)Sigma(+)-X-3 Sigma(-) and a(1) Delta-X-3 Sigma(-)
+   transitions of SO}},
+Journal = JQSRT,
+Year = {2021},
+Volume = {272},
+DOI = {10.1016/j.jqsrt.2021.107772},
+pages = {107772}
+}
+
+
+@ARTICLE{11YuBixx.SO,
+author = {Yu, Le and Bian, Wensheng},
+title = {{Extensive Theoretical Study on Electronically Excited States and
+Predissociation Mechanisms of Sulfur Monoxide Including Spin-Orbit Coupling}},
+journal = JCC,
+year = {2011},
+volume = {32},
+pages = {1577-1588},
+doi = {10.1002/jcc.21737},
+}
+
+
+@article{27BoOpxx.diabat,
+author = {Born, M. and Oppenheimer, R.},
+title = {{Zur Quantentheorie der Molekeln}},
+journal = {Annalen der Physik},
+volume = {389},
+number = {20},
+pages = {457-484},
+doi = {10.1002/andp.19273892002},
+year = {1927}
+}
+
+
+@article{10TaKlKr.KCs,
+  title = {{Direct excitation of the ``dark'' $b$ $^{3}\Pi$ state predicted by deperturbation analysis of the $A$ $^{1}\Sigma^{+}$--$b$ $^{3}\Pi$ complex in KCs}},
+  author = {Tamanis, M. and Klincare, I. and Kruzins, A. and Nikolayeva, O. and Ferber, R. and Pazyuk, E. A. and Stolyarov, A. V.},
+  journal = PRA,
+  volume = {82},
+  pages = {032506},
+  year = {2010},
+  doi = {10.1103/PhysRevA.82.032506},
+}
+
+
+@article{10KrKlNi.KCs,
+  title = {Fourier-transform spectroscopy and coupled-channels deperturbation treatment of the $A{ }^{1}{\ensuremath{\Sigma}}^{+}--b{ }^{3}\ensuremath{\Pi}$ complex of KCs},
+  author = {Kruzins, A. and Klincare, I. and Nikolayeva, O. and Tamanis, M. and Ferber, R. and Pazyuk, E. A. and Stolyarov, A. V.},
+  journal = {Phys. Rev. A},
+  volume = {81},
+  issue = {4},
+  pages = {042509},
+  numpages = {14},
+  year = {2010},
+  month = {Apr},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevA.81.042509},
+  url = {https://link.aps.org/doi/10.1103/PhysRevA.81.042509}
+}
+
+
+@article{00Baer.diabat,
+  title = {{Topological effects in molecular systems: an attempt towards a complete theory}},
+  shorttitle = {{Topological effects in molecular systems}},
+  author = {Baer, Michael},
+  year = {2000},
+  month = {sep},
+  journal = CP,
+  volume = {259},
+  number = {2-3},
+  pages = {123--147},
+  doi = {10.1016/S0301-0104(00)00193-2},
+}
+
+
+@article{00BaAlxx.diabat,
+  title = {{Quantized non-adiabatic coupling terms to ensure diabatic potentials}},
+  author = {Baer, Michael and Alijah, Alexander},
+  year = {2000},
+  month = {mar},
+  journal = CPL,
+  volume = {319},
+  number = {5-6},
+  pages = {489--493},
+  doi = {10.1016/S0009-2614(00)00195-0},
+}
+
+
+@article{MOLPRO2020,
+  author = {Werner, Hans-Joachim  and Knowles, Peter J.  and Manby, Frederick R.  and Black, Joshua A.  and Doll, Klaus  and
+    He{\ss}elmann, Andreas  and Kats, Daniel  and K\"ohn, Andreas  and Korona,Tatiana  and Kreplin, David A.  and Ma, Qianli  and Miller, Thomas F.
+    and Mitrushchenkov, Alexander  and Peterson, Kirk A.  and Polyak, Iakov  and Rauhut, Guntram  and Sibaev, Marat},
+  title = {{The Molpro quantum chemistry package}},
+  journal = JCP,
+  volume = {152},
+  pages = {144107},
+  year = {2020},
+  doi = {10.1063/5.0005081},
+}
+
+
+@incollection{ 01Marian,
+Author = {Marian, Christel M.},
+Editor = {Lipkowitz, K B and Boyd, D B},
+Title = {Spin-Orbit Coupling in Molecules},
+Booktitle = {Rev. Comput. Chem.},
+Year = {2001},
+Volume = {17},
+Pages = {99-204},
+publisher = {John Wiley \& Sons, Inc.}}

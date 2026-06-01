@@ -45,10 +45,10 @@ CHARACTER(LEN=40) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 
-INTEGER, PARAMETER :: dp=kind(1d0)!, qp=selected_real_kind(30)
+INTEGER, PARAMETER :: dp=kind(1d0), qp=selected_real_kind(30)
 
 INTERFACE readf
-  MODULE PROCEDURE read_single, read_double!, read_quad
+  MODULE PROCEDURE read_single, read_double, read_quad
 END INTERFACE
 
 PRIVATE
@@ -604,43 +604,43 @@ END SUBROUTINE reada
 
 !-----------------------------------------------------------------------
 
-! SUBROUTINE read_quad(A,factor)
-! 
-! !  Read the next item from the buffer as a real (quadruple precision) number.
-! !  If the optional argument factor is present, the value read should be
-! !  divided by it. (External value = factor*internal value)
-! 
-! REAL(KIND=qp), INTENT(INOUT) :: a
-! REAL(KIND=qp), INTENT(IN), OPTIONAL :: factor
-! 
-! CHARACTER(LEN=50) :: string
-! 
-! if (clear) a=0.0_qp
-! 
-! !  If there are no more items on the line, I is unchanged
-! if (item .ge. nitems) return
-! 
-! string=""
-! call reada(string)
-! !  If the item is null, I is unchanged
-! if (string == "") return
-! read (unit=string,fmt=*,err=99) a
-! if (present(factor)) then
-!   a=a/factor
-! endif
-! return
-! 
-! 99 a=0.0_qp
-! select case(nerror)
-! case(-1,0)
-!   call report("Error while reading real number",.true.)
-! case(1)
-!   print "(2a)", "Error while reading real number. Input is ", trim(string)
-! case(2)
-!   nerror=-1
-! end select
-! 
-! END SUBROUTINE read_quad
+ SUBROUTINE read_quad(A,factor)
+ 
+ !  Read the next item from the buffer as a real (quadruple precision) number.
+ !  If the optional argument factor is present, the value read should be
+ !  divided by it. (External value = factor*internal value)
+ 
+ REAL(KIND=qp), INTENT(INOUT) :: a
+ REAL(KIND=qp), INTENT(IN), OPTIONAL :: factor
+ 
+ CHARACTER(LEN=50) :: string
+ 
+ if (clear) a=0.0_qp
+ 
+ !  If there are no more items on the line, I is unchanged
+ if (item .ge. nitems) return
+ 
+ string=""
+ call reada(string)
+ !  If the item is null, I is unchanged
+ if (string == "") return
+ read (unit=string,fmt=*,err=99) a
+ if (present(factor)) then
+   a=a/factor
+ endif
+ return
+ 
+ 99 a=0.0_qp
+ select case(nerror)
+ case(-1,0)
+   call report("Error while reading real number",.true.)
+ case(1)
+   print "(2a)", "Error while reading real number. Input is ", trim(string)
+ case(2)
+   nerror=-1
+ end select
+ 
+ END SUBROUTINE read_quad
 
 !-----------------------------------------------------------------------
 

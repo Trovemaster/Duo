@@ -3,7 +3,7 @@ module accuracy
   private
   public sik, ik, hik, rk, ark, out, inp, safe_max,safe_min,max_exp, pi, twopi, cl, wl
   public accuracyInitialize, print_physical_constants
-  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau
+  public planck,avogno,vellgt,boltz,bohr,todebye, umatoau,uma, g_s
   public epsil,small_,sqrt2,sqrt3,rad,fititermax,aston,hartree,ev,my_fmt
   !
   integer, parameter :: sik         = selected_int_kind(4)       ! Small integers
@@ -13,9 +13,9 @@ module accuracy
   integer, parameter :: hik         = selected_int_kind(8)       ! "Pointer" integers - sufficient to store
                                                                  ! memory address
   integer, parameter :: drk         = selected_real_kind(12,25)  ! double    precision floating-point numbers 
-  integer, parameter :: rk          = selected_real_kind(12,25)  ! single    precision floating-point numbers
-  integer, parameter :: ark         = selected_real_kind(12,25)  ! quadruple precision floating-point numbers
-!  integer, parameter :: ark         = selected_real_kind(12,25)  ! double precision floating-point numbers
+  integer, parameter :: rk          = selected_real_kind(12,25)  ! single/double/quadruple  precision floating-point numbers
+  integer, parameter :: ark         = selected_real_kind(25,32)  ! quadruple precision floating-point numbers
+!  integer, parameter :: ark         = selected_real_kind(25,32)  ! double precision floating-point numbers
   integer, parameter :: inp         = 5                          ! Output I/O channel
   integer, parameter :: out         = 6                          ! Output I/O channel
   integer, parameter :: nfilelegendre = 101                      ! Damp-output channel for eigenfunction 
@@ -63,6 +63,7 @@ module accuracy
   real(drk), parameter :: kCal       =  kJoule*4.184_rk   !1 Cal (thermochemical)= 4.184 Joules
   real(drk), parameter :: THz        =  1e12_rk / vellgt
   real(drk), parameter :: hc         =  vellgt*planck
+  real(drk), parameter :: g_s        =  2.00231930436256_rk       ! spin Lande g-factor
   
   contains
 
@@ -71,6 +72,7 @@ module accuracy
     end subroutine accuracyInitialize
     !
     subroutine print_physical_constants ! (to be completed)
+      
       write(out,'(A)') 'Values of physical constants used by DUO:'
       write(out,'(A40,ES20.12,2x,a12)') 'Planck constant h = ', planck, 'erg*second'
       write(out,'(A40,F20.4,2x,a12)')   'Speed of light c = ', vellgt, 'cm/second'
@@ -82,6 +84,7 @@ module accuracy
       write(out,'(A40,ES20.12,2x,a12)') 'Boltzmann constant kB = ', boltz, 'erg/Kelvin'
       write(out,'(A40,F20.16,2x,a12)') 'Boltzmann constant kB = ', boltz/hc, 'cm^-1/Kelvin'
       write(out,'(A40,ES20.12,2x,a12)') "Avogadro constant = ", avogno, 'mol^-1'
+      write(out,'(A40,ES20.12,2x,a12)') "Rotational factor = ", aston, 'cm-1 amu Ang^2'
 
       write(out,'(A40,F20.14)')   'Fine structure constant 1/alpha = ', 1._rk / alpha
       write(out,'(A40,ES20.12,2x,a12)') 'Electron mass me = ', me, 'grams'

@@ -5,201 +5,531 @@ module functions
   !
   implicit none
   !
+  public fanalytic_fieldT
+  !
   ! Different 1D functions (potential, spin-orbit etc)
   !
   integer(ik),parameter :: verbose=5
   !
-  public analytical_fieldT
+  !logical,save :: defined_complex_field = .false.
+  integer(ik),save  :: N1,N2,N3
+  type array_of_funcitonsT
+    procedure(fanalytic_fieldT) ,pointer ,nopass :: f =>null()
+  end type array_of_funcitonsT
   !
+  procedure (fanalytic_fieldT),pointer :: function_V1 => null()
+  procedure (fanalytic_fieldT),pointer :: function_V2 => null()
+  procedure (fanalytic_fieldT),pointer :: function_VD => null()
+  procedure (fanalytic_fieldT),pointer :: function_beta => null()
+  !
+  type(array_of_funcitonsT),pointer :: function_multi(:)
+  !
+  integer(ik) :: N_multi_subfunctions
+  integer(ik),allocatable :: nsize_multi(:)
   !
   abstract interface
     !
-    function analytical_fieldT(r,parameters)
+    function fanalytic_fieldT(r,parameters)
       use accuracy
       !
-      real(rk)                      :: analytical_fieldT !NB: NAG Fortran 6.0 doesn't like in-line declaration
+      real(rk)                      :: fanalytic_fieldT !NB: NAG Fortran 6.0 doesn't like in-line declaration
       real(rk),intent(in)           :: r                 ! geometry (Ang)
       real(rk),intent(in)           :: parameters(:)     ! potential parameters
       !
-    end function analytical_fieldT
+    end function fanalytic_fieldT
     !
   end interface
   !
+  abstract interface
+    !
+    function fanalytic_complex_fieldT(r,parameters,sub_type,Nsub_terms)
+      use accuracy
+      !
+      real(rk)                      :: fanalytic_complex_fieldT !NB: NAG Fortran 6.0 doesn't like in-line declaration
+      real(rk),intent(in)           :: r                 ! geometry (Ang)
+      real(rk),intent(in)           :: parameters(:)     ! potential parameters
+      character(len=cl),intent(in)  :: sub_type(:)
+      integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+      !
+    end function fanalytic_complex_fieldT
+    !
+  end interface
   !
   contains
   !
   !
-  subroutine define_analytical_field(ftype,fanalytical_field)
+  subroutine define_fanalytic_field(ftype,fanalytic_field)
     !
-    character(len=cl),intent(in)      :: ftype
-                                            ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
-    procedure(analytical_fieldT),pointer :: fanalytical_field !=> null()
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    procedure(fanalytic_fieldT),pointer :: fanalytic_field !=> null()
     !
     select case(ftype)
       !
     case("MORSE")
       !
-      fanalytical_field => poten_morse
+      fanalytic_field => poten_morse
       !
     case("MORSE_DAMP")
       !
-      fanalytical_field => poten_morse_damp
+      fanalytic_field => poten_morse_damp
       !
     case("MODIFIED-MORSE","MODIFIED_MORSE","MMORSE")
       !
-      fanalytical_field => poten_morse_modified
+      fanalytic_field => poten_morse_modified
       !
     case("EMO") ! "Expanded MorseOscillator"
       !
-      fanalytical_field => poten_EMO
+      fanalytic_field => poten_EMO
       !
     case("EMO-BOB") ! "Expanded MorseOscillator with BOB correction"
       !
-      fanalytical_field => poten_EMO_BOB
+      fanalytic_field => poten_EMO_BOB
       !
     case("MLR") ! "Morse/Long-Range"
       !
-      fanalytical_field => poten_MLR
+      fanalytic_field => poten_MLR
       !
     case("MLR_DS") ! "Morse/Long-Range with Douketis-damping"
       !
-      fanalytical_field => poten_MLR_Douketis
+      fanalytic_field => poten_MLR_Douketis
+      !
+    case("MLJ") ! "Morse/Lennard-Jones oscillator"
+      !
+      fanalytic_field => poten_MLJ
+      !
+    case("BOB-Z-M-SWITCH","BOB_Z_M_SWITCH") ! "Morse/Lennard-Jones oscillator"
+      !
+      fanalytic_field => poten_BOB_mass_depended_in_z_with_switching
+      !
+    case("DELR") ! "Double-exponential-long-range"
+      !
+      fanalytic_field => poten_DELR
       !
     case("MLR_DS_DARBY") ! "Morse/Long-Range with Douketis-damping"
       !
-      fanalytical_field => poten_MLR_Douketis_Darby
+      fanalytic_field => poten_MLR_Douketis_Darby
     case("MLR3") ! "MLR3 with Douketis damping (see Coxon & Hajigeorgiou 2010)
       !
-      fanalytical_field => poten_MLR3
+      fanalytic_field => poten_MLR3
+      !
     case("MARQUARDT") ! "Marquardt"
       !
-      fanalytical_field => poten_Marquardt
+      fanalytic_field => poten_Marquardt
       !
     case("COSH-POLY") ! "Diabatic coupling as a polynom/cosh"
       !
-      fanalytical_field => poten_cosh_polynom
+      fanalytic_field => poten_cosh_polynom
       !
     case("BOBLEROY","BOB","SURKUS") ! "BOB expansion"
       !
-      fanalytical_field => poten_BOBLeRoy
+      fanalytic_field => poten_BOBLeRoy
+      !
+    case("BOBCOXON","BOB-COXON-SURKUS") ! "BOB expansion of Coxon with two Surkus"
+      !
+      fanalytic_field => poten_BOBCoxon
       !
     case("BOBNA") ! "BOB-NA expansion"
       !
-      fanalytical_field => poten_BOBna
+      fanalytic_field => poten_BOBna
       !
     case("BOBLEROY_DAMP","BOB_DAMP","SURKUS_DAMP") ! "BOB expansion with damping to zero at r=0"
       !
-      fanalytical_field => poten_BOBLeRoy_damp
+      fanalytic_field => poten_BOBLeRoy_damp
       !
     case("DUNHAM")
       !
-      fanalytical_field => poten_dunham
+      fanalytic_field => poten_dunham
       !
     case("SPF")
       !
-      fanalytical_field => poten_spf
+      fanalytic_field => poten_spf
       !
     case("SPF_1")
       !
-      fanalytical_field => poten_spf_1
+      fanalytic_field => poten_spf_1
       !
     case("SPF_H2")
       !
-      fanalytical_field => poten_spf_h2
+      fanalytic_field => poten_spf_h2
       !
     case("HH","HULBERT-HIRSCHFELDER")
       !
-      fanalytical_field => poten_Hulbert_Hirschfelder
+      fanalytic_field => poten_Hulbert_Hirschfelder
       !
     case("CHEBYSHEV")
       !
-      fanalytical_field => poten_cheb
+      fanalytic_field => poten_cheb
+      !
+    case("IRREG_CHEBYSHEV")
+      !
+      fanalytic_field => irreg_chebyshev_DMC
+      !
+    case("IRREG_CHEBYSHEV_2024")
+      !
+      fanalytic_field => irreg_chebyshev_DMC_2024
       !
     case("POLYNOM", "POLYNOMIAL")
       !
-      fanalytical_field => poten_polynom
+      fanalytic_field => poten_polynom
       !
     case("EXPONENTIAL")
       !
-      fanalytical_field => poten_exponential
+      fanalytic_field => poten_exponential
       !
     case("LAURA_SO","ATAN_SO")
       !
-      fanalytical_field => SO_arctan
+      fanalytic_field => SO_arctan
       !
     case("POTEN_FERMI_T")
       !
-      fanalytical_field => poten_fermi_t
+      fanalytic_field => poten_fermi_t
       !
     case("M-S")
       !
-      fanalytical_field => poten_Murrell_Sorbie
+      fanalytic_field => poten_Murrell_Sorbie
       !
     case("PADE_GOODISMAN2","PADE2")
       !
-      fanalytical_field => poten_Pade_Goodisman_2
+      fanalytic_field => poten_Pade_Goodisman_2
       !
     case("POLYNOM_DECAY")
       !
-      fanalytical_field => dipole_polynom_exp
+      fanalytic_field => dipole_polynom_exp
       !
     case("POLYNOM_DECAY_DAMP")
       !
-      fanalytical_field => dipole_polynom_exp_damp
+      fanalytic_field => dipole_polynom_exp_damp
       !
     case("POLYNOM_DECAY_24")
       !
-      fanalytical_field => dipole_polynom_exp24
+      fanalytic_field => dipole_polynom_exp24
       !
     case("DOUBLEEXP2")
       !
-      fanalytical_field => dipole_doubleexp
+      fanalytic_field => dipole_doubleexp
+      !
+    case("SIGMOID")
+      !
+      fanalytic_field => poten_sigmoid
+      !
+    case("EMO-SWITCH") 
+      !
+      fanalytic_field => poten_EMO_switch
       !
     case("DIABATIC_MU_DIAG","AVOIDEDCROSSING_DIAG_MU")
       !
-      fanalytical_field => dipole_avoidedcrossing_diag_mu
+      fanalytic_field => dipole_avoidedcrossing_diag_mu
       !
     case("TWO_COUPLED_EMOS")
       !
-      fanalytical_field => poten_two_coupled_EMOs
+      fanalytic_field => poten_two_coupled_EMOs
+      !
+    case("TWO_COUPLED_EMOS_LORENTZ")
+      !
+      fanalytic_field => poten_two_coupled_EMOs_Lorentz
+      !
+    case("DIABATIC_LORENTZ_TWO_EMOS")
+      !
+      fanalytic_field => poten_diabatic_Lorentz_TWO_EMOS
+      !
+    case("TWO_COUPLED_EMOS_SQRTLORENTZ")
+      !
+      fanalytic_field => poten_two_coupled_EMOs_SqrtLorentz
       !
     case("TWO_COUPLED_BOBS")
       !
-      fanalytical_field => poten_two_coupled_BOBs
+      fanalytic_field => poten_two_coupled_BOBs
       !
     case("COUPLED_EMO_REPULSIVE")
       !
-      fanalytical_field => poten_two_coupled_EMO_repulsive
+      fanalytic_field => poten_two_coupled_EMO_repulsive
+      !
+    case("COUPLED_EMOS_WITH_EMO")
+      !
+      fanalytic_field => poten_two_coupled_EMOs_with_EMO
       !
     case("REPULSIVE")
       !
-      fanalytical_field => poten_repulsive
+      fanalytic_field => poten_repulsive
+      !
+    case("REPULSIVE_EXP")
+      !
+      fanalytic_field => poten_repulsive_exp
+      !
+    case("PEC_EXP_R2")
+      !
+      fanalytic_field => poten_exp_R2
       !
     case("LORENTZ","LORENTZIAN")
       !
-      fanalytical_field => poten_lorentzian_polynom
+      fanalytic_field => poten_lorentzian_polynom
+      !
+    case("LORENTZ-SURKUS","LORENTZIAN-SURKUS")
+      !
+      fanalytic_field => poten_lorentzian_surkus_polynom
+      !
+    case("SQRT(LORENTZ)","SQRT(LORENTZIAN)")
+      !
+      fanalytic_field => poten_sqrt_lorentzian_polynom
+      !
+    case("BETA_LORENTZ","BETA_LORENTZIAN")
+      !
+      fanalytic_field => beta_diabatic_lorentzian
+      !
+    case("BETA_LAPLACIAN","BETA_LAPLACE")
+      !
+      fanalytic_field => beta_diabatic_laplacian
+      !
+    case("BETA_LORENTZ_LAPLACE")
+      !
+      fanalytic_field => beta_diabatic_lorentzian_laplacian
       !
     case("POLYNOM_DIMENSIONLESS","POLYNOMIAL_DIMENSIONLESS")
       !
-      fanalytical_field => polynomial_dimensionless
+      fanalytic_field => polynomial_dimensionless
       !
     case("CO_X_UBO")
       !
-      fanalytical_field => potential_stolyarov_CO_X_UBO
+      fanalytic_field => potential_stolyarov_CO_X_UBO
+      !
+    case("EHH") !  Extended Hulburt-Hirschfelde
+      !
+      fanalytic_field => poten_EHH
+      !
+    case("MEDVEDEV_SING2","SING2") ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
+      !
+      fanalytic_field => dipole_medvedev_sing
       !
     case("NONE")
       !
-      write(out,'("Analytical: Some fields are not properly defined and produce function type ",a)') trim(ftype)
-      stop "Analytical: Unknown function type "
+      write(out,'(//"Analytic: Some fields are not properly defined and produce function type ",a)') trim(ftype)
+      stop "Analytic: Unknown function type "
+      !
+    case("COUPLED-PEC","GRID")
+      !
+      !fanalytic_complex_field => polynomial_coupled_PECs!
+      !
+      fanalytic_field => function_dummy
+      !
+    case("COUPLED-PEC-BETA","COUPLED-DIABATIC","COUPLED-TRANSIT-BETA")
+      !
+      fanalytic_field => function_dummy
       !
     case default
       !
-      write(out,'("Analytical: Unknown function type ",a)') trim(ftype)
-      stop "Analytical: Unknown field type "
+      write(out,'(//"Analytic: Unknown function type ",a)') trim(ftype)
+      stop "Analytic: Unknown field type "
       !
     end select
     !
-  end subroutine define_analytical_field
+  end subroutine define_fanalytic_field
+  !
+  !
+  subroutine define_complex_analytic_field(ftype,fanalytic_field,sub_type,Nsub_terms)
+    !
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    procedure(fanalytic_fieldT),pointer :: fanalytic_field !=> null()
+    character(len=cl),intent(in)  :: sub_type(:)
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: i,alloc
+    !
+    N_multi_subfunctions = size(Nsub_terms)
+    !
+    select case(ftype)
+      !
+    case("COUPLED-PEC")
+      !
+      if (N_multi_subfunctions==3) then 
+        !
+        call define_fanalytic_field(sub_type(1),function_V1)
+        call define_fanalytic_field(sub_type(2),function_V2)
+        call define_fanalytic_field(sub_type(3),function_VD)
+        !
+        N1 =Nsub_terms(1)
+        N2 =Nsub_terms(2)
+        N3 =Nsub_terms(3)
+        !
+        fanalytic_field => polynomial_coupled_PECs
+        !
+      else
+        !
+        if (associated(function_multi)) deallocate(function_multi)
+        if (allocated(nsize_multi)) deallocate(nsize_multi)
+        !
+        allocate(function_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) then
+          write (out,"(' Error define_complex_analytic_field ',i0,' initializing function_multi')") alloc
+          stop 'Error define_complex_analytic_field initializing function_multi - alloc'
+        end if
+        !
+        allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) stop 'Error nsize_multi - alloc'
+        ! 
+        do i = 1,N_multi_subfunctions
+          !
+          call define_fanalytic_field(sub_type(i),function_multi(i)%f)
+          nsize_multi(i) = Nsub_terms(i)
+          !
+        enddo
+        !
+        fanalytic_field => polynomial_multi_coupled_PECs
+        !
+      endif
+      !
+    case("COUPLED-PEC-BETA")
+      !
+      if (N_multi_subfunctions/=3) then 
+        write(out,"('Illegal number of sub-funcitons for COUPLED-PEC-BETA',i3,' only 3 has been immplemented')") &
+              N_multi_subfunctions
+        stop 'Illegal number of sub-funcitons for COUPLED-PEC-BETA/=3'
+      endif
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+      fanalytic_field => polynomial_coupled_PECs_beta
+      !
+    case("COUPLED-TRANSIT-BETA")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+      fanalytic_field => coupled_transition_curves_beta
+      !
+    case default
+      !
+      write(out,'(//"Complex Analytic: Unknown function type ",a)') trim(ftype)
+      stop "Complex Analytic: Unknown field type "
+      !
+    end select
+    !
+  end subroutine define_complex_analytic_field
+  !  
+  !
+  subroutine define_sub_terms_complex_analytic_field(Nsub_terms)
+    !
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: alloc,i
+    !
+    N_multi_subfunctions = size(Nsub_terms)
+    !
+    if (N_multi_subfunctions==3) then 
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    else
+      !
+      if (allocated(nsize_multi)) deallocate(nsize_multi)
+      !
+      allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+      if (alloc/=0) stop 'Error nsize_multi - alloc'
+      ! 
+      do i = 1,N_multi_subfunctions
+        !
+        nsize_multi(i) = Nsub_terms(i)
+        !
+      enddo
+      !
+    endif    
+    !
+  end subroutine define_sub_terms_complex_analytic_field
+  !
+  !
+  subroutine define_complex_analytic_field_subterms(ftype,sub_type,Nsub_terms)
+    !
+    character(len=cl),intent(in)           :: ftype
+                                           ! NB: NAG Fortran 6.0 doesn't like intent(in) and initial nullification
+    character(len=cl),intent(in)  :: sub_type(:)
+    integer(ik),intent(in)        :: Nsub_terms(:) ! Number of terms oin sub-functions, used for coupled representations 
+    integer(ik) :: i,alloc
+    !
+    N_multi_subfunctions = size(Nsub_terms)
+    !
+    select case(ftype)
+      !
+    case("COUPLED-PEC")
+      !
+      if (N_multi_subfunctions==3) then 
+        !
+        call define_fanalytic_field(sub_type(1),function_V1)
+        call define_fanalytic_field(sub_type(2),function_V2)
+        call define_fanalytic_field(sub_type(3),function_VD)
+        !
+        N1 =Nsub_terms(1)
+        N2 =Nsub_terms(2)
+        N3 =Nsub_terms(3)
+        !
+      else
+        !
+        if (associated(function_multi)) deallocate(function_multi)
+        if (allocated(nsize_multi)) deallocate(nsize_multi)
+        !
+        allocate(function_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) then
+          write (out,"(' Error define_complex_analytic_field ',i0,' initializing function_multi')") alloc
+          stop 'Error define_complex_analytic_field initializing function_multi - alloc'
+        end if
+        !
+        allocate(nsize_multi(N_multi_subfunctions),stat=alloc)
+        if (alloc/=0) stop 'Error nsize_multi - alloc'
+        ! 
+        do i = 1,N_multi_subfunctions
+          !
+          call define_fanalytic_field(sub_type(i),function_multi(i)%f)
+          nsize_multi(i) = Nsub_terms(i)
+          !
+        enddo
+        !
+      endif
+      !
+    case("COUPLED-PEC-BETA")
+      !
+      if (N_multi_subfunctions/=3) then 
+        write(out,"('Illegal number of sub-funcitons for COUPLED-PEC-BETA',i3,' only 3 has been immplemented')") &
+              N_multi_subfunctions
+        stop 'Illegal number of sub-funcitons for COUPLED-PEC-BETA/=3'
+      endif
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    case("COUPLED-TRANSIT-BETA")
+      !
+      call define_fanalytic_field(sub_type(1),function_V1)
+      call define_fanalytic_field(sub_type(2),function_V2)
+      call define_fanalytic_field(sub_type(3),function_beta)
+      !
+      N1 =Nsub_terms(1)
+      N2 =Nsub_terms(2)
+      N3 =Nsub_terms(3)
+      !
+    case default
+      !
+      write(out,'(//"Complex Analytic: Unknown function type ",a)') trim(ftype)
+      stop "Complex Analytic: Unknown field type "
+      !
+    end select
+    !
+  end subroutine define_complex_analytic_field_subterms
   !
   !
   function poten_morse(r,parameters) result(f)
@@ -333,6 +663,46 @@ module functions
     f = v0+f0/y
     !
   end function poten_cosh_polynom
+
+  !
+  function poten_sigmoid(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,r0,f,z,v0,D0,phi,rref
+    integer(ik)            :: k,N,Nbeta,p,N0
+    !
+    N = size(parameters)
+    !
+    Nbeta = N - 6
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    D0 = parameters(3)-v0
+    !
+    rref = parameters(4)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(5))
+    !
+    N0 = 6
+    !
+    z = (r**p-rref**p)/(r**p+rref**p)
+    !
+    phi = 0
+    do k=0,Nbeta
+     phi = phi + parameters(k+N0)*z**k
+    enddo
+    !
+    y  = 1.0_rk+exp(-phi*(r-r0))
+    !
+    f = d0/y+v0
+    !
+  end function poten_sigmoid
+
+
   !
   function poten_EMO(r,parameters) result(f)
     !
@@ -377,9 +747,7 @@ module functions
     !
   end function poten_EMO
   !
-  
-
-
+  !
   function poten_EMO_BOB(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -444,7 +812,6 @@ module functions
     f = de*y**2+v0+ ( (1.0_rk-yp)*u + uinf*yp )
     !
   end function poten_EMO_BOB
-
 
   
   
@@ -649,6 +1016,106 @@ module functions
   end function poten_MLR_Douketis
 
 
+  ! Double-exponential-long-range, see Le Roy http://dx.doi.org/10.1063/1.1607313
+  !
+  function poten_DELR(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,r0,de,f,rref,beta_,yp,uLR,uLR0,uLR1,B,A,D_LR
+    real(rk)               :: beta(0:100),C(1:100)
+    integer(ik)            :: k,p,Nstruc,Ntot,NLR,NL,NS
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De   = parameters(3)-V0
+    D_LR = parameters(4)-V0
+    !
+    rref = parameters(5)
+    !
+    if (rref<=0.0_rk) rref = r0
+    !
+    p = nint(parameters(6))
+    !
+    NS = parameters(7)
+    NL = parameters(8)
+    !
+    Nstruc = 8
+    !
+    if (NL>100) stop 'poten_DELR_Douketis: illegally large NL'
+    !
+    beta = 0 
+    beta(0:NL) = parameters(Nstruc+1:Nstruc+1+NL+1)
+    !
+    ! total number of parameters
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    NLR = Ntot-(Nstruc+1+NL)
+    !
+    if (NLR>100) stop 'poten_DELR_Douketis: illegally large LR expansion'
+    !
+    C = 0 
+    !
+    C(1:NLR) = parameters(Nstruc+1+NL+1:Nstruc+1+NL+NLR)
+    !
+    yp = (r**p-rref**p)/(r**p+rref**p)
+    !
+    ! double check uLR parameters
+    !
+    uLR = sum(C(1:NLR)**2)
+    !
+    if (uLR<small_) then
+      write(out,"('poten_DELR_Douketis: At least one uLR should be non-zero')")
+      stop 'poten_DELR_Douketis: At least one uLR should be non-zer'
+    endif
+    !
+    !s = -1.0_rk
+    !b = 3.97_rk
+    !c0 = 0.39_rk
+    !
+    ! For the Damping part
+    ! the values of s, b,c are as suggested by LeRoy 2011 (MLR paper)
+    !
+    !s = -1.0_rk
+    !b = 3.3_rk
+    !c = 0.423_rk
+    !
+    !s = -2.0_rk
+    !b = 2.50_rk
+    !c = 0.468_rk
+    !
+    ! long-range part
+    !
+    uLR  = D_LR
+    uLR0 = D_LR
+    uLR0 = 0
+    do k=1,NLR
+     !
+     ! Douketis damping function
+     !Damp = ( 1.0_rk-exp( -b*rho*r/real(k,rk)-c*(rho*r)**2/sqrt(real(k,rk)) ) )**(real(k,rk)+s)
+     !
+     uLR  = uLR  + C(k)/r**k
+     uLR0 = uLR0 + C(k)/r0**k
+     uLR1 = uLR1 + real(-k,rk)*C(k)/r0**(k+1)
+    enddo
+    !
+    beta_ = 0
+    do k=0,NL
+     beta_ = beta_ + beta(k)*yp**k
+    enddo
+    !
+    A = De + uLR0+uLR1/beta(0)
+    B = 2.0_rk*(De + uLR0)+uLR1/beta(0)
+    !
+    f = v0+A*exp(-2.0_rk*beta_*(r-r0))-B*exp(-beta_*(r-r0))+De+uLR
+    !
+  end function poten_DELR
+
+
+
+
 
    function poten_MLR_Douketis_Darby(r,parameters) result(f)
     !
@@ -810,7 +1277,7 @@ module functions
     nPhis = nint(parameters(14+2*nPwrs)) ! number of phi coefficients
     allocate ( phis(nPhis) )
     phis  = parameters(15+2*nPwrs:) ! the phi coefficients for MLR3 (arb. number)
-
+    !
     ! check the no. of power term and phi coefficients given matches the number specified
     if ((size(phis) .NE. nPhis) .OR. (size(pwrs) .NE. nPwrs)) then
       write(out, "('poten_MLR3: Number of power terms or phi coefficients&
@@ -825,13 +1292,13 @@ module functions
       stop 'poten_MLR3: Requires more than zero phi coefficients&
         & and more than zero power terms'
     endif
-
+    !
     ! if rRef not given, equals equilibrium bond length
     if (rRef .LE. 0.0_rk) then
       write(out, "('poten_MLR3: rRef equal to zero or less, using rRef = r0')")
       rRef = r0
     endif
-
+    !
     ! calculate U_LR (Long-range potential) by summing over power terms
     uLR = 0.0_rk
     uLRe = 0.0_rk
@@ -844,7 +1311,7 @@ module functions
       Dne = (1.0_rk - exp( -b*rho*r0/real(n,rk) - c*(rho*r0)**2/real(n,rk)**.5_rk ))**(n+s)
       uLRe= uLRe + (Dne * coefs(j)/r0**n)
     enddo
-
+    !
     ! calculate phi_MLR3(r) - sum of
     phiInf = log(2.0_rk*De/uLRe)
     ym     = (r**m - rRef**m)/(r**m + rRef**m)
@@ -854,10 +1321,11 @@ module functions
       sumPhis = sumPhis + phis(i) * yq**(i-1)
     enddo
     sumPhis = sumPhis*(1.0_rk - ym) + phiInf*ym
-
+    !
     ! put parts together to give total potential
     ypa = (r**p - r0**p)/(r**p + a*r0**p)
-    f = De*( 1.0_rk - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+    f = v0+De*( 1.0_rk - (uLR/uLRe) * exp(-sumPhis*ypa) )**2
+    !
   end function poten_MLR3
   !
   function poten_Marquardt(r,parameters) result(f)
@@ -975,6 +1443,35 @@ module functions
     f = ( (1.0_rk-z)*t+z*tinf )*f_damp+t_0*(1.0_rk-f_damp)
     !
   end function poten_BOBLeRoy_damp
+  !
+  function poten_BOBCoxon(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,rref,z,t,tinf,y
+    integer(ik)            :: k,N,p,q
+    !
+    r0 = parameters(1)
+    !
+    rref = parameters(2)
+    !
+    p = nint(parameters(3))
+    q = nint(parameters(4))
+    N = size(parameters)-4-2
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    y = (r**q-r0**q)/(r**q+r0**q)
+    !
+    t = 0
+    do k=0,N
+     t = t + parameters(k+5)*z**k
+    enddo
+    !
+    tinf = parameters(N+6)
+    !
+    f = (1.0_rk-y)*t+y*tinf
+    !
+  end function poten_BOBCoxon
   !
   function poten_BOBna(r,parameters) result(f)
     !
@@ -1236,6 +1733,75 @@ module functions
       !
   end function poten_cheb
   !
+  function irreg_chebyshev_DMC(x,c) result(f)        ! based on eq.(3) of https://doi.org/10.1016/j.jqsrt.2022.108255
+  real(rk),intent(in) :: x,c(:)                      ! x = bond length, c = functional parameters  
+  integer(ik) ::  m,j                                ! Chebyshev expansion order, iterable 
+  real(rk)    ::  d,dd,sv,z,z2,cheb_expansion,chi,f  ! d,dd,sv = appear in Clenshaw's recurrence, z = damped polynomial coordinate,
+                                                     ! cheb_expansion = sum_k=0^size
+    
+    ! c_1,c_2,...,c_7 are the chebyshev expansion coefficients, c_9,...,c_(13) are additional parameters for chi below
+    ! for chi and c_8 enters the damped polynomial coordinate z.
+    m = size(c)-6 ! expansion order
+    !
+    ! check if number of parameters is correct
+    if (size(c).gt.13) stop 'Too many parameters, should have 7 expansion coeficients and 6 fitting parameters.'
+    if (size(c).lt.13) stop 'Too few parameters, should have 7 expansion coeficients and 6 fitting parameters.'
+    !
+    ! Change of variable, the damped polynomial coordinate, z, which maps the r E [0,infty] -> z E [-1,+1] interval
+    z = 1.0_rk-2.0_rk*exp(-c(8)*x) 
+    !
+    ! check to see if the c0 is > 0
+    if (c(8).lt.0.) stop 'c1 is unphysical. c1 should never be < 0!'
+    !
+    ! Initialise parameters for the Clenshaw reccurance formaular: see http://www.foo.be/docs-free/Numerical_Recipe_In_C/c5-8.pdf
+    d=0
+    dd=0
+    z2=2.0_rk*z
+    do j=7,2,-1  ! Clenshaw's recurrence.
+      sv=d
+      d=z2*d-dd+c(j)
+      dd=sv
+    enddo
+    !
+    ! Compute the Chebyshev expansion as a fucntion of z
+    cheb_expansion=z*d-dd+c(1) ! not correct so far
+    ! Compute the r-dependent, empirical term chi that multiplies the Chebyshev expansion
+    chi=(1.0_rk-exp(-c(9)*x))**3/(sqrt((x**2-c(10)**2)**2+c(11)**2)*sqrt((x**2-c(12)**2)**2+c(13)**2)) ! correct
+    !
+    ! Compute the irregular Chebysehv expansion DMC
+    f=chi*cheb_expansion
+    !
+  end function irreg_chebyshev_DMC
+  !
+  !
+  function irreg_chebyshev_DMC_2024(r,c) result(f)   ! based on  https://doi.org/10.1080/00268976.2024.2429740
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: c(:) ! potential parameters
+    real(rk)               :: z,f,t1,t2,t3,a0,a1
+    integer(ik)            :: k,nb,i
+     !
+     a0 = c(1)
+     a1 = c(2)
+     !
+     nb = size(c)
+     !
+     z = -exp(-a0*r)*(1.0_rk + a0*r + (a0*r)**2/2.0_rk)*2.0_rk + 1.0_rk
+     !
+     t1 = 0 ; t2 = 0
+     do i = nb, 2+2, -1
+         t3 = t1
+         t1 = 2.0_rk*z*t1 - t2 + c(i)
+         t2 = t3
+     enddo
+     !
+     f = (z*t1 - t2 + c(3))*(1.0d0-dexp(-a1*r))**7/r**4    
+     !
+  end function irreg_chebyshev_DMC_2024
+  
+  
+  
+ !
  function poten_exponential(r, parameters) result(fun)
   ! expansion in powers of y = e^(-a(r-re)),
   !   F = sum_{n=0}^m c_n y^n = c(1) + c(3)*exp( -a*r ) + ...
@@ -1348,6 +1914,131 @@ module functions
     !
   end function poten_Pade_Goodisman_2
   !
+
+
+  
+  
+  !
+  ! Morse/Lennard-Jones oscillator, Hajigeorgiou and Le Roy
+  ! fom John A. Coxon; Cameron S. Dickinson J. Chem. Phys. 121, 9378–9388 (2004)
+  ! https://doi.org/10.1063/1.1788659
+  !
+  function poten_MLJ(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,z,phi,phiinf,phi0,phi_sw,f,delta,R12
+    integer(ik)            :: k,N,M,Nstruc,Ntot
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    r12 = parameters(4)
+    !
+    delta = parameters(5)
+    phiinf = parameters(6)
+    !
+    ! leading term in U = De - Cn/r^N
+    !
+    N = parameters(7)
+    !
+    ! can be constrained to 
+    !phiinf = 0.5_rk*log(2.0_rk*de*r0**n/Cn)
+    !
+    ! Number of structural parameters
+    !
+    Nstruc = 7
+    !
+    ! total number of parameters
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    ! number of long range parameters
+    !
+    M = Ntot-Nstruc-1
+    !
+    z = 2.0_rk*(r-r0)/(r+r0)
+    !
+    phi0 = 0
+    do k=0,M
+     phi0 = phi0 + parameters(k+Nstruc+1)*z**k
+    enddo
+    !
+    ! switching part
+    !
+    phi_sw = 1.0_rk/( 1.0_rk+exp( delta*(r-r12) ) )
+    !
+    phi = phi_sw*phi0+(1.0_rk-phi_sw)*phiinf
+    !
+    y  = 1.0_rk-(r0/r)**N*exp(-phi*z)
+    !
+    f = de*y**2+v0
+    !
+  end function poten_MLJ
+
+  ! Potential BOB correction 
+  ! polynomial with mass-dependence in a reduced coordinate z with a switching function between long and short range 
+  !
+  function poten_BOB_mass_depended_in_z_with_switching(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,fa,fb
+    integer(ik)            :: Na,Nb,N1a,Ntot
+    !
+    r0 = parameters(1)
+    Na = nint(parameters(6))
+    !
+    fa = func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters(2:6+Na))
+    !
+    N1a = 6+Na
+    !
+    Nb = nint(parameters(N1a+5))
+    !
+    Ntot = size(parameters(:),dim=1)
+    !
+    fb = func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters(N1a+1:Ntot))
+    !
+    f= fa+fb
+    !
+  end function poten_BOB_mass_depended_in_z_with_switching
+
+  function func_atomic_BOB_mass_depended_in_z_with_switching(r,r0,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r,r0          ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f,z,ma,r12,delta,Uinf_a,Ua,phi_sw,phi_sw0,fa
+    real(rk)               :: mass_e = 0.0005485799111 ! mass of electron in Dalton
+    integer(ik)            :: k,Na,N1a
+    !
+    z = 2.0_rk*(r-r0)/(r+r0)
+    !
+    r12 = parameters(1)
+    delta = parameters(2)
+    !
+    ma = parameters(3)
+    Uinf_a = parameters(4)
+    Na = nint(parameters(5))
+    !
+    N1a= 5
+    !
+    Ua = 0
+    do k=1,Na
+     Ua = Ua + parameters(N1a+k)*z**k
+    enddo
+    ! switching part
+    !
+    phi_sw  = 1.0_rk/( 1.0_rk+exp( delta*(r -r12) ) )
+    phi_sw0 = 1.0_rk/( 1.0_rk+exp( delta*(r0-r12) ) )
+    !
+    fa = phi_sw*Ua+Uinf_a*(1.0_rk-phi_sw/phi_sw0)
+    !
+    f= mass_e/ma*fa
+    !
+  end function func_atomic_BOB_mass_depended_in_z_with_switching
+
   !
   ! polynomial with exp decay
   !
@@ -1445,8 +2136,6 @@ module functions
     f = ((1.0_rk-y)*f+y*tinf)*damp
     !
   end function dipole_polynom_exp_damp
-
-
 
   !
   function SO_arctan(r,parameters) result(fun)
@@ -1551,6 +2240,98 @@ module functions
   end function poten_two_coupled_EMOs
 
 
+  function poten_two_coupled_EMOs_Lorentz(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    a  = poten_lorentzian_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs_Lorentz
+
+
+  recursive function poten_diabatic_Lorentz_TWO_EMOS(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,gamma,r0,f
+    integer(ik)            :: nparams1,nparams2,nparams0
+    !
+    nparams0 = 2
+    nparams1 = parameters(2+8)+9
+    nparams2 = parameters(2+nparams1+8)+9
+    !
+    f1 = poten_EMO(r,parameters(2+1:2+nparams1))
+    f2 = poten_EMO(r,parameters(2+nparams1+1:2+nparams1+nparams2))
+    !
+    gamma = parameters(1)
+    r0 =  parameters(2)
+    !
+    if (abs(r-r0)>sqrt(small_)) then 
+      !
+      f = gamma/(r-r0)*0.5_rk*(f2-f1)
+    else
+      f=0.5_rk*( poten_diabatic_Lorentz_TWO_EMOS(r+0.001_rk,parameters)+poten_diabatic_Lorentz_TWO_EMOS(r-0.001_rk,parameters) )
+    endif
+    !
+  end function poten_diabatic_Lorentz_TWO_EMOS
+
+
+  function poten_two_coupled_EMOs_SqrtLorentz(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    a  = poten_sqrt_lorentzian_polynom(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs_SqrtLorentz
+
+
+
   function poten_two_coupled_BOBs(r,parameters) result(f)
     !
     real(rk),intent(in)    :: r             ! geometry (Ang)
@@ -1582,6 +2363,39 @@ module functions
     endif
     !
   end function poten_two_coupled_BOBs
+
+  function poten_two_coupled_EMOs_with_EMO(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f1,f2,a,e(2),f,discr
+    integer(ik)            :: nparams1,nparams2,nparams3,icomponent
+    !
+    nparams1 = parameters(8)+9
+    nparams2 = parameters(nparams1+8)+9
+    nparams3 = size(parameters)-(nparams1+nparams2)-1 ! last parameter is the adiabatic component
+    icomponent = parameters(nparams1+nparams2+nparams3+1)
+    !
+    f1 = poten_EMO(r,parameters(1:nparams1))
+    f2 = poten_EMO(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    a  = poten_EMO(r,parameters(nparams1+nparams2+1:nparams1+nparams2+nparams3))
+    !
+    discr = f1**2-2.0_rk*f1*f2+f2**2+4.0_rk*a**2
+    !
+    if (discr<-small_) then
+      write(out,"('poten_two_coupled_EMOs: discriminant is negative')")
+      stop 'poten_two_coupled_EMOs: discriminant is negative'
+    endif
+    !
+    e(1)=0.5_rk*(f1+f2)-0.5_rk*sqrt(discr)
+    e(2)=0.5_rk*(f1+f2)+0.5_rk*sqrt(discr)
+    !
+    f = e(icomponent)
+    !
+  end function poten_two_coupled_EMOs_with_EMO
+
+
   !
   ! Morse/Long-Range, see Le Roy manuals
   !
@@ -1597,7 +2411,7 @@ module functions
     !
     if (N/=size(parameters)-1) then
       write(out,"('Repulsive: Npar inconsistent with total number of parameters:',2i9)") N,size(parameters)+1
-      stop 'Repulsive: illegal number of parameters'
+      !stop 'Repulsive: illegal number of parameters'
     endif
     !
     ! long-range part
@@ -1610,6 +2424,64 @@ module functions
     f = uLR
     !
   end function poten_repulsive
+
+  !
+  ! Repulsive -C_n/r^n + A exp(-delta/r )/R^gamma
+  ! Elander et al 1979 Phys. Scr. 20 631
+  function poten_repulsive_exp(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,f,uLR,VLR,A,gamma,delta
+    integer(ik)            :: k,N,n0
+    !
+    v0 = parameters(1)
+    A  = parameters(2)
+    delta = parameters(3)
+    gamma = parameters(4)
+    !
+    n = size(parameters) 
+    !
+    ! long-range part
+    !
+    VLR = A*exp(-delta/r)/r**gamma
+    !
+    n0 = 5
+    !
+    uLR = V0
+    do k=n0,N
+     uLR = uLR + parameters(k)/r**(k-n0+1)
+    enddo
+    !
+    f = uLR+VLR
+    !
+  end function poten_repulsive_exp  
+  
+  ! PEC used for X state of O2
+  ! Bytautas eta al., J. Chem. Phys. 132, 074307 (2010)
+  ! V = sum_i a_k exp(-alpha beta^k R^2)
+  function poten_exp_R2(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: v0,f,alpha,beta
+    integer(ik)            :: k,N,n0,i
+    !
+    v0  = parameters(1)
+    alpha = parameters(2)
+    beta = parameters(3)
+    !
+    n = size(parameters) 
+    !
+    n0 = 4
+    !
+    f = v0
+    do k=n0,N
+       i = k - n0
+     f = f + parameters(k)*exp(-alpha*beta**i*r**2)
+    enddo
+    !
+  end function poten_exp_R2  
 
 
   function poten_two_coupled_EMO_repulsive(r,parameters) result(f)
@@ -1669,6 +2541,146 @@ module functions
     f = y0+2.0_rk*f0/pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) )
     !
   end function poten_lorentzian_polynom
+  !
+  !
+  function poten_lorentzian_surkus_polynom(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,gamma,z,f0,f
+    integer(ik)            :: k,p,N
+    !
+    N = size(parameters)
+    !
+    gamma = parameters(1)
+    r0 = parameters(2)
+    z = 0.0_rk
+    !
+    if (N>3) then 
+       p = int(parameters(3),ik)
+       z = (r**p-r0**p)/(r**p+r0**p)
+    endif
+    !
+    f0 = 1.0
+    do k=4,N
+     f0 = f0 + parameters(k)*z**(k-3)
+    enddo
+    !
+    f = 0.5_rk*gamma*f0/( (r-r0)**2+gamma**2 )
+    !
+  end function poten_lorentzian_surkus_polynom
+
+  !
+  ! A sqrt(lorentzian) function for the couplings between diabatic curves
+  !
+  function poten_sqrt_lorentzian_polynom(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y0,r0,w,a,z,f0,f
+    integer(ik)            :: k,N,p
+    !
+    N = size(parameters)
+    !
+    y0 = parameters(1)
+    r0 = parameters(2)
+    p  = parameters(3)
+    !
+    w = parameters(4)
+    a = parameters(5)
+    !
+    z = (r**p-r0**p)/(r**p+r0**p)
+    !
+    f0 = a
+    do k=6,N
+     f0 = f0 + parameters(k)*z**(k-5)
+    enddo
+    !
+    f = y0+f0*sqrt(2.0_rk*pi*( w/( 4.0_rk*(r-r0)**2+w**2 ) ))
+    !
+  end function poten_sqrt_lorentzian_polynom
+
+
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the lorentzian case
+  !
+  function beta_diabatic_lorentzian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: gamma0,r0,f,t
+    !
+    gamma0 = parameters(1)
+    r0 = parameters(2)
+    !
+    t = (r-r0)/gamma0
+    !
+    f=0.5_rk*atan(t)+pi/4.0_rk;
+    !
+  end function beta_diabatic_lorentzian
+
+
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the Laplacian case
+  !
+  function beta_diabatic_laplacian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: gamma0,r0,f
+    !
+    gamma0 = parameters(1)
+    r0 = parameters(2)
+    !
+    if (r<r0-small_) then 
+      f= Pi/4.0_rk*exp( (r-r0)/gamma0 )
+    elseif (r>r0+small_) then 
+      f= Pi/2.0_rk-Pi/4.0_rk*exp(-(r-r0)/gamma0 )
+    else
+      f= Pi/4.0_rk
+    endif
+    !
+  end function beta_diabatic_laplacian
+
+
+  !
+  ! An angle used for a unitary transformation to the diabatic representaion 
+  ! for the Laplacian case
+  !
+  function beta_diabatic_lorentzian_laplacian(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: r0,f,tLor,tLap,gammaLap,gammaLor,betaLor,betaLap
+    !
+    gammaLor = parameters(1)
+    r0 = parameters(2)
+    gammaLap = parameters(3)
+    !
+    ! special case of the option ratio between gammas; 
+    ! it is used to define gammaLap for gammaLap=0
+    if (gammaLap<small_) gammaLap = 1.397_rk*gammaLor
+    !
+    tLor = (r-r0)/gammaLor
+    tLap = (r-r0)/gammaLap
+    !
+    betaLor=0.5_rk*atan(tLor)+pi/4.0_rk
+    !
+    if (r<r0-small_) then 
+      betaLap= Pi/4.0_rk*exp( tLap )
+    elseif (r>r0+small_) then 
+      betaLap= Pi/2.0_rk-Pi/4.0_rk*exp(-tLap )
+    else
+      betaLap= Pi/4.0_rk
+    endif
+    !
+    ! beta is a geometric average of betaLor and betaLap
+    !
+    f = 0.5_rk*asin(sqrt(sin(2.0_rk*betaLor)*sin(2.0_rk*betaLap)))
+    !
+  end function beta_diabatic_lorentzian_laplacian
 
 
   function polynomial_dimensionless(r,parameters) result(f)
@@ -1740,7 +2752,7 @@ module functions
      !
      yinf = (DD(r,5,d1,d2)*C5 + DD(r,6,d1,d2)*C6/r + DD(r,8,d1,d2)*C8/r**3)/r**5
      !
-     z    = dtanh(c1*r - c2/r)
+     z    = tanh(c1*r - c2/r)
      !
      t1 = 0._rk
      t2 = 0._rk
@@ -1760,11 +2772,307 @@ module functions
       real(rk) :: r, d1, d2, f
       integer(ik) ::   n
       !
-      f = (1.0_rk - dexp(-d1*r/n - d2*r*r/dsqrt(dble(n))))**(n + 2)
+      f = (1.0_rk - exp(-d1*r/n - d2*r*r/sqrt(real(n,rk))))**(n + 2)
       !
       end function DD
       !
   end function potential_stolyarov_CO_X_UBO
   !
+  !
+  function poten_EHH(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: y,v0,r0,de,f,alpha,q,phi,c
+    integer(ik)            :: k,N
+    !
+    v0 = parameters(1)
+    r0 = parameters(2)
+    ! Note that the De is relative the absolute minimum of the ground state
+    De = parameters(3)-v0
+    !
+    alpha = parameters(4)
+    c     = parameters(5)
+    !
+    N     = size(parameters) - 5
+    !
+    if (size(parameters)<5) then
+      write(out,"('poten_EHH: Illegal number of parameters in EHH, no beta -present')")
+      print*,parameters(:)
+      stop 'poten_EHH: Illegal number of parameters, no beta'
+    endif
+    !
+    q = alpha*(r-r0)
+    !
+    phi = 1.0_rk
+    do k=1,N
+     phi = phi + parameters(k+5)*q**k
+    enddo
+    !
+    y  = exp(-q)
+    !
+    f = de*((1.0_rk-y)**2+c*q**3*phi*y*y)+v0
+    !
+  end function poten_EHH
+  !
+  !
+  ! Irregular DMF by Medvedev Opt. spectrosc. 130, 1334 (2022)
+  !
+  function dipole_medvedev_sing(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: alpha,beta,z,y,f,r1,r2,b1,b2,s
+    integer(ik)            :: N,k,i
+    !
+    alpha = parameters(1)
+    beta  = parameters(2)
+    r1    = parameters(3)
+    b1    = parameters(4)
+    r2    = parameters(5)
+    b2    = parameters(6)
+    n     = int(parameters(7))
+    !
+    z=1.0_rk-2.0_rk*exp(-r*beta)
+    y=1.0_rk-exp(-r*alpha)
+    !
+    k = size(parameters)-8
+    !    
+    s = parameters(8)
+    do i = 1, k
+        s = s+parameters(i+8)*z**i
+    end do
+    !
+    f = s*y**5/&
+        sqrt( (r**2-r1**2)**2+b1**2 )/&
+        sqrt( (r**2-r2**2)**2+b2**2 )
+    !
+  end function dipole_medvedev_sing
+  !
+  ! does not do anything 
+  !
+  function function_dummy(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f
+    !
+    f = 0
+    !
+  end function function_dummy
+  !
+  !
+  function polynomial_coupled_PECs(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: V1,V2,VD,Discr,E(2)
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    V1 = function_V1(r,parameters(1:N1))
+    V2 = function_V2(r,parameters(N1+1:N1+N2))
+    VD = function_VD(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! to diagobalize the 2x2 matrix 
+    !/     \
+    ! V1 VD |
+    ! VD V2 |
+    !\     /
+    ! we solve a quadratic equation with the discriminant 
+    !
+    Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+    !
+    if (discr<-small_) then
+      write(out,"('COUPLED: discriminant is negative for polynomial_coupled_PECs, r= ',f17.8)") r
+      stop 'COUPLED: discriminant is negative'
+    endif
+    !
+    E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+    E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = E(icomponent)              
+    !
+  end function polynomial_coupled_PECs
+  !
+  !
+  ! A coupled PEC with an arbitrary number of states 
+  !
+  function polynomial_multi_coupled_PECs(r,parameters) result(f)
+    !
+    use lapack,only : lapack_syev
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk),allocatable   :: h(:,:),e(:)
+    integer(ik) :: icomponent,Ntot,Ndim,N,i,i1,i2,alloc
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    Ndim = ( nint( sqrt(1.0_rk+8.0_rk*real(N_multi_subfunctions,rk)))-1 )/2
+    !
+    allocate(h(Ndim,Ndim),e(Ndim),stat=alloc)
+    if (alloc/=0) then
+      write (out,"('Error alloac polynomial_multi_coupled_PECs:  h and e ',i0)") alloc
+      stop 'Error alloac polynomial_multi_coupled_PECs - alloc'
+    end if
+    !
+    i = 0
+    Ntot = 0 ! accumulated size
+    !
+    do i1 =1,Ndim
+       i = i + 1
+       N = nsize_multi(i)
+       h(i1,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+       Ntot = Ntot + N
+    enddo
+    !
+    do i1 =1,Ndim
+       do i2 =i1+1,Ndim
+         i = i + 1
+         N = nsize_multi(i)
+         h(i2,i1) = function_multi(i)%f(r,parameters(Ntot+1:Ntot+N))
+         h(i1,i2) = h(i2,i1)
+         Ntot = Ntot + N
+       enddo
+    enddo
+    !
+    ! to diagobalize the NxN matrix 
+    !
+    call lapack_syev(h,e)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = e(icomponent)  
+    !
+    deallocate(h,e)            
+    !
+  end function polynomial_multi_coupled_PECs
+  !
+  recursive function polynomial_coupled_PECs_beta(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: V1,V2,VD,Discr,E(2),beta
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    V1 = function_V1(r,parameters(1:N1))
+    V2 = function_V2(r,parameters(N1+1:N1+N2))
+    !
+    beta = function_beta(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! Define the diabatic coupling: VD = 0.5*tan(2*gamma)*(V1-V2)
+    !
+    if (abs(beta-pi*0.25_rk)>sqrt(small_)) then 
+      !
+      VD = 0.5_rk*tan(2.0_rk*beta)*(V2-V1)
+      !
+    else
+      !
+      VD = polynomial_coupled_PECs_beta(r-sqrt(small_),parameters) 
+      !
+    endif
+    !
+    ! to diagobalize the 2x2 matrix 
+    !/     \
+    ! V1 VD |
+    ! VD V2 |
+    !\     /
+    ! we solve a quadratic equation with the discriminant 
+    !
+    Discr = V1**2-2.0_rk*V1*V2+V2**2+4.0_rk*VD**2
+    !
+    if (discr<-small_) then
+      write(out,"('COUPLED: discriminant is negative in polynomial_coupled_PECs_beta r=',f15.8)") r
+      stop 'COUPLED: discriminant is negative in polynomial_coupled_PECs_beta'
+    endif
+    !
+    E(1)=0.5_rk*(V1+V2)-0.5_rk*sqrt(Discr)
+    E(2)=0.5_rk*(V1+V2)+0.5_rk*sqrt(Discr)
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = E(icomponent)              
+    !
+  end function polynomial_coupled_PECs_beta
+
+
+  !
+  recursive function coupled_transition_curves_beta(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    !
+    real(rk)    :: f1,f2,g(2),beta
+    integer(ik) :: icomponent,Ntot
+    !
+    real(rk)   :: f
+    !
+    f = 0
+    !
+    f1 = function_V1(r,parameters(1:N1))
+    f2 = function_V2(r,parameters(N1+1:N1+N2))
+    !
+    beta = function_beta(r,parameters(N1+N2+1:N1+N2+N3))
+    !
+    ! unitary transforamtion of one state in the transition property (e.g. a dipole between a diabatised and single states)
+    !
+    g(1) = cos(beta)*f1-sin(beta)*f2
+    g(2) = sin(beta)*f1+cos(beta)*f2
+    !
+    ! we use the component as specified in the last parameter:
+    !
+    Ntot = size(parameters)
+    !
+    icomponent = parameters(Ntot)
+    !
+    f = g(icomponent)              
+    !
+  end function coupled_transition_curves_beta
+  !
+  function poten_EMO_switch(r,parameters) result(f)
+    !
+    real(rk),intent(in)    :: r             ! geometry (Ang)
+    real(rk),intent(in)    :: parameters(:) ! potential parameters
+    real(rk)               :: f_shortrange,f_EMO,f_switch,f
+    integer(ik)            :: N,nparams1,nparams2
+    !
+    N = size(parameters)
+    nparams1 = parameters(8)+9
+    nparams2 = N-1-nparams1
+    f_shortrange = parameters(N)
+    !
+    f_EMO = poten_EMO(r,parameters(1:nparams1))
+    f_switch = poten_sigmoid(r,parameters(nparams1+1:nparams1+nparams2))
+    !
+    f= f_switch*f_EMO+(1.0_rk-f_switch)*f_shortrange
+    !
+  end function poten_EMO_switch
   !
 end module functions

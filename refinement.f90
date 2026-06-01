@@ -2,12 +2,14 @@ module refinement
   !
   use accuracy
   use timer
-  !use functions,only : define_analytical_field
+  !
+  use functions,only : define_complex_analytic_field_subterms
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
-                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,NL2,NLxLy,Nbobrot,Ndiabatic,Nlambdaopq,Nlambdap2q,Nlambdaq,&
-                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm, &
-                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,linkT,vmax,&
-                           l_omega_obj,s_omega_obj
+                           Ntotalfields,fieldT,poten,spinorbit,l2,lxly,&
+                           grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm,dipoletm,&
+                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,bobvib,linkT,vmax,&
+                           l_omega_obj,s_omega_obj,rangeT
+  !
   !
   implicit none
   !
@@ -15,7 +17,7 @@ module refinement
    !
    real(rk)    :: stab_best=1e-12  ! best standard error and stability 
    integer(ik) :: maxiter_as = 3                  ! maximal number of iterations to find a match for assignement
-   integer(ik) :: Nobjectmax = 9
+   integer(ik) :: Nobjectmax = 14
    integer(ik) :: vmax_ = 100                     ! if vmax in input is undefined vmax_ will be used to predife size
    !                                              !  of the matrix with energies 
    !
@@ -63,7 +65,7 @@ module refinement
       real(rk)     :: stadev_old,stability,stadev,sum_sterr,conf_int
       real(rk)     :: ssq,rms,ssq1,ssq2,rms1,rms2,fit_factor
       real(rk)     :: a_wats = 1.0_rk,lambda = 0.01_rk,nu = 10.0_rk
-      integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max
+      integer(ik)  :: i,numpar,itmax,j,jlistmax,rank,ncol,nroots,nroots_max,NumSVD
       integer(ik)  :: iener,jener,irow,icolumn,ndigits,nrot,irot,irot_
       integer(ik)  :: enunit,abinitunit,i0,i1,iter_th,k0,frequnit
       integer(ik)  :: nlevels,NArmijo,ialpha_Armijo
@@ -78,6 +80,7 @@ module refinement
       character(len=1),parameter    :: pm(1:2) = (/"+","-"/)
       character(len=1)  :: mark_
       character(len=3)  :: mark_f
+      character(len=3) :: iTAG,iTAGC,iTAG_,iTAGC_
       !
       integer(ik)  :: ifield,jfield,ifield_,iobject,Nfields,iterm,ifitpar,istate,ilambda,ivib,istate_,ilambda_,ivib_,ngrid,Nterms
       integer(ik)  :: maxNfields,ipotmin,i_,nchar,k,k_
@@ -87,6 +90,7 @@ module refinement
       real(rk)     :: param_t,delta,sigmai,omega,spin,sigmai_,omega_,spin_,f,fR,fL,r_t,req,fshift
       type(fieldT),pointer      :: field
       type(linkT),pointer       :: flink
+      type(rangeT),pointer      :: frange
       real(rk),allocatable      :: EnergyR(:,:,:),EnergyL(:,:,:),params_t(:)
       type(quantaT),allocatable   :: calc(:,:,:),calc_(:,:,:)
       type(fit_indexT),allocatable   :: fit_index(:)
@@ -94,11 +98,13 @@ module refinement
       type(fieldT),allocatable      :: object0(:,:)
       character(len=130)  :: my_fmt ! contains format specification for intput/output
       logical :: printed ! used to print frequencies
+      real(rk),allocatable    :: spline_wk_vec(:) ! working vector needed for spline interpolation
+      real(rk) :: yp1, ypn
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
        ! Nobjectmax = Nobjects - 3
-       Nobjectmax = 13
+       Nobjectmax = 14
        !
        call TimerStart('Simultaneous Fitting')
        !
@@ -132,7 +138,7 @@ module refinement
        ! count all grid points 
        !
        j = 0
-       do ifield = 1,Ntotalfields
+       do ifield = 1,Nabi !Ntotalfields
          !
          field => abinitio(ifield)
          !
@@ -261,73 +267,30 @@ module refinement
        !
        ! weights for the ab initio fields
        !
-       j = 0
-       do ifield =1,Ntotalfields
-         !
-         field => abinitio(ifield)
-         do i=1,field%Nterms
-           j = j + 1
-           r(j) = field%grid(i)
-           wtall(en_npts+j) = field%weight(i)
-         enddo
-         !
-         ! normalize weights for each field separately
-         !
-         wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
-         wtall(en_npts+j-field%Nterms+1:en_npts+j) =  & 
-              field%fit_factor*wtall(en_npts+j-field%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
-         !
-       enddo 
+       !j = 0
+       !do ifield =1,Nabi
+       !  !
+       !  field => abinitio(ifield)
+       !  do i=1,field%Nterms
+       !    j = j + 1
+       !    r(j) = field%grid(i)
+       !    wtall(en_npts+j) = field%weight(i)
+       !  enddo
+       !  !
+       !  ! normalize weights for each field separately
+       !  !
+       !  wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
+       !  wtall(en_npts+j-field%Nterms+1:en_npts+j) =  & 
+       !       field%fit_factor*wtall(en_npts+j-field%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
+       !  !
+       !enddo 
        !
        !wtsum = sum(wtall(en_npts+1:npts))
        !wtall(en_npts+1:npts) = wtall(en_npts+1:npts)/max(wtsum,sqrt(small_))
        !
-       ! 2. Factorizing the obs. weights by the factor "fit_factor":
-       !
-       wtall(1:en_npts) = wtall(1:en_npts)*fitting%factor
-       !
-       ! 3. And normilizing all weight factors. 
-       !
-       wtsum = sum(wtall(1:npts))
-       wtall(1:npts) = wtall(1:npts)/max(wtsum,sqrt(small_))
-       ! 
-       ! Count how many data points actually will be fitted. 
-       !
-       nused=0
-       wt_bit = 0 
-       !
-       do i=1,npts
-         if (wtall(i)>small_) then 
-           !
-           nused=nused+1
-           wt_bit(i) = 1.0_rk
-           !
-         endif
-       enddo
-       !
-       ! sigma = exp. data precision for robust fit 
-       !
-       if (fitting%robust>small_) then
-         !
-         sigma = 1.0_rk
-         !
-         !$omp parallel do private(i) shared(sigma) schedule(dynamic)
-         do i=1,npts
-           if (wtall(i)>small_) sigma(i) = sigma(i)/sqrt(wtall(i))
-         enddo
-         !$omp end parallel do
-         !
-         wtsum = 1.0_rk ! sqrt(sum(sigma(1:en_npts)**2))
-         !
-         sigma(:) = sigma(:)*fitting%robust/wtsum
-         !
-       endif 
-       !
        ! assigning mark with null
        !
        mark(:) = ' '
-       !
-       write(out,"('Number of data points used in the fit: ',i9)") nused
        !
        ! The fitting loop is about to start. 
        !
@@ -352,6 +315,7 @@ module refinement
        ipotmin = minloc(poten(1)%gridvalue,dim=1) ; req = grid%r(ipotmin)
        !
        ifield_ = 0
+       j = 0
        !
        do iobject =1,Nobjectmax
           !
@@ -385,7 +349,13 @@ module refinement
             case (12)
               objects(iobject,ifield)%field => lambdaq(ifield)
             case (13)
+              objects(iobject,ifield)%field => nac(ifield)
+            case (14)
+              objects(iobject,ifield)%field => bobvib(ifield)
+            case (Nobjects-3)
               objects(iobject,ifield)%field => quadrupoletm(ifield)
+            case (Nobjects)
+              objects(iobject,ifield)%field => dipoletm(ifield)
             end select
             !
             Nterms = objects(iobject,ifield)%field%Nterms
@@ -394,7 +364,11 @@ module refinement
             !
             object0(iobject,ifield)%value = objects(iobject,ifield)%field%value
             !
-            ifield_ = ifield_ + 1
+            ! what is the number of the parent field in the abinitio counter?
+            !
+            ifield_  = objects(iobject,ifield)%field%iabi
+            !
+            if (ifield_==0) cycle 
             !
             ! change to the equilibrium
             !
@@ -402,14 +376,72 @@ module refinement
               !
               abinitio(ifield_)%grid(1) = req
               !
-              !f = analytical_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
+              !f = fanalytic_field(req,objects(iobject,ifield)%field%type,objects(iobject,ifield)%field%value)
               !
               abinitio(ifield_)%gridvalue(1) = objects(iobject,ifield)%field%gridvalue(ipotmin)
               !
             endif 
             !
+            ! weights for the ab initio fields
+            !
+            do i = 1,abinitio(ifield_)%Nterms
+              !
+              j = j + 1
+              !r(j) = field%grid(i)
+              r(j)=  abinitio(ifield_)%grid(1)
+              !wtall(en_npts+j) = field%weight(i)
+              wtall(en_npts+j) = abinitio(ifield_)%weight(i)
+            enddo
+            !
+            wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
+            wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j) =  & 
+                 abinitio(ifield_)%fit_factor*wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
+            !
          enddo
        enddo
+       !
+       ! 2. Factorizing the obs. weights by the factor "fit_factor":
+       !
+       wtall(1:en_npts) = wtall(1:en_npts)*fitting%factor
+       !
+       ! 3. And normilizing all weight factors. 
+       !
+       wtsum = sum(wtall(1:npts))
+       wtall(1:npts) = wtall(1:npts)/max(wtsum,sqrt(small_))
+       ! 
+       ! Count how many data points actually will be fitted. 
+       !
+       nused=0
+       wt_bit = 0 
+       !
+       do i=1,npts
+         if (wtall(i)>small_) then 
+           !
+           nused=nused+1
+           wt_bit(i) = 1.0_rk
+           !
+         endif
+       enddo
+       !
+       write(out,"('Number of data points used in the fit: ',i9)") nused
+       !
+       ! sigma = exp. data precision for robust fit 
+       !
+       if (fitting%robust>small_) then
+         !
+         sigma = 1.0_rk
+         !
+         !$omp parallel do private(i) shared(sigma) schedule(dynamic)
+         do i=1,npts
+           if (wtall(i)>small_) sigma(i) = sigma(i)/sqrt(wtall(i))
+         enddo
+         !$omp end parallel do
+         !
+         wtsum = 1.0_rk ! sqrt(sum(sigma(1:en_npts)**2))
+         !
+         sigma(:) = sigma(:)*fitting%robust/wtsum
+         !
+       endif 
        !
        ! For "frequencies" reconstruct energies by combine differences
        !
@@ -459,8 +491,7 @@ module refinement
                  !
                  j = j + 1
                  !
-                 if (nint(objects(iobject,ifield)%field%weight(iterm)) > 0.and. & 
-                     trim(objects(iobject,ifield)%field%type)/='GRID') then 
+                 if (nint(objects(iobject,ifield)%field%weight(iterm)).eq.1) then 
                    !
                    numpar=numpar+1
                    !
@@ -516,9 +547,12 @@ module refinement
             !
             if (fit_factor<0) rjacob(1:en_npts,:) = 0
             !
-            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
-            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer
-            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer
+            !if (do_print) write(out,"(/'Iteration = ',i8)") fititer-1
+            if (do_print) write(enunit,"(/'Iteration = ',i8)") fititer-1
+            if (action%frequency.and.do_print) write(frequnit,"(/'Iteration = ',i8)") fititer-1
+            if (do_print.and.fititer-1==0) write(out,"(/a)") &
+              'Iteration = 0: Straight through calculations with initial parameters...'
+            if (do_print.and.fititer-1==0.and.itmax>0) write(out,"(/a)") 'Generating derivatives for the least-squares fit...'
             !
             ! Reconstruct the potential expansion from the local to linearized coords.
             !
@@ -716,14 +750,14 @@ module refinement
                   jrot_= fitting%obs(iener)%jrot_
                   itau_= fitting%obs(iener)%iparity_+1
                   !
-                  loop_thresh_u : do iter_th = -maxiter_as,maxiter_as
+                  loop_thresh_u : do iter_th = 1,maxiter_as
                     !
                     !if (iter_th == 0) cycle
                     !
-                    !lock_factor = real(iter_th,8)
+                    lock_factor = real(iter_th,8)
                     !if (iter_th<) lock_factor = 10**iter_th
                     !
-                    lock_factor = 10.0**iter_th
+                    !lock_factor = 10.0**iter_th
                     !
                     loop_jrot_u : do irot = 1,nrot
                       !
@@ -751,14 +785,14 @@ module refinement
                                 !
                                 if (energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1)<0) cycle
                                 !
-                                do jener = max(iener-10,1),iener-1
-                                  !
-                                  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
-                                      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
-                                  !
-                                  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
-                                  !
-                                enddo
+                                !do jener = max(iener-10,1),iener-1
+                                !  !
+                                !  if (nint(jrotC -fitting%obs(jener)%jrot )/=0.or.itauC -1/=fitting%obs(jener)%iparity.or.&
+                                !      nint(jrotC_-fitting%obs(jener)%jrot_)/=0.or.itauC_-1/=fitting%obs(jener)%iparity_) cycle
+                                !  !
+                                !  if ( fitting%obs(jener)%N_ == i1.and.fitting%obs(jener)%N == i0 ) cycle loop_j
+                                !  !
+                                !enddo
                                 !
                                 if ( abs( fitting%obs(iener)%energy-( energy_(irot,itauC,i0)-energy_(irot_,itauC_,i1) )  )<= & 
                                                             & lock_factor*abs(fitting%threshold_lock).and.&
@@ -817,6 +851,7 @@ module refinement
                  omega   = sigmai + real(ilambda,rk)
                  spin    = fitting%obs(iener)%quanta%spin
                  ivib    = fitting%obs(iener)%quanta%v
+                 iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                  !
                  Jrot_   = fitting%obs(iener)%Jrot_
                  irot_   = fitting%obs(iener)%irot_
@@ -826,6 +861,7 @@ module refinement
                  omega_  = fitting%obs(iener)%quanta_%omega
                  spin_   = fitting%obs(iener)%quanta_%spin
                  ivib_   = fitting%obs(iener)%quanta_%v
+                 iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                  !
                  itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                  itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -850,6 +886,7 @@ module refinement
                     omegaC   = sigmaC+real(ilambdaC,rk)
                     spinC    = calc(irot,itau,i)%spin
                     ivibC    = calc(irot,itau,i)%v
+                    iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                     !
                     JrotC_   = calc(irot_,itau_,i_)%Jrot
                     istateC_ = calc(irot_,itau_,i_)%istate
@@ -858,14 +895,15 @@ module refinement
                     omegaC_  = sigmaC_+real(ilambdaC_,rk)
                     spinC_   = calc(irot_,itau_,i_)%spin
                     ivibC_   = calc(irot_,itau_,i_)%v
+                    iTAGC_   = calc(irot_,itau_,i_)%iTAG(1:3)
                     
                     write (out,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x," &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')', " &
-                               // " '(',1x,i3,2x,2i4,2f7.1,', <-',1x,i3,2x,2i4,2f7.1,')',a)") &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')', " &
+                               // " '(',1x,a3,1x,2i4,2f7.1,', <-',1x,a3,1x,2i4,2f7.1,')',a)") &
                            iener,i,Jrot,pm(itau),i_,Jrot_,pm(itau_),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                            wtall(iener),energy_(irot,itau,i)-ezero(1),energy_(irot_,itau_,i_)-ezero(1),&
-                           istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                           istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                           iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                           iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                            mark(iener)
                 endif
                 !
@@ -885,6 +923,7 @@ module refinement
                     omega   = fitting%obs(iener)%quanta%omega
                     spin    = fitting%obs(iener)%quanta%spin
                     ivib    = fitting%obs(iener)%quanta%v
+                    iTAG    = fitting%obs(iener)%quanta%iTAG(1:3)
                     !
                     Jrot_   = fitting%obs(iener)%Jrot_
                     irot_   = fitting%obs(iener)%irot_
@@ -894,6 +933,7 @@ module refinement
                     omega_  = fitting%obs(iener)%quanta_%omega
                     spin_   = fitting%obs(iener)%quanta_%spin
                     ivib_   = fitting%obs(iener)%quanta_%v
+                    iTAG_   = fitting%obs(iener)%quanta_%iTAG(1:3)
                     !
                     itau  = fitting%obs(iener)%iparity +1 ;  if (itau <1.or.itau >2) cycle 
                     itau_ = fitting%obs(iener)%iparity_+1 ;  if (itau_<1.or.itau_>2) cycle 
@@ -921,6 +961,7 @@ module refinement
                           omegaC   = sigmaC+real(ilambdaC,rk)
                           spinC    = calc(irot,itau,k)%spin
                           ivibC    = calc(irot,itau,k)%v
+                          iTAGC    = calc(irot,itau,i)%iTAG(1:3)
                           !
                           JrotC_   = calc(irot_,itau_,k_)%Jrot
                           istateC_ = calc(irot_,itau_,k_)%istate
@@ -929,16 +970,17 @@ module refinement
                           omegaC_  = sigmaC_+real(ilambdaC_,rk)
                           spinC_   = calc(irot_,itau_,k_)%spin
                           ivibC_   = calc(irot_,itau_,k_)%v
+                          iTAGC_   = calc(irot_,itau_,i_)%iTAG
                           !
                           write (frequnit,"(i5,2(i5,1x,f7.1,1x,a1),2x,' ',3f14.4,2x,e9.2,2x,2f14.4,2x,&
-                                 &'(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )" &
-                                 // "(',1x,i3,2x,2i4,2f7.1,' <-',1x,i3,2x,2i4,2f7.1,' )',a)") &
+                                 &'(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )" &
+                                 // "(',1x,a3,1x,2i4,2f7.1,' <-',1x,a3,1x,2i4,2f7.1,' )',a)") &
                                  iener,k,Jrot,pm(itau),k_,Jrot_,pm(itau_),&
                                  fitting%obs(iener)%energy,energy_(irot,itau,k)-energy_(irot_,itau_,k_),&
                                  fitting%obs(iener)%energy-(energy_(irot,itau,k)-energy_(irot_,itau_,k_)),&
                                  wtall(iener),energy_(irot,itau,k)-ezero(1),energy_(irot_,itau_,k_)-ezero(1),&
-                                 istateC,ivibC,ilambdaC,sigmaC,omegaC,istateC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
-                                 istate ,ivib ,ilambda ,sigmai,omega ,istate_ ,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
+                                 iTAGC,ivibC,ilambdaC,sigmaC,omegaC,iTAGC_,ivibC_,ilambdaC_,sigmaC_,omegaC_,&
+                                 iTAG ,ivib ,ilambda ,sigmai,omega ,iTAG_,ivib_ ,ilambda_ ,sigmai_,omega_ ,&
                                  mark_
                        enddo
                        !
@@ -978,6 +1020,7 @@ module refinement
                                    omega  = fitting%obs(jener)%quanta%omega
                                    spin   = fitting%obs(jener)%quanta%spin
                                    ivib   = fitting%obs(jener)%quanta%v
+                                   iTAG    = fitting%obs(jener)%quanta%iTAG(1:3)
                                    !
                                    Jrot_   = fitting%obs(jener)%Jrot_
                                    istate_ = fitting%obs(jener)%quanta_%istate
@@ -986,26 +1029,20 @@ module refinement
                                    omega_  = fitting%obs(jener)%quanta_%omega
                                    spin_   = fitting%obs(jener)%quanta_%spin
                                    ivib_   = fitting%obs(jener)%quanta_%v
-                                   !
-                                   istateC = calc(irot,itau,i)%istate
-                                   sigmaC = calc(irot,itau,i)%sigma
-                                   ilambdaC= calc(irot,itau,i)%ilambda
-                                   omegaC  = sigmaC + real(ilambdaC,rk)
-                                   spinC   = calc(irot,itau,i)%spin
-                                   ivibC   = calc(irot,itau,i)%v
+                                   iTAG_   = fitting%obs(jener)%quanta_%iTAG(1:3)
                                    !
                                    i_ = fitting%obs(jener)%N_
                                    irot_ = fitting%obs(jener)%irot_
                                    itau_ = fitting%obs(jener)%iparity_+1
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )', &
-                                         &'(',1x,i3,2x,2i4,2f7.1,' )',a1,2x,a)") & 
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )', &
+                                         &'(',1x,a3,1x,2i4,2f7.1,' )',a1,2x,a)") & 
                                       i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                       enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)-ezero(1),&
                                       energy_(irot,itau,i)-ezero(1),&
                                       energy_(irot,itau,i)-(enercalc(jener)+eps(jener)+energy_(irot_,itau_,i_)),wtall(jener),&
-                                      istate, ivib, ilambda ,sigmai ,omega ,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,&
+                                      iTAG, ivib, ilambda ,sigmai ,omega ,&
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,&
                                       mark(jener),trim( poten(istate)%name )
                                    !
                                 endif 
@@ -1021,10 +1058,11 @@ module refinement
                                    omega_   = calc(irot,itau,i)%omega
                                    spin_    = calc(irot,itau,i)%spin
                                    ivib_    = calc(irot,itau,i)%v
+                                   iTAG_    = calc(irot,itau,i)%iTAG(1:3)
                                    !
-                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f7.1,' )',2x,a)") &
+                                   write(enunit,"(2i5,1x,f7.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f7.1,' )',2x,a)") &
                                       i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-energy_(1,1,1),0.0,0.0,&
-                                      istate_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
+                                      iTAG_,ivib_,ilambda_,sigmai_,omega_,trim( poten(istate_)%name )
                                    !
                               endif
                               !
@@ -1148,6 +1186,7 @@ module refinement
                    omega   = fitting%obs(iener)%quanta%omega
                    spin = fitting%obs(iener)%quanta%spin
                    ivib = fitting%obs(iener)%quanta%v
+                   iTAG = fitting%obs(iener)%quanta%iTAG(1:3)
                    !
                    JrotC   = calc(irot,itau,i)%Jrot
                    istateC = calc(irot,itau,i)%istate
@@ -1156,13 +1195,14 @@ module refinement
                    omegaC  = sigmaC + real(ilambdaC,rk)
                    spinC   = calc(irot,itau,i)%spin
                    ivibC   = calc(irot,itau,i)%v
+                   iTAGC = calc(irot,itau,i)%iTAG(1:3)
                    !
                    write (out,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,&
-                          &'(',1x,i3,2x,2i4,2f8.1,' )','(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                          &'(',1x,a3,1x,2i4,2f8.1,' )','(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                           iener,i,Jrot,pm(itau),enercalc(iener)+eps(iener),enercalc(iener),eps(iener),&
                           wtall(iener),&
-                          istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                          istate ,ivib ,ilambda ,sigmai,omega ,&
+                          iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                          iTAG ,ivib ,ilambda ,sigmai,omega ,&
                           mark(iener)
                  endif
               enddo
@@ -1204,21 +1244,23 @@ module refinement
                              omega  = fitting%obs(jener)%quanta%omega
                              spin   = fitting%obs(jener)%quanta%spin
                              ivib   = fitting%obs(jener)%quanta%v
+                             iTAG   = fitting%obs(jener)%quanta%iTAG(1:3)
                              !
                              istateC = calc(irot,itau,i)%istate
-                             sigmaC = calc(irot,itau,i)%sigma
+                             sigmaC  = calc(irot,itau,i)%sigma
                              ilambdaC= calc(irot,itau,i)%ilambda
                              omegaC  = sigmaC + real(ilambdaC,rk)
                              spinC   = calc(irot,itau,i)%spin
                              ivibC   = calc(irot,itau,i)%v
+                             iTAGC   = calc(irot,itau,i)%iTAG(1:3)
                              !
-                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )', &
-                                          & '(',1x,i3,2x,2i4,2f8.1,' )',a)") &
+                             write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )', &
+                                          & '(',1x,a3,1x,2i4,2f8.1,' )',a)") &
                                 i,fitting%obs(jener)%N,Jrot,pm(itau),&
                                 enercalc(jener)+eps(jener),&
                                 enercalc(jener),eps(jener),wtall(jener),&
-                                istateC,ivibC,ilambdaC,sigmaC,omegaC,&
-                                istate,ivib  ,ilambda,sigmai,omega,&
+                                iTAGC,ivibC,ilambdaC,sigmaC,omegaC,&
+                                iTAG ,ivib  ,ilambda,sigmai,omega,&
                                 mark(jener)
                             !
                           else
@@ -1230,10 +1272,11 @@ module refinement
                             omega_ = calc(irot,itau,i)%omega
                             spin_ = calc(irot,itau,i)%spin
                             ivib_ = calc(irot,itau,i)%v
+                            iTAG_ = calc(irot,itau,i)%iTAG(1:3)
                             !
-                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,i3,2x,2i4,2f8.1,' )')") &
+                            write(enunit,"(2i5,1x,f8.1,1x,a1,2x,' ',3f14.4,2x,e9.2,2x,'(',1x,a3,1x,2i4,2f8.1,' )')") &
                                i,0,Jrot,pm(itau),0.0,energy_(irot,itau,i)-ezero(1),0.0,0.0,&
-                               istate_,ivib_,ilambda_,sigmai_,omega_
+                               iTAG_,ivib_,ilambda_,sigmai_,omega_
                                !
                           endif 
                           !
@@ -1268,6 +1311,11 @@ module refinement
             !
             call TimerStart('Grid points')
             !
+            rewind(abinitunit)
+            !
+            write(abinitunit,"(' Grid points '/&
+            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
+            !
             ! this will count different ab initio fields one by one 
             ifield_ = 0
             !
@@ -1281,7 +1329,16 @@ module refinement
                !
                do ifield =1,Nfields
                  !
-                 ifield_ = ifield_ + 1
+                 ifield_  = objects(iobject,ifield)%field%iabi
+                 !
+                 if (ifield_==0) cycle 
+                 !
+                 field => objects(iobject,ifield)%field
+                 !
+                 if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
+                 !
+                 if (associated(field%sub_type)) call define_complex_analytic_field_subterms(field%type,&
+                                                      field%sub_type,field%Nsub_terms)
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
@@ -1297,7 +1354,7 @@ module refinement
                      !
                    else
                      !
-                     f = objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
+                     f = objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                      !
                    endif
                    !
@@ -1318,43 +1375,104 @@ module refinement
                       eps(en_npts+j) = eps(en_npts+j)+fshift
                    endif
                    !
+                   ! print out into .pot
+                   !
+                   write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
+                          ifield,r_t, &
+                          abinitio(ifield_)%value(i)*abinitio(ifield_)%factor,f, &
+                          eps(en_npts+j),wtall(en_npts+j) 
+                   !
                    ! calculate the derivative of the potential function wrt the fitting parameters
                    !
                    if (itmax.ge.1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then 
                       !
-                      do ifitpar = 1,numpar
+                      select case (trim(objects(iobject,ifield)%field%type)) 
                         !
-                        rjacob(en_npts+j,ifitpar) = 0
+                      case('GRID')
                         !
-                        !if (objects(iobject,ifield)%field%type=='GRID') cycle
+                        allocate(spline_wk_vec(field%Nterms),stat=info)
+                        call ArrayStart('spline_wk_vec-fit',info,ngrid,kind(spline_wk_vec))
                         !
-                        jfield = fit_index(ifitpar)%ifield
-                        iterm = fit_index(ifitpar)%iterm
+                        yp1= 0._rk ; ypn =0._rk  ! 1nd derivatives at the first and last point (ignored)
                         !
-                        ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
-                        if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                        do ifitpar = 1,numpar
+                          !
+                          rjacob(en_npts+j,ifitpar) = 0
+                          !
+                          jfield = fit_index(ifitpar)%ifield
+                          iterm = fit_index(ifitpar)%iterm
+                          !
+                          ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
+                          if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                          !
+                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          !
+                          param_t = field%value(iterm)
+                          !
+                          delta = 1e-3*abs(param_t)
+                          !
+                          if (delta < small_) delta = sqrt(small_)*10.0
+                          !
+                          field%value(iterm) = param_t + delta
+                          !
+                          call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
+                          !
+                          ! evaluate spline interpolant
+                          call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r_t,FR)
+                          !
+                          field%value(iterm) = param_t - delta
+                          !
+                          call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
+                          !
+                          ! evaluate spline interpolant
+                          call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r_t,FL)
+                          !
+                          rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*field%factor
+                          !
+                          field%value(iterm) = param_t
+                          !
+                        enddo
                         !
-                        if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                        deallocate(spline_wk_vec)
+                        call ArrayStop('spline_wk_vec-fit')
                         !
-                        param_t = objects(iobject,ifield)%field%value(iterm)
+                      case default 
                         !
-                        delta = 1e-4*abs(param_t)
+                        do ifitpar = 1,numpar
+                          !
+                          rjacob(en_npts+j,ifitpar) = 0
+                          !
+                          !if (objects(iobject,ifield)%field%type=='GRID') cycle
+                          !
+                          jfield = fit_index(ifitpar)%ifield
+                          iterm = fit_index(ifitpar)%iterm
+                          !
+                          ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
+                          if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
+                          !
+                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          !
+                          param_t = objects(iobject,ifield)%field%value(iterm)
+                          !
+                          delta = 1e-4*abs(param_t)
+                          !
+                          if (delta < small_) delta = sqrt(small_)*10.0
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t + delta
+                          !
+                          fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t - delta
+                          !
+                          fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
+                          !
+                          rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
+                          !
+                          objects(iobject,ifield)%field%value(iterm) = param_t
+                          !
+                        enddo
                         !
-                        if (delta < small_) delta = sqrt(small_)*10.0
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t + delta
-                        !
-                        fR =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t - delta
-                        !
-                        fL =  objects(iobject,ifield)%field%analytical_field(r_t,objects(iobject,ifield)%field%value)
-                        !
-                        rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)**objects(iobject,ifield)%field%factor
-                        !
-                        objects(iobject,ifield)%field%value(iterm) = param_t
-                        !
-                      enddo
+                      end select 
                       !
                    endif 
                    !
@@ -1365,44 +1483,18 @@ module refinement
             !
             call TimerStop('Grid points')
             !
-            ! print out the potential energy corrections at the 'ab initio' geometries
-            !
-            rewind(abinitunit)
-            !
-            write(abinitunit,"(' Grid points '/&
-            &'  state        r                 ab initio             calc.           ab initio - calc        weight'/)")
-            !
-            j = 0 
-            do ifield =1,Ntotalfields
-              !
-              field => abinitio(ifield)
-              !
-              if (field%type=="DUMMY") cycle
-              !
-              write(abinitunit,'(a)') field%name
-              !
-              do i=1,field%Nterms
-                 !
-                 j = j + 1
-                 !
-                 f = field%value(i)*field%factor-eps(j+en_npts)
-                 !
-                 write (abinitunit,"((2x,i4,2x,f16.9),3(2x,g19.8),2x,e12.4)") & 
-                        ifield,field%grid(i), &
-                        field%value(i)*field%factor,f, &
-                        eps(en_npts+j),wtall(en_npts+j) 
-                !
-              enddo
-            enddo
-            !
             ! ssq  - weighted rms**2, rms  - root mean square deviation. 
             !
             ssq=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))
             rms=sqrt(sum(eps(1:npts)*eps(1:npts))/npts)
             !
+            if (do_print.and.fititer==1) write(out,"(/a)") 'Refinement using the least-squared fitting ...'
+            if (do_print) write(out,"(/'Iteration = ',i8)") fititer
+            !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
             if (itmax>=1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then
+               !
                !----- form the a and b matrix ------c
                ! form A matrix 
                do irow=1,numpar       
@@ -1423,32 +1515,30 @@ module refinement
                  !dec end if
                enddo  
                !
+               ! In case any diagonal matrix elements of al is zero, we can have remove this paramter 
+               ! from the fit and set its value to zero. And start the iteration again. 
+               do ncol=1,numpar 
+                  !
+                  if ( abs(al(ncol,ncol))<small_ ) then 
+                      !
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      !
+                      objects(iobject,ifield)%field%weight(iterm) = 0
+                      objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                      !
+                      write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                      !
+                      cycle outer_loop
+                      !
+                  endif 
+                  !
+               enddo 
                !
-               ! Using Marquardt's fitting method
-               !
-               ! solve the linear equatins for two values of lambda and lambda/10
-               !
-               ! Defining scalled (with covariance) A and b
-               ! 
-               ! form A matrix 
-               do irow=1,numpar       
-                 do icolumn=1,irow    
-                   Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
-                   Am(icolumn,irow)=Am(irow,icolumn)
-                 enddo
-                 bm(irow) = bl(irow)/sqrt(al(irow,irow))
-               enddo
-               !
-               ! define shifted A as A =  A+lambda I
-               ! lambda is Marquard's scaling factor
-               !
-               do irow=1,numpar       
-                   Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
-               enddo
-               !
-               ! Two types of the linear solver are availible: 
-               ! 1. linur (integrated into the program, from Ulenikov Oleg)
-               ! 2. dgelss - Lapack routine (recommended).
+               ! We use two different approaches to Least squares fit Ax=b
+               ! 1. A(ij) = sum_k R(i,k) R(j,k), where R(i,k) = d Ei/d Ck and b(i) = sum_k R(i,k) [Eobs(i)-Ecalc(i)]
+               ! 2. A(i,j) = R(i,j) and b(i) = [Eobs(i)-Ecalc(i)] <= SVD
                !
                select case (trim(fitting%fit_type)) 
                !
@@ -1457,55 +1547,109 @@ module refinement
                  write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
                  stop 'fit_type unknown'
                  !
-               case('LINUR') 
-                 !
-                 call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
-                 !
-                 ! In case of dependent parameters  "linur" reports an error = ierror, 
-                 ! which is a number of the dependent parameter. We can remove this paramter 
-                 ! from the fit and set its value to zero. And start the iteration again. 
-                 !
-                 if (ierror.ne.0) then 
-                   do ncol=1,numpar 
-                      !
-                      if ( ncol.eq.ierror ) then 
-                          !
-                          iobject = fit_index(ncol)%iobject
-                          ifield = fit_index(ncol)%ifield
-                          iterm = fit_index(ncol)%iterm
-                          !
-                          objects(iobject,ifield)%field%weight(iterm) = 0
-                          objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
-                          !
-                          write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
-                          !
-                      endif 
-                      !
-                   enddo 
-                   !
-                   cycle outer_loop
-                  endif 
+               case('LINUR','DGELSS') 
                   !
-               case ('DGELSS')
+                  ! Using Marquardt's fitting method
+                  !
+                  ! solve the linear equatins for two values of lambda and lambda/10
+                  !
+                  ! Defining scaled (with covariance) A and b
+                  ! 
+                  ! form A matrix 
+                  do irow=1,numpar       
+                    do icolumn=1,irow    
+                      Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
+                      Am(icolumn,irow)=Am(irow,icolumn)
+                    enddo
+                    bm(irow) = bl(irow)/sqrt(al(irow,irow))
+                  enddo
+                  !
+                  ! define shifted A as A =  A+lambda I
+                  ! lambda is Marquard's scaling factor
+                  !
+                  do irow=1,numpar       
+                      Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
+                  enddo
+                  !
+                  ! Two types of the linear solver are availible: 
+                  ! 1. linur (integrated into the program, from Ulenikov Oleg)
+                  ! 2. dgelss - Lapack routine (recommended).
+                  !
+                  select case (trim(fitting%fit_type)) 
+                  !
+                  case default
+                    !
+                    write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
+                    stop 'fit_type unknown'
+                    !
+                  case('LINUR') 
+                    !
+                    call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
+                    !
+                    ! In case of dependent parameters  "linur" reports an error = ierror, 
+                    ! which is a number of the dependent parameter. We can remove this paramter 
+                    ! from the fit and set its value to zero. And start the iteration again. 
+                    !
+                    if (ierror.ne.0) then 
+                      do ncol=1,numpar 
+                         !
+                         if ( ncol.eq.ierror ) then 
+                             !
+                             iobject = fit_index(ncol)%iobject
+                             ifield = fit_index(ncol)%ifield
+                             iterm = fit_index(ncol)%iterm
+                             !
+                             objects(iobject,ifield)%field%weight(iterm) = 0
+                             objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                             !
+                             write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                             !
+                         endif 
+                         !
+                      enddo 
+                      !
+                      cycle outer_loop
+                     endif 
+                     !
+                  case ('DGELSS')
+                    !
+                    ai = am 
+                    bi = bm
+                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,&
+                                wspace,lwork,info)
+                    !
+                    if (info/=0) then
+                      write(out,"('dgelss:error',i0)") info
+                      stop 'dgelss'
+                    endif
+                    !
+                    solution = bi ! *0.1
+                    !
+                 end select 
                  !
-                 ai = am 
-                 bi = bm
-                 call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,wspace,lwork,info)
+                 ! convert back from Marquardt's representation
                  !
-                 if (info/=0) then
-                   write(out,"('dgelss:error',i0)") info
-                   stop 'dgelss'
-                 endif
+                 do ncol=1,numpar
+                    solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
+                 enddo
                  !
-                 solution = bi ! *0.1
+               case ("SDD")
+                 !
+                 call lapack_sdd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 !
+                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
+                 !
+                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SDD roots = ',NumSVD,'tol = ',fitting%svd_tol
+                 !
+               case ("SVD")
+                 !
+                 call lapack_svd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 !
+                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
+                 !
+                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SVD roots = ',NumSVD,'tol = ',fitting%svd_tol
                  !
                end select
-               !
-               ! convert back from Marquardt's representation
-               !
-               do ncol=1,numpar
-                  solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
-               enddo
                !
                ! Scale the correction if required 
                !
@@ -1513,6 +1657,7 @@ module refinement
                !
                !----- update the parameter values with a scaled correction------!
                !
+               !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) shared(params_t) schedule(dynamic)
                do ncol=1,numpar
                   !
                   iobject = fit_index(ncol)%iobject
@@ -1521,9 +1666,14 @@ module refinement
                   !
                   params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
                   !
-                  objects(iobject,ifield)%field%value(iterm)=objects(iobject,ifield)%field%value(iterm)+dx(ncol)
+                  param_t = params_t(ncol)+dx(ncol)
+                  param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                  param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                  !
+                  objects(iobject,ifield)%field%value(iterm)=param_t
                   !
                enddo
+               !$omp end parallel do
                !
                !
                ! Robust fit: adjust the fitting weights
@@ -1549,7 +1699,7 @@ module refinement
                if (stadev<stadev_old) then
                  lambda = lambda/nu
                else 
-                 lambda = min(lambda*nu,10000.0)
+                 lambda = min(lambda*nu,10000.0_rk)
                endif
                !
                ! Estimate the standard errors for each parameter using 
@@ -1590,15 +1740,21 @@ module refinement
                  !
                  !----- update the parameter values with a scaled correction------!
                  !
+                 !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) schedule(dynamic)
                  do ncol=1,numpar
                     !
                     iobject = fit_index(ncol)%iobject
                     ifield = fit_index(ncol)%ifield
                     iterm = fit_index(ncol)%iterm
                     !
-                    objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                    param_t = params_t(ncol)+dx(ncol)
+                    param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                    param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                    !
+                    objects(iobject,ifield)%field%value(iterm)=param_t
                     !
                  enddo
+                 !$omp end parallel do 
                  !
                  fititer = fititer - 1
                  ialpha_Armijo = ialpha_Armijo + 1
@@ -1630,15 +1786,22 @@ module refinement
                     !
                     fititer = fititer - 1
                     !
+                    !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) schedule(dynamic)
                     do ncol=1,numpar
                        !
                        iobject = fit_index(ncol)%iobject
                        ifield = fit_index(ncol)%ifield
                        iterm = fit_index(ncol)%iterm
                        !
-                       objects(iobject,ifield)%field%value(iterm)=params_t(ncol)+dx(ncol)
+                       param_t = params_t(ncol)+dx(ncol)
+                       param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                       param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                       !
+                       objects(iobject,ifield)%field%value(iterm)=param_t
                        !
                     enddo
+                    !$omp end parallel do 
+                    !
                     cycle loop_fititer
                  endif
                  !
@@ -1674,9 +1837,10 @@ module refinement
                  !if (abinitio(ifield_)%type=="DUMMY") cycle
                  !
                  nchar = len_trim(objects(iobject,ifield)%field%class)
-                 write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,2i7)"
-                 write(out,my_fmt) trim(objects(iobject,ifield)%field%class),objects(iobject,ifield)%field%iref,&
-                                   objects(iobject,ifield)%field%jref
+                 write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,a,1x,a)"
+                 write(out,my_fmt) trim(objects(iobject,ifield)%field%class),&
+                                   trim(objects(iobject,ifield)%field%itag),&
+                                   trim(objects(iobject,ifield)%field%jtag)
                  !
                  !write(out,'(/tl,a20,2i4)') adjustl(trim(objects(iobject,ifield)%field%class)), &
                  !   objects(iobject,ifield)%field%iref,objects(iobject,ifield)%field%jref
@@ -1689,6 +1853,7 @@ module refinement
                  do iterm = 1,objects(iobject,ifield)%field%Nterms
                    !
                    flink => objects(iobject,ifield)%field%link(iterm)
+                   frange => objects(iobject,ifield)%field%fit_range(iterm)
                    !
                    mark_f = '' 
                    !
@@ -1702,23 +1867,19 @@ module refinement
                      !
                    else
                      !
-                     write (out,"(a8,3x,es22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
-                           objects(iobject,ifield)%field%value(iterm),mark_f
+                     if (frange%set) then 
+                       !
+                       write (out,"(a8,3x,es22.14,2x,a3,2x,'range',2x,es15.7,',',es15.7)") &
+                                 objects(iobject,ifield)%field%forcename(iterm),&
+                                 objects(iobject,ifield)%field%value(iterm),mark_f,frange%min,frange%max
+                       !
+                     else
+                       !
+                       write (out,"(a8,3x,es22.14,2x,a3)") objects(iobject,ifield)%field%forcename(iterm), & 
+                             objects(iobject,ifield)%field%value(iterm),mark_f
                            !
+                     endif
                    endif
-                   !
-                   !if (flink%iobject/=0) then
-                   !  !
-                   !  write (out,"(a8,1x,f8.1,2x,e22.14,8x,'link',3(1x,i3))") objects(iobject,ifield)%field%forcename(iterm), & 
-                   !        objects(iobject,ifield)%field%weight(iterm),objects(iobject,ifield)%field%value(iterm),&
-                   !        flink%iobject,flink%ifield,flink%iparam
-                   !  !
-                   !else
-                   !  !
-                   !  write (out,"(a8,1x,f8.1,2x,e22.14)") objects(iobject,ifield)%field%forcename(iterm), & 
-                   !        objects(iobject,ifield)%field%weight(iterm),objects(iobject,ifield)%field%value(iterm)
-                   !        !
-                   !endif
                    !
                  enddo
                  !
@@ -1737,7 +1898,7 @@ module refinement
               ncol = 0 
               ifield_ = 0
               !
-              write(out,"(/'Fitted paramters (rounded):')")
+              write(out,"(/'Fitted parameters (rounded):')")
               !
               do iobject =1,Nobjectmax
                 !
@@ -1752,15 +1913,10 @@ module refinement
                   write(out,'(/)') 
 
                   nchar = len_trim(objects(iobject,ifield)%field%class)
-                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,2i7)"
-                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),objects(iobject,ifield)%field%iref,& 
-                                    objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,*) adjustl(trim(objects(iobject,ifield)%field%class)),objects(iobject,ifield)%field%iref,& 
-                  !objects(iobject,ifield)%field%jref
-                  !
-                  !write(out,'(/tl1,a20,2i4)') adjustl(trim(objects(iobject,ifield)%field%class)), &
-                  !  objects(iobject,ifield)%field%iref, objects(iobject,ifield)%field%jref
+                  write(my_fmt, '(A,I0,A)') "(/a",nchar,",4x,a,1x,a)"
+                  write(out,my_fmt) trim(objects(iobject,ifield)%field%class),&
+                                    trim(objects(iobject,ifield)%field%itag),&
+                                    trim(objects(iobject,ifield)%field%jtag)
                   !
                   write(out,'(a4,4x,a)') "name",adjustl(trim(objects(iobject,ifield)%field%name))
                   write(out,'(a4,4x,a20)') "type",adjustl(trim(objects(iobject,ifield)%field%type))
@@ -1887,44 +2043,6 @@ module refinement
   contains 
 
 
-
-  subroutine parameters_copy_to_fields
-    !
-    integer(ik) :: ifield,Nterms,iterm
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          poten(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          spinorbit(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          L2(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          LxLy(ifield)%value(1:Nterms) = potparam(iterm+1:iterm+Nterms)
-          iterm = iterm + Nterms
-       enddo
-    !
-  end subroutine parameters_copy_to_fields
-
-
   subroutine update_linked_parameters
     !
     integer(ik) :: ifield,iterm,iobject,Nfields
@@ -1938,7 +2056,7 @@ module refinement
        !
        do ifield =1,Nfields
          !
-         ifield_ = ifield_ + 1
+         !ifield_ = ifield_ + 1
          !
          do iterm = 1,objects(iobject,ifield)%field%Nterms
            !
@@ -1956,114 +2074,7 @@ module refinement
     enddo
     !
   end subroutine update_linked_parameters
-
-  subroutine one_parameter_copy_to_fields(i,param)
-    !
-    integer(ik),intent(in) :: i
-    real(rk),intent(in) :: param
-    integer(ik) :: ifield,Nterms,iterm,jterm
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               poten(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               spinorbit(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               L2(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          do jterm = 1,Nterms
-            if (i==iterm+jterm) then 
-               LxLy(ifield)%value(jterm) = param
-               return 
-            endif 
-          enddo
-       enddo
-    !
-  end subroutine one_parameter_copy_to_fields
-
-
-  subroutine field_copy_to_parameters
-    !
-    integer(ik) :: ifield,Nterms,iterm
-       !
-       !potparam(:) = fitting%param(:)%value
-       !ivar(:)     = fitting%param(:)%ifit
-       !nampar(:)   = fitting%param(:)%name
-
-       !
-       iterm = 0
-       !
-       ! potential functions
-       do ifield = 1,Nestates
-          Nterms = poten(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = poten(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(poten(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = poten(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! spin-orbits
-       do ifield = 1,Nspinorbits
-          Nterms = spinorbit(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = spinorbit(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(spinorbit(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = spinorbit(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! L**2
-       do ifield = 1,NL2
-          Nterms = L2(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = L2(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(L2(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = L2(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-       !
-       ! LxLy
-       do ifield = 1,NLxLy
-          Nterms = LxLy(ifield)%Nterms
-          potparam(iterm+1:iterm+Nterms) = LxLy(ifield)%value(1:Nterms)
-          ivar(iterm+1:iterm+Nterms)     = nint(LxLy(ifield)%weight(1:Nterms))
-          nampar(iterm+1:iterm+Nterms)   = LxLy(ifield)%name(1:Nterms)
-          iterm = iterm + Nterms
-       enddo
-    !
-  end subroutine field_copy_to_parameters
-
-    !
+  !
  end subroutine sf_fitting
 
   subroutine MLlinur(dimen,npar,coeff,constant,solution,error)
@@ -2265,5 +2276,233 @@ module refinement
           !
        end do
   end subroutine define_jlist
+
+  subroutine lapack_svd_pseudo_inverse(tol,h,Nkeep)
+
+    real(rk), intent(in)    :: tol 
+    real(rk), intent(inout) :: h(:,:)  ! In:  matrix
+    !                                          ! Out: pseudo-inverse matrix V Sigma- VT
+    integer(ik), intent(out)  :: Nkeep
+    character(len=1) :: jobu,jobvt,jobz
+    !
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:)
+    integer           :: info
+    integer           :: nh1, nh2,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
+    integer           :: lwork
+    double precision  :: tol_
+    double precision  :: alpha = 1.0d0,beta=0
+    !
+    jobu  = 'S'
+    jobvt = 'A'
+    jobz  = 'A'
+    !
+    nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
+    !
+    lwork = 50*nh1
+    !
+    select case (jobu)
+       case('A')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = nh1
+       case('S')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = min(nh1,nh2)
+    end select
+    !
+    select case (jobvt)
+       case('A')
+         LDVT = nh2
+         nvt1 = nh2
+         nvt2 = nh2
+       case('S')
+         LDVT = min(nh1,nh2)
+         nvt1 = min(nh1,nh2)
+         nvt2 = nh2
+    end select
+    !
+    allocate(work(lwork),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)    !
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(work),kind(work))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(u),kind(u))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(ut),kind(ut))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(vt),kind(vt))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(v),kind(v))
+    call ArrayStart('lapack_svd_pseudo_inverse',info,size(s),kind(s))
+    !
+    call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,-1,info)
+    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,-1,info)
+    !
+    if (int(work(1))>size(work)) then
+      !
+      lwork = int(work(1))
+      !
+      deallocate(work)
+      !
+      allocate(work(lwork))
+      !
+    endif
+    !
+    call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,lwork,info)
+    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,lwork,info)
+    !
+    if (info/=0) then
+      write (6,"(' dgesvd returned ',i8)") info
+      stop 'lapack_dgesvd - dgesvd failed'
+    end if
+    !
+    ! pseudo-inverse 
+    !
+    Nkeep = 0
+    !
+    tol_  = tol*maxval(s,dim=1)
+    !
+    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
+    !
+    Nkeep = min(Nkeep,nh1)
+    !
+    ut = 0 
+    !
+    do  j = 1,Nkeep
+       ut(j,:) = U(:,j)/s(j)
+    enddo
+    !
+    !v = transpose(vt)
+    u = transpose(ut)
+    !
+    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
+    !
+    !h = 0
+    !
+    !h = transpose(ut)
+    !
+    !h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
+    !
+    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
+    !h = transpose(ut)
+    !
+    call dgemm('T','N',LDU,nvt2,Nkeep,alpha,ut,nu2,vt,LDVT,beta,h,nh1)
+    !
+    deallocate(work,u,vt,ut,v,s)
+    !
+    call ArrayStop('lapack_svd_pseudo_inverse')
+    !
+  end subroutine lapack_svd_pseudo_inverse
+
+
+
+  subroutine lapack_sdd_pseudo_inverse(tol,h,Nkeep)
+
+    real(rk), intent(in)    :: tol 
+    real(rk), intent(inout) :: h(:,:)  ! In:  matrix
+    !                                          ! Out: pseudo-inverse matrix V Sigma- VT
+    integer(ik), intent(out)  :: Nkeep
+    character(len=1) :: jobu,jobvt,jobz
+    !
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:),A(:,:)
+    integer,allocatable    :: iwork(:)
+    integer           :: info
+    integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
+    integer           :: lwork
+    double precision  :: tol_
+    !double precision  :: alpha = 1.0d0,beta=0
+    !
+    jobu  = 'S'
+    jobvt = 'A'
+    jobz  = 'A'
+    !
+    nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
+    !
+    lwork = 50*nh1
+    !
+    select case (jobz)
+       case('A')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = nh1
+         LDVT = nh2
+         nvt1 = nh2
+         nvt2 = nh2
+       case('S')
+         LDU = nh1
+         nu1 = nh1
+         nu2 = min(nh1,nh2)
+         LDVT = min(nh1,nh2)
+         nvt1 = min(nh1,nh2)
+         nvt2 = nh2
+    end select
+    !
+    allocate(A(nh1,nh2),stat=info)
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(A),kind(A))
+    !
+    A = h
+    !
+    allocate(work(lwork),iwork(8*min(nh1,nh2)),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(work),kind(work))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(u),kind(u))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(ut),kind(ut))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(vt),kind(vt))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(v),kind(v))
+    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(s),kind(s))
+    !
+    call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,-1,iwork,info)
+    !
+    if (int(work(1))>size(work)) then
+      !
+      lwork = int(work(1))
+      !
+      deallocate(work)
+      !
+      allocate(work(lwork))
+      !
+    endif
+    !
+    call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,lwork,iwork,info)
+    !
+    if (info/=0) then
+      write (6,"(' dgesdd returned ',i8)") info
+      stop 'lapack_dgesdd - dgesvd failed'
+    end if
+    !
+    ! pseudo-inverse 
+    !
+    Nkeep = 0
+    !
+    tol_  = tol*maxval(s,dim=1)
+    !
+    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
+    !
+    Nkeep = min(Nkeep,nh1)
+    !
+    ut = 0 
+    !
+    do  i = 1,nu1
+      do  j = 1,Nkeep
+         ut(j,i) = U(i,j)/s(j)
+      enddo
+    enddo
+    !
+    !v = transpose(vt)
+    u = transpose(ut)
+    !
+    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
+    !
+    !h = 0
+    !
+    !h = transpose(ut)
+    !
+    h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
+    !
+    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
+    !h = transpose(ut)
+    !
+    !call dgemm('T','N',nh1,nkeep,nh2,alpha,ut,nh2,vt,nh2,beta,h,nh1)
+    !
+    deallocate(work,iwork,u,vt,ut,v,s,A)
+    !
+    call ArrayStop('lapack_sdd_pseudo_inverse')
+    !
+  end subroutine lapack_sdd_pseudo_inverse
+
   !
 end module refinement

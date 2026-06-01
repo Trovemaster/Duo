@@ -40,7 +40,9 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.doctest',
-    'sphinx.ext.imgmath'
+    'sphinx.ext.imgmath',
+    # BibTeX-based citations & bibliography (LaTeX-like referencing)
+    'sphinxcontrib.bibtex'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -60,7 +62,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -177,7 +179,13 @@ epub_exclude_files = ['search.html']
 # favicon
 html_favicon = 'favicon.ico'
 
-# bibliography
-#extensions = ['sphinxcontrib.bibtex']
+# -- Bibliography / citations -----------------------------------------------
+
+# List your BibTeX files here (relative to this directory).
+# You can keep using your existing BibTeX keys (e.g. Duo, 24BrDrYu.diabat).
+bibtex_bibfiles = ['references.bib','exomol.bib']
+
+# Numeric style similar to LaTeX 'unsrt' (order of first citation).
+bibtex_default_style = 'unsrt'
 
 # -- Extension configuration -------------------------------------------------
