@@ -25,7 +25,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 34  ! number of different terms of the Hamiltonian
+  integer(ik),parameter   :: Nobjects = 35  ! number of different terms of the Hamiltonian
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -65,7 +65,8 @@ module diatom_module
   !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
   !        case (26) hfcc1(6) for electric dipole, eQq0
   !        case (27) hfcc1(7) for electric diople, eQq2
-  !        case (28) reserved
+  !        case (28) hfcc1(8) for nuclear - nuclear spin dipole, ii
+  !        case (29) reserved
   !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
@@ -86,7 +87,7 @@ module diatom_module
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
     "BOBVIB", "", "", "", "", "", "", & ! reserved
-    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
+    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "HFCC-II-12", &
     "", & ! reserved
     "MAGNETROT",&
     "MAGNETIC",&
@@ -319,6 +320,7 @@ module diatom_module
 
   type quantaT
     real(rk) :: I1 ! nuclear spin 1
+    real(rk) :: Itot ! total nuclear spin (e.g. D2: Itot=0, 1, 2)
     real(rk) :: F1  ! \hat{F1} = \hat{I1} + \hat{J}
     INTEGER(ik) :: index_F1 ! index of the F1 in F1_list
     real(rk)     :: Jrot       ! J - real
@@ -591,7 +593,7 @@ module diatom_module
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
   type(F1_hyperfine_steup_T) :: F1_hyperfine_setup
-  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 7
+  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 8
   type(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   !
   real(rk),allocatable :: overlap_matelem(:,:)
@@ -1797,7 +1799,7 @@ contains
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
            "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
-           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2")
+           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2", "HFCC-II")
         !
         ibraket = 0
         !
@@ -2408,6 +2410,55 @@ contains
           call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
           field%class = "HFCC-EQQ2-1"
           if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
+          !
+        case("HFCC-II")
+
+          hfcc1(8)%num_field = hfcc1(8)%num_field + 1
+          iobject(28) = iobject(28) + 1
+
+          call reada(iTAG)
+          call StateCheck(iTAG, iref)
+          jref = iref
+
+          ! Find the corresponding potential.
+          include_state = .false.
+          loop_istate_hfcc_ii : do istate = 1, Nestates
+            do jstate = 1, Nestates
+              if (iref == poten(istate)%iref .and. jref == poten(jstate)%iref) then
+                include_state = .true.
+                istate_ = istate
+                jstate_ = jstate
+                exit loop_istate_hfcc_ii
+              endif
+            enddo
+          enddo loop_istate_hfcc_ii
+
+          ! Check whether this object has already been defined.
+          do istate = 1, hfcc1(8)%num_field - 1
+            if (iref == hfcc1(8)%field(istate)%iref .and. &
+                jref == hfcc1(8)%field(istate)%jref) then
+              call report("Nuclear spin-nuclear spin dipole-dipole object is repeated", .true.)
+            endif
+          enddo
+
+          if (.not. include_state) then
+            hfcc1(8)%num_field = hfcc1(8)%num_field - 1
+            do while (trim(w) /= "" .and. trim(w) /= "END")
+              call read_line(eof, iut)
+              if (eof) exit
+              call readu(w)
+            enddo
+            cycle
+          endif
+
+          field => hfcc1(8)%field(hfcc1(8)%num_field)
+
+          call set_field_refs(field, iref, jref, istate_, jstate_, iTAG, iTAG)
+          field%class = "HFCC-II-12"
+
+          if (action%fitting) then
+            call report("Nuclear spin-nuclear spin dipole-dipole object cannot appear after FITTING", .true.)
+          endif
           !
         case("ABINITIO")
           !
@@ -5041,7 +5092,7 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27)
+        case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
@@ -5573,7 +5624,7 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27)
+        case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
