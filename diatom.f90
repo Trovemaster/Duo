@@ -14461,7 +14461,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
       ! This is the `simple' sinc DVR version, derived for the range (-infty, +infty).
       if( grid%nsub /=0) then
         write(out, '(A)') 'Sorry, at the moment only uniformely-spaced grids (type 0) can be used with the SINC method.'
-        write(out, '(A)') 'Use 5PointDifferences as solution method for non uniformely-spaced grids.'
+        write(out, '(A)') 'Use SOLUTIONMETHOD 5PointDifferences for non uniformely-spaced grids.'
         stop
       endif
       !
