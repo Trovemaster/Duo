@@ -403,11 +403,11 @@ module diatom_module
     real(rk) :: quadrupole   = -1e0    ! threshold defining the output linestrength
     real(rk) :: coeff        = -1e0    ! threshold defining the eigenfunction coefficients
     ! taken into account in the matrix elements evaluation.
-    real(rk) :: bound_density      = sqrt(small_) ! threshold defining the unbound state density
     ! calculated at the edge of the box whioch must be small for bound states
-    real(rk) :: bound_aver_density = sqrt(small_) ! is bound_density/deltaR_dens
     real(rk) :: deltaR_dens = 0.5_rk   ! small interval for computing the state density (Angstrom)
-    real(rk),pointer :: bound_rmax(:)  ! threshold defining the unbound state based on the expectatiob value of the bond length
+    real(rk),pointer :: bound_density(:) ! threshold defining the unbound state density
+    real(rk),pointer :: bound_aver_density(:) ! is bound_density/deltaR_dens
+    real(rk),pointer :: bound_rmax(:)    ! threshold defining the unbound state based on the expectatiob value of the bond length
     !
   end type thresholdsT
   !
@@ -923,6 +923,10 @@ contains
         !
         ! This object is need for bound/unbound selection based on <r> 
         allocate(intensity%threshold%bound_rmax(nestates))
+        allocate(intensity%threshold%bound_density(nestates))
+        allocate(intensity%threshold%bound_aver_density(nestates))
+        bound_density = sqrt(small_)
+        bound_aver_density = sqrt(small_)
         !
       case ("NREFSTATES")
         !
@@ -3572,7 +3576,17 @@ contains
             !
           case('THRESH_BOUND','THRESH_DENSITY','THRESH_BOUND_DENSITY')
             !
-            call readf(intensity%threshold%bound_density)
+            ! in some cases (omega) we will need more entries than nestates
+            if (Nestates<Nitems-1) then 
+              deallocate(intensity%threshold%bound_density)
+              allocate(intensity%threshold%bound_density(Nitems-1),stat=alloc)
+              intensity%threshold%bound_density = sqrt(small_)
+            endif
+            !
+            do i = 1,min(Nitems-1,size(intensity%threshold%bound_density))
+              call readf(intensity%threshold%bound_density(i))
+              intensity%threshold%bound_density(i+1:) = intensity%threshold%bound_density(i)
+            enddo
             !
           case('THRESH_BOUND_RMAX')
             !
@@ -3589,7 +3603,6 @@ contains
               intensity%threshold%bound_rmax(i+1:) = intensity%threshold%bound_rmax(i)
             enddo
             !
-            !call readf(intensity%threshold%bound_rmax)
             intensity%use_bound_rmax = .true.
             !
           case('PRINT_BOUND_EPSILON','PRINT_BOUND_EPS','PRINT_BOUND_DENSITY')
@@ -3598,7 +3611,17 @@ contains
             !
           case('THRESH_AVERAGE_DENSITY')
             !
-            call readf(intensity%threshold%bound_aver_density)
+            ! in some cases (omega) we will need more entries than nestates
+            if (Nestates<Nitems-1) then 
+              deallocate(intensity%threshold%bound_aver_density)
+              allocate(intensity%threshold%bound_aver_density(Nitems-1),stat=alloc)
+              intensity%threshold%bound_aver_density = sqrt(small_)
+            endif
+            !
+            do i = 1,min(Nitems-1,size(intensity%threshold%bound_aver_density))
+              call readf(intensity%threshold%bound_aver_density(i))
+              intensity%threshold%bound_aver_density(i+1:) = intensity%threshold%bound_aver_density(i)
+            enddo
             !
           case('THRESH_DELTA_R')
             !
@@ -4057,9 +4080,11 @@ contains
     !
     ! redefine the bound_aver_density and bound_denisty into a single criterium
     !
-    bound_density = intensity%threshold%bound_aver_density*intensity%threshold%deltaR_dens
-    intensity%threshold%bound_density = max(intensity%threshold%bound_density,bound_density)
-    intensity%threshold%bound_aver_density = intensity%threshold%bound_density/intensity%threshold%deltaR_dens
+    do istate=1,min(size(ntensity%threshold%bound_density),size(ntensity%threshold%bound_aver_density))
+      bound_density = intensity%threshold%bound_aver_density(istate)*intensity%threshold%deltaR_dens
+      intensity%threshold%bound_density(istate) = max(intensity%threshold%bound_density(istate),bound_density)
+      intensity%threshold%bound_aver_density(istate) = intensity%threshold%bound_density(istate)/intensity%threshold%deltaR_dens(istate)
+    enddo
     !
     jmin = omega_
     if (jmax<jmin) jmax = jmin
@@ -10117,11 +10142,16 @@ contains
         !
         if (iverbose>=3) then
           write(out,'(/"Finding unbound state:")')
-          write(out,'("  Density threshold = ",e12.5)') intensity%threshold%bound_density
-          if (intensity%use_bound_rmax) & 
-              write(out,'("  rmax threshold = ",e12.5)') intensity%threshold%bound_rmax
+          write(out,'("  Density and rmax thresholds:")')
+          do istate=1,size(ntensity%threshold%bound_density)
+            write(out,'("     ",e12.5)') intensity%threshold%bound_density(istate)
+            if (intensity%use_bound_rmax) then
+               write(out,'("     ",e12.5)') intensity%threshold%bound_rmax(istate)
+            endif
+          enddo
           write(out,'("  The integration box = ",f15.8,"-",f15.8," Ang")') &
-            grid%r(grid%npoints-npoints_last+1),grid%rmax
+          grid%r(grid%npoints-npoints_last+1),grid%rmax
+          !
           write(out,'("  Number of ingegration points = ",i8)') npoints_last
           write(out,'("  Delta R = ",f9.2," grid size = ",f13.6)') intensity%threshold%deltaR_dens,hstep
         endif
@@ -10628,8 +10658,8 @@ contains
                   !
                   bound_state = .true.
                   !
-                  if (sum_wv>intensity%threshold%bound_density.or.&
-                      sum_wv_average>intensity%threshold%bound_aver_density) then
+                  if (sum_wv>intensity%threshold%bound_density(istate).or.&
+                      sum_wv_average>intensity%threshold%bound_aver_density(istate)) then
                     !
                     bound_state = .false.
                     eigen(irot,irrep)%quanta(total_roots)%bound = bound_state
@@ -11017,6 +11047,8 @@ contains
         deallocate(ilambdasigmas_v_icontr)
         call ArrayStop('ilambdasigmas_v_icontr')
       endif
+      !
+      if (iverbose>=4) call MemoryReport
       !
     enddo loop_jval
     !
