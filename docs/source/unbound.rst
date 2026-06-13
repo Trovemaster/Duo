@@ -54,7 +54,7 @@ Duo can flag a state as unbound if :math:`\langle r \rangle` exceeds a user-defi
 
 
 .. note::
-       When both criteria are enabled, to be a bound state, it must satisfy both criteria, for  :math:`\langle r \rangle < r_{\rm thresh}` and  :math:`\epsilon < \epsilon_{\rm thr}`. That is, a state is unbound if any of these two conditions is satisfied. 
+       When both criteria are enabled, to be a bound state, it must satisfy both criteria, for  :math:`\langle r \rangle < r_{\rm thresh}` and  :math:`\epsilon < \epsilon_{\rm thr}`. That is, a state is unbound if any of these two conditions is satisfied.
 
 The ``.states`` file can include the bound/unbound label (``b``/``u``) and the value of :math:`\langle r \rangle` used for classification (last column), e.g.
 ::
@@ -88,6 +88,21 @@ Example (using the density criterion):
   end
 
 Here, the integrated density :math:`\epsilon` over the region :math:`[r_{\rm max}-\delta, r_{\rm max}]` with :math:`\delta=1\,\AA` is compared to :math:`\epsilon_{\rm thr}=10^{-6}`. The state is considered unbound if :math:`\epsilon>\epsilon_{\rm thr}`.
+
+State-dependent ``thresh_bound``  thresholds :math:`\epsilon_{\rm thr}`  can be provided by listing associated threshold values per each electronic state, in the same order as the states are defined (e.g. by the ``states`` keyword):
+::
+
+  intensity
+    absorption
+    unbound upper
+    ...
+    thresh_bound  1e-2 1e-1 5e-5 
+    ...
+  end
+
+.. note::
+   The value listed last is applied to the rest of the states if they were not specified. For example, if 7 electronic states are used, :math:`\epsilon_{\rm thr}=5\times 10^{-5}` will be assumed for states 3-7. 
+
 
 Average-density option
 ^^^^^^^^^^^^^^^^^^^^^^

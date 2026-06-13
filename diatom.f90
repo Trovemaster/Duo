@@ -925,8 +925,8 @@ contains
         allocate(intensity%threshold%bound_rmax(nestates))
         allocate(intensity%threshold%bound_density(nestates))
         allocate(intensity%threshold%bound_aver_density(nestates))
-        bound_density = sqrt(small_)
-        bound_aver_density = sqrt(small_)
+        intensity%threshold%bound_density = sqrt(small_)
+        intensity%threshold%bound_aver_density = sqrt(small_)
         !
       case ("NREFSTATES")
         !
@@ -4080,10 +4080,10 @@ contains
     !
     ! redefine the bound_aver_density and bound_denisty into a single criterium
     !
-    do istate=1,min(size(ntensity%threshold%bound_density),size(ntensity%threshold%bound_aver_density))
+    do istate=1,min(size(intensity%threshold%bound_density),size(intensity%threshold%bound_aver_density))
       bound_density = intensity%threshold%bound_aver_density(istate)*intensity%threshold%deltaR_dens
       intensity%threshold%bound_density(istate) = max(intensity%threshold%bound_density(istate),bound_density)
-      intensity%threshold%bound_aver_density(istate) = intensity%threshold%bound_density(istate)/intensity%threshold%deltaR_dens(istate)
+      intensity%threshold%bound_aver_density(istate) = intensity%threshold%bound_density(istate)/intensity%threshold%deltaR_dens
     enddo
     !
     jmin = omega_
@@ -10143,7 +10143,7 @@ contains
         if (iverbose>=3) then
           write(out,'(/"Finding unbound state:")')
           write(out,'("  Density and rmax thresholds:")')
-          do istate=1,size(ntensity%threshold%bound_density)
+          do istate=1,size(intensity%threshold%bound_density)
             write(out,'("     ",e12.5)') intensity%threshold%bound_density(istate)
             if (intensity%use_bound_rmax) then
                write(out,'("     ",e12.5)') intensity%threshold%bound_rmax(istate)
