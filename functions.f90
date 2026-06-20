@@ -1457,17 +1457,30 @@ module functions
     !
     p = nint(parameters(3))
     q = nint(parameters(4))
-    N = size(parameters)-4-2
+    !
+    if (r<=rref) then
+      N = parameters(5)
+    else
+      N = parameters(6)
+    endif
+    !
+    if (size(parameters)/=6+1+max(parameters(5),parameters(6))) then
+      write(out,"('poten_BOBCoxon: Illegal number of parameters in BOBCoxon, check NS and NL, must be max(NS,NL)+7')")
+      print*,parameters(:)
+      stop 'poten_BOBCoxon: Illegal number of parameters, check NS and NL'
+    endif
     !
     z = (r**p-r0**p)/(r**p+r0**p)
     y = (r**q-r0**q)/(r**q+r0**q)
     !
     t = 0
     do k=0,N
-     t = t + parameters(k+5)*z**k
+     t = t + parameters(k+7)*z**k
     enddo
     !
-    tinf = parameters(N+6)
+    N = size(parameters)
+    !
+    tinf = parameters(N)
     !
     f = (1.0_rk-y)*t+y*tinf
     !
@@ -1484,7 +1497,6 @@ module functions
     !
     ma = parameters(2)/parameters(3)
     mb = parameters(4)/parameters(5)
-!    write(out,*) r, ma, parameters(2), parameters(3), mb, parameters(4), parameters(5)
     !
     q = parameters(6)
     !
