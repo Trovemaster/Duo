@@ -753,7 +753,7 @@ Example:
 A repulsive curve constructed from an van der Waals type and a combination of an inverse power :math:`r^{-\gamma}` and a decaying exponential :math:`e^{-\delta/r}`  as given by (see `Elander et al 1979 Phys. Scr. 20 631 <https://doi.org/10.1088/0031-8949/20/5-6/015>`_)
 
 .. math::
-   
+
   `V(r) = V_0 + \frac{A e^{-\delta/r}}{r^\gamma} +  \sum_{i=1}^N  \frac{B_i}{r^i}`
 
 Example:
@@ -768,7 +768,7 @@ Example:
       type  REPULSIVE_EXP
       values
        V0           2.93740000000000E+04
-       A            2.21181499541738e+05  
+       A            2.21181499541738e+05
        DELTA        3.03481499953155E-01
        GAMMA        5.50000000000000E+00
        B1           0.00000000000000E+00
@@ -782,7 +782,7 @@ Example:
       end
 
 
-Here, an arbitrary number of lines containing the :math:`B_i` entries (:math:`i=1,\ldots,N`) can be provided. 
+Here, an arbitrary number of lines containing the :math:`B_i` entries (:math:`i=1,\ldots,N`) can be provided.
 
 
 ``POLYNOM_DECAY_24``
@@ -1431,7 +1431,7 @@ Coxon-type Surkus-polynomial expansion ``BobCoxon``
 
 .. math::
 
-    `V(r) = (1-y_q^{\textrm{eq}}) \sum_{i\ge 0} a_i [z_p^{\textrm{eq}}]^i + y_q^{\textrm{eq}} a_{\rm inf},
+    `V(r) = (1-y_q^{\textrm{eq}}) \sum_{i=0}^{N} a_i [z_p^{\textrm{eq}}]^i + y_q^{\textrm{eq}} a_{\rm inf},
 
 
 where :math:`y_q^{\textrm{eq}}` and :math:`z_p^{\textrm{eq}}` are Surkus variables with :math:`r_\textrm{ref} = r_\textrm{eq}` and two different values of :math:`q` and :math:`p`:
@@ -1443,7 +1443,14 @@ where :math:`y_q^{\textrm{eq}}` and :math:`z_p^{\textrm{eq}}` are Surkus variabl
       z_p^{\textrm{ref}} &= \frac{r^p - r_\textrm{ref}^p}{r^p + r_\textrm{ref}^p}
    \end{split}
 
-and :math:`a_{\rm inf}` is the asymptote of the funciton at :math:`r\to \infty`.
+:math:`a_{\rm inf}` is the asymptote of the funciton at :math:`r\to \infty` and 
+
+.. math::
+    
+    N = \left{\begin{array}{c} N_{\rm S}, \quad r\le r_{\rm ref} \\ 
+    N_{\rm L}, \quad r> r_{\rm ref
+      \end{array}  \right. 
+
 
 See also Eq.(26) in `Coxon and Hajigeorgiou, JQSRT 151, 133 (2015) <https://doi.org/10.1016/j.jqsrt.2014.08.028>`_
 
@@ -1457,10 +1464,11 @@ Example:
     type  BOBLEROY
     factor    1.0   (0, 1 or i)
     values
-     re         0.17700000000000E+01
-     rref      -0.10000000000000E+01
+     rref       0.17700000000000E+01
      p          6
      q          2
+     NS         2
+     NL         3
      a0        -0.63452015232176E+02
      a1        -0.20566444179565E+01
      a2        -0.13784613913938E+02
