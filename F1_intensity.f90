@@ -4,14 +4,12 @@ module F1_intensity
     use symmetry, only : sym, correlate_to_Cs
     use diatom_module, only : Ndipoles, dipoletm, intensity, job, fieldT, poten, &
                             symbol1, symbol2, Nspin1, Nspin2, nQuadrupoles, quadrupoletm, action
-    use F1_hyperfine, only : primitive_F1_basis, F1_list, eigen_all_F1, min_eigen_value_F1, &
-                            get_sign, I1, Wigner3j, Wigner6j, num_F1, get_quanta
+    use F1_hyperfine, only : primitive_hfs_basis, &
+                            F1_list, Ftot_list, eigen_all_hfs, min_eigen_value_hfs, &
+                            get_sign, I1, Wigner3j, Wigner6j, num_F1, num_Ftot, get_quanta
 
     implicit none
 
-    REAL(rk), ALLOCATABLE :: primitive_F1_reduced_TDM_matrix(:,:)
-    REAL(rk), ALLOCATABLE :: primitive_IF_reduced_TDM_matrix(:,:)
-    REAL(rk), ALLOCATABLE :: primitive_IF_reduced_TQM_matrix(:,:)
     INTEGER(ik), PARAMETER :: unit_hyperfine_transitions = 66
     real(rk) :: A_coef_s_1, A_coef_s_2 ! related to Einstein A coefficient of E1, E2 transitions, respectively
 contains
@@ -56,31 +54,32 @@ contains
 
     subroutine IF_hyperfine_E1_intensity
         implicit none 
-        INTEGER(ik) :: index_F1_bra, index_F1_ket, &
+        INTEGER(ik) :: index_Ftot_bra, index_Ftot_ket, &
                         index_represC2v_bra, index_represC2v_ket
-        INTEGER(ik) :: Ndimen_F1_bra, Ndimen_F1_ket, &
-                        Nlevels_F1_bra, Nlevels_F1_ket
-        REAL(rk), ALLOCATABLE :: parity_conserved_IF_reduced_TDM_matrix(:,:), &
+        INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, &
+                        Nlevels_Ftot_bra, Nlevels_Ftot_ket
+        REAL(rk), ALLOCATABLE :: primitive_IF_reduced_TDM_matrix(:,:), &
+                                parity_conserved_IF_reduced_TDM_matrix(:,:), &
                                 parity_conserved_IF_transitions_matrix(:,:)
 
         A_coef_s_1 = 64.0E-36 * pi**4 / (3.0_rk * planck)
 
-        do index_F1_bra = 1, num_F1
-            write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', F1_list(index_F1_bra)
+        do index_Ftot_bra = 1, num_Ftot
+            write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', Ftot_list(index_Ftot_bra)
 
-            Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
 
-            do index_F1_ket = max(1, index_F1_bra - 1), min(num_F1, index_F1_bra + 1)
-                if ((index_F1_bra == index_F1_ket) .and. F1_list(index_F1_bra) == 0) cycle
+            do index_Ftot_ket = max(1, index_Ftot_bra - 1), min(num_Ftot, index_Ftot_bra + 1)
+                if ((index_Ftot_bra == index_Ftot_ket) .and. Ftot_list(index_Ftot_bra) == 0) cycle
 
-                write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', F1_list(index_F1_ket)
-                Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+                write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', Ftot_list(index_Ftot_ket)
+                Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
 
                 write(out, '(/A8, A)') '', &
                     'Construct primitive reduced transition dipole moment matrix'
-                ALLOCATE(primitive_IF_reduced_TDM_matrix(Ndimen_F1_bra, Ndimen_F1_ket))
+                ALLOCATE(primitive_IF_reduced_TDM_matrix(Ndimen_Ftot_bra, Ndimen_Ftot_ket))
 
-                CALL construct_primitive_IF_reduced_TDM_matrix(index_F1_bra, index_F1_ket)
+                CALL construct_primitive_IF_reduced_TDM_matrix(index_Ftot_bra, index_Ftot_ket)
 
                 write(out, '(A8, A/)') '', '... done'
 
@@ -89,23 +88,23 @@ contains
                     ! symmetry selection rule
                     index_represC2v_ket = E1_symmetry_selection(index_represC2v_bra)
 
-                    Nlevels_F1_bra = eigen_all_F1(index_F1_bra, index_represC2v_bra)%Nlevels
-                    Nlevels_F1_ket = eigen_all_F1(index_F1_ket, index_represC2v_ket)%Nlevels
+                    Nlevels_Ftot_bra = eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%Nlevels
+                    Nlevels_Ftot_ket = eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%Nlevels
 
                     write(out, '(/A10, A)') '',&
                         'Construct parity conserved reduced transition dipole moment matrix'
 
-                    if (Nlevels_F1_bra <= 0 .or. Nlevels_F1_ket <= 0) then
+                    if (Nlevels_Ftot_bra <= 0 .or. Nlevels_Ftot_ket <= 0) then
                         write(out, '(A10, A/)') '', '... skipped: empty F-symmetry block'
                         cycle
                     end if
 
-                    ALLOCATE(parity_conserved_IF_reduced_TDM_matrix(Nlevels_F1_bra, Nlevels_F1_ket))
+                    ALLOCATE(parity_conserved_IF_reduced_TDM_matrix(Nlevels_Ftot_bra, Nlevels_Ftot_ket))
                     CALL construct_parity_conserved_IF_reduced_TDM_matrix
                     write(out, '(A10, A/)') '', '... done'
 
                     write(out, '(/A10, A)') '', 'Calculate and print transitions'
-                    ALLOCATE(parity_conserved_IF_transitions_matrix(Nlevels_F1_bra, Nlevels_F1_ket))
+                    ALLOCATE(parity_conserved_IF_transitions_matrix(Nlevels_Ftot_bra, Nlevels_Ftot_ket))
                     CALL calc_IF_EinsteinA_coefficient
                     write(out, '(A10, A/)') '', '... done'
 
@@ -115,10 +114,10 @@ contains
 
                 DEALLOCATE(primitive_IF_reduced_TDM_matrix)
 
-                write(out, '(/A6, A, F6.1)') '', 'End: F_ket =', F1_list(index_F1_ket)
+                write(out, '(/A6, A, F6.1)') '', 'End: F_ket =', Ftot_list(index_Ftot_ket)
             end do
 
-            write(out, '(/A4, A, F6.1)') '', 'End: F_bra =', F1_list(index_F1_bra)
+            write(out, '(/A4, A, F6.1)') '', 'End: F_bra =', Ftot_list(index_Ftot_bra)
         end do
 
         close(unit=unit_hyperfine_transitions)
@@ -129,17 +128,17 @@ contains
             implicit none
             REAL(rk), ALLOCATABLE :: intermediate_matrix(:, :)
 
-            ALLOCATE(intermediate_matrix(Nlevels_F1_bra, Ndimen_F1_ket))
+            ALLOCATE(intermediate_matrix(Nlevels_Ftot_bra, Ndimen_Ftot_ket))
 
-            CALL dgemm('T', 'N', Nlevels_F1_bra, Ndimen_F1_ket, Ndimen_F1_bra, 1.0_rk, &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%vect, Ndimen_F1_bra, &
-                        primitive_IF_reduced_TDM_matrix, Ndimen_F1_bra, &
-                        0.0_rk, intermediate_matrix, Nlevels_F1_bra)
+            CALL dgemm('T', 'N', Nlevels_Ftot_bra, Ndimen_Ftot_ket, Ndimen_Ftot_bra, 1.0_rk, &
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%vect, Ndimen_Ftot_bra, &
+                        primitive_IF_reduced_TDM_matrix, Ndimen_Ftot_bra, &
+                        0.0_rk, intermediate_matrix, Nlevels_Ftot_bra)
 
-            CALL dgemm('N', 'N', Nlevels_F1_bra, Nlevels_F1_ket, Ndimen_F1_ket, 1.0_rk, &
-                        intermediate_matrix, Nlevels_F1_bra, &
-                        eigen_all_F1(index_F1_ket, index_represC2v_ket)%vect, Ndimen_F1_ket, &
-                        0.0_rk, parity_conserved_IF_reduced_TDM_matrix, Nlevels_F1_bra)
+            CALL dgemm('N', 'N', Nlevels_Ftot_bra, Nlevels_Ftot_ket, Ndimen_Ftot_ket, 1.0_rk, &
+                        intermediate_matrix, Nlevels_Ftot_bra, &
+                        eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%vect, Ndimen_Ftot_ket, &
+                        0.0_rk, parity_conserved_IF_reduced_TDM_matrix, Nlevels_Ftot_bra)
 
             DEALLOCATE(intermediate_matrix)
 
@@ -154,27 +153,27 @@ contains
                         upper_energy_lower_bound, upper_energy_upper_bound, &
                         frequency_lower_bound, frequency_upper_bound
 
-            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_F1
-            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_F1
-            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_F1
-            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_F1
+            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_hfs
+            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_hfs
+            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_hfs
+            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_hfs
             frequency_lower_bound = max(0.0_rk, intensity%freq_window(1))
             frequency_upper_bound = intensity%freq_window(2)
 
-            do ket = 1, Nlevels_F1_ket
-                do bra = 1, Nlevels_F1_bra
-                    if (eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket) &
+            do ket = 1, Nlevels_Ftot_ket
+                do bra = 1, Nlevels_Ftot_bra
+                    if (eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket) &
                         < lower_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket) &
+                    if (eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket) &
                         > lower_energy_upper_bound) cycle
-                    if (eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
+                    if (eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
                         < upper_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
+                    if (eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
                         > upper_energy_upper_bound) cycle
 
                     parity_conserved_IF_transitions_matrix(bra, ket) = &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
-                        - eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket)
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
+                        - eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket)
 
                     if (parity_conserved_IF_transitions_matrix(bra, ket) < 0.0_rk) cycle
                     if (parity_conserved_IF_transitions_matrix(bra, ket) < frequency_lower_bound) cycle
@@ -185,11 +184,11 @@ contains
                         * parity_conserved_IF_transitions_matrix(bra, ket) &
                         * parity_conserved_IF_transitions_matrix(bra, ket) &
                         * parity_conserved_IF_reduced_TDM_matrix(bra, ket) &
-                        / (2.0_rk * primitive_F1_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
+                        / (2.0_rk * primitive_hfs_basis(index_Ftot_bra)%icontr(1)%Ftot + 1.0_rk)
 
                     WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12)") &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%quanta(bra)%iroot, &
-                        eigen_all_F1(index_F1_ket, index_represC2v_ket)%quanta(ket)%iroot, &
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%quanta(bra)%iroot, &
+                        eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%quanta(ket)%iroot, &
                         EinsteinA, &
                         parity_conserved_IF_transitions_matrix(bra, ket)
                 end do
@@ -197,13 +196,13 @@ contains
         end subroutine calc_IF_EinsteinA_coefficient
 
         subroutine construct_primitive_IF_reduced_TDM_matrix( &
-            index_F1_bra, index_F1_ket)
+            index_Ftot_bra, index_Ftot_ket)
 
             implicit none
 
-            INTEGER(ik), INTENT(IN) :: index_F1_bra, index_F1_ket
-            INTEGER(ik) :: Ndimen_F1_bra, Ndimen_F1_ket, bra, ket
-            REAL(rk) :: F1_bra, F1_ket, &
+            INTEGER(ik), INTENT(IN) :: index_Ftot_bra, index_Ftot_ket
+            INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, bra, ket
+            REAL(rk) :: Ftot_bra, Ftot_ket, &
                 S_bra, S_ket, Sigma_bra, Sigma_ket, &
                 J_bra, J_ket, Omega_bra, Omega_ket, Itot_bra, Itot_ket
             INTEGER(ik) :: state_bra, state_ket, index_v_bra, index_v_ket, &
@@ -212,18 +211,18 @@ contains
 
             primitive_IF_reduced_TDM_matrix = 0.0_rk
 
-            Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen
-            Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
+            Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
 
-            do ket = 1, Ndimen_F1_ket
-                call get_quanta(index_F1_ket, ket, &
-                                F1_ket, state_ket, index_v_ket, v_ket, Lambda_ket, &
-                                S_ket, Sigma_ket, J_ket, Omega_ket, Itot_ket)
+            do ket = 1, Ndimen_Ftot_ket
+                call get_quanta(index_Ftot_ket, ket, &
+                                Ftot_ket, state_ket, index_v_ket, v_ket, Lambda_ket, &
+                                S_ket, Sigma_ket, J_ket, Omega_ket, Itot=Itot_ket)
 
-                loop_bra: do bra = 1, Ndimen_F1_bra
-                    call get_quanta(index_F1_bra, bra, &
-                                    F1_bra, state_bra, index_v_bra, v_bra, Lambda_bra, &
-                                    S_bra, Sigma_bra, J_bra, Omega_bra, Itot_bra)
+                loop_bra: do bra = 1, Ndimen_Ftot_bra
+                    call get_quanta(index_Ftot_bra, bra, &
+                                    Ftot_bra, state_bra, index_v_bra, v_bra, Lambda_bra, &
+                                    S_bra, Sigma_bra, J_bra, Omega_bra, Itot=Itot_bra)
 
                     ! if (abs(J_ket - J_bra) > 1.0_rk + 10.0_rk*small_) cycle loop_bra
                     ! if (J_ket + J_bra < 1.0_rk - 10.0_rk*small_) cycle loop_bra
@@ -239,7 +238,7 @@ contains
                         primitive_IF_reduced_TDM_matrix(bra, ket) = &
                             primitive_IF_reduced_TDM_matrix(bra, ket) &
                             + primitive_IF_reduced_TDM_matrix_element( &
-                                F1_bra, F1_ket, &
+                                Ftot_bra, Ftot_ket, &
                                 field, index_v_bra, index_v_ket, &
                                 state_bra, state_ket, Lambda_bra, Lambda_ket, &
                                 J_bra, J_ket, Omega_bra, Omega_ket, Itot_bra, Itot_ket)
@@ -249,7 +248,7 @@ contains
         end subroutine construct_primitive_IF_reduced_TDM_matrix
 
         function primitive_IF_reduced_TDM_matrix_element( &
-            F1_bra, F1_ket, &
+            Ftot_bra, Ftot_ket, &
             field, index_v_bra, index_v_ket, &
             state_bra, state_ket, Lambda_bra, Lambda_ket, &
             J_bra, J_ket, Omega_bra, Omega_ket, Itot_bra, Itot_ket) &
@@ -257,7 +256,7 @@ contains
 
             implicit none
 
-            REAL(rk), INTENT(IN) :: F1_bra, F1_ket, Itot_bra, Itot_ket, &
+            REAL(rk), INTENT(IN) :: Ftot_bra, Ftot_ket, Itot_bra, Itot_ket, &
                                     J_bra, J_ket, Omega_bra, Omega_ket
             INTEGER(ik), INTENT(IN) :: index_v_bra, index_v_ket, &
                                         state_bra, state_ket, Lambda_bra, Lambda_ket
@@ -314,12 +313,12 @@ contains
                         f_t = f_t * (-1.0_rk)**itau
                     endif
 
-                    tdm = get_sign(J_bra + Itot_bra + F1_ket + 1.0_rk) &
-                        * sqrt((2.0_rk * F1_bra + 1.0_rk) &
-                            * (2.0_rk * F1_ket + 1.0_rk) &
+                    tdm = get_sign(J_bra + Itot_bra + Ftot_ket + 1.0_rk) &
+                        * sqrt((2.0_rk * Ftot_bra + 1.0_rk) &
+                            * (2.0_rk * Ftot_ket + 1.0_rk) &
                             * (2.0_rk * J_bra + 1.0_rk) &
                             * (2.0_rk * J_ket + 1.0_rk)) &
-                        * Wigner6j(J_ket, F1_ket, Itot_bra, F1_bra, J_bra, 1.0_rk) &
+                        * Wigner6j(J_ket, Ftot_ket, Itot_bra, Ftot_bra, J_bra, 1.0_rk) &
                         * get_sign(J_bra - Omega_bra) &
                         * Wigner3j(J_bra, 1.0_rk, J_ket, &
                             -Omega_bra, Omega_bra - Omega_ket, Omega_ket) &
@@ -352,12 +351,13 @@ contains
     
     subroutine IF_hyperfine_E2_intensity
         implicit none
-        INTEGER(ik) :: index_F1_bra, index_F1_ket, &
+        INTEGER(ik) :: index_Ftot_bra, index_Ftot_ket, &
                         index_represC2v_bra, index_represC2v_ket
-        INTEGER(ik) :: Ndimen_F1_bra, Ndimen_F1_ket, &
-                        Nlevels_F1_bra, Nlevels_F1_ket
+        INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, &
+                        Nlevels_Ftot_bra, Nlevels_Ftot_ket
         REAL(rk) :: unitConv, vacPerm
-        REAL(rk), ALLOCATABLE :: parity_conserved_IF_reduced_TQM_matrix(:,:), &
+        REAL(rk), ALLOCATABLE :: primitive_IF_reduced_TQM_matrix(:,:), &
+                                 parity_conserved_IF_reduced_TQM_matrix(:,:), &
                                  parity_conserved_IF_transitions_matrix(:,:)
 
         ! Common prefactor for the Einstein A coefficient of E2 transitions.
@@ -368,22 +368,22 @@ contains
         vacPerm = 8.8541878128d-12 
         A_coef_s_2 = unitConv*(8.0_rk * pi**5)/(5.0_rk * vacPerm * planck)
 
-        do index_F1_bra = 1, num_F1
-            write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', F1_list(index_F1_bra)
+        do index_Ftot_bra = 1, num_Ftot
+            write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', Ftot_list(index_Ftot_bra)
 
-            Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen  
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
 
-            do index_F1_ket = max(1, index_F1_bra - 2), min(num_F1, index_F1_bra + 2) 
-                if (F1_list(index_F1_bra) + F1_list(index_F1_ket) < 2.0_rk - 10*small_) cycle ! E2 selection rules, F_bra+F_ket >= 2
+            do index_Ftot_ket = max(1, index_Ftot_bra - 2), min(num_Ftot, index_Ftot_bra + 2)
+                if (Ftot_list(index_Ftot_bra) + Ftot_list(index_Ftot_ket) < 2.0_rk - 10*small_) cycle ! E2 selection rules, F_bra+F_ket >= 2
 
-                write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', F1_list(index_F1_ket)
-                Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+                write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', Ftot_list(index_Ftot_ket)
+                Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
 
                 write(out, '(/A8, A)') '',&
                     'Construct primitive reduced transition quadrupole moment matrix'
-                ALLOCATE(primitive_IF_reduced_TQM_matrix(Ndimen_F1_bra, Ndimen_F1_ket))
+                ALLOCATE(primitive_IF_reduced_TQM_matrix(Ndimen_Ftot_bra, Ndimen_Ftot_ket))
                 CALL construct_primitive_IF_reduced_TQM_matrix( &
-                        index_F1_bra, index_F1_ket)
+                        index_Ftot_bra, index_Ftot_ket)
                 write(out, '(A8, A/)') '', '... done'
 
                 do index_represC2v_bra = 1, sym%Nrepresen
@@ -391,23 +391,23 @@ contains
                     ! symmetry selection rule
                     index_represC2v_ket = index_represC2v_bra
 
-                    Nlevels_F1_bra = eigen_all_F1(index_F1_bra, index_represC2v_bra)%Nlevels
-                    Nlevels_F1_ket = eigen_all_F1(index_F1_ket, index_represC2v_ket)%Nlevels
+                    Nlevels_Ftot_bra = eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%Nlevels
+                    Nlevels_Ftot_ket = eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%Nlevels
 
                     write(out, '(/A10, A)') '',&
                         'Construct parity conserved reduced transition quadrupole moment matrix'
                     
-                    if (Nlevels_F1_bra <= 0 .or. Nlevels_F1_ket <= 0) then 
+                    if (Nlevels_Ftot_bra <= 0 .or. Nlevels_Ftot_ket <= 0) then
                         write(out, '(A10, A/)') '', '... skipped: empty F-symmetry block'
                         cycle
                     end if
 
-                    ALLOCATE(parity_conserved_IF_reduced_TQM_matrix(Nlevels_F1_bra, Nlevels_F1_ket))                 
+                    ALLOCATE(parity_conserved_IF_reduced_TQM_matrix(Nlevels_Ftot_bra, Nlevels_Ftot_ket))
                     CALL construct_parity_conserved_IF_reduced_TQM_matrix
                     write(out, '(A10, A/)') '', '... done'
 
                     write(out, '(/A10, A)') '', 'Calculate and print transitions'
-                    ALLOCATE(parity_conserved_IF_transitions_matrix(Nlevels_F1_bra, Nlevels_F1_ket))                    
+                    ALLOCATE(parity_conserved_IF_transitions_matrix(Nlevels_Ftot_bra, Nlevels_Ftot_ket))
                     CALL calc_IF_EinsteinA_coefficient
                     write(out, '(A10, A/)') '', '... done'
                     
@@ -417,10 +417,10 @@ contains
                 
                 DEALLOCATE(primitive_IF_reduced_TQM_matrix)
 
-                write(out, '(/A6, A, F6.1)') '', 'End: F_ket =', F1_list(index_F1_ket)
+                write(out, '(/A6, A, F6.1)') '', 'End: F_ket =', Ftot_list(index_Ftot_ket)
             end do 
             
-            write(out, '(/A4, A, F6.1)') '', 'End: F_bra =', F1_list(index_F1_bra)
+            write(out, '(/A4, A, F6.1)') '', 'End: F_bra =', Ftot_list(index_Ftot_bra)
         end do
 
         close(unit=unit_hyperfine_transitions)
@@ -433,19 +433,19 @@ contains
             ! See Eq.(58) of DOI: 10.1021/acs.jctc.1c01244
             ! ^{tau,F}M^{tau', F'} = {Psi^{tau, F}}^\dagger * ^{F}M^{F'} * Psi^{tau', F'} 
 
-            ALLOCATE(intermediate_matrix(Nlevels_F1_bra, Ndimen_F1_ket))
+            ALLOCATE(intermediate_matrix(Nlevels_Ftot_bra, Ndimen_Ftot_ket))
 
             ! M_intermediate = {Psi^{tau, F}}^\dagger * ^{F}M^{F'}
-            CALL dgemm('T', 'N', Nlevels_F1_bra, Ndimen_F1_ket, Ndimen_F1_bra, 1.0_rk, &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%vect, Ndimen_F1_bra, &
-                        primitive_IF_reduced_TQM_matrix, Ndimen_F1_bra, &
-                        0.0_rk, intermediate_matrix, Nlevels_F1_bra)
+            CALL dgemm('T', 'N', Nlevels_Ftot_bra, Ndimen_Ftot_ket, Ndimen_Ftot_bra, 1.0_rk, &
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%vect, Ndimen_Ftot_bra, &
+                        primitive_IF_reduced_TQM_matrix, Ndimen_Ftot_bra, &
+                        0.0_rk, intermediate_matrix, Nlevels_Ftot_bra)
 
             ! ^{tau, F}M^{tau', F'} = M_intermediate * Psi^{tau', F'}           
-            CALL dgemm('N', 'N', Nlevels_F1_bra, Nlevels_F1_ket, Ndimen_F1_ket, 1.0_rk, &
-                        intermediate_matrix, Nlevels_F1_bra, &
-                        eigen_all_F1(index_F1_ket, index_represC2v_ket)%vect, Ndimen_F1_ket, &
-                        0.0_rk, parity_conserved_IF_reduced_TQM_matrix, Nlevels_F1_bra)
+            CALL dgemm('N', 'N', Nlevels_Ftot_bra, Nlevels_Ftot_ket, Ndimen_Ftot_ket, 1.0_rk, &
+                        intermediate_matrix, Nlevels_Ftot_bra, &
+                        eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%vect, Ndimen_Ftot_ket, &
+                        0.0_rk, parity_conserved_IF_reduced_TQM_matrix, Nlevels_Ftot_bra)
 
             DEALLOCATE(intermediate_matrix)
 
@@ -461,29 +461,29 @@ contains
                          upper_energy_lower_bound, upper_energy_upper_bound, &
                          frequency_lower_bound, frequency_upper_bound
 
-            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_F1
-            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_F1
-            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_F1
-            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_F1
+            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_hfs
+            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_hfs
+            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_hfs
+            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_hfs
             frequency_lower_bound = max(0.0_rk, intensity%freq_window(1))
             frequency_upper_bound = intensity%freq_window(2) 
             
-            do ket = 1, Nlevels_F1_ket
-                do bra = 1, Nlevels_F1_bra
+            do ket = 1, Nlevels_Ftot_ket
+                do bra = 1, Nlevels_Ftot_bra
 
-                    if (eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket) &
+                    if (eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket) &
                         < lower_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket) &
+                    if (eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket) &
                         > lower_energy_upper_bound) cycle
-                    if (eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
+                    if (eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
                         < upper_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
+                    if (eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
                         > upper_energy_upper_bound) cycle
 
                     ! The bra state is the upper state
                     parity_conserved_IF_transitions_matrix(bra, ket) = &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%val(bra) &
-                            - eigen_all_F1(index_F1_ket, index_represC2v_ket)%val(ket)
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%val(bra) &
+                            - eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%val(ket)
                     
                     if (parity_conserved_IF_transitions_matrix(bra, ket) < 0.0_rk) cycle
                     if (parity_conserved_IF_transitions_matrix(bra, ket) < frequency_lower_bound) cycle
@@ -500,11 +500,11 @@ contains
                         * parity_conserved_IF_transitions_matrix(bra, ket) &
                         * parity_conserved_IF_transitions_matrix(bra, ket) &
                         * parity_conserved_IF_reduced_TQM_matrix(bra, ket) & 
-                        / (2.0_rk * primitive_F1_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
+                        / (2.0_rk * primitive_hfs_basis(index_Ftot_bra)%icontr(1)%Ftot + 1.0_rk)
 
                     WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12)") &
-                        eigen_all_F1(index_F1_bra, index_represC2v_bra)%quanta(bra)%iroot, &
-                        eigen_all_F1(index_F1_ket, index_represC2v_ket)%quanta(ket)%iroot, &
+                        eigen_all_hfs(index_Ftot_bra, index_represC2v_bra)%quanta(bra)%iroot, &
+                        eigen_all_hfs(index_Ftot_ket, index_represC2v_ket)%quanta(ket)%iroot, &
                         EinsteinA, &
                         parity_conserved_IF_transitions_matrix(bra, ket)
                 end do    
@@ -512,13 +512,13 @@ contains
         end subroutine calc_IF_EinsteinA_coefficient
 
         subroutine construct_primitive_IF_reduced_TQM_matrix( &
-            index_F1_bra, index_F1_ket)
+            index_Ftot_bra, index_Ftot_ket)
 
             implicit none
             
-            INTEGER(ik), INTENT(IN) :: index_F1_bra, index_F1_ket
-            INTEGER(ik) :: Ndimen_F1_bra, Ndimen_F1_ket, bra, ket
-            REAL(rk) :: F1_bra, F1_ket, &
+            INTEGER(ik), INTENT(IN) :: index_Ftot_bra, index_Ftot_ket
+            INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, bra, ket
+            REAL(rk) :: Ftot_bra, Ftot_ket, &
                 S_bra, S_ket, Sigma_bra, Sigma_ket, &
                 J_bra, J_ket, Omega_bra, Omega_ket, Itot_ket, Itot_bra
             INTEGER(ik) :: state_bra, state_ket, index_v_bra, index_v_ket, &
@@ -527,18 +527,18 @@ contains
 
             primitive_IF_reduced_TQM_matrix = 0.0_rk
 
-            Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen
-            Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
+            Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
 
-            do ket = 1, Ndimen_F1_ket
-                call get_quanta(index_F1_ket, ket, &
-                                F1_ket, state_ket, index_v_ket, v_ket, Lambda_ket, &
-                                S_ket, Sigma_ket, J_ket, Omega_ket, Itot_ket)
+            do ket = 1, Ndimen_Ftot_ket
+                call get_quanta(index_Ftot_ket, ket, &
+                                Ftot_ket, state_ket, index_v_ket, v_ket, Lambda_ket, &
+                                S_ket, Sigma_ket, J_ket, Omega_ket, Itot=Itot_ket)
 
-                loop_bra: do bra = 1, Ndimen_F1_bra
-                    call get_quanta(index_F1_bra, bra, &
-                                    F1_bra, state_bra, index_v_bra, v_bra, Lambda_bra, &
-                                    S_bra, Sigma_bra, J_bra, Omega_bra, Itot_bra) 
+                loop_bra: do bra = 1, Ndimen_Ftot_bra
+                    call get_quanta(index_Ftot_bra, bra, &
+                                    Ftot_bra, state_bra, index_v_bra, v_bra, Lambda_bra, &
+                                    S_bra, Sigma_bra, J_bra, Omega_bra, Itot=Itot_bra)
 
                     ! Selection rules due to the Wigner-3j symbol: 
                     ! Wigner3j(J, 2, J', -Omega, q, Omega')
@@ -560,7 +560,7 @@ contains
                         primitive_IF_reduced_TQM_matrix(bra, ket) = &
                             primitive_IF_reduced_TQM_matrix(bra, ket)  &
                             + primitive_IF_reduced_TQM_matrix_element( &
-                                F1_bra, F1_ket, &
+                                Ftot_bra, Ftot_ket, &
                                 field, index_v_bra, index_v_ket, &
                                 state_bra, state_ket, Lambda_bra, Lambda_ket, &
                                 J_bra, J_ket, Omega_bra, Omega_ket, Itot_bra, Itot_ket)
@@ -570,7 +570,7 @@ contains
         end subroutine construct_primitive_IF_reduced_TQM_matrix
 
         function primitive_IF_reduced_TQM_matrix_element( &
-            F1_bra, F1_ket, &
+            Ftot_bra, Ftot_ket, &
             field, index_v_bra, index_v_ket, &
             state_bra, state_ket, Lambda_bra, Lambda_ket, &
             J_bra, J_ket, Omega_bra, Omega_ket, Itot_bra, Itot_ket) & 
@@ -578,7 +578,7 @@ contains
 
             implicit none
 
-            REAL(rk), INTENT(IN) :: F1_bra, F1_ket, Itot_bra, Itot_ket, &
+            REAL(rk), INTENT(IN) :: Ftot_bra, Ftot_ket, Itot_bra, Itot_ket, &
                                     J_bra, J_ket, Omega_bra, Omega_ket
             INTEGER(ik), INTENT(IN) :: index_v_bra, index_v_ket, &
                                         state_bra, state_ket, Lambda_bra, Lambda_ket 
@@ -643,12 +643,12 @@ contains
                         vibME = vibME*(-1.0_rk)**(itau)
                     endif
 
-                    tqm = get_sign(J_bra + Itot_bra + F1_ket + 2.0_rk) &
-                        * sqrt((2.0_rk * F1_bra + 1.0_rk) &
-                                * (2.0_rk * F1_ket + 1.0_rk) &
+                    tqm = get_sign(J_bra + Itot_bra + Ftot_ket + 2.0_rk) &
+                        * sqrt((2.0_rk * Ftot_bra + 1.0_rk) &
+                                * (2.0_rk * Ftot_ket + 1.0_rk) &
                                 * (2.0_rk * J_bra + 1.0_rk) &
                                 * (2.0_rk * J_ket + 1.0_rk)) &
-                        * Wigner6j(J_ket, F1_ket, Itot_bra, F1_bra, J_bra, 2.0_rk)&
+                        * Wigner6j(J_ket, Ftot_ket, Itot_bra, Ftot_bra, J_bra, 2.0_rk)&
                         * get_sign(J_bra-Omega_bra)&
                         * Wigner3j(J_bra, 2.0_rk, J_ket, &
                             -Omega_bra, Omega_bra - Omega_ket, Omega_ket)&
@@ -665,7 +665,8 @@ contains
                        index_represCs_bra, index_represCs_ket
         INTEGER(ik) :: Ndimen_F1_bra, Ndimen_F1_ket, &
                        Nlevels_F1_bra, Nlevels_F1_ket
-        REAL(rk), ALLOCATABLE :: parity_conserved_F1_reduced_TDM_matrix(:,:), &
+        REAL(rk), ALLOCATABLE :: primitive_F1_reduced_TDM_matrix(:,:), &
+                                 parity_conserved_F1_reduced_TDM_matrix(:,:), &
                                  parity_conserved_F1_transitions_matrix(:,:)
 
 
@@ -677,13 +678,13 @@ contains
         do index_F1_bra = 1, num_F1
             write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', F1_list(index_F1_bra)
 
-            Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen  
+            Ndimen_F1_bra = primitive_hfs_basis(index_F1_bra)%Ndimen
 
             do index_F1_ket = max(1, index_F1_bra - 1), min(num_F1, index_F1_bra + 1) ! F1 selection rules
                 if ((index_F1_bra == index_F1_ket) .and. F1_list(index_F1_bra) == 0) cycle
 
                 write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', F1_list(index_F1_ket)
-                Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+                Ndimen_F1_ket = primitive_hfs_basis(index_F1_ket)%Ndimen
 
                 write(out, '(/A8, A)') '',&
                     'Construct primitive reduced transition dipole moment matrix'
@@ -696,8 +697,8 @@ contains
                     ! parity selection rule
                     index_represCs_ket = mod(index_represCs_bra, sym%NrepresCs) + 1 
 
-                    Nlevels_F1_bra = eigen_all_F1(index_F1_bra, index_represCs_bra)%Nlevels
-                    Nlevels_F1_ket = eigen_all_F1(index_F1_ket, index_represCs_ket)%Nlevels
+                    Nlevels_F1_bra = eigen_all_hfs(index_F1_bra, index_represCs_bra)%Nlevels
+                    Nlevels_F1_ket = eigen_all_hfs(index_F1_ket, index_represCs_ket)%Nlevels
 
                     write(out, '(/A10, A)') '',&
                         'Construct parity conserved reduced transition dipole moment matrix'
@@ -738,22 +739,22 @@ contains
             ! See Eq.(58) of DOI: 10.1021/acs.jctc.1c01244
             ! ! ^{tau,F}M^{tau', F'} = {Psi^{tau, F}}^\dagger * ^{F}M^{F'} * Psi^{tau', F'} 
             ! parity_conserved_F1_reduced_TDM_matrix = &
-            !     matmul(matmul(transpose(eigen_all_F1(index_F1_bra, index_represCs_bra)%vect), &
+            !     matmul(matmul(transpose(eigen_all_hfs(index_F1_bra, index_represCs_bra)%vect), &
             !                 primitive_F1_reduced_TDM_matrix), &
-            !         eigen_all_F1(index_F1_ket, index_represCs_ket)%vect)
+            !         eigen_all_hfs(index_F1_ket, index_represCs_ket)%vect)
 
             ALLOCATE(intermediate_matrix(Nlevels_F1_bra, Ndimen_F1_ket))
 
             ! M_intermediate = {Psi^{tau, F}}^\dagger * ^{F}M^{F'}
             CALL dgemm('T', 'N', Nlevels_F1_bra, Ndimen_F1_ket, Ndimen_F1_bra, 1.0_rk, &
-                        eigen_all_F1(index_F1_bra, index_represCs_bra)%vect, Ndimen_F1_bra, &
+                        eigen_all_hfs(index_F1_bra, index_represCs_bra)%vect, Ndimen_F1_bra, &
                         primitive_F1_reduced_TDM_matrix, Ndimen_F1_bra, &
                         0.0_rk, intermediate_matrix, Nlevels_F1_bra)
 
             ! ^{tau, F}M^{tau', F'} = M_intermediate * Psi^{tau', F'}           
             CALL dgemm('N', 'N', Nlevels_F1_bra, Nlevels_F1_ket, Ndimen_F1_ket, 1.0_rk, &
                         intermediate_matrix, Nlevels_F1_bra, &
-                        eigen_all_F1(index_F1_ket, index_represCs_ket)%vect, Ndimen_F1_ket, &
+                        eigen_all_hfs(index_F1_ket, index_represCs_ket)%vect, Ndimen_F1_ket, &
                         0.0_rk, parity_conserved_F1_reduced_TDM_matrix, Nlevels_F1_bra)
 
             DEALLOCATE(intermediate_matrix)
@@ -770,30 +771,30 @@ contains
                          upper_energy_lower_bound, upper_energy_upper_bound, &
                          frequency_lower_bound, frequency_upper_bound
 
-            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_F1
-            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_F1
-            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_F1
-            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_F1
+            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_hfs
+            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_hfs
+            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_hfs
+            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_hfs
             frequency_lower_bound = max(0.0_rk, intensity%freq_window(1))
             frequency_upper_bound = intensity%freq_window(2)
             
             do ket = 1, Nlevels_F1_ket
                 do bra = 1, Nlevels_F1_bra
 
-                    if (eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket) &
+                    if (eigen_all_hfs(index_F1_ket, index_represCs_ket)%val(ket) &
                         < lower_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket) &
+                    if (eigen_all_hfs(index_F1_ket, index_represCs_ket)%val(ket) &
                         > lower_energy_upper_bound) cycle
 
-                    if (eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
+                    if (eigen_all_hfs(index_F1_bra, index_represCs_bra)%val(bra) &
                         < upper_energy_lower_bound) cycle
-                    if (eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
+                    if (eigen_all_hfs(index_F1_bra, index_represCs_bra)%val(bra) &
                         > upper_energy_upper_bound) cycle
 
                     ! The bra state is the final state
                     parity_conserved_F1_transitions_matrix(bra, ket) = &
-                        eigen_all_F1(index_F1_bra, index_represCs_bra)%val(bra) &
-                            - eigen_all_F1(index_F1_ket, index_represCs_ket)%val(ket)
+                        eigen_all_hfs(index_F1_bra, index_represCs_bra)%val(bra) &
+                            - eigen_all_hfs(index_F1_ket, index_represCs_ket)%val(ket)
                     
                     if (parity_conserved_F1_transitions_matrix(bra, ket) < 0.0_rk) cycle
 
@@ -810,28 +811,16 @@ contains
                         * parity_conserved_F1_transitions_matrix(bra, ket) &
                         * parity_conserved_F1_transitions_matrix(bra, ket) &
                         * parity_conserved_F1_reduced_TDM_matrix(bra, ket) &
-                        / (2.0_rk * primitive_F1_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
+                        / (2.0_rk * primitive_hfs_basis(index_F1_bra)%icontr(1)%F1 + 1.0_rk)
 
                     WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12)") &
-                        eigen_all_F1(index_F1_bra, index_represCs_bra)%quanta(bra)%iroot, &
-                        eigen_all_F1(index_F1_ket, index_represCs_ket)%quanta(ket)%iroot, &
+                        eigen_all_hfs(index_F1_bra, index_represCs_bra)%quanta(bra)%iroot, &
+                        eigen_all_hfs(index_F1_ket, index_represCs_ket)%quanta(ket)%iroot, &
                         EinsteinA, &
                         parity_conserved_F1_transitions_matrix(bra, ket)
                 end do    
             end do 
         end subroutine construct_parity_conserved_F1_transitions_matrix
-
-        function parity_sign(index_represCs)
-            INTEGER(ik), INTENT(IN) :: index_represCs
-            CHARACTER(4) :: parity_sign
-            if ( index_represCs == 1 ) then
-                parity_sign = '+'
-            elseif ( index_represCs == 2 ) then
-                parity_sign = '-'
-            endif
-        end function parity_sign
-    end subroutine F1_hyperfine_intensity
-
 
     subroutine construct_primitive_F1_reduced_TDM_matrix( &
         index_F1_bra, index_F1_ket)
@@ -849,8 +838,8 @@ contains
 
         primitive_F1_reduced_TDM_matrix = 0.0_rk
 
-        Ndimen_F1_bra = primitive_F1_basis(index_F1_bra)%Ndimen
-        Ndimen_F1_ket = primitive_F1_basis(index_F1_ket)%Ndimen
+            Ndimen_F1_bra = primitive_hfs_basis(index_F1_bra)%Ndimen
+            Ndimen_F1_ket = primitive_hfs_basis(index_F1_ket)%Ndimen
 
         do ket = 1, Ndimen_F1_ket
             call get_quanta(index_F1_ket, ket, &
@@ -976,4 +965,16 @@ contains
         enddo
     end function primitive_F1_reduced_TDM_matrix_element
     
+        function parity_sign(index_represCs)
+            INTEGER(ik), INTENT(IN) :: index_represCs
+            CHARACTER(4) :: parity_sign
+            if ( index_represCs == 1 ) then
+                parity_sign = '+'
+            elseif ( index_represCs == 2 ) then
+                parity_sign = '-'
+            endif
+        end function parity_sign
+    end subroutine F1_hyperfine_intensity
+
+
 end module F1_intensity

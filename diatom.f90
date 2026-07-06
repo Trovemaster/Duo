@@ -25,7 +25,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 35  ! number of different terms of the Hamiltonian
+  integer(ik),parameter   :: Nobjects = 46  ! number of different terms of the Hamiltonian
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -58,15 +58,23 @@ module diatom_module
   !        case (13) nac(iterm)
   !        case (14) bobvib(iterm)
   !        case (15 - 20) reserved
-  !        case (21) hfcc1(1) for Fermi contact, bF
-  !        case (22) hfcc1(2) for nuclear spin - orbit, a
-  !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
-  !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
-  !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
-  !        case (26) hfcc1(6) for electric dipole, eQq0
-  !        case (27) hfcc1(7) for electric diople, eQq2
-  !        case (28) hfcc1(8) for nuclear - nuclear spin dipole, ii
-  !        case (29) reserved
+  !        case (21) hfcc1(1) for nucleus-1 Fermi contact, bF
+  !        case (22) hfcc1(2) for nucleus-1 nuclear spin - orbit, a
+  !        case (23) hfcc1(3) for nucleus-1 nuclear dipole - spin dipole, c
+  !        case (24) hfcc1(4) for nucleus-1 nuclear dipole - spin dipole, d
+  !        case (25) hfcc1(5) for nucleus-1 nuclear spin - rotation, cI
+  !        case (26) hfcc1(6) for nucleus-1 electric quadrupole, eQq0
+  !        case (27) hfcc1(7) for nucleus-1 electric quadrupole, eQq2
+  !        case (28) hfcc12(1) for dipolar nuclear spin - spin, ii
+  !        case (29 - 30) reserved
+  !        case (31) hfcc2(1) for nucleus-2 Fermi contact, bF
+  !        case (32) hfcc2(2) for nucleus-2 nuclear spin - orbit, a
+  !        case (33) hfcc2(3) for nucleus-2 nuclear dipole - spin dipole, c
+  !        case (34) hfcc2(4) for nucleus-2 nuclear dipole - spin dipole, d
+  !        case (35) hfcc2(5) for nucleus-2 nuclear spin - rotation, cI
+  !        case (36) hfcc2(6) for nucleus-2 electric quadrupole, eQq0
+  !        case (37) hfcc2(7) for nucleus-2 electric quadrupole, eQq2
+  !        case (38 - 40) reserved
   !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
@@ -88,7 +96,9 @@ module diatom_module
     "NAC", &
     "BOBVIB", "", "", "", "", "", "", & ! reserved
     "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "HFCC-II-12", &
-    "", & ! reserved
+    "", "", & ! reserved
+    "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
+    "", "", "", & ! reserved
     "MAGNETROT",&
     "MAGNETIC",&
     "QUADRUPOLE", &
@@ -320,9 +330,12 @@ module diatom_module
 
   type quantaT
     real(rk) :: I1 ! nuclear spin 1
+    real(rk) :: I2 ! nuclear spin 2
     real(rk) :: Itot ! total nuclear spin (e.g. D2: Itot=0, 1, 2)
     real(rk) :: F1  ! \hat{F1} = \hat{I1} + \hat{J}
+    real(rk) :: Ftot ! \hat{F} = \hat{F1} + \hat{I2}
     INTEGER(ik) :: index_F1 ! index of the F1 in F1_list
+    INTEGER(ik) :: index_Ftot ! index of the Ftot in Ftot_list
     real(rk)     :: Jrot       ! J - real
     integer(ik)  :: irot       ! index of the J value in J_list
     integer(ik)  :: istate     ! e-state
@@ -335,7 +348,7 @@ module diatom_module
     integer(ik)  :: ivib = 1   ! vibrational quantum number counting all vib-contracted states
     integer(ik)  :: ilevel = 1  ! primitive quantum
     integer(ik)  :: iroot       ! running number
-    integer(ik)  :: iF1_ID       ! running number within the same F and parity
+    integer(ik)  :: iF_ID        ! running number within the same hyperfine F block
     integer(ik)  :: iJ_ID       ! running number within the same J
     integer(ik)  :: iparity = 0
     integer(ik)  :: igamma = 1
@@ -529,11 +542,12 @@ module diatom_module
     integer(ik),pointer :: ilevel(:)=>null()      ! level index
   end type contract_solT
 
-  type F1_hyperfine_steup_T
-    real(rk) :: I1
+  type hyperfine_setup_T
+    real(rk) :: I1 = -1.0_rk
+    real(rk) :: I2 = -1.0_rk
     real(rk) :: fit_bound_ratio
     character(cl) :: fit_optimization_algorithm
-  end type F1_hyperfine_steup_T
+  end type hyperfine_setup_T
   !
   integer, parameter :: trk        = selected_real_kind(12)
   integer,parameter  :: jlist_max = 500
@@ -592,9 +606,12 @@ module diatom_module
   real(rk), allocatable :: vibrational_contrfunc(:,:)
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
-  type(F1_hyperfine_steup_T) :: F1_hyperfine_setup
-  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 8
-  type(FieldListT) :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
+  type(hyperfine_setup_T) :: hyperfine_setup
+  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 7
+  integer(ik), parameter :: GLOBAL_NUM_HFCC12_OBJECT = 1
+  type(FieldListT), target :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
+  type(FieldListT), target :: hfcc2(GLOBAL_NUM_HFCC_OBJECT)
+  type(FieldListT), target :: hfcc12(GLOBAL_NUM_HFCC12_OBJECT)
   !
   real(rk),allocatable :: overlap_matelem(:,:)
   !
@@ -604,7 +621,7 @@ module diatom_module
     nac_omega_obj,overlap_matelem,Diab_omega_obj,Dipole_omega_obj, setup_factorials_lookup,&
     check_point_eigenfunc,check_point_dipoles,check_point_basis_set,compute_vib_integrals
   !
-  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1
+  save grid, Intensity, fitting, action, job, gridvalue_allocated, fields_allocated, hfcc1, hfcc2, hfcc12
   !
 contains
   !
@@ -912,6 +929,10 @@ contains
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
           allocate(hfcc1(i)%field(nestates), stat=alloc)
+          allocate(hfcc2(i)%field(nestates), stat=alloc)
+        end do
+        do i = 1, GLOBAL_NUM_HFCC12_OBJECT
+          allocate(hfcc12(i)%field(nestates), stat=alloc)
         end do
         !
         ! initializing the fields
@@ -1332,7 +1353,12 @@ contains
           call readu(w)
           select case(w)
           case("I")
-            call readf(F1_hyperfine_setup%I1)
+            call readf(hyperfine_setup%I1)
+            if (nitems > 2) call readf(hyperfine_setup%I2)
+          case("I1")
+            call readf(hyperfine_setup%I1)
+          case("I2")
+            call readf(hyperfine_setup%I2)
           case default
             call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
           end select
@@ -1803,7 +1829,10 @@ contains
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
            "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
-           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2", "HFCC-II")
+           "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
+           "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
+           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2", &
+           "HFCC-II", "HFCC-II-DIPOLE")
         !
         ibraket = 0
         !
@@ -2102,367 +2131,68 @@ contains
           !
           intensity%tdm = .true.
           !
-        case("HFCC-BF")
-          !
-          hfcc1(1)%num_field = hfcc1(1)%num_field + 1
-          iobject(21) = iobject(21) + 1
-          call reada(iTAG) ; jTAG = iTAG
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_bf : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_bf
-              endif
-            enddo
-          enddo loop_istate_hfcc_bf
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(1)%num_field - 1
-            if (iref==hfcc1(1)%field(istate)%iref.and.jref==hfcc1(1)%field(istate)%jref) then
-              call report ("Fermi contact object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
-            hfcc1(1)%num_field = hfcc1(1)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(1)%field(hfcc1(1)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-BF-1"
-          if (action%fitting) call report ("Fermi-contact object cannot appear after FITTING",.true.)
-          !
-        case("HFCC-A")
-          hfcc1(2)%num_field = hfcc1(2)%num_field + 1
-          iobject(22) = iobject(22) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_a : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_a
-              endif
-            enddo
-          enddo loop_istate_hfcc_a
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(2)%num_field - 1
-            if (iref==hfcc1(2)%field(istate)%iref.and.jref==hfcc1(2)%field(istate)%jref) then
-              call report ("Nuclear spin -- orbit object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('The Nuclear spin -- orbit ',2i8,' is skipped')") iref,jref
-            hfcc1(2)%num_field = hfcc1(2)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(2)%field(hfcc1(2)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-A-1"
-          if (action%fitting) call report ("Nuclear spin -- orbit object cannot appear after FITTING",.true.)
-          !
-        case("HFCC-C")
-          hfcc1(3)%num_field = hfcc1(3)%num_field + 1
-          iobject(23) = iobject(23) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_c : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_c
-              endif
-            enddo
-          enddo loop_istate_hfcc_c
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(3)%num_field - 1
-            if (iref==hfcc1(3)%field(istate)%iref.and.jref==hfcc1(3)%field(istate)%jref) then
-              call report ("Diagonal nuclear spin - electron spin dipole-dipole object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('Diagonal nuclear spin - electron spin dipole-dipole term ',2i8,' is skipped')") iref,jref
-            hfcc1(3)%num_field = hfcc1(3)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(3)%field(hfcc1(3)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-C-1"
-          if (action%fitting) then
-            call report ("Diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
-          endif
-          !
-        case("HFCC-D")
-          hfcc1(4)%num_field = hfcc1(4)%num_field + 1
-          iobject(24) = iobject(24) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_d : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_d
-              endif
-            enddo
-          enddo loop_istate_hfcc_d
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(4)%num_field - 1
-            if (iref==hfcc1(4)%field(istate)%iref.and.jref==hfcc1(4)%field(istate)%jref) then
-              call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object  is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('The Off-diagonal nuclear spin - electron spin dipole-dipole object ',2i8,' is skipped')") iref,jref
-            hfcc1(4)%num_field = hfcc1(4)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(4)%field(hfcc1(4)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-D-1"
-          if (action%fitting) then
-            call report ("Off-diagonal nuclear spin - electron spin dipole-dipole object cannot appear after FITTING",.true.)
-          endif
-        case("HFCC-CI")
-          !
-          hfcc1(5)%num_field = hfcc1(5)%num_field + 1
-          iobject(25) = iobject(25) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_ci : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_ci
-              endif
-            enddo
-          enddo loop_istate_hfcc_ci
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(5)%num_field - 1
-            if (iref==hfcc1(5)%field(istate)%iref.and.jref==hfcc1(5)%field(istate)%jref) then
-              call report ("Nuclear spin -- rotation object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('The Fermi-contact term ',2i8,' is skipped')") iref,jref
-            hfcc1(5)%num_field = hfcc1(5)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(5)%field(hfcc1(5)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-CI-1"
-          if (action%fitting) call report ("Nuclear spin -- rotation object cannot appear after FITTING",.true.)
-          !
-        case("HFCC-EQQ0")
-          hfcc1(6)%num_field = hfcc1(6)%num_field + 1
-          iobject(26) = iobject(26) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_eqq0 : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_eqq0
-              endif
-            enddo
-          enddo loop_istate_hfcc_eqq0
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(6)%num_field - 1
-            if (iref==hfcc1(6)%field(istate)%iref.and.jref==hfcc1(6)%field(istate)%jref) then
-              call report ("Diagonal nuclear electric quadrupole object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('Diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
-            hfcc1(6)%num_field = hfcc1(6)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(6)%field(hfcc1(6)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-EQQ0-1"
-          if (action%fitting) call report ("Diagonal nuclear electric quadrupole object cannot appear after FITTING",.true.)
-          !
-        case("HFCC-EQQ2")
-          hfcc1(7)%num_field = hfcc1(7)%num_field + 1
-          iobject(27) = iobject(27) + 1
-          call reada(iTAG)
-          !call StateStart(iTAG,iref)
-          call StateCheck(iTAG,iref)
-          jref = iref
-          !
-          ! find the corresponding potential
-          include_state = .false.
-          loop_istate_hfcc_eqq2 : do istate=1, Nestates
-            do jstate=1, Nestates
-              if (iref==poten(istate)%iref.and.jref==poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_eqq2
-              endif
-            enddo
-          enddo loop_istate_hfcc_eqq2
-          !
-          ! Check if it was defined before
-          do istate=1, hfcc1(7)%num_field - 1
-            if (iref==hfcc1(7)%field(istate)%iref.and.jref==hfcc1(7)%field(istate)%jref) then
-              call report ("Off-diagonal nuclear electric quadrupole object is repeated",.true.)
-            endif
-          enddo
-          !
-          if (.not.include_state) then
-            !write(out,"('Off-diagonal nuclear electric quadrupole term ',2i8,' is skipped')") iref,jref
-            hfcc1(7)%num_field = hfcc1(7)%num_field - 1
-            do while (trim(w)/="".and.trim(w)/="END")
-              call read_line(eof,iut) ; if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-          !
-          field => hfcc1(7)%field(hfcc1(7)%num_field)
-          !
-          call set_field_refs(field, iref, jref, istate_, jstate_,iTAG,iTAG)
-          field%class = "HFCC-EQQ2-1"
-          if (action%fitting) call report ("Off-diagonal nuclear electric quadrupole cannot appear after FITTING",.true.)
-          !
-        case("HFCC-II")
-
-          hfcc1(8)%num_field = hfcc1(8)%num_field + 1
-          iobject(28) = iobject(28) + 1
-
-          call reada(iTAG)
-          call StateCheck(iTAG, iref)
-          jref = iref
-
-          ! Find the corresponding potential.
-          include_state = .false.
-          loop_istate_hfcc_ii : do istate = 1, Nestates
-            do jstate = 1, Nestates
-              if (iref == poten(istate)%iref .and. jref == poten(jstate)%iref) then
-                include_state = .true.
-                istate_ = istate
-                jstate_ = jstate
-                exit loop_istate_hfcc_ii
-              endif
-            enddo
-          enddo loop_istate_hfcc_ii
-
-          ! Check whether this object has already been defined.
-          do istate = 1, hfcc1(8)%num_field - 1
-            if (iref == hfcc1(8)%field(istate)%iref .and. &
-                jref == hfcc1(8)%field(istate)%jref) then
-              call report("Nuclear spin-nuclear spin dipole-dipole object is repeated", .true.)
-            endif
-          enddo
-
-          if (.not. include_state) then
-            hfcc1(8)%num_field = hfcc1(8)%num_field - 1
-            do while (trim(w) /= "" .and. trim(w) /= "END")
-              call read_line(eof, iut)
-              if (eof) exit
-              call readu(w)
-            enddo
-            cycle
-          endif
-
-          field => hfcc1(8)%field(hfcc1(8)%num_field)
-
-          call set_field_refs(field, iref, jref, istate_, jstate_, iTAG, iTAG)
-          field%class = "HFCC-II-12"
-
-          if (action%fitting) then
-            call report("Nuclear spin-nuclear spin dipole-dipole object cannot appear after FITTING", .true.)
-          endif
+        !! start to read the hyperfine coupling constant/curves (hfcc)
+        case("HFCC-BF", "HFCC-BF-1")
+          call input_hfcc_field(hfcc1(1), 21, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-A", "HFCC-A-1")
+          call input_hfcc_field(hfcc1(2), 22, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-C", "HFCC-C-1")
+          call input_hfcc_field(hfcc1(3), 23, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-D", "HFCC-D-1")
+          call input_hfcc_field(hfcc1(4), 24, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-CI", "HFCC-CI-1")
+          call input_hfcc_field(hfcc1(5), 25, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-EQQ0", "HFCC-EQQ0-1")
+          call input_hfcc_field(hfcc1(6), 26, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-EQQ2", "HFCC-EQQ2-1")
+          call input_hfcc_field(hfcc1(7), 27, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-II", "HFCC-II-DIPOLE")
+          call input_hfcc_field(hfcc12(1), 28, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-BF-2")
+          call input_hfcc_field(hfcc2(1), 31, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-A-2")
+          call input_hfcc_field(hfcc2(2), 32, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-C-2")
+          call input_hfcc_field(hfcc2(3), 33, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-D-2")
+          call input_hfcc_field(hfcc2(4), 34, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-CI-2")
+          call input_hfcc_field(hfcc2(5), 35, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-EQQ0-2")
+          call input_hfcc_field(hfcc2(6), 36, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-EQQ2-2")
+          call input_hfcc_field(hfcc2(7), 37, ierr)
+          if (ierr /= 0) cycle
+          !!
+        !! end of hyperfine coupling constant/curve (hfcc)
           !
         case("ABINITIO")
           !
@@ -4277,6 +4007,61 @@ contains
       !
     end subroutine transfer_field_properties
     !
+    subroutine input_hfcc_field(hfcc_obj, iType, ierr)
+      ! This subroutine is merged from all cases of hfcc in the old code.
+      type(FieldListT), target, intent(inout) :: hfcc_obj
+      integer(ik), intent(in) :: iType
+      integer(ik), intent(out) :: ierr
+      !
+      ierr = 0
+      hfcc_obj%num_field = hfcc_obj%num_field + 1
+      iobject(iType) = iobject(iType) + 1
+      !
+      call reada(iTAG)
+      call StateCheck(iTAG, iref)
+      jref = iref
+      !
+      ! Find the corresponding potential.
+      include_state = .false.
+      loop_istate_hfcc : do istate = 1, Nestates
+        do jstate = 1, Nestates
+          if (iref == poten(istate)%iref .and. jref == poten(jstate)%iref) then
+            include_state = .true.
+            istate_ = istate
+            jstate_ = jstate
+            exit loop_istate_hfcc
+          endif
+        enddo
+      enddo loop_istate_hfcc
+      !
+      ! Check whether this object has already been defined.
+      do istate = 1, hfcc_obj%num_field - 1
+        if (iref == hfcc_obj%field(istate)%iref .and. &
+            jref == hfcc_obj%field(istate)%jref) then
+          call report (trim(CLASSNAMES(iType))//" is repeated", .true.)
+        endif
+      enddo
+      !
+      if (.not. include_state) then
+        hfcc_obj%num_field = hfcc_obj%num_field - 1
+        iobject(iType) = iobject(iType) - 1
+        do while (trim(w) /= "" .and. trim(w) /= "END")
+          call read_line(eof, iut)
+          if (eof) exit
+          call readu(w)
+        enddo
+        ierr = 1
+        return
+      endif
+      !
+      field => hfcc_obj%field(hfcc_obj%num_field)
+      !
+      call set_field_refs(field, iref, jref, istate_, jstate_, iTAG, iTAG)
+      field%class = trim(CLASSNAMES(iType))
+      if (action%fitting) call report (trim(field%class)//" cannot appear after FITTING", .true.)
+      !
+    end subroutine input_hfcc_field
+    !
     subroutine input_non_diagonal_field(Nobjects,iType,iobject,fields,ierr)
       !
       integer(ik),intent(in) :: iType,Nobjects
@@ -5117,8 +4902,12 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27, 28)
+        case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (28)
+          field => hfcc12(1)%field(iterm)
+        case (31, 32, 33, 34, 35, 36, 37)
+          field => hfcc2(iobject - 30)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
         case (Nobjects-4)
@@ -5649,8 +5438,12 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27, 28)
+        case (21, 22, 23, 24, 25, 26, 27)
           field => hfcc1(iobject - 20)%field(iterm)
+        case (28)
+          field => hfcc12(1)%field(iterm)
+        case (31, 32, 33, 34, 35, 36, 37)
+          field => hfcc2(iobject - 30)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
         case (Nobjects-4)
