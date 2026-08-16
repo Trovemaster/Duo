@@ -8678,11 +8678,11 @@ contains
           !write(out,"('Error: ME_numerov is not implemented yet')")
           !stop 'Error: ME_numerov is not implemented yet'
           !
-          !iverbose
+          !nroots = min(nroots,ngrid-2),job%vibmax(istate)
           !
-          nroots = min(nroots,ngrid-2)
+          nroots = job%vibmax(istate)
           !
-          job%vibenermax(istate) = maxval(poten(istate)%gridvalue)
+          job%vibenermax(istate) = min(maxval(poten(istate)%gridvalue),job%vibenermax(istate))
           !
           call ME_numerov(nroots,(/grid%rmin,grid%rmax/),ngrid-1,ngrid-1,r,poten(istate)%gridvalue,mu_rr,1,0,&
                           job%vibenermax(istate),iverbose,vibener(1:nroots+1),vibmat)
@@ -13054,7 +13054,7 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
                 !$omp end critical
               endif
               
-              exit loop_iss
+              cycle loop_iss
             enddo ! isigmav
           enddo ! isigma2
         enddo ! ipermute
@@ -13245,9 +13245,9 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
       logical, intent(in) :: use_debug_print
       !
       type(fieldT), pointer :: field
-      integer(ik) :: ipermute, istate_, jstate_, ilambda_we, jlambda_we, isigma2, isigmav, itau
+      integer(ik) :: ipermute, istate_, jstate_, ilambda_we, jlambda_we, isigma2, isigmav, itau, ilambda_, jlambda_
       real(rk) :: sigmai_we, sigmaj_we, spini_, spinj_, q_we, three_j_ref, three_j_, SO
-      real(rk) :: sigmai_, sigmaj_, omegai_, omegaj_, f_t, ilambda_, jlambda_
+      real(rk) :: sigmai_, sigmaj_, omegai_, omegaj_, f_t
       character(cl) :: printout_
       
       loop_iso: do iso = 1, Nspinorbits
@@ -13361,7 +13361,7 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
                 !$omp end critical
               endif
               
-              exit loop_iso
+              cycle loop_iso
             enddo ! isigmav
           enddo ! isigma2
         enddo ! ipermute
@@ -13502,7 +13502,8 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
                 f_t = f_t * (-1.0_rk)**itau
               endif
               
-              f_t = sqrt((jval_sq - f_l*omegai) * (jval_sq + f_l*omegai + 1.0_rk) / jval_sq) * f_t
+              ! sqrt((J-f_l*Omega)*(J+f_l*Omega+1)) with f_l = +/-1
+              f_t = sqrt(jval_sq - omegai*(omegai + f_l)) * f_t
               hmat_elem = hmat_elem - f_t
               
               ! Debug printing

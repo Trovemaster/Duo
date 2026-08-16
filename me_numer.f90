@@ -28,7 +28,7 @@ module me_numer
   real(ark), parameter :: thrsh_upper  = 1.0e20_ark    ! Upper limit for fncts in out-numerov integr.
   !
   integer(ik), parameter :: itermax= 500000      ! Maximal possible number of iterations (tries) for Numerov 
-  integer(ik), parameter :: maxslots = 10000       ! Maximal possible number of slots for found energies 
+  integer(ik)  :: maxslots = 10000       ! Maximal possible number of slots for found energies 
   integer(ik), parameter :: epoints = 40         ! N of points used for extrapolation in lsq_fit
   !
   real(ark) :: rhostep                           ! mesh size
@@ -42,7 +42,7 @@ module me_numer
   real(ark)   :: rho_b(2)                        ! rhomin..rhomax
   integer(ik) :: iperiod                         ! the periodicity (can be negative for the reflecation)
   !
-  integer(ik) :: verbose = 6                     ! Verbosity level
+  integer(ik) :: verbose = 5                     ! Verbosity level
   !
   logical     :: periodic                        ! periodic boundary conditions: true or false
   !
@@ -109,7 +109,7 @@ module me_numer
      !
      ! global variables
      !
-     vmax      = vmax_
+     vmax      = min(vmax_,npoints_)
      npoints   = numerpoints_
      rho_b = rho_b_
      iperiod = iperiod_
@@ -119,6 +119,8 @@ module me_numer
      !
      periodic = .false.
      if (iperiod>0) periodic = .true.
+     !
+     maxslots = min(max(maxslots,vmax),npoints_)
      !
      allocate(phil(0:npoints_),phir(0:npoints_),dphil(0:npoints_),dphir(0:npoints_), &
               phivphi(0:npoints_),rho_kinet(0:npoints_),enerslot(0:maxslots), &
@@ -265,6 +267,13 @@ module me_numer
      endif
      !
      energy(0:vmax) = enerslot(0:vmax)
+     !
+     do vl = 0,vmax
+        !
+        read (io_slot,rec=vl+1) (phil(i),i=0,npoints_),(dphil(i),i=0,npoints_)
+        wavefunc(:,vl) = phil(:)*sqrt(rhostep_)
+        !
+     enddo
      !
      ! Matrix elements
      !
@@ -483,7 +492,7 @@ module me_numer
    !
    if (verbose>=5) then 
       write(out,"('grid values (poten, mu_rr, poten_eff): ')") 
-      do i=0,npoints,2
+      do i=0,npoints
         write(out,"(i8,3f18.8)") i,poten(i),mu_rr(i),pot_eff(i)
       enddo 
       write(out,"('potmin(eff) =  ',f18.8,' at i = ',i8)") potmin,imin
@@ -515,24 +524,28 @@ module me_numer
      !
      !enermax = maxval(poten(:))
      !
-     deltaE = (min(100000.0_rk,enermax)-enerlow)/(npoints+1)
+     enerlow=potmin/2.0_ark*mu_rr(imin)
      !
-     enerlow=potmin/2.0_ark*mu_rr(imin)+deltaE
+     deltaE = (enermax-enerlow)/(vmax+1)
      !
-     do i=0,min(npoints,maxslots)
+     !enerlow=enerlow+deltaE
+     !
+     do i=0,min(vmax+1,maxslots)
         !
         enerslot(i) = enerlow+real(i,rk)*deltaE
         !
      enddo
      !
+     enerslot(0) = enerlow + sqrt(small_)
+     !
      icslots(0:maxslots) = npoints-npoints/5
-     enerupp=min(100000.0_rk,enermax)
+     enerupp=enermax
      !
      !if (imin==npoints) imin = npoints/2
      !
    end select
    !
-   do v=0,vmax+1
+   do v=0,min(vmax+1,maxslots)
      !
      if (v/=0) enerlow = enerslot(v-1)
      !
@@ -561,8 +574,7 @@ module me_numer
      case ('UNBOUND')
        !
        ic  = icslots(v)
-       enerupp=enerslot(v+1)
-       enerlow=max(enerslot(v)-deltaE,poten(imin))
+       enerupp=enerslot(v)
        enerlow = enerslot(v)
        !  
      end select 
@@ -670,13 +682,13 @@ module me_numer
             enerslot(numnod)=eguess
             icslots(numnod) = ic 
             !
-            if (verbose>=6) then 
+            if (verbose>=7) then 
                !
                write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
                !
                do i=0,npoints 
                   !
-                  write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+                  write(out,"(i8,2f18.8)") i,phi_f(i),rho_b(1)+rhostep*real(i,rk)
                   !
                enddo
                !
@@ -785,13 +797,17 @@ module me_numer
          !
        case ('UNBOUND')
          !
-         if (verbose>=6) then 
+         ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
+         ! 
+         !phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         if (verbose>=7) then 
             !
             write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
             !
             do i=0,npoints 
                !
-               write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+               write(out,"(i8,2f18.8)") i,phi_f(i),rho_b(1)+rhostep*real(i,rk)
                !
             enddo
             !
@@ -825,6 +841,7 @@ module me_numer
          !   numerical intagration with simpson's rule #2
          !
          !tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t)
+         !tsum = sum(phi_t)*rhostep
          !
          !if (tsum>small__*100) then
          !  phi_f(:)=phi_f(:)/sqrt(tsum)
