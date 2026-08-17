@@ -3,9 +3,7 @@
     use timer
     use accuracy
     use refinement
-    use dipole
-    use quadrupole
-    use magnetic_dipole
+    use intensity_module, only : intensity_tranint
     !
     !use polarizability
     !use compilation_details, only: write_compilation_details
@@ -102,21 +100,13 @@
        endif
        ! 
        !call define_jlist
-       if (action%quadrupole) then
-         call qm_tranint
-         write(out, '(a)') '--End--'
-         stop
-       elseif (action%magdipole) then
-         call md_tranint
-         write(out, '(a)') '--End--'
-         stop
-       elseif(action%RWF) then
+       if(action%RWF) then
          !
          !call Raman_wavefunction
          write(out, '(a)') 'Raman Wavefunctions have been removed from Duo'
          stop 'Raman Wavefunctions have been removed'
        else
-         call dm_tranint
+         call intensity_tranint
          write(out, '(a)') '--End--'
          stop
        endif
