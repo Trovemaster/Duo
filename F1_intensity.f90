@@ -6,7 +6,7 @@ module F1_intensity
                             symbol1, symbol2, Nspin1, Nspin2, nQuadrupoles, quadrupoletm, action
     use F1_hyperfine, only : primitive_hfs_basis, &
                             F1_list, Ftot_list, eigen_all_hfs, min_eigen_value_hfs, &
-                            get_sign, I1, Wigner3j, Wigner6j, num_F1, num_Ftot, get_quanta
+                            get_sign, I1, I2, Wigner3j, Wigner6j, num_F1, num_Ftot, get_quanta
 
     implicit none
 
@@ -47,8 +47,16 @@ contains
                 if (Ndipoles <= 0) stop 'Error: No dipole curve is given for the intensity calculation.'
                 call IF_hyperfine_E1_intensity
             endif
-        else 
-            stop 'Heteronuclear case with two non-zero nuclear spins has not been implemented yet.'          
+        else
+            write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; heteronuclear."
+            if (action%quadrupole) then
+                stop 'E2 transition intensity is not supported for the heteronuclear two-spin case.'
+            elseif (action%magdipole) then
+                stop 'M1 transition intensity is not supported for the heteronuclear two-spin case.'
+            else
+                if (Ndipoles <= 0) stop 'Error: No dipole curve is given for the intensity calculation.'
+                call F1F_hyperfine_E1_intensity
+            endif
         endif
     end subroutine hyperfine_transition 
 
@@ -658,6 +666,316 @@ contains
         end function primitive_IF_reduced_TQM_matrix_element
 
     end subroutine IF_hyperfine_E2_intensity
+
+    subroutine F1F_hyperfine_E1_intensity
+        ! E1 intensities for heteronuclear two-spin molecules.
+        ! This follows the single-spin F1_E1 workflow, but the primitive basis is
+        ! coupled as J+I1=F1 and then F1+I2=Ftot.  Therefore the outer blocks are
+        ! labelled by Ftot, while F1 remains an internal primitive-basis quantum
+        ! number and appears in the recoupling factors below.
+        implicit none
+        INTEGER(ik) :: index_Ftot_bra, index_Ftot_ket, &
+                       index_represCs_bra, index_represCs_ket
+        INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, &
+                       Nlevels_Ftot_bra, Nlevels_Ftot_ket
+        REAL(rk), ALLOCATABLE :: primitive_F1F_reduced_TDM_matrix(:,:), &
+                                 parity_conserved_F1F_reduced_TDM_matrix(:,:), &
+                                 parity_conserved_F1F_transitions_matrix(:,:)
+
+        A_coef_s_1 = 64.0E-36 * pi**4 / (3.0_rk * planck)
+
+        do index_Ftot_bra = 1, num_Ftot
+            write(out, '(/A4, A, F6.1)') '', 'Start: F_bra =', Ftot_list(index_Ftot_bra)
+
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
+
+            ! E1 tensor rank is 1, so total F follows Delta F = 0,+/-1,
+            ! excluding the 0 -> 0 case.
+            do index_Ftot_ket = max(1, index_Ftot_bra - 1), min(num_Ftot, index_Ftot_bra + 1)
+                if ((index_Ftot_bra == index_Ftot_ket) .and. Ftot_list(index_Ftot_bra) == 0) cycle
+
+                write(out, '(/A6, A, F6.1)') '', 'Start: F_ket =', Ftot_list(index_Ftot_ket)
+                Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
+
+                write(out, '(/A8, A)') '', &
+                    'Construct primitive reduced transition dipole moment matrix'
+                ALLOCATE(primitive_F1F_reduced_TDM_matrix(Ndimen_Ftot_bra, Ndimen_Ftot_ket))
+                CALL construct_primitive_F1F_reduced_TDM_matrix(index_Ftot_bra, index_Ftot_ket)
+                write(out, '(A8, A/)') '', '... done'
+
+                do index_represCs_bra = 1, sym%NrepresCs
+                    ! Same Cs parity selection as F1_E1: electric dipole changes
+                    ! total parity, so the ket block is the opposite Cs irrep.
+                    index_represCs_ket = mod(index_represCs_bra, sym%NrepresCs) + 1
+
+                    Nlevels_Ftot_bra = eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%Nlevels
+                    Nlevels_Ftot_ket = eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%Nlevels
+
+                    write(out, '(/A10, A)') '', &
+                        'Construct parity conserved reduced transition dipole moment matrix'
+                    if (Nlevels_Ftot_bra <= 0 .or. Nlevels_Ftot_ket <= 0) then
+                        write(out, '(A10, A/)') '', '... skipped: empty F-parity block'
+                        cycle
+                    end if
+
+                    ALLOCATE(parity_conserved_F1F_reduced_TDM_matrix( &
+                        Nlevels_Ftot_bra, Nlevels_Ftot_ket))
+                    CALL construct_parity_conserved_F1F_reduced_TDM_matrix
+                    write(out, '(A10, A/)') '', '... done'
+
+                    write(out, '(/A10, A)') '', 'Calculate and print transitions'
+                    ALLOCATE(parity_conserved_F1F_transitions_matrix( &
+                        Nlevels_Ftot_bra, Nlevels_Ftot_ket))
+                    CALL calc_F1F_EinsteinA_coefficient
+                    write(out, '(A10, A/)') '', '... done'
+
+                    DEALLOCATE(parity_conserved_F1F_transitions_matrix)
+                    DEALLOCATE(parity_conserved_F1F_reduced_TDM_matrix)
+                end do
+
+                DEALLOCATE(primitive_F1F_reduced_TDM_matrix)
+
+                write(out, '(/A6, A, F6.1)') '', 'End: F_ket =', Ftot_list(index_Ftot_ket)
+            end do
+
+            write(out, '(/A4, A, F6.1)') '', 'End: F_bra =', Ftot_list(index_Ftot_bra)
+        end do
+
+        close(unit=unit_hyperfine_transitions)
+        write(out, '(/A)') "End: hyperfine transitions calculation"
+
+    contains
+        subroutine construct_parity_conserved_F1F_reduced_TDM_matrix
+            implicit none
+            REAL(rk), ALLOCATABLE :: intermediate_matrix(:, :)
+
+            ALLOCATE(intermediate_matrix(Nlevels_Ftot_bra, Ndimen_Ftot_ket))
+
+            ! Same coherent transformation as in F1_E1:
+            ! M_eigen = Psi_bra^T * M_primitive * Psi_ket.
+            ! The difference is that the F1F eigenvectors can mix primitive
+            ! components with different k, J, and F1 inside a fixed Ftot block.
+            CALL dgemm('T', 'N', Nlevels_Ftot_bra, Ndimen_Ftot_ket, Ndimen_Ftot_bra, 1.0_rk, &
+                        eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%vect, Ndimen_Ftot_bra, &
+                        primitive_F1F_reduced_TDM_matrix, Ndimen_Ftot_bra, &
+                        0.0_rk, intermediate_matrix, Nlevels_Ftot_bra)
+
+            CALL dgemm('N', 'N', Nlevels_Ftot_bra, Nlevels_Ftot_ket, Ndimen_Ftot_ket, 1.0_rk, &
+                        intermediate_matrix, Nlevels_Ftot_bra, &
+                        eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%vect, Ndimen_Ftot_ket, &
+                        0.0_rk, parity_conserved_F1F_reduced_TDM_matrix, Nlevels_Ftot_bra)
+
+            DEALLOCATE(intermediate_matrix)
+
+            ! Square only after the eigenvector transformation, so all primitive
+            ! amplitudes have been summed coherently.
+            parity_conserved_F1F_reduced_TDM_matrix = &
+                parity_conserved_F1F_reduced_TDM_matrix ** 2
+        end subroutine construct_parity_conserved_F1F_reduced_TDM_matrix
+
+        subroutine calc_F1F_EinsteinA_coefficient
+            implicit none
+            INTEGER(ik) :: bra, ket
+            REAL(rk) :: EinsteinA, lower_energy_lower_bound, lower_energy_upper_bound, &
+                        upper_energy_lower_bound, upper_energy_upper_bound, &
+                        frequency_lower_bound, frequency_upper_bound
+
+            lower_energy_lower_bound = intensity%erange_low(1) + min_eigen_value_hfs
+            lower_energy_upper_bound = intensity%erange_low(2) + min_eigen_value_hfs
+            upper_energy_lower_bound = intensity%erange_upp(1) + min_eigen_value_hfs
+            upper_energy_upper_bound = intensity%erange_upp(2) + min_eigen_value_hfs
+            frequency_lower_bound = max(0.0_rk, intensity%freq_window(1))
+            frequency_upper_bound = intensity%freq_window(2)
+
+            do ket = 1, Nlevels_Ftot_ket
+                do bra = 1, Nlevels_Ftot_bra
+                    if (eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%val(ket) &
+                        < lower_energy_lower_bound) cycle
+                    if (eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%val(ket) &
+                        > lower_energy_upper_bound) cycle
+                    if (eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%val(bra) &
+                        < upper_energy_lower_bound) cycle
+                    if (eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%val(bra) &
+                        > upper_energy_upper_bound) cycle
+
+                    parity_conserved_F1F_transitions_matrix(bra, ket) = &
+                        eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%val(bra) &
+                        - eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%val(ket)
+
+                    if (parity_conserved_F1F_transitions_matrix(bra, ket) < 0.0_rk) cycle
+                    if (parity_conserved_F1F_transitions_matrix(bra, ket) &
+                        < frequency_lower_bound) cycle
+                    if (parity_conserved_F1F_transitions_matrix(bra, ket) &
+                        > frequency_upper_bound) cycle
+
+                    ! Same Einstein-A expression as F1_E1, but the upper-state
+                    ! degeneracy is now the total-F degeneracy 2*Ftot_bra+1.
+                    EinsteinA = A_coef_s_1 &
+                        * parity_conserved_F1F_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1F_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1F_transitions_matrix(bra, ket) &
+                        * parity_conserved_F1F_reduced_TDM_matrix(bra, ket) &
+                        / (2.0_rk * Ftot_list(index_Ftot_bra) + 1.0_rk)
+
+                    WRITE(unit_hyperfine_transitions, "(I12, I12, E22.12, F22.12)") &
+                        eigen_all_hfs(index_Ftot_bra, index_represCs_bra)%quanta(bra)%iroot, &
+                        eigen_all_hfs(index_Ftot_ket, index_represCs_ket)%quanta(ket)%iroot, &
+                        EinsteinA, parity_conserved_F1F_transitions_matrix(bra, ket)
+                end do
+            end do
+        end subroutine calc_F1F_EinsteinA_coefficient
+
+        subroutine construct_primitive_F1F_reduced_TDM_matrix( &
+            index_Ftot_bra, index_Ftot_ket)
+
+            implicit none
+            INTEGER(ik), INTENT(IN) :: index_Ftot_bra, index_Ftot_ket
+            INTEGER(ik) :: Ndimen_Ftot_bra, Ndimen_Ftot_ket, bra, ket
+            REAL(rk) :: Ftot_bra, Ftot_ket, F1_bra, F1_ket, &
+                        S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket
+            INTEGER(ik) :: state_bra, state_ket, index_v_bra, index_v_ket, &
+                           v_bra, v_ket, Lambda_bra, Lambda_ket, index_field
+            type(fieldT), pointer :: field
+
+            primitive_F1F_reduced_TDM_matrix = 0.0_rk
+
+            Ndimen_Ftot_bra = primitive_hfs_basis(index_Ftot_bra)%Ndimen
+            Ndimen_Ftot_ket = primitive_hfs_basis(index_Ftot_ket)%Ndimen
+
+            do ket = 1, Ndimen_Ftot_ket
+                call get_quanta(index_Ftot_ket, ket, &
+                                Ftot_ket, state_ket, index_v_ket, v_ket, Lambda_ket, &
+                                S_ket, Sigma_ket, J_ket, Omega_ket, F1=F1_ket)
+
+                loop_bra: do bra = 1, Ndimen_Ftot_bra
+                    call get_quanta(index_Ftot_bra, bra, &
+                                    Ftot_bra, state_bra, index_v_bra, v_bra, Lambda_bra, &
+                                    S_bra, Sigma_bra, J_bra, Omega_bra, F1=F1_bra)
+
+                    ! Electronic-spin and body-fixed projection checks are copied
+                    ! from F1_E1.  The extra F1F checks below enforce the two
+                    ! rank-1 recoupling layers before calling the Wigner symbols.
+                    if ((nint(S_ket - S_bra) /= 0) &
+                        .or. (nint(Sigma_bra - Sigma_ket) /= 0)) cycle loop_bra
+                    if (abs(nint(Omega_ket - Omega_bra)) > 1) cycle loop_bra
+                    if (abs(nint(Omega_ket - Omega_bra)) == 0 &
+                        .and. Lambda_bra /= Lambda_ket) cycle loop_bra
+                    if (abs(nint(Omega_ket - Omega_bra)) == 1 &
+                        .and. abs(Lambda_bra - Lambda_ket) /= 1) cycle loop_bra
+                    ! The rotational 3j imposes Delta J = 0,+/-1, excluding
+                    ! J=0 -> J=0.  These explicit checks avoid needless 3j calls.
+                    if (abs(J_bra - J_ket) > 1.0_rk + small_) cycle loop_bra
+                    if (J_bra + J_ket < 1.0_rk - small_) cycle loop_bra
+                    ! New relative to single-spin F1_E1: F1 is now an intermediate
+                    ! angular momentum, so the second 6j also imposes
+                    ! Delta F1 = 0,+/-1, excluding F1=0 -> F1=0.
+                    if (abs(F1_bra - F1_ket) > 1.0_rk + small_) cycle loop_bra
+                    if (F1_bra + F1_ket < 1.0_rk - small_) cycle loop_bra
+
+                    do index_field = 1, Ndipoles
+                        field => dipoletm(index_field)
+
+                        primitive_F1F_reduced_TDM_matrix(bra, ket) = &
+                            primitive_F1F_reduced_TDM_matrix(bra, ket) &
+                            + primitive_F1F_reduced_TDM_matrix_element( &
+                                Ftot_bra, Ftot_ket, F1_bra, F1_ket, &
+                                field, index_v_bra, index_v_ket, &
+                                state_bra, state_ket, Lambda_bra, Lambda_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket)
+                    end do
+                end do loop_bra
+            end do
+        end subroutine construct_primitive_F1F_reduced_TDM_matrix
+
+        function primitive_F1F_reduced_TDM_matrix_element( &
+            Ftot_bra, Ftot_ket, F1_bra, F1_ket, &
+            field, index_v_bra, index_v_ket, &
+            state_bra, state_ket, Lambda_bra, Lambda_ket, &
+            J_bra, J_ket, Omega_bra, Omega_ket) result(tdm)
+
+            implicit none
+            REAL(rk), INTENT(IN) :: Ftot_bra, Ftot_ket, F1_bra, F1_ket, &
+                                    J_bra, J_ket, Omega_bra, Omega_ket
+            INTEGER(ik), INTENT(IN) :: index_v_bra, index_v_ket, &
+                                       state_bra, state_ket, Lambda_bra, Lambda_ket
+            type(fieldT), pointer, intent(in) :: field
+            INTEGER(ik) :: ipermute, istateI_, istateF_, ilambdaI_, &
+                           Lambda_ket_, isigmav, itau
+            REAL(rk) :: tdm, spinI_, spinF_, f_t
+
+            tdm = 0.0_rk
+            ! The dipole field bookkeeping below is copied from F1_E1/dipole.f90.
+            ! The input dipole curve stores one Lambda sign; isigmav flips that
+            ! field label so it can match signed primitive-basis Lambda values.
+            ! ipermute handles non-diagonal electronic-state dipoles without
+            ! double-counting diagonal curves.
+            do ipermute = 0, 1
+                if (ipermute == 0) then
+                    istateI_ = field%istate
+                    ilambdaI_ = field%lambda
+                    spinI_ = field%spini
+                    istateF_ = field%jstate
+                    Lambda_ket_ = field%lambdaj
+                    spinF_ = field%spinj
+                else
+                    istateF_ = field%istate
+                    Lambda_ket_ = field%lambda
+                    spinF_ = field%spini
+                    istateI_ = field%jstate
+                    ilambdaI_ = field%lambdaj
+                    spinI_ = field%spinj
+                endif
+
+                if (ipermute == 1 .and. istateI_ == istateF_ &
+                    .and. ilambdaI_ == Lambda_ket_ &
+                    .and. nint(spinI_ - spinF_) == 0) cycle
+
+                if (state_bra /= istateI_ .or. state_ket /= istateF_) cycle
+
+                do isigmav = 0, 1
+                    if (isigmav == 1 &
+                        .and. abs(field%lambda) + abs(field%lambdaj) == 0) cycle
+
+                    ilambdaI_ = ilambdaI_ * (-1)**isigmav
+                    Lambda_ket_ = Lambda_ket_ * (-1)**isigmav
+
+                    if (ilambdaI_ /= Lambda_bra .or. Lambda_ket_ /= Lambda_ket) cycle
+                    if (abs(Lambda_bra - Lambda_ket) > 1) cycle
+
+                    f_t = field%matelem(index_v_bra, index_v_ket)
+
+                    if (isigmav == 1) then
+                        itau = 0
+                        if (ilambdaI_ == 0 .and. poten(state_bra)%parity%pm == -1) itau = itau + 1
+                        if (Lambda_ket_ == 0 .and. poten(state_ket)%parity%pm == -1) itau = itau + 1
+                        f_t = f_t * (-1.0_rk)**itau
+                    endif
+
+                    ! Different from F1_E1: two successive recouplings are needed.
+                    ! First the rank-1 dipole is recoupled from J to F1 through I1;
+                    ! then from F1 to total Ftot through I2.
+                    tdm = get_sign(Ftot_ket + F1_bra + I2 + 1.0_rk) &
+                        * sqrt((2.0_rk * Ftot_bra + 1.0_rk) &
+                            * (2.0_rk * Ftot_ket + 1.0_rk)) &
+                        * Wigner6j(F1_ket, Ftot_ket, I2, &
+                            Ftot_bra, F1_bra, 1.0_rk) &
+                        * get_sign(F1_ket + J_bra + I1 + 1.0_rk) &
+                        * sqrt((2.0_rk * F1_bra + 1.0_rk) &
+                            * (2.0_rk * F1_ket + 1.0_rk) &
+                            * (2.0_rk * J_bra + 1.0_rk) &
+                            * (2.0_rk * J_ket + 1.0_rk)) &
+                        * Wigner6j(J_ket, F1_ket, I1, &
+                            F1_bra, J_bra, 1.0_rk) &
+                        * get_sign(J_bra - Omega_bra) &
+                        * Wigner3j(J_bra, 1.0_rk, J_ket, &
+                            -Omega_bra, Omega_bra - Omega_ket, Omega_ket) &
+                        * f_t
+                enddo
+            enddo
+        end function primitive_F1F_reduced_TDM_matrix_element
+
+    end subroutine F1F_hyperfine_E1_intensity
 
     subroutine F1_hyperfine_intensity
         implicit none
