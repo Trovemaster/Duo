@@ -543,6 +543,8 @@ module me_numer
      !
      !if (imin==npoints) imin = npoints/2
      !
+     !if (verbose>=4) write (out,"(' Energy, k, delta, A |phase')") 
+     !
    end select
    !
    do v=0,min(vmax+1,maxslots)
@@ -641,41 +643,41 @@ module me_numer
           !
        endif 
        !
-       if (ierr==0.and.iperiod<0) then 
-           !
-           phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
-           !
-           tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
-           !
-           phi_t(:)=phi_t(:)/sqrt(tsum)
-           !
-           ireflect = 1
-           if (iparity/=0) ireflect = -1
-           !
-           call diff_2d_4points_ark(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
-           !
-           if ( (iparity==0.and.abs(psi_t(npoints  ))>sqrt(thrsh_int)).or.&
-                (iparity==1.and.abs(phi_t(npoints  ))>sqrt(thrsh_int))) then 
-              !
-              if (verbose>=5) write(out,"(/'phi(N) and psi(N) = ',2g18.8,', energy = ',f12.4,', n = ',9i7)") &
-                              phi_t(npoints),psi_t(npoints ),eguess,numnod
-              !
-              if ( numnod+1<maxslots.and.numnod>v) then 
-                  enerslot(numnod)=eguess
-                  icslots(numnod) = ic 
-              endif 
-              !
-              numnod = maxslots+1
-              !
-           endif 
-           !
-       endif
-       !
-       if (verbose>=5) write(out,"('v = ',i5,'; numnod = ',i8,', efound = ',f16.7,', ierr = ',i9)") v,numnod,eguess,ierr
-       !
        select case (trim(boundary_condition))
          !
        case default
+         !
+         if (ierr==0.and.iperiod<0) then 
+             !
+             phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
+             !
+             tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
+             !
+             phi_t(:)=phi_t(:)/sqrt(tsum)
+             !
+             ireflect = 1
+             if (iparity/=0) ireflect = -1
+             !
+             call diff_2d_4points_ark(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
+             !
+             if ( (iparity==0.and.abs(psi_t(npoints  ))>sqrt(thrsh_int)).or.&
+                  (iparity==1.and.abs(phi_t(npoints  ))>sqrt(thrsh_int))) then 
+                !
+                if (verbose>=5) write(out,"(/'phi(N) and psi(N) = ',2g18.8,', energy = ',f12.4,', n = ',9i7)") &
+                                phi_t(npoints),psi_t(npoints ),eguess,numnod
+                !
+                if ( numnod+1<maxslots.and.numnod>v) then 
+                    enerslot(numnod)=eguess
+                    icslots(numnod) = ic 
+                endif 
+                !
+                numnod = maxslots+1
+                !
+             endif 
+             !
+         endif
+         !
+         if (verbose>=5) write(out,"('v = ',i5,'; numnod = ',i8,', efound = ',f16.7,', ierr = ',i9)") v,numnod,eguess,ierr
          !
          if ( ierr==0.and.numnod+1<maxslots.and.numnod>=v ) then
             !
@@ -800,6 +802,12 @@ module me_numer
          ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
          ! 
          !phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         !phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         !tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
+         !
+         !phi_t(:)=phi_t(:)/sqrt(tsum)
          !
          if (verbose>=7) then 
             !
@@ -1266,6 +1274,8 @@ module me_numer
           !
           phi_f(npoints  )  = A_*sin(k_coeff*rho_b(2)+delta_)
           phi_f(npoints-1)  = A_*sin(k_coeff*(rho_b(2)-rhostep)+delta_)
+          !
+          !if (verbose>=4) write (out,"(f17.6,f12.5,f13.6,f13.6,' |phase')") eguess,k_coeff,delta_,A_
           !
         end select 
         !

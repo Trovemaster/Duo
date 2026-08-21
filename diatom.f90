@@ -9086,6 +9086,8 @@ contains
                 !
                 !field%matelem(ilevel,jlevel)  = ddot(ngrid,psipsi,1,contrfunc(:,jlevel),1)
                 !
+                !psipsi_t  = sum(contrfunc(:,ilevel)*contrfunc(:,jlevel))
+                !
                 field%matelem(ilevel,jlevel)  = sum(contrfunc(:,ilevel)*(field%gridvalue(:))*contrfunc(:,jlevel))
                 !
                 ! A special case of the non-diagonal integration of NAC
