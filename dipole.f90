@@ -1,17 +1,47 @@
 module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
+ use diatom_module,only : job,Intensity,action,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
                           Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles,&
                           check_point_basis_set,compute_vib_integrals,fitting
  use timer,        only : IOstart,IOstop,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
+ use magnetic_dipole, only : md_do_1st_half_linestrength
 
 
 
  private
- public dm_tranint,transitions_filter_from_fitting
+ public rank1_tranint,transitions_filter_from_fitting
+
+ abstract interface
+   subroutine half_linestrength_vib_interface(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
+     import rk,ik
+     real(rk),intent(in)     :: jI,jF
+     integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
+     real(rk),intent(in)     :: vector(:)
+     real(rk),intent(out)    :: half_ls(:)
+   end subroutine half_linestrength_vib_interface
+
+   subroutine half_linestrength_omega_interface(jI,jF,indI,indF,dimenI,dimenF,vector,nJ,Nomegas_max,threeJ,half_ls)
+     import rk,ik
+     real(rk),intent(in)     :: jI,jF
+     integer(ik),intent(in)  :: indI,indF,dimenI,dimenF,nJ,Nomegas_max
+     real(rk),intent(in)     :: vector(:)
+     real(rk),intent(in)     :: threej(nJ,0:Nomegas_max,-1:1,-1:1)
+     real(rk),intent(out)    :: half_ls(:)
+   end subroutine half_linestrength_omega_interface
+ end interface
+
+ type radiative_operatorT
+   character(len=2) :: label = 'E1'
+   real(rk) :: einstein_a_prefactor = 0.0_rk
+   logical :: preserves_symmetry = .false.
+   logical :: supports_tm = .true.
+   logical :: supports_interpolation = .true.
+   procedure(half_linestrength_vib_interface),pointer,nopass :: half_vib => null()
+   procedure(half_linestrength_omega_interface),pointer,nopass :: half_omega => null()
+ end type radiative_operatorT
 
  real(rk),allocatable,save  :: dipole_me(:, :)
 
@@ -50,8 +80,54 @@ module dipole
  !type(IntensityT),save :: intensity
 
 contains
+
+ subroutine configure_radiative_operator(radiative_operator)
+
+    type(radiative_operatorT),intent(out) :: radiative_operator
+    real(rk),parameter :: vacuum_permeability = 1.25663706212d-6
+    real(rk),parameter :: magnetic_unit_conversion = 8.6007262932d-34
+
+    if (action%magdipole) then
+      radiative_operator%label = 'M1'
+      radiative_operator%einstein_a_prefactor = magnetic_unit_conversion*&
+        (16.0_rk*pi**3*vacuum_permeability)/(3.0_rk*planck)
+      radiative_operator%preserves_symmetry = .true.
+      radiative_operator%supports_tm = .false.
+      radiative_operator%supports_interpolation = .false.
+      radiative_operator%half_vib => md_do_1st_half_linestrength
+      nullify(radiative_operator%half_omega)
+    else
+      radiative_operator%label = 'E1'
+      radiative_operator%einstein_a_prefactor = 64.0d-36*pi**4/(3.0_rk*planck)
+      radiative_operator%preserves_symmetry = .false.
+      radiative_operator%supports_tm = .true.
+      radiative_operator%supports_interpolation = .true.
+      radiative_operator%half_vib => do_1st_half_linestrength
+      radiative_operator%half_omega => do_1st_half_linestrength_omega
+    endif
+
+    if (intensity%interpolate.and..not.radiative_operator%supports_interpolation) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'intensity interpolation is not implemented'
+      stop 'Unsupported intensity interpolation'
+    endif
+
+    if (trim(intensity%action)=='TM'.and..not.radiative_operator%supports_tm) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'transition moments are not implemented'
+      stop 'Unsupported transition-moment calculation'
+    endif
+
+    if (trim(job%contraction)=='OMEGA'.and.&
+        .not.associated(radiative_operator%half_omega)) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'intensities are not implemented for the OMEGA contraction'
+      stop 'Unsupported intensity contraction'
+    endif
+
+ end subroutine configure_radiative_operator
   
- subroutine dm_tranint
+ subroutine rank1_tranint
 
  ! compute  partition function, electric dipole transition moments, linestrength, and intensities
 
@@ -89,10 +165,10 @@ contains
     enddo
     !
     allocate(Jval(nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: Jval - out of memory'
+    if (info /= 0) stop 'rank1_tranint allocation error: Jval - out of memory'
     !
     allocate(q_part(20,nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: q_part - out of memory'
+    if (info /= 0) stop 'rank1_tranint allocation error: q_part - out of memory'
     !
     Jval_ = Jval_min
     jind = 1
@@ -199,7 +275,7 @@ contains
        !
        if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
        !
-       call dm_intensity(Jval,iverbose)
+       call rank1_intensity(Jval,iverbose)
        !
        write(out, '(/a)') 'done'
        !
@@ -254,7 +330,7 @@ contains
     !
     call TimerReport
     !
- end subroutine dm_tranint
+ end subroutine rank1_tranint
  !
 
  !
@@ -300,7 +376,7 @@ contains
  !
  ! Electric dipole moment intensities and transition moments calculations 
  !
- subroutine dm_intensity(Jval,iverbose)
+ subroutine rank1_intensity(Jval,iverbose)
     !
     implicit none
     !
@@ -348,6 +424,7 @@ contains
     character(len=cl) :: filename,ioname
     !
     logical     :: integer_spin = .true.,intensity_do = .true.
+    type(radiative_operatorT) :: radiative_operator
     !
     integer(ik) :: alloc_p
     !
@@ -363,8 +440,7 @@ contains
     !
     if (sym%maxdegen>2) then 
       !
-      write(out,"('dm_intensity: this procedure has not been tested for the symmetries with degeneracies higher than 2')")
-      !stop 'dm_intensity was not tested for present symmetry'
+      write(out,"('rank1_intensity: this procedure has not been tested for the symmetries with degeneracies higher than 2')")
       !
     endif
     !
@@ -373,7 +449,8 @@ contains
     beta = planck * vellgt / (boltz * intensity%temperature)
     intens_cm_mol  = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef = planck*vellgt/(4.0_rk*pi)
-    A_coef_s_1     =64.0d-36 * pi**4  / (3.0_rk * planck)
+    call configure_radiative_operator(radiative_operator)
+    A_coef_s_1 = radiative_operator%einstein_a_prefactor
     !
     nJ = size(Jval)
     !
@@ -386,7 +463,7 @@ contains
     ! Prepare the list of units with the stored eigenvectors
     !
     !allocate(Jeigenvec_unit(nJ), stat = info)
-    !if (info /= 0) stop 'dm_tranint allocation error: Jeigenvec_unit - out of memory'
+    !if (info /= 0) stop 'rank1_tranint allocation error: Jeigenvec_unit - out of memory'
     !
     !do jind=1,nJ 
     !  Jeigenvec_unit(jind) = TReigenvec_unit(jind,Jval)
@@ -489,7 +566,7 @@ contains
     Nomegas_max = nint(Jval(nJ))
     if (.not.integer_spin) Nomegas_max = Nomegas_max-1
     allocate(threej(nJ,0:Nomegas_max,-1:1,-1:1), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: threej - out of memory'
+    if (info /= 0) stop 'rank1_tranint allocation error: threej - out of memory'
     !
     threej = 0
     !
@@ -562,7 +639,7 @@ contains
     ! having the same gns(jgamma). We assume that there is only one such pair 
     ! in case of absorption or emission calcs. 
     !
-    call find_igamma_pair(igamma_pair)
+    call find_igamma_pair(igamma_pair,radiative_operator%preserves_symmetry)
     !
     ! skip the expensive pre-count of transitions.
     write(out, "('Skipping pre-count of transitions for speed.')")
@@ -954,7 +1031,7 @@ contains
     if (iverbose>=4) write(out,"(/'Dipole moment integration (i)...')")
     !
     if (Ntransit==0) then 
-         write(out,"('dm_intensity: the transition filters are too tight: no transitions selected')") 
+         write(out,"('rank1_intensity: the transition filters are too tight: no transitions selected')")
          return
     endif 
     !
@@ -1057,7 +1134,8 @@ contains
               nlevelsF = eigen(indF,igammaF)%Nlevels
               dimenF = eigen(indF,igammaF)%Ndimen
               !
-              call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+              call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,&
+                                             radiative_operator%preserves_symmetry,passed)
               !
               if (.not.passed) cycle
               !
@@ -1192,16 +1270,25 @@ contains
                         .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
                       select case (job%contraction)
                       case ("VIB")
-                         call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                       vecI(1:dimenI),&
-                                                       half_linestr)
+                         call radiative_operator%half_vib(jI,jF,indI,indF,dimenI,dimenF,&
+                                                          vecI(1:dimenI),half_linestr)
                       case ("OMEGA")
-                         call do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,&
-                                                        vecI(1:dimenI),nJ,Nomegas_max,threeJ,&
-                                                        half_linestr)
+                         if (.not.associated(radiative_operator%half_omega)) then
+                           write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+                             'intensities are not implemented for the OMEGA contraction'
+                           stop 'Unsupported intensity contraction'
+                         endif
+                         call radiative_operator%half_omega(jI,jF,indI,indF,dimenI,dimenF,&
+                                                            vecI(1:dimenI),nJ,Nomegas_max,threeJ,&
+                                                            half_linestr)
                       end select 
                     endif 
                   case('TM')
+                    if (.not.radiative_operator%supports_tm) then
+                      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+                        'transition moments are not implemented'
+                      stop 'Unsupported transition-moment calculation'
+                    endif
                     call do_1st_half_tm(indI,indF,dimenI,dimenF,&
                                         vecI(1:dimenI),half_linestr)
                   end select
@@ -1489,7 +1576,7 @@ contains
     write(out, "(    'SUCCESS: Parallel Intensity Loop Finished Correctly.'   )")
     write(out, "('-----------------------------------------------------------')")
     !
-  end subroutine dm_intensity
+  end subroutine rank1_intensity
   !
   !
   subroutine count_transitions(nJ,Jval,Ntransit)
@@ -1557,7 +1644,7 @@ contains
               !
               do igammaF=1,Nrepresen
                 !
-                call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+                call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,action%magdipole,passed)
                 !
                 if (.not.passed) cycle
                 !
@@ -1670,10 +1757,18 @@ contains
   end function PQR_branch
 
 
-     subroutine find_igamma_pair(igamma_pair)
+     subroutine find_igamma_pair(igamma_pair,preserves_symmetry)
       !
       integer(ik),intent(out) :: igamma_pair(:)
+      logical,intent(in) :: preserves_symmetry
       integer(ik)     :: igammaI,igammaF,ngamma
+      !
+      if (preserves_symmetry) then
+        do igammaI = 1,size(igamma_pair)
+          igamma_pair(igammaI) = igammaI
+        enddo
+        return
+      endif
       !
       if (trim(intensity%action)=='TM') then 
         !
@@ -1699,8 +1794,8 @@ contains
             !
             if (ngamma>1) then 
               !
-              write(out,"('dm_intensity: Assumption that selection rules come in pairs is wrong!')")
-              stop 'dm_intensity: Assumption that all selection rules work in pairs is broken!'
+              write(out,"('rank1_intensity: Assumption that selection rules come in pairs is wrong!')")
+              stop 'rank1_intensity: Assumption that all selection rules work in pairs is broken!'
               !
             endif   
             !
@@ -1710,8 +1805,8 @@ contains
         !
         if ( nint(intensity%gns(igammaI)-intensity%gns(igamma_pair(igammaI)))/=0 ) then 
           !
-          write(out,"('dm_intensity: selection rules do not agree with Gns')")
-          stop 'dm_intensity: selection rules do not agree with Gns!'
+          write(out,"('rank1_intensity: selection rules do not agree with Gns')")
+          stop 'rank1_intensity: selection rules do not agree with Gns!'
           !
         endif   
         !
@@ -1788,12 +1883,13 @@ contains
 
      end subroutine energy_filter_upper
 
-     subroutine intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+     subroutine intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,preserves_symmetry,passed)
         !
         implicit none
         !
         real(rk),intent(in) :: jI,jF
         integer(ik),intent(in) :: igammaI,igammaF
+        logical,intent(in)     :: preserves_symmetry
         logical,intent(out)    :: passed
           !
           passed = .false.
@@ -1816,13 +1912,15 @@ contains
           !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
           ( intensity%J(1)+intensity%J(2)>0 ).and. &
           !
-          ! selection rules: 
-          !
-          igammaI/=igammaF.and.  &
-          !
           ! selection rules from the 3j-symbols
           !
           abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1
+          !
+          ! Electric-dipole transitions connect paired symmetry species.
+          ! For magnetic dipole the exact same-symmetry test is deferred to
+          ! the state-level filter because C2v labels are correlated to Cs
+          ! using the electronic-state g/u parity.
+          if (.not.preserves_symmetry) passed = passed.and.igammaI/=igammaF
           !
      end subroutine intens_filter_J_Symmetry
      !

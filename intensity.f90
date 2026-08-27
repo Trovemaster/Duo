@@ -2,17 +2,13 @@ module intensity_module
 
   ! A single entry point for all radiative-transition calculations.
   !
-  ! The three operators also differ in their rotational tensors, selection
-  ! rules and Einstein-A prefactors.  Keep those numerical pipelines in
-  ! their owning modules and centralise the action dispatch here.  This
-  ! preserves existing results and provides one boundary from which common
-  ! pipeline code can subsequently be extracted safely.
+  ! Electric- and magnetic-dipole calculations share the rank-1 pipeline in
+  ! dipole.f90. Electric quadrupole remains a separate rank-2 pipeline.
 
   use accuracy,        only : out
   use diatom_module,   only : action
-  use dipole,          only : dm_tranint
+  use dipole,          only : rank1_tranint
   use quadrupole,      only : qm_tranint
-  use magnetic_dipole, only : md_tranint
 
   implicit none
   private
@@ -41,10 +37,11 @@ contains
 
     if (action%quadrupole) then
       call qm_tranint
-    elseif (action%magdipole) then
-      call md_tranint
     else
-      call dm_tranint
+      ! rank1_tranint configures the
+      ! appropriate symmetry map, Einstein-A prefactor and linestrength
+      ! procedure from action%magdipole before entering the transition loops.
+      call rank1_tranint
     endif
 
   end subroutine intensity_tranint
