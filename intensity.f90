@@ -2,13 +2,11 @@ module intensity_module
 
   ! A single entry point for all radiative-transition calculations.
   !
-  ! Electric- and magnetic-dipole calculations share the rank-1 pipeline in
-  ! dipole.f90. Electric quadrupole remains a separate rank-2 pipeline.
+  ! E1, M1 and E2 calculations share the rank-generic pipeline in dipole.f90.
 
   use accuracy,        only : out
   use diatom_module,   only : action
-  use dipole,          only : rank1_tranint
-  use quadrupole,      only : qm_tranint
+  use dipole,          only : intensity_pipeline_tranint
 
   implicit none
   private
@@ -35,14 +33,10 @@ contains
       stop 'Error: ambiguous intensity operator'
     endif
 
-    if (action%quadrupole) then
-      call qm_tranint
-    else
-      ! rank1_tranint configures the
-      ! appropriate symmetry map, Einstein-A prefactor and linestrength
-      ! procedure from action%magdipole before entering the transition loops.
-      call rank1_tranint
-    endif
+    ! intensity_pipeline_tranint configures E1, M1 or E2 tensor rank, symmetry map,
+    ! Einstein-A normalisation, RichMol adapter and numerical linestrength
+    ! procedure before entering the common state and transition loops.
+    call intensity_pipeline_tranint
 
   end subroutine intensity_tranint
 

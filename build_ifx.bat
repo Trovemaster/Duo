@@ -35,11 +35,10 @@ rem installations accept that shortcut but do not pass the MKL libraries to
 rem link.exe.  Sequential MKL is deterministic and Duo still uses OpenMP.
 if not defined DUO_MKL_LIBS set "DUO_MKL_LIBS=mkl_intel_lp64.lib mkl_sequential.lib mkl_core.lib"
 
-rem This is a topological order of the Fortran modules.  In particular, the
-rem merged intensity pipeline requires:
-rem intensity_filters feeds dipole and quadrupole independently.  The rank-1
-rem implementation still requires magnetic_dipole before dipole.
-set "SOURCES=accuracy timer lapack input symmetry Lobatto atomic_and_nuclear_data me_numer functions grids diatom refinement F1_hyperfine F1_intensity intensity_filters magnetic_dipole dipole quadrupole header_info RWF intensity duo"
+rem This is a topological order of the Fortran modules.  The shared pipeline
+rem in dipole requires the fitting filters plus both E2 and M1 numerical
+rem kernels, so those modules must be compiled before dipole.
+set "SOURCES=accuracy timer lapack input symmetry Lobatto atomic_and_nuclear_data me_numer functions grids diatom refinement F1_hyperfine F1_intensity intensity_filters magnetic_dipole quadrupole dipole header_info RWF intensity duo"
 
 pushd "%BUILD_DIR%"
 if errorlevel 1 exit /b 1
