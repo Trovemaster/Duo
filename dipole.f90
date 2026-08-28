@@ -8,11 +8,12 @@ module dipole
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
  use magnetic_dipole, only : md_do_1st_half_linestrength
+ use intensity_filters, only : transitions_filter_from_fitting
 
 
 
  private
- public rank1_tranint,transitions_filter_from_fitting
+ public rank1_tranint
 
  abstract interface
    subroutine half_linestrength_vib_interface(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
@@ -1977,114 +1978,6 @@ contains
           igamma_pair(isymI)==isymF
           !
      end subroutine intens_filter
-     !
-     subroutine transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
-                                                quantaI,quantaF,passed,iEntry_found)
-        !
-        real(rk),intent(in) :: jI,jF,EnergyF,EnergyI
-        integer(ik),intent(in) :: isymI,isymF,ilevelI,ilevelF
-        type(quantaT),pointer,intent(in)  :: quantaI,quantaF
-        logical,intent(out)    :: passed
-        integer(ik),optional :: iEntry_found
-        integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
-        integer(ik) :: istateI,istateF,ivibI,ivibF,ilambdaI,ilambdaF,iparityI,iparityF
-        real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
-        real(rk) :: jrot,jrot_,lock_factor,nu
-        integer(ik) :: maxiter_as = 3, iter_th,irot,irot_
-        !
-        ! no need to check further if it is already false 
-        if (.not.passed) return
-        !
-        if ( present(iEntry_found) ) iEntry_found = -1
-        !
-        ivibI    = quantaI%ivib
-        vI       = quantaI%v
-        iStateI  = quantaI%iState
-        sigmaI   = quantaI%sigma
-        spinI    = quantaI%spin
-        ilambdaI = quantaI%ilambda
-        omegaI   = quantaI%omega
-        iparityI = quantaI%iparity
-        !
-        ivibF    = quantaF%ivib
-        vF       = quantaF%v
-        iStateF  = quantaF%iState
-        sigmaF   = quantaF%sigma
-        spinF    = quantaF%spin
-        ilambdaF = quantaF%ilambda
-        omegaF   = quantaF%omega
-        iparityF = quantaF%iparity
-        !
-        Nentries  = fitting%Nenergies
-        !
-        loop_freq : do ientry = 1,Nentries
-          !
-          jrot = fitting%obs(ientry)%jrot
-          itau = fitting%obs(ientry)%iparity+1
-          !
-          nu = fitting%obs(ientry)%energy
-          !
-          if (nint( jF-jrot )/=0) cycle
-          if (isymF/=itau) cycle
-          !
-          jrot_= fitting%obs(ientry)%jrot_
-          itau_= fitting%obs(ientry)%iparity_+1
-          !
-          if (nint( jI-jrot_ )/=0) cycle
-          if (isymI/=itau_) cycle
-          !
-          N = fitting%obs(ientry)%N
-          N_= fitting%obs(ientry)%N_
-          !
-          if (abs(fitting%threshold_lock)<sqrt(small_)) then
-             !
-             if ( N == iLevelF .and. N_ == iLevelI  ) then
-                 !
-                 if (present(iEntry_found)) iEntry_found = ientry
-                 !
-                 return 
-             endif
-             !
-          else
-             !
-             if (fitting%threshold_lock<0)  maxiter_as = 1
-             !
-             loop_thresh_u : do iter_th = 1,maxiter_as
-               !
-               lock_factor = real(iter_th,8)
-               !
-               if ( abs( nu-( EnergyF-EnergyI )  )<= abs(lock_factor*fitting%threshold_lock).and.&
-                   ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
-                       abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
-                      vF==fitting%obs(ientry)%quanta%v.and.&
-                       nint(abs(sigmaF)-abs(fitting%obs(ientry)%quanta%sigma) )==0.and.&
-                       nint(abs(omegaF)-abs(fitting%obs(ientry)%quanta%omega) )==0.and.&
-                       !
-                       istateI==fitting%obs(ientry)%quanta_%istate.and.&
-                       abs(ilambdaI)==abs(fitting%obs(ientry)%quanta_%ilambda).and.&
-                       vI==fitting%obs(ientry)%quanta_%v.and.&
-                       nint(abs(sigmaI)-abs(fitting%obs(ientry)%quanta_%sigma))==0 .and.&
-                       nint(abs(omegaI)-abs(fitting%obs(ientry)%quanta_%omega))==0 ).or.&
-                       ! threshold_lock < 0, only frequency match 
-                     (  fitting%threshold_lock<0 ) ) ) then 
-                   !
-                   fitting%obs(ientry)%N = ilevelF
-                   fitting%obs(ientry)%N_= ilevelI
-                   !
-                   if (present(iEntry_found)) iEntry_found = ientry
-                   !
-                   return 
-                   !
-               endif 
-             enddo loop_thresh_u
-          endif
-          !
-        enddo loop_freq
-        !
-        passed = .false.
-        !
-        !
-     end subroutine transitions_filter_from_fitting
      !
      subroutine matelem_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
         !

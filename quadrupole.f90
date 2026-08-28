@@ -10,7 +10,7 @@ use timer,         only : IOstart,IOstop, Arraystart, Arraystop, ArrayMinus,&
                           Timerstart, Timerstop, MemoryReport, &
                           TimerReport, memory_limit, memory_now
 use symmetry,      only : sym, correlate_to_Cs
-use dipole,        only : transitions_filter_from_fitting
+use intensity_filters, only : transitions_filter_from_fitting
 
 private
 public qm_tranint
