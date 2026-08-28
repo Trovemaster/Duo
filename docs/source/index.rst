@@ -28,6 +28,8 @@ Welcome to Duo's documentation!
 Recent news
 ===========
 
+28.08.2028: Duo benchmarks have been added organised as python scripts with reference Duo outputs. 
+
 09.04.2026: The new funcitonality Omega-representation has been added currently only for spin-orbit and spin.
 
 march 2026: Unbound spectra calculations are now possible down from bound to free (``unbound lower``).
