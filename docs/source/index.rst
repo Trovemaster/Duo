@@ -15,6 +15,7 @@ Welcome to Duo's documentation!
    fields
    functions
    fitting
+   benchmarks
    grid
    checkpoints
    unbound

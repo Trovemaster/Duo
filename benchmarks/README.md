@@ -87,3 +87,16 @@ supported Duo lines.  `Record.key` defines the identity used to match a level,
 while `Record.assignment` defines non-rigorous diagnostic fields.  A further
 output section can be supported by adding a parser that
 creates another `Record` kind, then assigning its tolerance in `compare()`.
+
+
+
+[`INTENSITY_BENCHMARK.md`](INTENSITY_BENCHMARK.md) and
+`duo_intensity_benchmark.py`.
+
+For calculations that combine `INTENSITY` with intensity fitting and produce
+a `.int` file, see [`INTENSITY_FIT_BENCHMARK.md`](INTENSITY_FIT_BENCHMARK.md)
+and `duo_intensity_fit_benchmark.py`.
+
+`duo_benchmark.py` compares the numerical energies in a new Duo `.out` file
+with a trusted reference result.  It deliberately ignores banners, timings,
+memory reports, echoed input, and other text that varies between machines.
