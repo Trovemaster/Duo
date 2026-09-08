@@ -38,9 +38,16 @@ release = '0.0.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
+#extensions = [
+#    'sphinx.ext.doctest',
+#    'sphinx.ext.imgmath',
+#    # BibTeX-based citations & bibliography (LaTeX-like referencing)
+#    'sphinxcontrib.bibtex'
+#]
+
 extensions = [
     'sphinx.ext.doctest',
-    'sphinx.ext.imgmath',
+    'sphinx.ext.mathjax',
     # BibTeX-based citations & bibliography (LaTeX-like referencing)
     'sphinxcontrib.bibtex'
 ]
