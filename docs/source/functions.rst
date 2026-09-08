@@ -23,15 +23,13 @@ Extended Morse Oscillator ``EMO``
 which has the form of a Morse potential with a exponential tail and the distance-dependent exponent coefficient
 
 .. math::
-
-\beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i,
-
+   \beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i,
+    
 expressed as a simple power series in the reduced variable:
 
 .. math::
-
-y_p^{\rm e}(r) = \frac{r^p-r_{\rm e}^p}{r^p+r_{\rm e}^p}
-
+     y_p^{\rm e}(r) = \frac{r^p-r_{\rm e}^p}{r^p+r_{\rm e}^p}
+     
 with :math:`p` as a parameter. This form guarantees the correct dissociation limit and allows for extra flexibility in the degree of the polynomial on the left or on the right sides of a reference position :math:`R_{\rm ref}` which we take at :math:`R_{\rm ref} = r_{\rm e}`. This is specified by the parameters :math:`N=` :math:`N_{l}` (:math:`N_{r}`) and  :math:`p=` :math:`p_{l}` (:math:`p_{r}`),
 respectively.
 
