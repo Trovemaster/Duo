@@ -21,12 +21,12 @@ Extended Morse Oscillator ``EMO``
 :math:`V(r)=T_{\rm e} + (A_{\rm e}-T_{\rm e})\left( 1 - \exp\left\{-\beta_{\rm EMO}(r) (r-r_{\rm e})\right\} \right)^2`,
 
 which has the form of a Morse potential with a exponential tail and the distance-dependent exponent coefficient
-
+      
 .. math::
    \beta_{\rm EMO}(r) =  \sum_{i=0}^N a_i y_p^{\rm eq}(r)^i,
     
 expressed as a simple power series in the reduced variable:
-
+        
 .. math::
      y_p^{\rm e}(r) = \frac{r^p-r_{\rm e}^p}{r^p+r_{\rm e}^p}
      
