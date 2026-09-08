@@ -50,6 +50,7 @@ $RECYCLE.BIN/
 
 # Directories
 /Duo.und/
+/build/
 
 # Environment files
 venv/

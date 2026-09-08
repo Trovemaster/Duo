@@ -28,7 +28,7 @@ module me_numer
   real(ark), parameter :: thrsh_upper  = 1.0e20_ark    ! Upper limit for fncts in out-numerov integr.
   !
   integer(ik), parameter :: itermax= 500000      ! Maximal possible number of iterations (tries) for Numerov 
-  integer(ik), parameter :: maxslots = 10000       ! Maximal possible number of slots for found energies 
+  integer(ik)  :: maxslots = 10000       ! Maximal possible number of slots for found energies 
   integer(ik), parameter :: epoints = 40         ! N of points used for extrapolation in lsq_fit
   !
   real(ark) :: rhostep                           ! mesh size
@@ -42,7 +42,7 @@ module me_numer
   real(ark)   :: rho_b(2)                        ! rhomin..rhomax
   integer(ik) :: iperiod                         ! the periodicity (can be negative for the reflecation)
   !
-  integer(ik) :: verbose = 6                     ! Verbosity level
+  integer(ik) :: verbose = 5                     ! Verbosity level
   !
   logical     :: periodic                        ! periodic boundary conditions: true or false
   !
@@ -58,7 +58,7 @@ module me_numer
   !
   real(ark) :: small__ = epsilon(1.0_ark)
   !
-  character(len=cl),parameter :: boundary_condition = 'BOUND'
+  character(len=cl),parameter :: boundary_condition = 'UNBOUND'
   !
   character(len=cl),parameter :: deriv_method = 'ML_diffs' !  We use this method to estimate d pvi_v / d rho  
                                                          ! where phi_v is a numerical eigenfunction from numerov
@@ -109,7 +109,7 @@ module me_numer
      !
      ! global variables
      !
-     vmax      = vmax_
+     vmax      = min(vmax_,npoints_)
      npoints   = numerpoints_
      rho_b = rho_b_
      iperiod = iperiod_
@@ -119,6 +119,8 @@ module me_numer
      !
      periodic = .false.
      if (iperiod>0) periodic = .true.
+     !
+     maxslots = min(max(maxslots,vmax),npoints_)
      !
      allocate(phil(0:npoints_),phir(0:npoints_),dphil(0:npoints_),dphir(0:npoints_), &
               phivphi(0:npoints_),rho_kinet(0:npoints_),enerslot(0:maxslots), &
@@ -264,99 +266,111 @@ module me_numer
        !
      endif
      !
-     ! Matrix elements 
-     !
-     sigma = 0.0_ark 
-     rms   = 0.0_ark 
-     characvalue = maxval(enerslot(0:vmax))
      energy(0:vmax) = enerslot(0:vmax)
-     !if (trim(boundary_condition)/='UNBOUND') then
-     !  energy(0:vmax) = energy(0:vmax)-energy(0)
-     !endif
      !
      do vl = 0,vmax
         !
         read (io_slot,rec=vl+1) (phil(i),i=0,npoints_),(dphil(i),i=0,npoints_)
-        !
         wavefunc(:,vl) = phil(:)*sqrt(rhostep_)
         !
-        h_t = sum(wavefunc(:,vl)*wavefunc(:,vl))
-        !
-        do vr = vl,vmax
-            !
-            if (iperiod/=0.and.mod(abs(vl-vr),2)==1) cycle
-            !
-            if (vl==vr) then
-                phir =  phil
-               dphir = dphil
-            else
-               read (io_slot,rec=vr+1) (phir(i),i=0,npoints_),(dphir(i),i=0,npoints_)
-            endif
-            !
-            ! Here we prepare integrals of the potential 
-            ! <vl|poten|vr> and use to check the solution of the Schroedinger eq-n 
-            ! obtained above by the Numerov
-            !
-            phivphi(:) = phil(:)*poten(:)*phir(:)
-            !
-            h_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
-            !
-            ! momenta-quadratic part 
-            !
-            phivphi(:) =-dphil(:)*mu_rr(:)*dphir(:)
-            !
-            psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
-            !
-            ! Add the diagonal kinetic part to the tested mat. elem-s
-            !
-            h_t = h_t - 0.5_ark*psipsi_t
-            !
-            !
-            phivphi(:) = phil(:)*phir(:)
-            !
-            psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
-            !
-            ! Count the error, as a maximal deviation sigma =  | <i|H|j>-E delta_ij |
-            !
-            sigma_t =  abs(h_t)
-            if (vl==vr) sigma_t =  abs(h_t-enerslot(vl))
-            !
-            sigma = max(sigma,sigma_t)
-            rms = rms + sigma_t**2
-            !
-            ! Now we test the h_t = <vl|h|vr> matrix elements and check if Numerov cracked
-            ! the Schroedinger all right
-            if (vl/=vr.and.abs(h_t)>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
-               write(out,"('ME_numerov: wrong Numerovs solution for <',i4,'|H|',i4,'> = ',f20.10)") vl,vr,h_t
-               stop 'ME_numerov: bad Numerov solution'
-            endif 
-            !
-            if (vl==vr.and.abs(h_t-enerslot(vl))>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
-               write(out,"('ME_numerov: wrong <',i4,'|H|',i4,'> (',f16.6,') =/= energy (',f16.6,')')") vl,vr,h_t,enerslot(vl)
-               stop 'ME_numerov: bad Numerov solution'
-            endif 
-            !
-            ! Reporting the quality of the matrix elemenst 
-            !
-            if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
-              if (vl/=vr) then 
-               write(out,"('<',i4,'|H|',i4,'> = ',e16.2,'<-',8x,'0.0',5x,'; <',i4,'|',i4,'> = ',e16.2,'<-',8x,'0.0')") & 
-                                vl,vr,h_t,vl,vr,psipsi_t
-              else
-               write(out,"('<',i4,'|H|',i4,'> = ',f16.6,'<-',f16.6,'; <',i4,'|',i4,'> = ',f16.6)")& 
-                              vl,vr,h_t,enerslot(vl),vl,vr,psipsi_t
-              endif 
-            endif 
-            !
-        enddo
      enddo
      !
-     rms = sqrt(rms/real((vmax+1)*(vmax+2)/2,kind=rk))
+     ! Matrix elements
      !
-     if (verbose>=1) then 
-        write(out,"('Maximal deviation sigma =  | <i|H|j>-E delta_ij | is ',f18.8)") sigma
-        write(out,"('rms deviation is ',f18.8)") sqrt(rms)
-     endif 
+     if (verbose>=5) then 
+         !
+         sigma = 0.0_ark 
+         rms   = 0.0_ark 
+         characvalue = maxval(enerslot(0:vmax))
+         !if (trim(boundary_condition)/='UNBOUND') then
+         !  energy(0:vmax) = energy(0:vmax)-energy(0)
+         !endif
+         !
+         do vl = 0,vmax
+            !
+            read (io_slot,rec=vl+1) (phil(i),i=0,npoints_),(dphil(i),i=0,npoints_)
+            !
+            wavefunc(:,vl) = phil(:)*sqrt(rhostep_)
+            !
+            !h_t = sum(wavefunc(:,vl)*wavefunc(:,vl))
+            !
+            do vr = vl,vmax
+                !
+                if (iperiod/=0.and.mod(abs(vl-vr),2)==1) cycle
+                !
+                if (vl==vr) then
+                    phir =  phil
+                   dphir = dphil
+                else
+                   read (io_slot,rec=vr+1) (phir(i),i=0,npoints_),(dphir(i),i=0,npoints_)
+                endif
+                !
+                ! Here we prepare integrals of the potential 
+                ! <vl|poten|vr> and use to check the solution of the Schroedinger eq-n 
+                ! obtained above by the Numerov
+                !
+                phivphi(:) = phil(:)*poten(:)*phir(:)
+                !
+                h_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
+                !
+                ! momenta-quadratic part 
+                !
+                phivphi(:) =-dphil(:)*mu_rr(:)*dphir(:)
+                !
+                psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
+                !
+                ! Add the diagonal kinetic part to the tested mat. elem-s
+                !
+                h_t = h_t - 0.5_ark*psipsi_t
+                !
+                !
+                phivphi(:) = phil(:)*phir(:)
+                !
+                psipsi_t = simpsonintegral_ark(npoints_,rho_b(2)-rho_b(1),phivphi)
+                !
+                ! Count the error, as a maximal deviation sigma =  | <i|H|j>-E delta_ij |
+                !
+                sigma_t =  abs(h_t)
+                if (vl==vr) sigma_t =  abs(h_t-enerslot(vl))
+                !
+                sigma = max(sigma,sigma_t)
+                rms = rms + sigma_t**2
+                !
+                ! Now we test the h_t = <vl|h|vr> matrix elements and check if Numerov cracked
+                ! the Schroedinger all right
+                if (vl/=vr.and.abs(h_t)>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
+                   write(out,"('ME_numerov: wrong Numerovs solution for <',i4,'|H|',i4,'> = ',f20.10)") vl,vr,h_t
+                   stop 'ME_numerov: bad Numerov solution'
+                endif 
+                !
+                if (vl==vr.and.abs(h_t-enerslot(vl))>sqrt(small_)*abs(characvalue)*1e4.and.trim(boundary_condition)/='UNBOUND') then 
+                   write(out,"('ME_numerov: wrong <',i4,'|H|',i4,'> (',f16.6,') =/= energy (',f16.6,')')") vl,vr,h_t,enerslot(vl)
+                   stop 'ME_numerov: bad Numerov solution'
+                endif 
+                !
+                ! Reporting the quality of the matrix elemenst 
+                !
+                if (verbose>=3.and.trim(boundary_condition)/='UNBOUND') then 
+                  if (vl/=vr) then 
+                   write(out,"('<',i4,'|H|',i4,'> = ',e16.2,'<-',8x,'0.0',5x,'; <',i4,'|',i4,'> = ',e16.2,'<-',8x,'0.0')") & 
+                                    vl,vr,h_t,vl,vr,psipsi_t
+                  else
+                   write(out,"('<',i4,'|H|',i4,'> = ',f16.6,'<-',f16.6,'; <',i4,'|',i4,'> = ',f16.6)")& 
+                                  vl,vr,h_t,enerslot(vl),vl,vr,psipsi_t
+                  endif 
+                endif 
+                !
+            enddo
+         enddo
+         !
+         rms = sqrt(rms/real((vmax+1)*(vmax+2)/2,kind=rk))
+         !
+         if (verbose>=1) then 
+            write(out,"('Maximal deviation sigma =  | <i|H|j>-E delta_ij | is ',f18.8)") sigma
+            write(out,"('rms deviation is ',f18.8)") sqrt(rms)
+         endif
+         !
+     endif
      !
      deallocate(phil,phir,dphil,dphir,phivphi,rho_kinet,enerslot,f,poten,mu_rr,d2fdr2,dfdr)
      !
@@ -478,7 +492,7 @@ module me_numer
    !
    if (verbose>=5) then 
       write(out,"('grid values (poten, mu_rr, poten_eff): ')") 
-      do i=0,npoints,2
+      do i=0,npoints
         write(out,"(i8,3f18.8)") i,poten(i),mu_rr(i),pot_eff(i)
       enddo 
       write(out,"('potmin(eff) =  ',f18.8,' at i = ',i8)") potmin,imin
@@ -512,22 +526,28 @@ module me_numer
      !
      enerlow=potmin/2.0_ark*mu_rr(imin)
      !
-     deltaE = (enermax-enerlow)/(npoints+1)
+     deltaE = (enermax-enerlow)/(vmax+1)
      !
-     do i=0,min(npoints,maxslots)
+     !enerlow=enerlow+deltaE
+     !
+     do i=0,min(vmax+1,maxslots)
         !
         enerslot(i) = enerlow+real(i,rk)*deltaE
         !
      enddo
      !
-     icslots(0:maxslots) = npoints/2
+     enerslot(0) = enerlow + sqrt(small_)
+     !
+     icslots(0:maxslots) = npoints-npoints/5
      enerupp=enermax
      !
      !if (imin==npoints) imin = npoints/2
      !
+     !if (verbose>=4) write (out,"(' Energy, k, delta, A |phase')") 
+     !
    end select
    !
-   do v=0,vmax+1
+   do v=0,min(vmax+1,maxslots)
      !
      if (v/=0) enerlow = enerslot(v-1)
      !
@@ -556,8 +576,7 @@ module me_numer
      case ('UNBOUND')
        !
        ic  = icslots(v)
-       enerupp=enerslot(v+1)
-       enerlow=max(enerslot(v)-deltaE,poten(imin))
+       enerupp=enerslot(v)
        enerlow = enerslot(v)
        !  
      end select 
@@ -624,54 +643,54 @@ module me_numer
           !
        endif 
        !
-       if (ierr==0.and.iperiod<0) then 
-           !
-           phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
-           !
-           tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
-           !
-           phi_t(:)=phi_t(:)/sqrt(tsum)
-           !
-           ireflect = 1
-           if (iparity/=0) ireflect = -1
-           !
-           call diff_2d_4points_ark(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
-           !
-           if ( (iparity==0.and.abs(psi_t(npoints  ))>sqrt(thrsh_int)).or.&
-                (iparity==1.and.abs(phi_t(npoints  ))>sqrt(thrsh_int))) then 
-              !
-              if (verbose>=5) write(out,"(/'phi(N) and psi(N) = ',2g18.8,', energy = ',f12.4,', n = ',9i7)") &
-                              phi_t(npoints),psi_t(npoints ),eguess,numnod
-              !
-              if ( numnod+1<maxslots.and.numnod>v) then 
-                  enerslot(numnod)=eguess
-                  icslots(numnod) = ic 
-              endif 
-              !
-              numnod = maxslots+1
-              !
-           endif 
-           !
-       endif
-       !
-       if (verbose>=5) write(out,"('v = ',i5,'; numnod = ',i8,', efound = ',f16.7,', ierr = ',i9)") v,numnod,eguess,ierr
-       !
        select case (trim(boundary_condition))
          !
        case default
+         !
+         if (ierr==0.and.iperiod<0) then 
+             !
+             phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
+             !
+             tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
+             !
+             phi_t(:)=phi_t(:)/sqrt(tsum)
+             !
+             ireflect = 1
+             if (iparity/=0) ireflect = -1
+             !
+             call diff_2d_4points_ark(Npoints,rho_b,phi_t,periodic,ireflect,psi_t(0:Npoints))
+             !
+             if ( (iparity==0.and.abs(psi_t(npoints  ))>sqrt(thrsh_int)).or.&
+                  (iparity==1.and.abs(phi_t(npoints  ))>sqrt(thrsh_int))) then 
+                !
+                if (verbose>=5) write(out,"(/'phi(N) and psi(N) = ',2g18.8,', energy = ',f12.4,', n = ',9i7)") &
+                                phi_t(npoints),psi_t(npoints ),eguess,numnod
+                !
+                if ( numnod+1<maxslots.and.numnod>v) then 
+                    enerslot(numnod)=eguess
+                    icslots(numnod) = ic 
+                endif 
+                !
+                numnod = maxslots+1
+                !
+             endif 
+             !
+         endif
+         !
+         if (verbose>=5) write(out,"('v = ',i5,'; numnod = ',i8,', efound = ',f16.7,', ierr = ',i9)") v,numnod,eguess,ierr
          !
          if ( ierr==0.and.numnod+1<maxslots.and.numnod>=v ) then
             !
             enerslot(numnod)=eguess
             icslots(numnod) = ic 
             !
-            if (verbose>=6) then 
+            if (verbose>=7) then 
                !
                write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
                !
                do i=0,npoints 
                   !
-                  write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+                  write(out,"(i8,2f18.8)") i,phi_f(i),rho_b(1)+rhostep*real(i,rk)
                   !
                enddo
                !
@@ -780,13 +799,23 @@ module me_numer
          !
        case ('UNBOUND')
          !
-         if (verbose>=6) then 
+         ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
+         ! 
+         !phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         !phi_t(:) = phi_f(:)/sqrt(mu_rr(:))
+         !
+         !tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t(:)**2)
+         !
+         !phi_t(:)=phi_t(:)/sqrt(tsum)
+         !
+         if (verbose>=7) then 
             !
             write (out,"('v,numnod,ener = ',2i8,f20.10)") v,numnod,enerslot(numnod)
             !
             do i=0,npoints 
                !
-               write(out,"(i8,2f18.8)") i,phi_f(i),exp((rho_b(1)+rhostep*real(i,rk)))
+               write(out,"(i8,2f18.8)") i,phi_f(i),rho_b(1)+rhostep*real(i,rk)
                !
             enddo
             !
@@ -796,7 +825,7 @@ module me_numer
          !
          ! multiply the wavefunction with sqrt(irr) (eq. (6.4) of jensen)
          ! 
-         phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
+         !phi_f(:) = phi_f(:)/sqrt(mu_rr(:))
          !
          oldphi = phi_f(0)
          newphi = phi_f(1)
@@ -815,15 +844,16 @@ module me_numer
          enddo
 
          !
-         phi_t(:) = phi_f(:)*phi_f(:)
+         !phi_t(:) = phi_f(:)*phi_f(:)
          !
          !   numerical intagration with simpson's rule #2
          !
-         tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t)
+         !tsum = simpsonintegral_ark(npoints,rho_b(2)-rho_b(1),phi_t)
+         !tsum = sum(phi_t)*rhostep
          !
-         if (tsum>small__*100) then
-           phi_f(:)=phi_f(:)/sqrt(tsum)
-         endif
+         !if (tsum>small__*100) then
+         !  phi_f(:)=phi_f(:)/sqrt(tsum)
+         !endif
          !
        end select
        !
@@ -1067,9 +1097,9 @@ module me_numer
      real(ark),intent(out) :: pcout
      integer(ik),intent(out) :: ierr
 
-     real(ark) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff
+     real(ark) :: hh,dx,sumout,sumin,tsum,ycm1,pcin,ycp1,yc,phi_t,k_coeff,L_,r_,delta_,A_
      integer(ik) :: niter,ic,istart,i,id,i0_,jt,i1,i2
-     real(ark) :: G1,G0,DI,SG0,SI,VV,Y1,Y2,S0,GI,SGI
+     real(ark) :: G1,G0,DI,SG0,SI,VV,Y1,Y2,S0,GI,SGI,amplit
      !
      !y(i)=(1.0_ark-hh*(pot_eff(i)-i0(i)*eguess)/12.0_ark)*phi_f(i)
      !
@@ -1225,11 +1255,29 @@ module me_numer
         ! Outer integration 
         !
         !
-        call intout ( v, pot_eff, i0, eguess, phi_f, sumout, istart, iref,  ic, pcout,  ierr)
+        call intout ( v, pot_eff, i0, eguess, phi_f, sumout, istart, iref,  ic, pcout,  ierr, amplit)
         !
         if (ierr/=0) return
         !
         ! Inner integration 
+        !
+        select case (trim(boundary_condition))
+          !
+        case('UNBOUND')
+          !
+          k_coeff  = sqrt(i0(npoints)*eguess-pot_eff(npoints))
+          !
+          r_ = rho_b(1)+rhostep*ic
+          L_ = (phi_f(ic)-phi_f(ic-1))/(phi_f(ic)*rhostep)
+          delta_ = mod(atan2(k_coeff,L_)-k_coeff*r_,2.0*pi)
+          A_ = sqrt(i0(npoints)/pi*k_coeff)
+          !
+          phi_f(npoints  )  = A_*sin(k_coeff*rho_b(2)+delta_)
+          phi_f(npoints-1)  = A_*sin(k_coeff*(rho_b(2)-rhostep)+delta_)
+          !
+          !if (verbose>=4) write (out,"(f17.6,f12.5,f13.6,f13.6,' |phase')") eguess,k_coeff,delta_,A_
+          !
+        end select 
         !
         call intin ( pot_eff, i0, eguess, phi_f, sumin, ic, pcin)
         !
@@ -1259,7 +1307,20 @@ module me_numer
         !  ycp1=y(ic+1)/pcin
         !endif
         !
-        if (trim(boundary_condition)=='UNBOUND') exit
+        if (trim(boundary_condition)=='UNBOUND') then 
+          !
+          phi_f(0:ic)=phi_f(0:ic)/pcout*pcin
+          !phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+          !
+          return
+          !
+        else
+          phi_f(0:ic)=phi_f(0:ic)/pcout
+          phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
+          !
+        endif
+        !
+        !if (trim(boundary_condition)=='UNBOUND') exit
         !
         dx=((-ycm1+yc+yc-ycp1)/hh+(pot_eff(ic)-i0(ic)*eguess))*yc/tsum
         !
@@ -1285,16 +1346,6 @@ module me_numer
      !
      iref = ic
      !
-     if (trim(boundary_condition)=='UNBOUND') then 
-       !
-       phi_f(0:ic)=phi_f(0:ic)/pcout*pcin
-       phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
-       !
-    else
-       phi_f(0:ic)=phi_f(0:ic)/pcout
-       phi_f(ic+1:npoints)=phi_f(ic+1:npoints)/pcin
-     endif
-     !
   contains 
      !
      function y(i) result (v)
@@ -1313,7 +1364,7 @@ module me_numer
 !     the sum i0(i)*phi_f(i)**2 is saved for the outward integration
 !     and will later br divided by pc(out)**2.
 
-  subroutine intout ( v, pot_eff, i0, eguess, phi_f, sumout,istart, iref, ic, pcout, ierr)
+  subroutine intout ( v, pot_eff, i0, eguess, phi_f, sumout,istart, iref, ic, pcout, ierr,amplit)
       !
      integer(ik),intent(in ) :: v,istart,iref
      real(ark),intent(in ) :: eguess
@@ -1323,14 +1374,22 @@ module me_numer
 
      real(ark),intent(in)  ::  i0(0:npoints),pot_eff(0:npoints)
      real(ark),intent(inout) :: phi_f(0:npoints)
-     real(ark),intent(out) :: sumout,pcout
+     real(ark),intent(out) :: sumout,pcout,amplit
      !
      integer(ik) :: i,iend,imin_ref
      logical :: notfound
      !
-     real(ark) :: hh,const,tsum,redfac,yi,yim1,yip1,phi_t
+     real(ark) :: hh,const,tsum,redfac,yi,yim1,yip1,phi_t,phi1,phi2,amplit1,amplit2,diff
      !
      hh=rhostep*rhostep
+     !
+     !
+     phi1 = 0
+     phi2 = phi_f(istart)
+     amplit1 = 0
+     amplit2 = 0
+     amplit  = 0
+     diff = 0
      !
      !istart=1
      !
@@ -1351,7 +1410,6 @@ module me_numer
      if (v==0) iend = imin
      !
      ! if minimum is at i= 0 choose iend at the moddle 
-     !
      !
      imin_ref = imin
      !
@@ -1375,12 +1433,12 @@ module me_numer
               cycle 
           endif 
           !
-          if ( i==iref ) then 
-          !if ( sign( 1.0_rk,yim1 )/=sign(1.0_rk,yip1 ).and.i.ne.1) then 
-              notfound = .false.
-              cycle 
-          endif 
-          !
+        endif 
+        !
+        if ( i==iref ) then 
+        !if ( sign( 1.0_rk,yim1 )/=sign(1.0_rk,yip1 ).and.i.ne.1) then 
+            notfound = .false.
+            cycle 
         endif 
         !
         yim1=yi
@@ -1399,6 +1457,23 @@ module me_numer
             yim1=yim1/redfac
             tsum=tsum/thrsh_upper
         endif 
+        !
+        ! Estimating the amplitude
+        !
+        phi1 = phi2
+        phi2 = phi_f(i)
+        !
+        if ( i>10 ) then 
+          if (phi2>100.0*small_.and.phi1>phi2.and.phi1>phi_f(i-2) ) then
+            !
+            amplit1 = amplit2
+            amplit2 = amplit 
+            amplit  = phi1
+            !
+            diff = abs(amplit2-amplit1)
+            !
+          endif
+        endif
         !
      enddo
      !

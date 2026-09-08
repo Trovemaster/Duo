@@ -614,7 +614,7 @@ In the examples above ``grid`` selects numerical interpolation of values given o
 
 
 is used only for ``type grid`` and specifies
-the method used for the numerical interpolation of the numerical values. The currently implemented interpolation methods are ``Cubicsplines`` and  ``Quinticsplines`` (default).
+the method used for the numerical interpolation of the numerical values. The currently implemented interpolation methods are ``Cubicsplines`` (default) and  ``Quinticsplines``.
 
 Example:
 ::

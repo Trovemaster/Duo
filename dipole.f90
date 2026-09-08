@@ -1,17 +1,53 @@
 module dipole
 
  use accuracy,     only : hik, ik, rk, ark, cl, out, vellgt, planck, avogno, boltz, pi, small_
- use diatom_module,only : job,Intensity,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
+ use diatom_module,only : job,Intensity,action,quantaT,eigen,basis,Ndipoles,dipoletm,duo_j0,fieldT,poten,three_j,jmin_global,&
                           Dipole_omega_tot,nestates,setup_factorials_lookup,check_point_eigenfunc,check_point_dipoles,&
                           check_point_basis_set,compute_vib_integrals,fitting
  use timer,        only : IOstart,IOstop,Arraystart,Arraystop,ArrayMinus,Timerstart,Timerstop,MemoryReport, &
                           TimerReport,memory_limit,memory_now
  use symmetry,     only : sym,correlate_to_Cs
+ use magnetic_dipole, only : md_do_1st_half_linestrength
+ use quadrupole,   only : qm_do_1st_half_linestrength, qm_do_LF_matrix_elements
+ use intensity_filters, only : transitions_filter_from_fitting
 
 
 
  private
- public dm_tranint,transitions_filter_from_fitting
+ public intensity_pipeline_tranint
+
+ abstract interface
+   subroutine half_linestrength_vib_interface(jI,jF,indI,indF,dimenI,dimenF,vector,half_ls)
+     import rk,ik
+     real(rk),intent(in)     :: jI,jF
+     integer(ik),intent(in)  :: indI,indF,dimenI,dimenF
+     real(rk),intent(in)     :: vector(:)
+     real(rk),intent(out)    :: half_ls(:)
+   end subroutine half_linestrength_vib_interface
+
+   subroutine half_linestrength_omega_interface(jI,jF,indI,indF,dimenI,dimenF,vector,nJ,Nomegas_max,threeJ,half_ls)
+     import rk,ik
+     real(rk),intent(in)     :: jI,jF
+     integer(ik),intent(in)  :: indI,indF,dimenI,dimenF,nJ,Nomegas_max
+     real(rk),intent(in)     :: vector(:)
+     real(rk),intent(in)     :: threej(nJ,0:Nomegas_max,-1:1,-1:1)
+     real(rk),intent(out)    :: half_ls(:)
+   end subroutine half_linestrength_omega_interface
+ end interface
+
+ type radiative_operatorT
+   character(len=2) :: label = 'E1'
+   integer(ik) :: tensor_rank = 1
+   integer(ik) :: frequency_power = 3
+   real(rk) :: einstein_a_prefactor = 0.0_rk
+   logical :: preserves_symmetry = .false.
+   logical :: supports_tm = .true.
+   logical :: supports_emission = .true.
+   logical :: supports_interpolation = .true.
+   logical :: supports_matelem = .true.
+   procedure(half_linestrength_vib_interface),pointer,nopass :: half_vib => null()
+   procedure(half_linestrength_omega_interface),pointer,nopass :: half_omega => null()
+ end type radiative_operatorT
 
  real(rk),allocatable,save  :: dipole_me(:, :)
 
@@ -50,8 +86,82 @@ module dipole
  !type(IntensityT),save :: intensity
 
 contains
+
+ subroutine configure_radiative_operator(radiative_operator)
+
+    type(radiative_operatorT),intent(out) :: radiative_operator
+    real(rk),parameter :: vacuum_permeability = 1.25663706212d-6
+    real(rk),parameter :: magnetic_unit_conversion = 8.6007262932d-34
+    real(rk),parameter :: vacuum_permittivity = 8.8541878128d-12
+    real(rk),parameter :: quadrupole_unit_conversion = 2.012914458d-62
+
+    if (action%quadrupole) then
+      radiative_operator%label = 'E2'
+      radiative_operator%tensor_rank = 2
+      radiative_operator%frequency_power = 5
+      radiative_operator%einstein_a_prefactor = quadrupole_unit_conversion*&
+        (8.0_rk*pi**5)/(5.0_rk*vacuum_permittivity*planck)
+      radiative_operator%preserves_symmetry = .true.
+      radiative_operator%supports_tm = .false.
+      radiative_operator%supports_emission = .false.
+      radiative_operator%supports_interpolation = .false.
+      radiative_operator%supports_matelem = .true.
+      radiative_operator%half_vib => qm_do_1st_half_linestrength
+      nullify(radiative_operator%half_omega)
+    elseif (action%magdipole) then
+      radiative_operator%label = 'M1'
+      radiative_operator%einstein_a_prefactor = magnetic_unit_conversion*&
+        (16.0_rk*pi**3*vacuum_permeability)/(3.0_rk*planck)
+      radiative_operator%preserves_symmetry = .true.
+      radiative_operator%supports_tm = .false.
+      radiative_operator%supports_interpolation = .false.
+      radiative_operator%half_vib => md_do_1st_half_linestrength
+      nullify(radiative_operator%half_omega)
+    else
+      radiative_operator%label = 'E1'
+      radiative_operator%einstein_a_prefactor = 64.0d-36*pi**4/(3.0_rk*planck)
+      radiative_operator%preserves_symmetry = .false.
+      radiative_operator%supports_tm = .true.
+      radiative_operator%supports_interpolation = .true.
+      radiative_operator%half_vib => do_1st_half_linestrength
+      radiative_operator%half_omega => do_1st_half_linestrength_omega
+    endif
+
+    if (intensity%interpolate.and..not.radiative_operator%supports_interpolation) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'intensity interpolation is not implemented'
+      stop 'Unsupported intensity interpolation'
+    endif
+
+    if (trim(intensity%action)=='TM'.and..not.radiative_operator%supports_tm) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'transition moments are not implemented'
+      stop 'Unsupported transition-moment calculation'
+    endif
+
+    if (trim(intensity%action)=='EMISSION'.and.&
+        .not.radiative_operator%supports_emission) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'emission intensities are not implemented'
+      stop 'Unsupported emission-intensity calculation'
+    endif
+
+    if (intensity%matelem.and..not.radiative_operator%supports_matelem) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'RichMol matrix-element output is not implemented in the shared pipeline'
+      stop 'Unsupported matrix-element output'
+    endif
+
+    if (trim(job%contraction)=='OMEGA'.and.&
+        .not.associated(radiative_operator%half_omega)) then
+      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+        'intensities are not implemented for the OMEGA contraction'
+      stop 'Unsupported intensity contraction'
+    endif
+
+ end subroutine configure_radiative_operator
   
- subroutine dm_tranint
+ subroutine intensity_pipeline_tranint
 
  ! compute  partition function, electric dipole transition moments, linestrength, and intensities
 
@@ -89,10 +199,10 @@ contains
     enddo
     !
     allocate(Jval(nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: Jval - out of memory'
+    if (info /= 0) stop 'intensity_pipeline_tranint: Jval - out of memory'
     !
     allocate(q_part(20,nJ), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: q_part - out of memory'
+    if (info /= 0) stop 'intensity_pipeline_tranint: q_part - out of memory'
     !
     Jval_ = Jval_min
     jind = 1
@@ -199,7 +309,7 @@ contains
        !
        if (iverbose>=4) write(out,"(/'Partition funciton = ',f18.4,' T = ',f12.2)") intensity%part_func,intensity%temperature
        !
-       call dm_intensity(Jval,iverbose)
+       call calculate_intensities(Jval,iverbose)
        !
        write(out, '(/a)') 'done'
        !
@@ -254,7 +364,7 @@ contains
     !
     call TimerReport
     !
- end subroutine dm_tranint
+ end subroutine intensity_pipeline_tranint
  !
 
  !
@@ -300,7 +410,7 @@ contains
  !
  ! Electric dipole moment intensities and transition moments calculations 
  !
- subroutine dm_intensity(Jval,iverbose)
+ subroutine calculate_intensities(Jval,iverbose)
     !
     implicit none
     !
@@ -322,7 +432,7 @@ contains
     !
     integer(ik)  :: jind,nlevels
     !
-    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iflag_rich,Nomegas,Nomegas_max,iomegaI,idelta
+    integer(ik)  :: iroot,NlevelsI,NlevelsF,nlower,k,k_,iLF,iLFa,iLFb,iflag_rich,Nomegas,Nomegas_max,iomegaI,idelta
     !
     integer(ik)  :: igamma_pair(sym%Nrepresen),igamma,istateI,istateF,ivibI,ivibF,ivI,ivF,ilambdaI,ilambdaF,iparityI,itau
     integer(ik)  :: ivF_,ilambdaF_,NomegaMax,iomegaF,iEntry_fitting
@@ -348,6 +458,7 @@ contains
     character(len=cl) :: filename,ioname
     !
     logical     :: integer_spin = .true.,intensity_do = .true.
+    type(radiative_operatorT) :: radiative_operator
     !
     integer(ik) :: alloc_p
     !
@@ -357,14 +468,14 @@ contains
     character(len=12) :: char_Jf,char_Ji,char_LF
     character(len=7) :: print_J,print_omega,print_sigma
     integer(ik),allocatable :: richunit(:,:)
-    character(1)  :: let_LF ! richmol letters x,y,z
+    character(1)  :: let_LF,letLFa,letLFb ! RichMol Cartesian labels
+    character(2)  :: letLF
     !
     call TimerStart('Intensity calculations')
     !
     if (sym%maxdegen>2) then 
       !
-      write(out,"('dm_intensity: this procedure has not been tested for the symmetries with degeneracies higher than 2')")
-      !stop 'dm_intensity was not tested for present symmetry'
+      write(out,"('calculate_intensities: this procedure has not been tested for symmetries with degeneracies higher than 2')")
       !
     endif
     !
@@ -373,7 +484,8 @@ contains
     beta = planck * vellgt / (boltz * intensity%temperature)
     intens_cm_mol  = 8.0d-36*pi**3 / (3.0_rk * planck * vellgt)
     emcoef = planck*vellgt/(4.0_rk*pi)
-    A_coef_s_1     =64.0d-36 * pi**4  / (3.0_rk * planck)
+    call configure_radiative_operator(radiative_operator)
+    A_coef_s_1 = radiative_operator%einstein_a_prefactor
     !
     nJ = size(Jval)
     !
@@ -386,7 +498,7 @@ contains
     ! Prepare the list of units with the stored eigenvectors
     !
     !allocate(Jeigenvec_unit(nJ), stat = info)
-    !if (info /= 0) stop 'dm_tranint allocation error: Jeigenvec_unit - out of memory'
+    !if (info /= 0) stop 'rank1_tranint allocation error: Jeigenvec_unit - out of memory'
     !
     !do jind=1,nJ 
     !  Jeigenvec_unit(jind) = TReigenvec_unit(jind,Jval)
@@ -421,51 +533,67 @@ contains
             !
             if (Jf<Ji) cycle 
             ! 
-            ! selection rules: Delta J<=1
+            ! rotational selection rules for the configured tensor rank
             !
-            if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
+            if (nint(abs(jI-jF))>radiative_operator%tensor_rank.or.&
+                nint(jI+jF)<radiative_operator%tensor_rank) cycle
             !
             write(char_Jf,'(i12)') nint(jF)
             !
-            !  New RICHMOL format - one file for x,y,z
-            !
-            filename =  &
-            "matelem_MU"//"_j"//trim(adjustl(char_jI))//"_j"//trim(adjustl(char_jF))//"_"//trim(intensity%linelist_file)//".rchm"
+            ! New RichMol format: the rank-one operators have three
+            ! Cartesian components, while E2 has the full 3x3 tensor.
+            if (action%quadrupole) then
+              filename = "matelem_Q"//"_j"//trim(adjustl(char_jI))//&
+                         "_j"//trim(adjustl(char_jF))//"_"//&
+                         trim(intensity%linelist_file)//".rchm"
+            else
+              filename = "matelem_MU"//"_j"//trim(adjustl(char_jI))//&
+                         "_j"//trim(adjustl(char_jF))//"_"//&
+                         trim(intensity%linelist_file)//".rchm"
+            endif
             !
             call IOstart(trim(filename),richunit(indI,indF))
             open(unit = richunit(indI,indF), action = 'write',status='replace' , file = filename)
             !
             write(richunit(indI,indF),"('Start richmol format')")
             !
-            write(richunit(indI,indF),"('MU','   1','   3')")
-            write(richunit(indI,indF),"('M-tensor')")
-            !
-            ! three cartesian LF-components 
-            do iLF = 1,3
+            if (action%quadrupole) then
+              write(richunit(indI,indF),"('Q ','   2','    9')")
+              write(richunit(indI,indF),"('M-tensor')")
               !
-              ! set let_LF FOR EACH COMPONENT
+              do iLFa = 1,3
+                letLFa = 'x'
+                if (iLFa==2) letLFa = 'y'
+                if (iLFa==3) letLFa = 'z'
+                !
+                do iLFb = 1,3
+                  letLFb = 'x'
+                  if (iLFb==2) letLFb = 'y'
+                  if (iLFb==3) letLFb = 'z'
+                  letLF = letLFa//letLFb
+                  iLF = 3*(iLFa-1)+iLFb
+                  iflag_rich = -1
+                  if ((iLFa==2.and.iLFb/=2).or.&
+                      (iLFa/=2.and.iLFb==2)) iflag_rich = 0
+                  write(richunit(indI,indF),"('alpha',i5,i3,1x,a2)")&
+                        iLF,iflag_rich,letLF
+                  call qm_do_LF_matrix_elements(iLFa,iLFb,&
+                                                richunit(indI,indF),jI,jF)
+                enddo
+              enddo
+              write(richunit(indI,indF),"('K-tensor')")
+            else
+              write(richunit(indI,indF),"('MU','   1','   3')")
+              write(richunit(indI,indF),"('M-tensor')")
               !
-              let_LF = "x" ; if (iLF==2) let_LF = "y" ; if (iLF==3) let_LF = "z"
-              !
-              iflag_rich = -1 ; if (iLF==2) iflag_rich = 0 ! NEW RICHMOL FORMAT
-              !
-              write(char_LF,'(i12)') iLF
-              !
-              ! this flag is 0 for real M-values, 1 for imaginary and -1 for i**2 (OLD FORMAT)
-              ! iflag_rich = 0 ; if (iLF==2) iflag_rich = 1 ! OLD RICHMOL FORMAT
-              write(richunit(indI,indF),"('alpha',i5,i3,1x,a1)") iLF,iflag_rich,let_LF
-              !
-              ! count the number of M-elements ! OLD RICHMOL FORMAT
-              ! call do_LF_matrix_elements(iLF,richunit(indI,indF,iLF),jI,jF,nMs) ! OLD RICHMOL FORMAT
-              !write(richunit(indI,indF,iLF),"(i7)") nMs ! OLD RICHMOL FORMAT
-              !
-              call do_LF_matrix_elements(iLF,richunit(indI,indF),jI,jF) ! write elements
-              !
-              !write(richunit(indI,indF,iLF),"('MF-block')") ! OLD RICHMOL FORMAT
-              !
-            enddo
-            !
-            write(richunit(indI,indF),"('K-tensor')") ! NEW RICHMOL FORMAT
+              do iLF = 1,3
+                let_LF = "x" ; if (iLF==2) let_LF = "y" ; if (iLF==3) let_LF = "z"
+                iflag_rich = -1 ; if (iLF==2) iflag_rich = 0
+                write(richunit(indI,indF),"('alpha',i5,i3,1x,a1)") iLF,iflag_rich,let_LF
+                call do_LF_matrix_elements(iLF,richunit(indI,indF),jI,jF)
+              enddo
+              write(richunit(indI,indF),"('K-tensor')")
+            endif
             !
           enddo
         enddo
@@ -489,7 +617,7 @@ contains
     Nomegas_max = nint(Jval(nJ))
     if (.not.integer_spin) Nomegas_max = Nomegas_max-1
     allocate(threej(nJ,0:Nomegas_max,-1:1,-1:1), stat = info)
-    if (info /= 0) stop 'dm_tranint allocation error: threej - out of memory'
+    if (info /= 0) stop 'rank1_tranint allocation error: threej - out of memory'
     !
     threej = 0
     !
@@ -562,7 +690,7 @@ contains
     ! having the same gns(jgamma). We assume that there is only one such pair 
     ! in case of absorption or emission calcs. 
     !
-    call find_igamma_pair(igamma_pair)
+    call find_igamma_pair(igamma_pair,radiative_operator%preserves_symmetry)
     !
     ! skip the expensive pre-count of transitions.
     write(out, "('Skipping pre-count of transitions for speed.')")
@@ -954,7 +1082,7 @@ contains
     if (iverbose>=4) write(out,"(/'Dipole moment integration (i)...')")
     !
     if (Ntransit==0) then 
-         write(out,"('dm_intensity: the transition filters are too tight: no transitions selected')") 
+         write(out,"('rank1_intensity: the transition filters are too tight: no transitions selected')")
          return
     endif 
     !
@@ -1050,14 +1178,18 @@ contains
             !
             jF = jval(indF)
             !
-            if (intensity_do.and.(abs(nint(jI-jF))>1.or.abs(nint(jI+jF))==0)) cycle 
+            if (intensity_do.and.&
+                (abs(nint(jI-jF))>radiative_operator%tensor_rank.or.&
+                 nint(jI+jF)<radiative_operator%tensor_rank)) cycle
             !
             do igammaF=1,Nrepresen
               !
               nlevelsF = eigen(indF,igammaF)%Nlevels
               dimenF = eigen(indF,igammaF)%Ndimen
               !
-              call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+              call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,&
+                                             radiative_operator%tensor_rank,&
+                                             radiative_operator%preserves_symmetry,passed)
               !
               if (.not.passed) cycle
               !
@@ -1174,7 +1306,8 @@ contains
                            energyI,energyF,quantaI,quantaF,passed,iEntry_fitting)
                     endif
                     !
-                    if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                    if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,&
+                                                                  radiative_operator%tensor_rank,passed)
                     !
                     if (passed) exit
                     !
@@ -1189,19 +1322,29 @@ contains
                     if (isymF /= igamma_pair(isymI)) cycle Ilevels_loop
                     
                     if (( intensity%J(1)+intensity%J(2)>0 )&
-                        .and. abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1) then 
+                        .and. abs(nint(jI-jF))<=radiative_operator%tensor_rank&
+                        .and. nint(jI+jF)>=radiative_operator%tensor_rank) then
                       select case (job%contraction)
                       case ("VIB")
-                         call do_1st_half_linestrength(jI,jF,indI,indF,dimenI,dimenF,&
-                                                       vecI(1:dimenI),&
-                                                       half_linestr)
+                         call radiative_operator%half_vib(jI,jF,indI,indF,dimenI,dimenF,&
+                                                          vecI(1:dimenI),half_linestr)
                       case ("OMEGA")
-                         call do_1st_half_linestrength_omega(jI,jF,indI,indF,dimenI,dimenF,&
-                                                        vecI(1:dimenI),nJ,Nomegas_max,threeJ,&
-                                                        half_linestr)
+                         if (.not.associated(radiative_operator%half_omega)) then
+                           write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+                             'intensities are not implemented for the OMEGA contraction'
+                           stop 'Unsupported intensity contraction'
+                         endif
+                         call radiative_operator%half_omega(jI,jF,indI,indF,dimenI,dimenF,&
+                                                            vecI(1:dimenI),nJ,Nomegas_max,threeJ,&
+                                                            half_linestr)
                       end select 
                     endif 
                   case('TM')
+                    if (.not.radiative_operator%supports_tm) then
+                      write(out,'(/a,1x,a)') trim(radiative_operator%label),&
+                        'transition moments are not implemented'
+                      stop 'Unsupported transition-moment calculation'
+                    endif
                     call do_1st_half_tm(indI,indF,dimenI,dimenF,&
                                         vecI(1:dimenI),half_linestr)
                   end select
@@ -1251,7 +1394,8 @@ contains
                             energyI,energyF,quantaI,quantaF,passed,iEntry_fitting)
                      endif
                      !
-                     if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                     if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,&
+                                                                   radiative_operator%tensor_rank,passed)
                      !
                      if (.not.passed) cycle Inner_F_Loop
                      !
@@ -1268,7 +1412,17 @@ contains
                          !
                          linestr = sum(half_linestr(1:dimenF)*vecF(1:dimenF))
                          linestr2 = linestr**2
-                         A_einst = A_coef_s_1*(2.0_rk*jI+1.0_rk)*linestr2*abs(nu_if)**3
+                         select case (radiative_operator%frequency_power)
+                         case (3)
+                           ! Keep the literal exponent used by the established
+                           ! E1/M1 implementation so compiler optimisation and
+                           ! rounding remain bit-for-bit compatible.
+                           A_einst = A_coef_s_1*(2.0_rk*jI+1.0_rk)*linestr2*abs(nu_if)**3
+                         case (5)
+                           A_einst = A_coef_s_1*(2.0_rk*jI+1.0_rk)*linestr2*abs(nu_if)**5
+                         case default
+                           stop 'Unsupported Einstein-A frequency power'
+                         end select
                          linestr2 = linestr2 * intensity%gns(isymI) * ( 2.0_rk*jI + 1.0_rk )*( 2.0_rk * jF + 1.0_rk )
                          !
                          if (trim(intensity%action)=='ABSORPTION') then 
@@ -1438,9 +1592,11 @@ contains
        !
        ! close some J-files for Richmol:
        if ( intensity%matelem ) then 
-         do indF = max(1,indI-1),min(nJ,indI+1)
+         do indF = max(1,indI-radiative_operator%tensor_rank),&
+                   min(nJ,indI+radiative_operator%tensor_rank)
            jF = Jval(indF)
-           if (nint(abs(jI-jF))>1.or.nint(jI+jF)==0) cycle
+           if (nint(abs(jI-jF))>radiative_operator%tensor_rank.or.&
+               nint(jI+jF)<radiative_operator%tensor_rank) cycle
            if (jI>jF) cycle
            write(richunit(indI,indF),"('End richmol format')")
            close(richunit(indI,indF))
@@ -1489,7 +1645,7 @@ contains
     write(out, "(    'SUCCESS: Parallel Intensity Loop Finished Correctly.'   )")
     write(out, "('-----------------------------------------------------------')")
     !
-  end subroutine dm_intensity
+  end subroutine calculate_intensities
   !
   !
   subroutine count_transitions(nJ,Jval,Ntransit)
@@ -1504,7 +1660,13 @@ contains
     integer(ik) :: igammaF, nlevelsF, istateF, isymF
     type(quantaT),pointer  :: quantaI,quantaF
     logical :: passed
+    integer(ik) :: tensor_rank
+    logical :: preserves_symmetry
     !    
+    tensor_rank = 1
+    if (action%quadrupole) tensor_rank = 2
+    preserves_symmetry = action%magdipole.or.action%quadrupole
+    !
     call TimerStart('Intens_Filter-1')
     !
     ! loop over initial states
@@ -1557,7 +1719,7 @@ contains
               !
               do igammaF=1,Nrepresen
                 !
-                call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+                call intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,tensor_rank,preserves_symmetry,passed)
                 !
                 if (.not.passed) cycle
                 !
@@ -1603,7 +1765,8 @@ contains
                     !
                   endif
                   !
-                  if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+                  if ( intensity%matelem ) call matelem_filter (jI,jF,energyI,energyF,isymI,isymF,igamma_pair,&
+                                                                tensor_rank,passed)
                   !
                   if (passed) then 
                     !
@@ -1647,13 +1810,20 @@ contains
         !
       case ('ABSORPTION','EMISSION')
         !
-        if ( jI>jF ) then
+        select case (nint(jF-jI))
+        case (-2)
+          X = 'O'
+        case (-1)
           X = 'P'
-        elseif( nint(jI-jF)/=0 ) then
-          X = 'R'
-        else
+        case (0)
           X = 'Q'
-        endif
+        case (1)
+          X = 'R'
+        case (2)
+          X = 'S'
+        case default
+          X = 'X'
+        end select
         !
       !case ('EMISSION')
       !  !
@@ -1670,10 +1840,18 @@ contains
   end function PQR_branch
 
 
-     subroutine find_igamma_pair(igamma_pair)
+     subroutine find_igamma_pair(igamma_pair,preserves_symmetry)
       !
       integer(ik),intent(out) :: igamma_pair(:)
+      logical,intent(in) :: preserves_symmetry
       integer(ik)     :: igammaI,igammaF,ngamma
+      !
+      if (preserves_symmetry) then
+        do igammaI = 1,size(igamma_pair)
+          igamma_pair(igammaI) = igammaI
+        enddo
+        return
+      endif
       !
       if (trim(intensity%action)=='TM') then 
         !
@@ -1699,8 +1877,8 @@ contains
             !
             if (ngamma>1) then 
               !
-              write(out,"('dm_intensity: Assumption that selection rules come in pairs is wrong!')")
-              stop 'dm_intensity: Assumption that all selection rules work in pairs is broken!'
+              write(out,"('rank1_intensity: Assumption that selection rules come in pairs is wrong!')")
+              stop 'rank1_intensity: Assumption that all selection rules work in pairs is broken!'
               !
             endif   
             !
@@ -1710,8 +1888,8 @@ contains
         !
         if ( nint(intensity%gns(igammaI)-intensity%gns(igamma_pair(igammaI)))/=0 ) then 
           !
-          write(out,"('dm_intensity: selection rules do not agree with Gns')")
-          stop 'dm_intensity: selection rules do not agree with Gns!'
+          write(out,"('rank1_intensity: selection rules do not agree with Gns')")
+          stop 'rank1_intensity: selection rules do not agree with Gns!'
           !
         endif   
         !
@@ -1788,12 +1966,13 @@ contains
 
      end subroutine energy_filter_upper
 
-     subroutine intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,passed)
+     subroutine intens_filter_J_Symmetry(jI,jF,igammaI,igammaF,tensor_rank,preserves_symmetry,passed)
         !
         implicit none
         !
         real(rk),intent(in) :: jI,jF
-        integer(ik),intent(in) :: igammaI,igammaF
+        integer(ik),intent(in) :: igammaI,igammaF,tensor_rank
+        logical,intent(in)     :: preserves_symmetry
         logical,intent(out)    :: passed
           !
           passed = .false.
@@ -1816,13 +1995,15 @@ contains
           !( ( nint(jF-intensity%J(1))/=0.or.nint(jI-intensity%J(1))/=0 ).and.intensity%J(1)>0 ).and.   &
           ( intensity%J(1)+intensity%J(2)>0 ).and. &
           !
-          ! selection rules: 
-          !
-          igammaI/=igammaF.and.  &
-          !
           ! selection rules from the 3j-symbols
           !
-          abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1
+          abs(nint(jI-jF))<=tensor_rank.and.nint(jI+jF)>=tensor_rank
+          !
+          ! Electric-dipole transitions connect paired symmetry species.
+          ! For magnetic dipole the exact same-symmetry test is deferred to
+          ! the state-level filter because C2v labels are correlated to Cs
+          ! using the electronic-state g/u parity.
+          if (.not.preserves_symmetry) passed = passed.and.igammaI/=igammaF
           !
      end subroutine intens_filter_J_Symmetry
      !
@@ -1880,122 +2061,14 @@ contains
           !
      end subroutine intens_filter
      !
-     subroutine transitions_filter_from_fitting(jI,jF,isymI,isymF,ilevelI,ilevelF,EnergyI,EnergyF,&
-                                                quantaI,quantaF,passed,iEntry_found)
-        !
-        real(rk),intent(in) :: jI,jF,EnergyF,EnergyI
-        integer(ik),intent(in) :: isymI,isymF,ilevelI,ilevelF
-        type(quantaT),pointer,intent(in)  :: quantaI,quantaF
-        logical,intent(out)    :: passed
-        integer(ik),optional :: iEntry_found
-        integer(ik) :: ientry,N,N_,itau,itau_,vI,vF
-        integer(ik) :: istateI,istateF,ivibI,ivibF,ilambdaI,ilambdaF,iparityI,iparityF
-        real(rk)    :: spinI,spinF,omegaI,omegaF,sigmaI,sigmaF
-        real(rk) :: jrot,jrot_,lock_factor,nu
-        integer(ik) :: maxiter_as = 3, iter_th,irot,irot_
-        !
-        ! no need to check further if it is already false 
-        if (.not.passed) return
-        !
-        if ( present(iEntry_found) ) iEntry_found = -1
-        !
-        ivibI    = quantaI%ivib
-        vI       = quantaI%v
-        iStateI  = quantaI%iState
-        sigmaI   = quantaI%sigma
-        spinI    = quantaI%spin
-        ilambdaI = quantaI%ilambda
-        omegaI   = quantaI%omega
-        iparityI = quantaI%iparity
-        !
-        ivibF    = quantaF%ivib
-        vF       = quantaF%v
-        iStateF  = quantaF%iState
-        sigmaF   = quantaF%sigma
-        spinF    = quantaF%spin
-        ilambdaF = quantaF%ilambda
-        omegaF   = quantaF%omega
-        iparityF = quantaF%iparity
-        !
-        Nentries  = fitting%Nenergies
-        !
-        loop_freq : do ientry = 1,Nentries
-          !
-          jrot = fitting%obs(ientry)%jrot
-          itau = fitting%obs(ientry)%iparity+1
-          !
-          nu = fitting%obs(ientry)%energy
-          !
-          if (nint( jF-jrot )/=0) cycle
-          if (isymF/=itau) cycle
-          !
-          jrot_= fitting%obs(ientry)%jrot_
-          itau_= fitting%obs(ientry)%iparity_+1
-          !
-          if (nint( jI-jrot_ )/=0) cycle
-          if (isymI/=itau_) cycle
-          !
-          N = fitting%obs(ientry)%N
-          N_= fitting%obs(ientry)%N_
-          !
-          if (abs(fitting%threshold_lock)<sqrt(small_)) then
-             !
-             if ( N == iLevelF .and. N_ == iLevelI  ) then
-                 !
-                 if (present(iEntry_found)) iEntry_found = ientry
-                 !
-                 return 
-             endif
-             !
-          else
-             !
-             if (fitting%threshold_lock<0)  maxiter_as = 1
-             !
-             loop_thresh_u : do iter_th = 1,maxiter_as
-               !
-               lock_factor = real(iter_th,8)
-               !
-               if ( abs( nu-( EnergyF-EnergyI )  )<= abs(lock_factor*fitting%threshold_lock).and.&
-                   ( ( istateF==fitting%obs(ientry)%quanta%istate.and.&
-                       abs(ilambdaF)==abs(fitting%obs(ientry)%quanta%ilambda).and.&
-                      vF==fitting%obs(ientry)%quanta%v.and.&
-                       nint(abs(sigmaF)-abs(fitting%obs(ientry)%quanta%sigma) )==0.and.&
-                       nint(abs(omegaF)-abs(fitting%obs(ientry)%quanta%omega) )==0.and.&
-                       !
-                       istateI==fitting%obs(ientry)%quanta_%istate.and.&
-                       abs(ilambdaI)==abs(fitting%obs(ientry)%quanta_%ilambda).and.&
-                       vI==fitting%obs(ientry)%quanta_%v.and.&
-                       nint(abs(sigmaI)-abs(fitting%obs(ientry)%quanta_%sigma))==0 .and.&
-                       nint(abs(omegaI)-abs(fitting%obs(ientry)%quanta_%omega))==0 ).or.&
-                       ! threshold_lock < 0, only frequency match 
-                     (  fitting%threshold_lock<0 ) ) ) then 
-                   !
-                   fitting%obs(ientry)%N = ilevelF
-                   fitting%obs(ientry)%N_= ilevelI
-                   !
-                   if (present(iEntry_found)) iEntry_found = ientry
-                   !
-                   return 
-                   !
-               endif 
-             enddo loop_thresh_u
-          endif
-          !
-        enddo loop_freq
-        !
-        passed = .false.
-        !
-        !
-     end subroutine transitions_filter_from_fitting
-     !
-     subroutine matelem_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,passed)
+     subroutine matelem_filter(jI,jF,energyI,energyF,isymI,isymF,igamma_pair,tensor_rank,passed)
         !
         implicit none
         !
         real(rk),intent(in) :: jI,jF
         integer(ik),intent(in) :: isymI,isymF
         real(rk),intent(in)    :: energyI,energyF
-        integer(ik),intent(in) :: igamma_pair(sym%Nrepresen)
+        integer(ik),intent(in) :: igamma_pair(sym%Nrepresen),tensor_rank
         real(rk)               :: nu_if
         logical,intent(out)    :: passed
 
@@ -2055,7 +2128,7 @@ contains
              !
              ! selection rules from the 3j-symbols
              !
-             abs(nint(jI-jF))<=1.and.nint(jI+jF)>=1
+             abs(nint(jI-jF))<=tensor_rank.and.nint(jI+jF)>=tensor_rank
              !
           endif
           !

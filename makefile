@@ -9,7 +9,7 @@ checkin:
 
 #FPATH = 
 
-EXE = j-duo-2605.x
+EXE = j-duo-v1206.x
 
 FOR  = ifort   # Fortran compiler 
 ##FOR = gfortran  
@@ -50,14 +50,13 @@ FOR  = ifort   # Fortran compiler
 
 #NOTE: -fpe0 will stop on floating-point exceptions. Do not use this flag because LAPACK makes use of divide by zero etc.
 #
-#FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
+##FFLAGS = -O0 -fpe0  -fltconsistency -stand f03 -check all -warn all -traceback -fp-stack-check  # debugging options
 
 FFLAGS = -O3 -ipo -qopenmp -mkl=parallel # -xHost -fast
 
-#FFLAGS = -C -check bounds -g  -gen-interfaces -warn interfaces  -check arg_temp_created -prof-value-profiling=all -warn all
-
-#FFLAGS = -O3 -ipo -qopenmp # no optimization -- fast compilation
-##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2008 -Wunderflow -O0 -fbacktrace -g -Wextra
+##FFLAGS = -C -check bounds -g  -gen-interfaces -warn interfaces  -check arg_temp_created -prof-value-profiling=all -warn all
+##FFLAGS = -O3 -ip -openmp # no optimization -- fast compilation
+##FFLAGS = -W -Wall -fbounds-check -pedantic-errors -std=f2003 -Wunderflow -O0 -fbacktrace -g -Wextra
 
 
 #ARPACK =  ~/libraries/ARPACK/libarpack_omp_64.a
@@ -69,14 +68,16 @@ LIB     =   $(LAPACK)
 
 ###############################################################################
 
-OBJ = F1_hyperfine.o F1_intensity.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o dipole.o quadrupole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o me_numer.o RWF.o magnetic_dipole.o
+OBJ = F1_hyperfine.o F1_intensity.o grids.o accuracy.o lapack.o timer.o input.o diatom.o refinement.o functions.o  symmetry.o intensity_filters.o magnetic_dipole.o quadrupole.o dipole.o header_info.o atomic_and_nuclear_data.o  Lobatto.o me_numer.o RWF.o intensity.o
 
 diatom.o: symmetry.o functions.o input.o lapack.o Lobatto.o timer.o atomic_and_nuclear_data.o accuracy.o me_numer.o
-dipole.o: timer.o accuracy.o diatom.o symmetry.o
-quadrupole.o: timer.o accuracy.o diatom.o symmetry.o
-magnetic_dipole.o: timer.o accuracy.o diatom.o symmetry.o
-duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o dipole.o F1_hyperfine.o F1_intensity.o magnetic_dipole.o quadrupole.o
-functions.o: accuracy.o timer.o  lapack.o
+intensity_filters.o: accuracy.o diatom.o
+magnetic_dipole.o: accuracy.o diatom.o
+dipole.o: timer.o accuracy.o diatom.o symmetry.o magnetic_dipole.o quadrupole.o intensity_filters.o
+quadrupole.o: timer.o accuracy.o diatom.o
+intensity.o: accuracy.o diatom.o dipole.o
+duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o intensity.o F1_hyperfine.o F1_intensity.o
+functions.o: accuracy.o timer.o
 grids.o: accuracy.o Lobatto.o
 header_info.o: accuracy.o
 F1_hyperfine.o: accuracy.o diatom.o lapack.o symmetry.o
