@@ -1238,7 +1238,12 @@ contains
         REAL(rk) :: H_hfs
 
         H_hfs = 0.0_rk
-        if (index_hfcc2 == 5) then
+        if (index_hfcc2 >= 1 .and. index_hfcc2 <= 4) then
+            H_hfs = H2_MD_element( &
+                        Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
+                        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket)
+        else if (index_hfcc2 == 5) then
             H_hfs = H2_IJ_element( &
                         Ftot, index_field, index_v_bra, index_v_ket, &
                         Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
@@ -2672,6 +2677,84 @@ contains
                 * hfcc12(1)%field(index_field)%matelem(index_v_bra, index_v_ket)
         end if 
     end function Heq_II_element
+
+    function H2_MD_element( &
+        Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket) &
+        result(H_MD)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_hfcc2, index_field, index_v_bra, index_v_ket, &
+                                   Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Ftot, F1_bra, F1_ket, &
+                                S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_MD, reduced_M2, rotational_factor, spin_factor, q_real
+        INTEGER(ik) :: q
+
+        ! nucleus-2 magnetic terms in unequal coupling scheme F1 = J + I1, F = F1 + I2.
+        ! reduced_M2 is <k,J||T^1(M2)||k',J'> including sqrt(2J_ket+1)(2J_bra+1) factors
+        
+        H_MD = 0.0_rk
+        if (I2 <= 0.0_rk .or. nint(S_bra - S_ket) /= 0) return
+        if (abs(J_bra - J_ket) > 1.0_rk .or. abs(F1_bra - F1_ket) > 1.0_rk) return
+
+        reduced_M2 = 0.0_rk
+        rotational_factor = get_sign(J_bra - Omega_bra) &
+            * sqrt((2.0_rk*J_bra + 1.0_rk)*(2.0_rk*J_ket + 1.0_rk))
+        spin_factor = get_sign(S_bra - Sigma_bra) &
+            * sqrt(S_bra*(S_bra + 1.0_rk)*(2.0_rk*S_bra + 1.0_rk))
+
+        select case (index_hfcc2)
+        case (1) ! b_F: Fermi contact
+            if (Lambda_bra /= Lambda_ket) return
+            do q = -1, 1
+                q_real = real(q, rk)
+                if (nint(Sigma_bra - Sigma_ket) /= q) cycle
+                reduced_M2 = reduced_M2 + rotational_factor * spin_factor &
+                    * Wigner3j(J_bra, 1.0_rk, J_ket, -Omega_bra, q_real, Omega_ket) &
+                    * Wigner3j(S_bra, 1.0_rk, S_ket, -Sigma_bra, q_real, Sigma_ket)
+            end do
+        case (2) ! a: orbital term diagonal in Lambda
+            if (Lambda_bra /= Lambda_ket .or. nint(Sigma_bra - Sigma_ket) /= 0) return
+            reduced_M2 = rotational_factor * real(Lambda_bra, rk) &
+                * Wigner3j(J_bra, 1.0_rk, J_ket, -Omega_bra, 0.0_rk, Omega_ket)
+        case (3) ! c: electron-nuclear dipolar term diagonal in Lambda
+            if (Lambda_bra /= Lambda_ket) return
+            do q = -1, 1
+                q_real = real(q, rk)
+                if (nint(Sigma_bra - Sigma_ket) /= q) cycle
+                reduced_M2 = reduced_M2 + sqrt(10.0_rk/3.0_rk) &
+                    * rotational_factor * spin_factor * get_sign(q_real) &
+                    * Wigner3j(J_bra, 1.0_rk, J_ket, -Omega_bra, q_real, Omega_ket) &
+                    * Wigner3j(1.0_rk, 2.0_rk, 1.0_rk, q_real, 0.0_rk, -q_real) &
+                    * Wigner3j(S_bra, 1.0_rk, S_ket, -Sigma_bra, q_real, Sigma_ket)
+            end do
+        case (4) ! d: Lambda = +/-1 components of a Pi state
+            if (abs(Lambda_bra) /= 1 .or. Lambda_ket /= -Lambda_bra) return
+            do q = -1, 1, 2
+                q_real = real(q, rk)
+                if (Lambda_bra - Lambda_ket /= 2*q) cycle
+                if (nint(Sigma_bra - Sigma_ket) /= -q) cycle
+                reduced_M2 = reduced_M2 - sqrt(5.0_rk) &
+                    * rotational_factor * spin_factor * get_sign(q_real) &
+                    * Wigner3j(J_bra, 1.0_rk, J_ket, -Omega_bra, q_real, Omega_ket) &
+                    * Wigner3j(1.0_rk, 2.0_rk, 1.0_rk, -q_real, 2.0_rk*q_real, -q_real) &
+                    * Wigner3j(S_bra, 1.0_rk, S_ket, -Sigma_bra, -q_real, Sigma_ket)
+            end do
+        end select
+
+        ! recouple the rovibronic rank-one tensor through F1 and I2.
+        ! In particular, the phase contains J_bra and twice F1_ket.
+        H_MD = get_sign(1.0_rk + J_bra + I1 + I2 + 2.0_rk*F1_ket + Ftot) &
+            * Wigner6j(J_ket, F1_ket, I1, F1_bra, J_bra, 1.0_rk) &
+            * Wigner6j(I2, F1_ket, Ftot, F1_bra, I2, 1.0_rk) &
+            * sqrt((2.0_rk*F1_bra + 1.0_rk)*(2.0_rk*F1_ket + 1.0_rk)) &
+            * sqrt(I2*(I2 + 1.0_rk)*(2.0_rk*I2 + 1.0_rk)) &
+            * reduced_M2 * hfcc2(index_hfcc2)%field(index_field)%matelem(index_v_bra, index_v_ket)
+    end function H2_MD_element
 
     function H2_IJ_element( &
         Ftot, index_field, index_v_bra, index_v_ket, &
