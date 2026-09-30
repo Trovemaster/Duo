@@ -1248,6 +1248,11 @@ contains
                         Ftot, index_field, index_v_bra, index_v_ket, &
                         Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket)
+        else if (index_hfcc2 >= 6 .and. index_hfcc2 <= 7) then
+            H_hfs = H2_EQQ_element( &
+                        Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
+                        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket)
         end if
     end function primitive_F1F_hyperfine_matrix_element_h2
 
@@ -2797,6 +2802,60 @@ contains
                 * rank1_reduced_matrix_element_I2
         end if
     end function H2_IJ_element
+
+    function H2_EQQ_element( &
+        Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket) &
+        result(H_EQ)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_hfcc2, index_field, index_v_bra, index_v_ket, &
+                                   Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Ftot, F1_bra, F1_ket, &
+                                S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_EQ, normalization
+        INTEGER(ik) :: q, q_min, q_max, q_step
+
+        ! Nucleus-2 electric quadrupole interaction in the coupling scheme
+        ! F1 = J + I1, F = F1 + I2. 
+        H_EQ = 0.0_rk
+        if (I2 < 1.0_rk) return
+        if (abs(J_bra - J_ket) > 2.0_rk .or. abs(F1_bra - F1_ket) > 2.0_rk) return
+
+        if (index_hfcc2 == 6) then
+            q_min = 0
+            q_max = 0
+            q_step = 1
+            normalization = 4.0_rk
+        else if (index_hfcc2 == 7) then
+            q_min = -2
+            q_max = 2
+            q_step = 4
+            normalization = 4.0_rk*sqrt(6.0_rk) ! Brown--Carrington convention for eQq2.
+        end if
+
+        do q = q_min, q_max, q_step
+            if ( (Lambda_ket == Lambda_bra - q) &
+                .and. (nint(S_bra - S_ket) == 0) &
+                .and. (nint(Sigma_bra - Sigma_ket) == 0) &
+                .and. (nint(Omega_bra - Omega_ket) == q) ) then
+                H_EQ = H_EQ &
+                    + get_sign(J_bra + I1 + I2 + 2.0_rk*F1_ket + Ftot + 2.0_rk) &
+                    * get_sign(J_bra - Omega_bra) &
+                    * Wigner6j(J_ket, F1_ket, I1, F1_bra, J_bra, 2.0_rk) &
+                    * Wigner6j(I2, F1_ket, Ftot, F1_bra, I2, 2.0_rk) &
+                    * sqrt((2.0_rk*F1_bra + 1.0_rk)*(2.0_rk*F1_ket + 1.0_rk)) &
+                    * sqrt((2.0_rk*J_bra + 1.0_rk)*(2.0_rk*J_ket + 1.0_rk)) &
+                    * Wigner3j(J_bra, 2.0_rk, J_ket, -Omega_bra, real(q, rk), Omega_ket) &
+                    / Wigner3j(I2, 2.0_rk, I2, -I2, 0.0_rk, I2) &
+                    * hfcc2(index_hfcc2)%field(index_field)%matelem(index_v_bra, index_v_ket) &
+                    / normalization
+            end if
+        end do
+    end function H2_EQQ_element
 
     function H12_II_element( &
         Ftot, F1_bra, F1_ket, index_field, index_v_bra, index_v_ket, &
