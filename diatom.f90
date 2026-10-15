@@ -25,7 +25,7 @@ module diatom_module
   ! Type to describe different terms from the hamiltonian, e.g. potential energy, spin-orbit, <L^2>, <Lx>, <Ly> functions.
   !
   integer(ik),parameter   :: verbose=5
-  integer(ik),parameter   :: Nobjects = 46  ! number of different terms of the Hamiltonian
+  integer(ik),parameter   :: Nobjects = 51  ! number of different terms of the Hamiltonian
   !                                          (poten,spinorbit,L2,LxLy,spinspin,spinspino,bobrot,spinrot,diabatic,
   !                                             lambda-opq,lambda-p2q)
   !
@@ -63,18 +63,22 @@ module diatom_module
   !        case (23) hfcc1(3) for nucleus-1 nuclear dipole - spin dipole, c
   !        case (24) hfcc1(4) for nucleus-1 nuclear dipole - spin dipole, d
   !        case (25) hfcc1(5) for nucleus-1 nuclear spin - rotation, cI
-  !        case (26) hfcc1(6) for nucleus-1 electric quadrupole, eQq0
-  !        case (27) hfcc1(7) for nucleus-1 electric quadrupole, eQq2
-  !        case (28) hfcc12(1) for dipolar nuclear spin - spin, ii
+  !        case (26) hfcc1(6) for nucleus-1 nuclear spin - rotation, cIp
+  !        case (27) hfcc1(7) for nucleus-1 electric quadrupole, eQq0
+  !        case (28) hfcc1(8) for nucleus-1 electric quadrupole, eQq2
   !        case (29 - 30) reserved
   !        case (31) hfcc2(1) for nucleus-2 Fermi contact, bF
   !        case (32) hfcc2(2) for nucleus-2 nuclear spin - orbit, a
   !        case (33) hfcc2(3) for nucleus-2 nuclear dipole - spin dipole, c
   !        case (34) hfcc2(4) for nucleus-2 nuclear dipole - spin dipole, d
   !        case (35) hfcc2(5) for nucleus-2 nuclear spin - rotation, cI
-  !        case (36) hfcc2(6) for nucleus-2 electric quadrupole, eQq0
-  !        case (37) hfcc2(7) for nucleus-2 electric quadrupole, eQq2
-  !        case (38 - 40) reserved
+  !        case (36) hfcc2(6) for nucleus-2 nuclear spin - rotation, cIp
+  !        case (37) hfcc2(7) for nucleus-2 electric quadrupole, eQq0
+  !        case (38) hfcc2(8) for nucleus-2 electric quadrupole, eQq2
+  !        case (39 - 40) reserved
+  !        case (41) hfcc12(1) for dipolar nuclear spin - spin, ii
+  !        case (42) hfcc12(2) for scalar nuclear spin - spin, iis
+  !        case (43 - 45) reserved
   !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
@@ -95,10 +99,9 @@ module diatom_module
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
     "BOBVIB", "", "", "", "", "", "", & ! reserved
-    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "HFCC-II-12", &
-    "", "", & ! reserved
-    "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
-    "", "", "", & ! reserved
+    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "", "", & ! reserved
+    "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", "", "", & ! reserved
+    "HFCC-II-12", "HFCC-IIS", "", "", "", & ! reserved
     "MAGNETROT",&
     "MAGNETIC",&
     "QUADRUPOLE", &
@@ -607,8 +610,8 @@ module diatom_module
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
   type(hyperfine_setup_T) :: hyperfine_setup
-  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 7
-  integer(ik), parameter :: GLOBAL_NUM_HFCC12_OBJECT = 1
+  integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 8
+  integer(ik), parameter :: GLOBAL_NUM_HFCC12_OBJECT = 2
   type(FieldListT), target :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
   type(FieldListT), target :: hfcc2(GLOBAL_NUM_HFCC_OBJECT)
   type(FieldListT), target :: hfcc12(GLOBAL_NUM_HFCC12_OBJECT)
@@ -1829,10 +1832,10 @@ contains
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
            "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
-           "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
-           "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
-           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2", &
-           "HFCC-II", "HFCC-II-DIPOLE")
+           "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
+           "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
+           "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-CIP", "HFCC-EQQ0", "HFCC-EQQ2", &
+           "HFCC-II", "HFCC-II-D", "HFCC-II-DIPOLE", "HFCC-IIS", "HFCC-II-SCALAR")
         !
         ibraket = 0
         !
@@ -2152,16 +2155,16 @@ contains
           call input_hfcc_field(hfcc1(5), 25, ierr)
           if (ierr /= 0) cycle
           !!
-        case("HFCC-EQQ0", "HFCC-EQQ0-1")
+        case("HFCC-CIP", "HFCC-CIP-1")
           call input_hfcc_field(hfcc1(6), 26, ierr)
           if (ierr /= 0) cycle
           !!
-        case("HFCC-EQQ2", "HFCC-EQQ2-1")
+        case("HFCC-EQQ0", "HFCC-EQQ0-1")
           call input_hfcc_field(hfcc1(7), 27, ierr)
           if (ierr /= 0) cycle
           !!
-        case("HFCC-II", "HFCC-II-DIPOLE")
-          call input_hfcc_field(hfcc12(1), 28, ierr)
+        case("HFCC-EQQ2", "HFCC-EQQ2-1")
+          call input_hfcc_field(hfcc1(8), 28, ierr)
           if (ierr /= 0) cycle
           !!
         case("HFCC-BF-2")
@@ -2184,12 +2187,24 @@ contains
           call input_hfcc_field(hfcc2(5), 35, ierr)
           if (ierr /= 0) cycle
           !!
-        case("HFCC-EQQ0-2")
+        case("HFCC-CIP-2")
           call input_hfcc_field(hfcc2(6), 36, ierr)
           if (ierr /= 0) cycle
           !!
-        case("HFCC-EQQ2-2")
+        case("HFCC-EQQ0-2")
           call input_hfcc_field(hfcc2(7), 37, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-EQQ2-2")
+          call input_hfcc_field(hfcc2(8), 38, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-II", "HFCC-II-D", "HFCC-II-DIPOLE")
+          call input_hfcc_field(hfcc12(1), 41, ierr)
+          if (ierr /= 0) cycle
+          !!
+        case("HFCC-IIS", "HFCC-II-SCALAR")
+          call input_hfcc_field(hfcc12(2), 42, ierr)
           if (ierr /= 0) cycle
           !!
         !! end of hyperfine coupling constant/curve (hfcc)
@@ -4902,12 +4917,12 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27)
+        case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
-        case (28)
-          field => hfcc12(1)%field(iterm)
-        case (31, 32, 33, 34, 35, 36, 37)
+        case (31, 32, 33, 34, 35, 36, 37, 38)
           field => hfcc2(iobject - 30)%field(iterm)
+        case (41, 42)
+          field => hfcc12(iobject - 40)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
         case (Nobjects-4)
@@ -5438,12 +5453,12 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
-        case (21, 22, 23, 24, 25, 26, 27)
+        case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
-        case (28)
-          field => hfcc12(1)%field(iterm)
-        case (31, 32, 33, 34, 35, 36, 37)
+        case (31, 32, 33, 34, 35, 36, 37, 38)
           field => hfcc2(iobject - 30)%field(iterm)
+        case (41, 42)
+          field => hfcc12(iobject - 40)%field(iterm)
         case (Nobjects-5)
           field => magnetrot(iterm)
         case (Nobjects-4)

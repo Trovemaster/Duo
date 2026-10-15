@@ -5,7 +5,7 @@ module F1_hyperfine
     use symmetry, only : sym, correlate_to_Cs 
     use diatom_module, only: basis, three_j, faclog, eigen, jmax, job,&
                             vibrational_totalroots, vibrational_contrfunc, vibrational_quantum_number, &
-                            hfcc1, hfcc2, hfcc12, hyperfine_setup, GLOBAL_NUM_HFCC_OBJECT, poten, &
+                            hfcc1, hfcc2, hfcc12, hyperfine_setup, GLOBAL_NUM_HFCC_OBJECT, GLOBAL_NUM_HFCC12_OBJECT, poten, &
                             symbol1, symbol2, Nspin1, Nspin2 , &
                             eigenT, basisT, quantaT, fieldT, linkT
 
@@ -576,7 +576,7 @@ contains
                     
         INTEGER(ik) :: state_bra, state_ket, bra, ket, v_bra, v_ket, &
                        index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
-        INTEGER(ik) :: Ndimen_Ftot, index_hfcc1, index_field
+        INTEGER(ik) :: Ndimen_Ftot, index_hfcc1, index_hfcc12, index_field
 
         primitive_IF_hyperfine_matrix = 0
 
@@ -612,19 +612,31 @@ contains
                         end do                  
                     end do
 
-                    do index_field = 1, hfcc12(1)%num_field
-                        if ( (state_bra == hfcc12(1)%field(index_field)%istate) &
-                            .and. (state_ket == hfcc12(1)%field(index_field)%jstate)) then
+                    do index_hfcc12 = 1, GLOBAL_NUM_HFCC12_OBJECT
+                        do index_field = 1, hfcc12(index_hfcc12)%num_field
+                            if ( (state_bra == hfcc12(index_hfcc12)%field(index_field)%istate) &
+                                .and. (state_ket == hfcc12(index_hfcc12)%field(index_field)%jstate)) then
 
-                            primitive_IF_hyperfine_matrix(bra, ket) = &
-                                primitive_IF_hyperfine_matrix(bra, ket) &
-                                + Heq_II_element( &
-                                    Ftot, Itot_bra, Itot_ket, index_field, &
-                                    index_v_bra, index_v_ket, &
-                                    Lambda_bra, Lambda_ket, &
-                                    S_bra, S_ket, Sigma_bra, Sigma_ket, &
-                                    J_bra, J_ket, Omega_bra, Omega_ket)
-                        end if
+                                select case (index_hfcc12)
+                                case (1)
+                                    primitive_IF_hyperfine_matrix(bra, ket) = &
+                                        primitive_IF_hyperfine_matrix(bra, ket) &
+                                        + Heq_II_element( &
+                                            Ftot, Itot_bra, Itot_ket, index_field, &
+                                            index_v_bra, index_v_ket, &
+                                            Lambda_bra, Lambda_ket, &
+                                            S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                            J_bra, J_ket, Omega_bra, Omega_ket)
+                                case (2)
+                                    primitive_IF_hyperfine_matrix(bra, ket) = &
+                                        primitive_IF_hyperfine_matrix(bra, ket) &
+                                        + Heq_IIS_element( &
+                                            Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket, &
+                                            Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                            J_bra, J_ket, Omega_bra, Omega_ket)
+                                end select
+                            end if
+                        end do
                     end do
 
                 end if
@@ -685,12 +697,18 @@ contains
                         S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket) 
         else if (index_hfcc1 == 6) then
+            H_hfs = Heq_CIp_element( &
+                        Ftot, Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket, &
+                        Lambda_bra, Lambda_ket, &
+                        S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket)
+        else if (index_hfcc1 == 7) then
             H_hfs = Heq_EQQ0_element( &        
                         Ftot, Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket,  &
                         Lambda_bra, Lambda_ket, &
                         S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket)
-        else if (index_hfcc1 == 7) then
+        else if (index_hfcc1 == 8) then
             H_hfs = Heq_EQQ2_element( &        
                         Ftot, Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket,  &
                         Lambda_bra, Lambda_ket, &
@@ -1151,7 +1169,7 @@ contains
                     J_bra, J_ket, Omega_bra, Omega_ket
         INTEGER(ik) :: state_bra, state_ket, bra, ket, v_bra, v_ket, &
                        index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
-        INTEGER(ik) :: Ndimen_Ftot, index_hfcc, index_field
+        INTEGER(ik) :: Ndimen_Ftot, index_hfcc, index_hfcc12, index_field
 
         primitive_F1F_hyperfine_matrix = 0.0_rk
 
@@ -1201,19 +1219,31 @@ contains
                         end do
                     end do
 
-                    do index_field = 1, hfcc12(1)%num_field
-                        if ( (state_bra == hfcc12(1)%field(index_field)%istate) &
-                            .and. (state_ket == hfcc12(1)%field(index_field)%jstate)) then
+                    do index_hfcc12 = 1, GLOBAL_NUM_HFCC12_OBJECT
+                        do index_field = 1, hfcc12(index_hfcc12)%num_field
+                            if ( (state_bra == hfcc12(index_hfcc12)%field(index_field)%istate) &
+                                .and. (state_ket == hfcc12(index_hfcc12)%field(index_field)%jstate)) then
 
-                            primitive_F1F_hyperfine_matrix(bra, ket) = &
-                                primitive_F1F_hyperfine_matrix(bra, ket) &
-                                + H12_II_element( &
-                                    Ftot, F1_bra, F1_ket, index_field, &
-                                    index_v_bra, index_v_ket, &
-                                    Lambda_bra, Lambda_ket, &
-                                    S_bra, S_ket, Sigma_bra, Sigma_ket, &
-                                    J_bra, J_ket, Omega_bra, Omega_ket)
-                        end if
+                                select case (index_hfcc12)
+                                case (1)
+                                    primitive_F1F_hyperfine_matrix(bra, ket) = &
+                                        primitive_F1F_hyperfine_matrix(bra, ket) &
+                                        + H12_II_element( &
+                                            Ftot, F1_bra, F1_ket, index_field, &
+                                            index_v_bra, index_v_ket, &
+                                            Lambda_bra, Lambda_ket, &
+                                            S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                            J_bra, J_ket, Omega_bra, Omega_ket)
+                                case (2)
+                                    primitive_F1F_hyperfine_matrix(bra, ket) = &
+                                        primitive_F1F_hyperfine_matrix(bra, ket) &
+                                        + H12_IIS_element( &
+                                            Ftot, F1_bra, F1_ket, index_field, index_v_bra, index_v_ket, &
+                                            Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                            J_bra, J_ket, Omega_bra, Omega_ket)
+                                end select
+                            end if
+                        end do
                     end do
 
                 end if
@@ -1248,7 +1278,12 @@ contains
                         Ftot, index_field, index_v_bra, index_v_ket, &
                         Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket)
-        else if (index_hfcc2 >= 6 .and. index_hfcc2 <= 7) then
+        else if (index_hfcc2 == 6) then
+            H_hfs = H2_CIp_element( &
+                        Ftot, index_field, index_v_bra, index_v_ket, &
+                        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket)
+        else if (index_hfcc2 >= 7 .and. index_hfcc2 <= 8) then
             H_hfs = H2_EQQ_element( &
                         Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
                         Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
@@ -1526,22 +1561,24 @@ contains
             end do
         end do
 
-        do index_field = 1, hfcc12(1)%num_field
-            field => hfcc12(1)%field(index_field)
-            allocate(field%matelem(vibrational_totalroots,vibrational_totalroots),stat=alloc)
-            if (iverbose>=4) write(out, '(A4, A)') '', trim(field%name)
-            do ilevel = 1, vibrational_totalroots
-                do jlevel = 1, ilevel
+        do index_object = 1, GLOBAL_NUM_HFCC12_OBJECT
+            do index_field = 1, hfcc12(index_object)%num_field
+                field => hfcc12(index_object)%field(index_field)
+                allocate(field%matelem(vibrational_totalroots,vibrational_totalroots),stat=alloc)
+                if (iverbose>=4) write(out, '(A4, A)') '', trim(field%name)
+                do ilevel = 1, vibrational_totalroots
+                    do jlevel = 1, ilevel
 
-                field%matelem(ilevel,jlevel)  = &
-                    sum(vibrational_contrfunc(:,ilevel) &
-                        *(field%gridvalue(:)) &
-                        *vibrational_contrfunc(:,jlevel))
+                    field%matelem(ilevel,jlevel)  = &
+                        sum(vibrational_contrfunc(:,ilevel) &
+                            *(field%gridvalue(:)) &
+                            *vibrational_contrfunc(:,jlevel))
 
-                field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                    field%matelem(jlevel,ilevel) = field%matelem(ilevel,jlevel)
+                    end do
                 end do
+                if (iverbose>=4) write(out, '(A4, A/)') '', '... done'
             end do
-            if (iverbose>=4) write(out, '(A4, A/)') '', '... done'
         end do
 
         write(out, '(A2, A/)') '', "End: hyperfine constants under the vibrational bases"
@@ -1897,12 +1934,18 @@ contains
                         S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket) 
         else if (index_hfcc1 == 6) then
+            H_hfs = H_CIp_element( &
+                        F1, index_field, index_v_bra, index_v_ket, &
+                        Lambda_bra, Lambda_ket, &
+                        S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                        J_bra, J_ket, Omega_bra, Omega_ket)
+        else if (index_hfcc1 == 7) then
             H_hfs = H_EQQ0_element( &        
                         F1, index_field, index_v_bra, index_v_ket,  &
                         Lambda_bra, Lambda_ket, &
                         S_bra, S_ket, Sigma_bra, Sigma_ket, &
                         J_bra, J_ket, Omega_bra, Omega_ket)
-        else if (index_hfcc1 == 7) then
+        else if (index_hfcc1 == 8) then
             H_hfs = H_EQQ2_element( &        
                         F1, index_field, index_v_bra, index_v_ket,  &
                         Lambda_bra, Lambda_ket, &
@@ -2240,6 +2283,34 @@ contains
         end if
 
     end function H_IJ_element
+
+    function H_CIp_element( &
+        F1, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, &
+        S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket) &
+        result(H_CIp)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_field, index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: F1, &
+                                S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_CIp, reduced_A1
+
+        ! Off-diagonal nuclear spin-rotation for nucleus 1
+        reduced_A1 = rank1_reduced_matrix_element_A1( &
+            Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+            J_bra, J_ket, Omega_bra, Omega_ket)
+
+        H_CIp = get_sign(J_ket + I1 + F1) &
+            * Wigner6j(I1, J_bra, F1, J_ket, I1, 1.0_rk) &
+            * sqrt(I1*(I1 + 1.0_rk)*(2.0_rk*I1 + 1.0_rk)) &
+            * reduced_A1 &
+            * hfcc1(6)%field(index_field)%matelem(index_v_bra, index_v_ket)
+
+    end function H_CIp_element
     
     function H_EQQ0_element( &        
         F1, index_field, index_v_bra, index_v_ket, &
@@ -2295,7 +2366,7 @@ contains
                 * get_sign(J_bra - Omega_bra) &
                 * Wigner3j(J_bra, 2.0_rk, J_ket, -Omega_bra, REAL(p, rk), Omega_ket) &
                 * sqrt((2.0_rk * J_bra + 1.0_rk) * (2.0_rk * J_ket + 1.0_rk)) &
-                * hfcc1(6)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-2.0_rk)
+                * hfcc1(7)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-2.0_rk)
         end if
     end function H_EQQ0_element
 
@@ -2353,7 +2424,7 @@ contains
                     * get_sign(J_bra - Omega_bra) &
                     * Wigner3j(J_bra, 2.0_rk, J_ket, -Omega_bra, REAL(p, rk), Omega_ket) &
                     * sqrt((2.0_rk * J_bra + 1.0_rk) * (2.0_rk * J_ket + 1.0_rk)) &
-                    * hfcc1(7)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-sqrt(24.0_rk))
+                    * hfcc1(8)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-sqrt(24.0_rk))
                 exit
             end if
         end do
@@ -2577,6 +2648,36 @@ contains
         end if
     end function Heq_IJ_element
 
+    function Heq_CIp_element( &
+        Ftot, Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, &
+        S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket) &
+        result(H_CIp)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_field, index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Ftot, Itot_bra, Itot_ket, &
+                                S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_CIp, reduced_A1
+
+        H_CIp = 0.0_rk
+        if (nint(Itot_bra - Itot_ket) /= 0) return
+
+        reduced_A1 = rank1_reduced_matrix_element_A1( &
+            Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+            J_bra, J_ket, Omega_bra, Omega_ket)
+
+        H_CIp = get_sign(J_ket + Itot_bra + Ftot) &
+            * Wigner6j(Itot_bra, J_bra, Ftot, J_ket, Itot_ket, 1.0_rk) &
+            * sqrt(Itot_bra*(Itot_bra + 1.0_rk)*(2.0_rk*Itot_bra + 1.0_rk)) &
+            * reduced_A1 &
+            * hfcc1(6)%field(index_field)%matelem(index_v_bra, index_v_ket)
+
+    end function Heq_CIp_element
+
     function Heq_EQQ0_element( &
         Ftot, Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket, &
         Lambda_bra, Lambda_ket, &
@@ -2608,7 +2709,7 @@ contains
                 * Wigner6j(I1, Itot_bra, I1, Itot_ket, I1, 2.0_rk) &            ! { I1 I  I1; I' I1 2 }
                 * sqrt( (2.0_rk*Itot_bra + 1.0_rk) * (2.0_rk*Itot_ket + 1.0_rk) ) &
                 / Wigner3j(I1, 2.0_rk, I1, -I1, 0.0_rk, I1) &                  ! ( I1 2 I1; -I1 0 I1 )^{-1}
-                * hfcc1(6)%field(index_field)%matelem(index_v_bra, index_v_ket)/4.0_rk
+                * hfcc1(7)%field(index_field)%matelem(index_v_bra, index_v_ket)/4.0_rk
         end if
     end function Heq_EQQ0_element
 
@@ -2644,7 +2745,7 @@ contains
                     * Wigner6j(I1, Itot_bra, I1, Itot_ket, I1, 2.0_rk) &            ! { I1 I  I1; I' I1 2 }
                     * sqrt( (2.0_rk*Itot_bra + 1.0_rk) * (2.0_rk*Itot_ket + 1.0_rk) ) &
                     / Wigner3j(I1, 2.0_rk, I1, -I1, 0.0_rk, I1) &                  ! ( I1 2 I1; -I1 0 I1 )^{-1}
-                    * hfcc1(7)%field(index_field)%matelem(index_v_bra, index_v_ket)/(4.0_rk*sqrt(6.0_rk))
+                    * hfcc1(8)%field(index_field)%matelem(index_v_bra, index_v_ket)/(4.0_rk*sqrt(6.0_rk))
             end if
         end do
     end function Heq_EQQ2_element
@@ -2682,6 +2783,31 @@ contains
                 * hfcc12(1)%field(index_field)%matelem(index_v_bra, index_v_ket)
         end if 
     end function Heq_II_element
+
+    function Heq_IIS_element( &
+        Itot_bra, Itot_ket, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket) result(H_IIS)
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_field, index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Itot_bra, Itot_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_IIS
+
+        H_IIS = 0.0_rk
+        ! c4(R) I1.I2 in the (I1 I2)I, J -> F basis; here I2 = I1.
+        ! Angular factor from Brown & Carrington, Eq. (8.177)
+        if ( (Lambda_bra == Lambda_ket) &
+            .and. (nint(S_bra - S_ket) == 0) &
+            .and. (nint(Sigma_bra - Sigma_ket) == 0) &
+            .and. (nint(J_bra - J_ket) == 0) &
+            .and. (nint(Omega_bra - Omega_ket) == 0) &
+            .and. (nint(Itot_bra - Itot_ket) == 0) ) then
+            H_IIS = 0.5_rk * (Itot_bra*(Itot_bra + 1.0_rk) - 2.0_rk*I1*(I1 + 1.0_rk)) &
+                * hfcc12(2)%field(index_field)%matelem(index_v_bra, index_v_ket)
+        end if
+    end function Heq_IIS_element
 
     function H2_MD_element( &
         Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
@@ -2803,6 +2929,36 @@ contains
         end if
     end function H2_IJ_element
 
+    function H2_CIp_element( &
+        Ftot, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket, F1_bra, F1_ket) &
+        result(H_CIp)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_field, index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Ftot, F1_bra, F1_ket, &
+                                S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_CIp, reduced_A1
+
+        ! Off-diagonal nuclear spin-rotation for nucleus 2
+
+        reduced_A1 = rank1_reduced_matrix_element_A1( &
+            Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+            J_bra, J_ket, Omega_bra, Omega_ket)
+
+        H_CIp = get_sign(1.0_rk + J_bra + I1 + I2 + 2.0_rk*F1_ket + Ftot) &
+            * Wigner6j(J_ket, F1_ket, I1, F1_bra, J_bra, 1.0_rk) &
+            * Wigner6j(I2, F1_ket, Ftot, F1_bra, I2, 1.0_rk) &
+            * sqrt((2.0_rk*F1_bra + 1.0_rk)*(2.0_rk*F1_ket + 1.0_rk)) &
+            * sqrt(I2*(I2 + 1.0_rk)*(2.0_rk*I2 + 1.0_rk)) &
+            * reduced_A1 &
+            * hfcc2(6)%field(index_field)%matelem(index_v_bra, index_v_ket)
+
+    end function H2_CIp_element
+
     function H2_EQQ_element( &
         Ftot, index_hfcc2, index_field, index_v_bra, index_v_ket, &
         Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
@@ -2825,12 +2981,12 @@ contains
         if (I2 < 1.0_rk) return
         if (abs(J_bra - J_ket) > 2.0_rk .or. abs(F1_bra - F1_ket) > 2.0_rk) return
 
-        if (index_hfcc2 == 6) then
+        if (index_hfcc2 == 7) then
             q_min = 0
             q_max = 0
             q_step = 1
             normalization = 4.0_rk
-        else if (index_hfcc2 == 7) then
+        else if (index_hfcc2 == 8) then
             q_min = -2
             q_max = 2
             q_step = 4
@@ -2889,6 +3045,100 @@ contains
                 * hfcc12(1)%field(index_field)%matelem(index_v_bra, index_v_ket)
         end if
     end function H12_II_element
+
+    function H12_IIS_element( &
+        Ftot, F1_bra, F1_ket, index_field, index_v_bra, index_v_ket, &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket) result(H_IIS)
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: index_field, index_v_bra, index_v_ket, Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: Ftot, F1_bra, F1_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        REAL(rk) :: H_IIS
+
+        H_IIS = 0.0_rk
+        ! c4(R) I1.I2 in the (J I1)F1, I2 -> F basis; F1 need not be conserved.
+        ! Angular factor from Brown & Carrington, Eq. (8.295)
+        if ( (Lambda_bra == Lambda_ket) &
+            .and. (nint(S_bra - S_ket) == 0) &
+            .and. (nint(Sigma_bra - Sigma_ket) == 0) &
+            .and. (nint(J_bra - J_ket) == 0) &
+            .and. (nint(Omega_bra - Omega_ket) == 0) ) then
+            H_IIS = get_sign(F1_ket + Ftot + I2) &
+                * get_sign(F1_bra + J_ket + 1.0_rk + I1) &
+                * sqrt((2.0_rk*F1_bra + 1.0_rk)*(2.0_rk*F1_ket + 1.0_rk)) &
+                * Wigner6j(I2, F1_ket, Ftot, F1_bra, I2, 1.0_rk) &
+                * Wigner6j(I1, F1_ket, J_bra, F1_bra, I1, 1.0_rk) &
+                * sqrt(I1*(I1 + 1.0_rk)*(2.0_rk*I1 + 1.0_rk) &
+                    * I2*(I2 + 1.0_rk)*(2.0_rk*I2 + 1.0_rk)) &
+                * hfcc12(2)%field(index_field)%matelem(index_v_bra, index_v_ket)
+        end if
+    end function H12_IIS_element
+
+    function rank1_reduced_matrix_element_A1( &
+        Lambda_bra, Lambda_ket, S_bra, S_ket, Sigma_bra, Sigma_ket, &
+        J_bra, J_ket, Omega_bra, Omega_ket) &
+        result(reduced_A1)
+
+        implicit none
+
+        INTEGER(ik), INTENT(IN) :: Lambda_bra, Lambda_ket
+        REAL(rk), INTENT(IN) :: S_bra, S_ket, Sigma_bra, Sigma_ket, &
+                                J_bra, J_ket, Omega_bra, Omega_ket
+        INTEGER(ik) :: q, double_omega, double_omega_min, double_omega_max
+        REAL(rk) :: reduced_A1, q_real, Omega_intermediate, &
+                    term_J_bra, term_J_ket
+
+        ! For off-diagonal nuclear spin-rotation; excludes the C_I' radial integral and nuclear-spin coupling factors
+        ! see Eq. (A10) from Brown, Kaise, Kerr and Milton, Molecular Physics 36, 553-582 (1978)
+        ! q retains the molecular-fixed component label of the original operator 
+        
+        reduced_A1 = 0.0_rk
+        if (nint(S_bra - S_ket) /= 0) return
+        if (nint(Sigma_bra - Sigma_ket) /= 0) return
+        if (abs(J_bra - J_ket) > 1.0_rk + small_) return
+
+        do q = -1, 1, 2
+            if (Lambda_bra /= Lambda_ket - 2*q) cycle
+            if (nint(Omega_bra - Omega_ket) /= -2*q) cycle
+            q_real = real(q, rk)
+
+            term_J_ket = 0.0_rk
+            double_omega_min = -nint(2.0_rk*J_ket)
+            double_omega_max =  nint(2.0_rk*J_ket)
+            do double_omega = double_omega_min, double_omega_max, 2
+                Omega_intermediate = 0.5_rk*real(double_omega, rk)
+                term_J_ket = term_J_ket &
+                    + sqrt(J_ket*(J_ket + 1.0_rk)*(2.0_rk*J_ket + 1.0_rk)) &
+                    * get_sign(J_ket - Omega_intermediate) &
+                    * Wigner3j(J_bra, 1.0_rk, J_ket, &
+                               -Omega_bra, -q_real, Omega_intermediate) &
+                    * Wigner3j(J_ket, 1.0_rk, J_ket, &
+                               -Omega_intermediate, -q_real, Omega_ket)
+            end do
+
+            term_J_bra = 0.0_rk
+            double_omega_min = -nint(2.0_rk*J_bra)
+            double_omega_max =  nint(2.0_rk*J_bra)
+            do double_omega = double_omega_min, double_omega_max, 2
+                Omega_intermediate = 0.5_rk*real(double_omega, rk)
+                term_J_bra = term_J_bra &
+                    + sqrt(J_bra*(J_bra + 1.0_rk)*(2.0_rk*J_bra + 1.0_rk)) &
+                    * get_sign(J_bra - Omega_intermediate) &
+                    * Wigner3j(J_bra, 1.0_rk, J_bra, &
+                               -Omega_bra, -q_real, Omega_intermediate) &
+                    * Wigner3j(J_bra, 1.0_rk, J_ket, &
+                               -Omega_intermediate, -q_real, Omega_ket)
+            end do
+
+            reduced_A1 = reduced_A1 - 0.5_rk &
+                * get_sign(J_bra - Omega_bra) &
+                * sqrt((2.0_rk*J_bra + 1.0_rk)*(2.0_rk*J_ket + 1.0_rk)) &
+                * (term_J_ket + term_J_bra)
+        end do
+
+    end function rank1_reduced_matrix_element_A1
 
     function Wigner9j(j11, j12, j13, j21, j22, j23, j31, j32, j33) result(w9j)
         implicit none
