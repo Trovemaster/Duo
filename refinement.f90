@@ -100,6 +100,20 @@ module refinement
       logical :: printed ! used to print frequencies
       real(rk),allocatable    :: spline_wk_vec(:) ! working vector needed for spline interpolation
       real(rk) :: yp1, ypn
+      !
+      ! Variables for QN-tracked finite differences & Marquardt lambda-grid line search
+      type(quantaT),allocatable :: calcR(:,:,:),calcL(:,:,:),calc_cand(:,:,:),calc_best(:,:,:)
+      integer(ik),allocatable   :: nenergiesR(:,:),nenergiesL(:,:),nenergies_cand(:,:),nenergies_best(:,:)
+      real(rk),allocatable      :: energy_cand(:,:,:),energy_best(:,:,:),am0(:,:),bm0(:),dx_cand(:),best_dx(:)
+      integer(ik),allocatable   :: obs_N_save(:),obs_N_low_save(:),base_turns(:,:),base_imin(:,:)
+      real(rk),allocatable      :: base_maxabs(:,:)
+      logical,allocatable       :: field_has_fit(:,:)
+      integer(ik)               :: iR,iL,kswap,icand,ncand,min_eval_cands,nsvd_max,NumSVD_try,best_NumSVD,tested_nkeep(7)
+      logical                   :: qn_matchR,qn_matchL,have_cached_step,use_lm_linesearch,step_accepted,is_regular,converged_lm
+      real(rk)                  :: ssq0,best_ssq,ssq_cand,rms_ener_cand,best_rms_ener,ssq1_before,best_lambda,lambda_try
+      real(rk)                  :: lambda_cand(7),svd_tol_cand(7),svd_scale_cand(7),tested_scale(7)
+      real(rk)                  :: w_sqrt,tol_cut,best_svd_tol,best_svd_scale
+      real(rk),allocatable      :: s_svd(:),ut_weps(:),vt_svd(:,:),w_eps(:),spline_wk_abi(:)
        !
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
@@ -155,7 +169,7 @@ module refinement
        npts = en_npts + pot_npts
        !
        allocate (r(pot_npts),stat=info)
-       call ArrayStart('coords-mat',info,size(local),kind(local))
+       call ArrayStart('coords-mat',info,size(r),kind(r))
        !
        ! count all parameters used to define different fields 
        !
@@ -232,6 +246,9 @@ module refinement
        nroots_max = (vmax_+1)*Nestates*2*(2*nint(sigmai)+1)/2+1
        allocate (energy_(nrot,2,nroots_max),calc(nrot,2,nroots_max),stat=info)
        call ArrayStart('energy_',info,size(energy_),kind(energy_))
+       allocate (energy_cand(nrot,2,nroots_max),energy_best(nrot,2,nroots_max),stat=info)
+       allocate (calc_cand(nrot,2,nroots_max),calc_best(nrot,2,nroots_max),stat=info)
+       allocate (nenergiesR(nrot,2),nenergiesL(nrot,2),nenergies_cand(nrot,2),nenergies_best(nrot,2),stat=info)
        !
        ! Allocate objects, that will be used for the fitting procedure:
        !
@@ -240,7 +257,8 @@ module refinement
        call ArrayStart('eps',info,size(eps),kind(eps))
        call ArrayStart('fit-ener-deriv',info,size(deriv),kind(deriv))
        !
-       allocate (params_t(parmax),stat=info)
+       allocate (params_t(parmax),am0(parmax,parmax),bm0(parmax),dx_cand(parmax),best_dx(parmax),stat=info)
+       allocate (obs_N_save(max(en_npts,1)),obs_N_low_save(max(en_npts,1)),stat=info)
        call ArrayStart('params_t',info,size(params_t),kind(params_t))
        !
        if (fitting%robust>small_) then
@@ -309,6 +327,9 @@ module refinement
        !
        allocate(objects(Nobjectmax,maxNfields),stat=info)
        allocate(object0(Nobjectmax,maxNfields),stat=info)
+       allocate(base_turns(Nobjectmax,maxNfields),base_imin(Nobjectmax,maxNfields),stat=info)
+       allocate(base_maxabs(Nobjectmax,maxNfields),field_has_fit(Nobjectmax,maxNfields),stat=info)
+       base_turns = 0 ; base_imin = 1 ; base_maxabs = 0.0_rk ; field_has_fit = .false.
        !
        ! find eqilibrium
        !
@@ -387,13 +408,11 @@ module refinement
             do i = 1,abinitio(ifield_)%Nterms
               !
               j = j + 1
-              !r(j) = field%grid(i)
-              r(j)=  abinitio(ifield_)%grid(1)
-              !wtall(en_npts+j) = field%weight(i)
+              r(j)=  abinitio(ifield_)%grid(i)
               wtall(en_npts+j) = abinitio(ifield_)%weight(i)
             enddo
             !
-            wtsum = sum(wtall(en_npts+j-field%Nterms+1:en_npts+j))
+            wtsum = sum(wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j))
             wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j) =  & 
                  abinitio(ifield_)%fit_factor*wtall(en_npts+j-abinitio(ifield_)%Nterms+1:en_npts+j)/max(wtsum,sqrt(small_))
             !
@@ -499,7 +518,11 @@ module refinement
                    fit_index(numpar)%iobject = iobject
                    fit_index(numpar)%ifield = ifield
                    fit_index(numpar)%iterm = iterm
+                   field_has_fit(iobject,ifield) = .true.
                    !
+                 endif
+                 if (objects(iobject,ifield)%field%link(iterm)%iobject/=0) then
+                   field_has_fit(iobject,ifield) = .true.
                  endif
                  !
                enddo
@@ -516,9 +539,17 @@ module refinement
           !
           rjacob = 0
           !
-          ! NArmijo iterations for linear search
+          use_lm_linesearch = .false.
+          select case (trim(fitting%fit_type))
+          case ('LINUR','DGELSS','LM','LM_PARALLEL','MARQUARDT','SVD','SDD')
+            use_lm_linesearch = .true.
+          end select
+          have_cached_step = .false.
+          converged_lm = .false.
+          !
+          ! NArmijo iterations for linear search (used only for non-Marquardt SVD/SDD)
           do_Armijo = .false.
-          if (fitting%linear_search>0) do_Armijo = .true.
+          if (fitting%linear_search>0 .and. .not.use_lm_linesearch) do_Armijo = .true.
           NArmijo = fitting%linear_search
           rms0 = 0
           ialpha_Armijo = 0
@@ -574,11 +605,18 @@ module refinement
             !
             call update_linked_parameters
             !
-            ! first compute energies
+            ! first compute energies (or reuse cached evaluation from accepted line-search step)
             !
             call TimerStart('Energy calculations')
             !
-            call duo_j0(0_ik,fitting%J_list,energy_,calc,nenergies)
+            if (have_cached_step) then
+              energy_ = energy_best
+              calc = calc_best
+              nenergies = nenergies_best
+              have_cached_step = .false.
+            else
+              call duo_j0(0_ik,fitting%J_list,energy_,calc,nenergies)
+            endif
             !
             if (maxval(nenergies)>nroots_max) then
               !
@@ -594,10 +632,10 @@ module refinement
             !
             call TimerStart('Energy derivatives')
             !
-            ! Check we if we need to computed the derivatives 
+            ! Check if we need to compute the derivatives (only when fititer <= itmax)
             !
             do_deriv = .false.
-            if (itmax.ge.1.and.fit_factor>0) do_deriv = .true. 
+            if (fititer.le.itmax.and.fit_factor>0.and..not.converged_lm) do_deriv = .true. 
             !
             do_print = .true.
             ! Switch off derivatives for linear search (Armijo) iteration > 0
@@ -615,14 +653,10 @@ module refinement
                 !
                 nroots = max(nroots,maxval(nenergies(:,itau),dim=1))
                 !
-                !do irot = 1,nrot
-                !   nenergies(irot,itau) = min(size(nenergies,dim=3))
-                !enddo
-                !
               enddo
               !
-              allocate (calc_(nrot,2,nroots),stat=info)
-              allocate(energyR(nrot,2,nroots),energyL(nrot,2,nroots),stat=info)
+              allocate (calcR(nrot,2,nroots_max),calcL(nrot,2,nroots_max),stat=info)
+              allocate(energyR(nrot,2,nroots_max),energyL(nrot,2,nroots_max),stat=info)
               call ArrayStart('EnergyLR',info,size(EnergyL),kind(EnergyL))
               call ArrayStart('EnergyLR',info,size(EnergyR),kind(EnergyR))
               !
@@ -643,27 +677,67 @@ module refinement
                 !
                 call update_linked_parameters
                 !
-                call duo_j0(0,fitting%J_list,EnergyR,calc_,nenergies_)
+                call duo_j0(0_ik,fitting%J_list,EnergyR,calcR,nenergiesR)
                 !
                 objects(iobject,ifield)%field%value(iterm) = param_t - delta
                 !
                 call update_linked_parameters
                 !
-                call duo_j0(0,fitting%J_list,EnergyL,calc_,nenergies_)
+                call duo_j0(0_ik,fitting%J_list,EnergyL,calcL,nenergiesL)
                 !
-                !omp parallel do private(irot,nroots) shared(deriv) schedule(dynamic)
+                ! Quantum-number-tracked finite differences: prevent avoided-crossing root swaps
+                ! between +delta and -delta from corrupting the Jacobian column.
                 do irot = 1,nrot
                   !
                   do itau = 1,2
                     !
-                    nroots = min(nenergies_(irot,itau),nenergies(irot,itau))
+                    nroots = min(nenergiesR(irot,itau),nenergiesL(irot,itau),nenergies(irot,itau))
                     !
-                    deriv(irot,itau,1:nroots,ifitpar) = (EnergyR(irot,itau,1:nroots)-EnergyL(irot,itau,1:nroots))/(2.0_rk*delta)
+                    do i = 1,nroots
+                      iR = i
+                      iL = i
+                      qn_matchR = same_quanta(calc(irot,itau,i),calcR(irot,itau,i))
+                      if (.not.qn_matchR) then
+                        do kswap = max(1_ik,i-4_ik),min(nenergiesR(irot,itau),i+4_ik)
+                          if (kswap==i) cycle
+                          if (same_quanta(calc(irot,itau,i),calcR(irot,itau,kswap)) .and. &
+                              same_quanta(calc(irot,itau,kswap),calcR(irot,itau,i)) .and. &
+                              abs(EnergyR(irot,itau,kswap)-energy_(irot,itau,i)) < &
+                              abs(EnergyR(irot,itau,i)-energy_(irot,itau,i))) then
+                            iR = kswap
+                            qn_matchR = .true.
+                            exit
+                          endif
+                        enddo
+                      endif
+                      !
+                      qn_matchL = same_quanta(calc(irot,itau,i),calcL(irot,itau,i))
+                      if (.not.qn_matchL) then
+                        do kswap = max(1_ik,i-4_ik),min(nenergiesL(irot,itau),i+4_ik)
+                          if (kswap==i) cycle
+                          if (same_quanta(calc(irot,itau,i),calcL(irot,itau,kswap)) .and. &
+                              same_quanta(calc(irot,itau,kswap),calcL(irot,itau,i)) .and. &
+                              abs(EnergyL(irot,itau,kswap)-energy_(irot,itau,i)) < &
+                              abs(EnergyL(irot,itau,i)-energy_(irot,itau,i))) then
+                            iL = kswap
+                            qn_matchL = .true.
+                            exit
+                          endif
+                        enddo
+                      endif
+                      !
+                      if (qn_matchR .and. .not.qn_matchL) then
+                        deriv(irot,itau,i,ifitpar) = (EnergyR(irot,itau,iR)-energy_(irot,itau,i))/delta
+                      elseif (qn_matchL .and. .not.qn_matchR) then
+                        deriv(irot,itau,i,ifitpar) = (energy_(irot,itau,i)-EnergyL(irot,itau,iL))/delta
+                      else
+                        deriv(irot,itau,i,ifitpar) = (EnergyR(irot,itau,iR)-EnergyL(irot,itau,iL))/(2.0_rk*delta)
+                      endif
+                    enddo
                     !
                   enddo
                   !
                 enddo
-                !omp end parallel do
                 !
                 objects(iobject,ifield)%field%value(iterm) = param_t
                 !
@@ -671,7 +745,7 @@ module refinement
                 !
               enddo
               !
-              deallocate(energyR,energyL,calc_)
+              deallocate(energyR,energyL,calcR,calcL)
               call ArrayStop('EnergyLR')
               !
             endif
@@ -1295,11 +1369,17 @@ module refinement
             ! switch off energies with large obs-calc assuming unwanted swapping 
             if (fitting%threshold_obs_calc>small_) then
                do iener = 1,en_npts
-                  if (abs(eps(iener))>fitting%threshold_obs_calc.and.wtall(iener)>small_) then
-                    wtall(iener) = 0
-                    if (fitting%robust>small_) sigma(iener) = 0
+                  if (abs(eps(iener))>fitting%threshold_obs_calc) then
+                    if (wtall(iener)>small_) then
+                      wtall(iener) = 0
+                      if (fitting%robust>small_) sigma(iener) = 0
+                      nused = nused - 1
+                    endif
+                    wt_bit(iener) = 0
                     eps(iener) = 0
-                    nused = nused - 1
+                  elseif (wtall(iener)<=small_) then
+                    wt_bit(iener) = 0
+                    eps(iener) = 0
                   endif
                enddo
                nused = max(nused,1)
@@ -1337,8 +1417,15 @@ module refinement
                  !
                  if (field%type/="DUMMY") write(abinitunit,'(a)') field%name
                  !
-                 if (associated(field%sub_type)) call define_complex_analytic_field_subterms(field%type,&
+                 if (field%type(1:7)=="COUPLED") call define_complex_analytic_field_subterms(field%type,&
                                                       field%sub_type,field%Nsub_terms)
+                 !
+                 if (trim(field%type)=='GRID') then
+                   allocate(spline_wk_abi(field%Nterms),stat=info)
+                   call ArrayStart('spline_wk_abi-fit',info,field%Nterms,kind(spline_wk_abi))
+                   yp1 = 0._rk ; ypn = 0._rk
+                   call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_abi)
+                 endif
                  !
                  do i = 1,abinitio(ifield_)%Nterms
                    !
@@ -1346,11 +1433,11 @@ module refinement
                    !
                    r_t = abinitio(ifield_)%grid(i)
                    !
-                   ! dummy field 
+                   ! Evaluate potential/coupling field at the ab initio geometry r_t
                    !
-                   if (objects(iobject,ifield)%field%type=='GRID') then
+                   if (trim(objects(iobject,ifield)%field%type)=='GRID') then
                      !
-                     f = objects(iobject,ifield)%field%gridvalue(ipotmin)
+                     call splint(field%grid,field%value,spline_wk_abi,field%Nterms,r_t,f)
                      !
                    else
                      !
@@ -1384,7 +1471,7 @@ module refinement
                    !
                    ! calculate the derivative of the potential function wrt the fitting parameters
                    !
-                   if (itmax.ge.1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then 
+                   if (fititer.le.itmax.and.(.not.do_Armijo.or.ialpha_Armijo==0).and..not.converged_lm) then 
                       !
                       select case (trim(objects(iobject,ifield)%field%type)) 
                         !
@@ -1409,9 +1496,7 @@ module refinement
                           !
                           param_t = field%value(iterm)
                           !
-                          delta = 1e-3*abs(param_t)
-                          !
-                          if (delta < small_) delta = sqrt(small_)*10.0
+                          delta = max(1e-3_rk*abs(param_t), 1.0_rk)
                           !
                           field%value(iterm) = param_t + delta
                           !
@@ -1478,6 +1563,11 @@ module refinement
                    !
                  enddo
                  !
+                 if (allocated(spline_wk_abi)) then
+                   deallocate(spline_wk_abi)
+                   call ArrayStop('spline_wk_abi-fit')
+                 endif
+                 !
                enddo
             enddo
             !
@@ -1493,7 +1583,7 @@ module refinement
             !
             ! Prepare the linear system a x = b as in the Newton fitting approach.  
             !
-            if (itmax>=1.and.(.not.do_Armijo.or.ialpha_Armijo==0)) then
+            if (fititer<=itmax.and.(.not.do_Armijo.or.ialpha_Armijo==0).and..not.converged_lm) then
                !
                !----- form the a and b matrix ------c
                ! form A matrix 
@@ -1501,18 +1591,12 @@ module refinement
                  do icolumn=1,irow    
                    al(irow,icolumn)=sum(rjacob(1:npts,icolumn)*rjacob(1:npts,irow)*wtall(1:npts))
                    al(icolumn,irow)=al(irow,icolumn)
-                   !dec if (fit_debug > 2)
-                   !  write (out,"('al (',i,',',i,')= ',es14.7)") irow,icolumn,al(irow,icolumn)
-                   !dec end if
                  enddo
                enddo
                !
                ! form B matrix 
                do irow=1,numpar      
                  bl(irow)=sum(eps(1:npts)*rjacob(1:npts,irow)*wtall(1:npts))
-                 !dec if (fit_debug > 2)
-                 !  write (out,"('bl (',i,')= ',es14.7)") irow,bl(irow)
-                 !dec end if
                enddo  
                !
                ! In case any diagonal matrix elements of al is zero, we can have remove this paramter 
@@ -1536,9 +1620,17 @@ module refinement
                   !
                enddo 
                !
-               ! We use two different approaches to Least squares fit Ax=b
-               ! 1. A(ij) = sum_k R(i,k) R(j,k), where R(i,k) = d Ei/d Ck and b(i) = sum_k R(i,k) [Eobs(i)-Ecalc(i)]
-               ! 2. A(i,j) = R(i,j) and b(i) = [Eobs(i)-Ecalc(i)] <= SVD
+               ! Save pre-step parameters and quantum-number lock indices
+               do ncol=1,numpar
+                 iobject = fit_index(ncol)%iobject
+                 ifield = fit_index(ncol)%ifield
+                 iterm = fit_index(ncol)%iterm
+                 params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
+               enddo
+               if (en_npts>=1) then
+                 obs_N_save(1:en_npts) = fitting%obs(1:en_npts)%N
+                 if (action%frequency) obs_N_low_save(1:en_npts) = fitting%obs(1:en_npts)%N_
+               endif
                !
                select case (trim(fitting%fit_type)) 
                !
@@ -1547,134 +1639,352 @@ module refinement
                  write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
                  stop 'fit_type unknown'
                  !
-               case('LINUR','DGELSS') 
+               case('LINUR','DGELSS','LM','LM_PARALLEL','MARQUARDT') 
                   !
-                  ! Using Marquardt's fitting method
+                  ! Using Marquardt trust-region fitting with lambda-grid line search,
+                  ! curve regularity gate, and strict-descent rollback.
                   !
-                  ! solve the linear equatins for two values of lambda and lambda/10
-                  !
-                  ! Defining scaled (with covariance) A and b
-                  ! 
-                  ! form A matrix 
                   do irow=1,numpar       
                     do icolumn=1,irow    
-                      Am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
-                      Am(icolumn,irow)=Am(irow,icolumn)
+                      am0(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
+                      am0(icolumn,irow)=am0(irow,icolumn)
                     enddo
-                    bm(irow) = bl(irow)/sqrt(al(irow,irow))
+                    bm0(irow) = bl(irow)/sqrt(al(irow,irow))
                   enddo
                   !
-                  ! define shifted A as A =  A+lambda I
-                  ! lambda is Marquard's scaling factor
+                  call record_baseline_curves(base_turns,base_imin,base_maxabs,field_has_fit)
                   !
-                  do irow=1,numpar       
-                      Am(irow,irow)=Am(irow,irow)*(1.0_rk+lambda)
-                  enddo
+                  ssq0 = ssq
+                  best_ssq = ssq0
+                  ssq1_before = 0.0_rk
+                  wtsum = sum(wt_bit(1:en_npts))
+                  if (wtsum>small_) ssq1_before = sqrt(sum(eps(1:en_npts)**2*dble(wt_bit(1:en_npts)))/wtsum)
+                  best_rms_ener = ssq1_before
+                  best_dx = 0.0_rk
+                  best_lambda = lambda
+                  step_accepted = .false.
                   !
-                  ! Two types of the linear solver are availible: 
-                  ! 1. linur (integrated into the program, from Ulenikov Oleg)
-                  ! 2. dgelss - Lapack routine (recommended).
+                  ! Build 7-point Marquardt damping schedule around current lambda
+                  ncand = 7
+                  min_eval_cands = 1
+                  if (fitting%linear_search >= 2) then
+                    min_eval_cands = min(fitting%linear_search, ncand)
+                    lambda_cand(1) = max(lambda / nu, 1.0e-7_rk)
+                    lambda_cand(2) = lambda
+                    lambda_cand(3) = lambda * 3.0_rk
+                    lambda_cand(4) = max(lambda * nu, 0.01_rk)
+                    lambda_cand(5) = max(lambda * nu * nu, 0.1_rk)
+                    lambda_cand(6) = max(lambda * (nu**3), 1.0_rk)
+                    lambda_cand(7) = max(lambda * (nu**4), 10.0_rk)
+                  else
+                    lambda_cand(1) = lambda
+                    lambda_cand(2) = lambda * 3.0_rk
+                    lambda_cand(3) = max(lambda * nu, 0.01_rk)
+                    lambda_cand(4) = max(lambda * nu * nu, 0.1_rk)
+                    lambda_cand(5) = max(lambda * (nu**3), 1.0_rk)
+                    lambda_cand(6) = max(lambda * (nu**4), 10.0_rk)
+                    lambda_cand(7) = max(lambda / nu, 1.0e-7_rk)
+                  endif
                   !
-                  select case (trim(fitting%fit_type)) 
-                  !
-                  case default
+                  loop_lm_cand : do icand = 1, ncand
+                    lambda_try = lambda_cand(icand)
+                    am(1:numpar,1:numpar) = am0(1:numpar,1:numpar)
+                    bm(1:numpar) = bm0(1:numpar)
+                    do irow=1,numpar
+                      am(irow,irow) = am0(irow,irow)*(1.0_rk + lambda_try)
+                    enddo
                     !
-                    write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
-                    stop 'fit_type unknown'
+                    select case (trim(fitting%fit_type))
+                    case('LINUR')
+                      call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
+                      if (ierror.ne.0) then
+                        if (icand==1) then
+                          do ncol=1,numpar
+                            if (ncol.eq.ierror) then
+                              iobject = fit_index(ncol)%iobject
+                              ifield = fit_index(ncol)%ifield
+                              iterm = fit_index(ncol)%iterm
+                              objects(iobject,ifield)%field%weight(iterm) = 0
+                              objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                              write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                            endif
+                          enddo
+                          cycle outer_loop
+                        else
+                          cycle loop_lm_cand
+                        endif
+                      endif
+                    case default
+                      ai(1:numpar,1:numpar) = am(1:numpar,1:numpar)
+                      bi(1:numpar) = bm(1:numpar)
+                      call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,&
+                                  wspace,lwork,info)
+                      if (info/=0) then
+                        write(out,"('dgelss:error',i0)") info
+                        stop 'dgelss'
+                      endif
+                      solution(1:numpar) = bi(1:numpar)
+                    end select
                     !
-                  case('LINUR') 
+                    do ncol=1,numpar
+                      solution(ncol) = solution(ncol)/sqrt(al(ncol,ncol))
+                    enddo
+                    dx_cand(1:numpar) = solution(1:numpar)*fitting%fit_scaling
                     !
-                    call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
+                    ! Apply candidate step and linked parameters
+                    do ncol=1,numpar
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      param_t = params_t(ncol) + dx_cand(ncol)
+                      param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                      param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                      objects(iobject,ifield)%field%value(iterm) = param_t
+                    enddo
+                    call update_linked_parameters
                     !
-                    ! In case of dependent parameters  "linur" reports an error = ierror, 
-                    ! which is a number of the dependent parameter. We can remove this paramter 
-                    ! from the fit and set its value to zero. And start the iteration again. 
-                    !
-                    if (ierror.ne.0) then 
-                      do ncol=1,numpar 
-                         !
-                         if ( ncol.eq.ierror ) then 
-                             !
-                             iobject = fit_index(ncol)%iobject
-                             ifield = fit_index(ncol)%ifield
-                             iterm = fit_index(ncol)%iterm
-                             !
-                             objects(iobject,ifield)%field%weight(iterm) = 0
-                             objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
-                             !
-                             write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
-                             !
-                         endif 
-                         !
-                      enddo 
-                      !
-                      cycle outer_loop
-                     endif 
-                     !
-                  case ('DGELSS')
-                    !
-                    ai = am 
-                    bi = bm
-                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,&
-                                wspace,lwork,info)
-                    !
-                    if (info/=0) then
-                      write(out,"('dgelss:error',i0)") info
-                      stop 'dgelss'
+                    ! Built-in Curve Regularity Gate before calling duo_j0
+                    call check_curve_regularity(base_turns,base_imin,base_maxabs,field_has_fit,is_regular)
+                    if (.not.is_regular) then
+                      if (verbose>=3) write(out,"('  [Marquardt Line Search] Candidate lambda = ',es10.3,' rejected by curve regularity gate.')") lambda_try
+                      cycle loop_lm_cand
                     endif
                     !
-                    solution = bi ! *0.1
+                    ! Evaluate post-step energies and objective ssq_cand
+                    call evaluate_candidate_ssq(obs_N_save,obs_N_low_save,energy_cand,calc_cand,nenergies_cand,&
+                                                ssq_cand,rms_ener_cand)
+                    if (verbose>=4) then
+                      write(out,"('  [Marquardt Line Search] Trial lambda = ',es10.3,' -> w-rms = ',es12.5,' (rms_ener = ',es12.5,')')") &
+                            lambda_try, sqrt(ssq_cand/float(max(nused-numpar,1))), rms_ener_cand
+                    endif
                     !
-                 end select 
+                    if (ssq_cand < best_ssq) then
+                      best_ssq = ssq_cand
+                      best_rms_ener = rms_ener_cand
+                      best_dx(1:numpar) = dx_cand(1:numpar)
+                      best_lambda = lambda_try
+                      energy_best = energy_cand
+                      calc_best = calc_cand
+                      nenergies_best = nenergies_cand
+                      step_accepted = .true.
+                    endif
+                    !
+                    if (step_accepted .and. icand >= min_eval_cands) exit loop_lm_cand
+                  enddo loop_lm_cand
+                  !
+                  if (step_accepted) then
+                    dx(1:numpar) = best_dx(1:numpar)
+                    do ncol=1,numpar
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      param_t = params_t(ncol) + dx(ncol)
+                      param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                      param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                      objects(iobject,ifield)%field%value(iterm) = param_t
+                    enddo
+                    call update_linked_parameters
+                    have_cached_step = .true.
+                    if (best_lambda <= lambda) then
+                      lambda = max(best_lambda / nu, 1.0e-7_rk)
+                    else
+                      lambda = best_lambda
+                    endif
+                    write(out,"('  [Marquardt Line Search] Accepted lambda = ',es10.3,' | w-rms: ',es12.5,' -> ',es12.5,' | rms_ener: ',es12.5,' -> ',es12.5)") &
+                          best_lambda, sqrt(ssq0/float(max(nused-numpar,1))), sqrt(best_ssq/float(max(nused-numpar,1))), &
+                          ssq1_before, best_rms_ener
+                  else
+                    ! Strict rollback to params_t
+                    dx = 0.0_rk
+                    do ncol=1,numpar
+                      iobject = fit_index(ncol)%iobject
+                      ifield = fit_index(ncol)%ifield
+                      iterm = fit_index(ncol)%iterm
+                      objects(iobject,ifield)%field%value(iterm) = params_t(ncol)
+                    enddo
+                    call update_linked_parameters
+                    have_cached_step = .false.
+                    converged_lm = .true.
+                    lambda = min(lambda * nu, 10000.0_rk)
+                    write(out,"('  [Marquardt Line Search] No candidate improved w-rms (',es12.5,'); rolled back to best parameters.')") &
+                          sqrt(ssq0/float(max(nused-numpar,1)))
+                  endif
+                  !
+               case ("SDD","SVD")
                  !
-                 ! convert back from Marquardt's representation
+                 ! Weighted SVD/SDD least-squares solver (Havaliova 2023, Sec. 8.3-8.4):
+                 ! Solve min || W^{1/2} (J dx - eps) ||_2 via truncated SVD of W^{1/2} J
+                 ! with curve regularity gate and strict-descent line search.
                  !
-                 do ncol=1,numpar
-                    solution(ncol) =  solution(ncol)/sqrt(al(ncol,ncol))
+                 call record_baseline_curves(base_turns,base_imin,base_maxabs,field_has_fit)
+                 !
+                 ssq0 = ssq
+                 best_ssq = ssq0
+                 ssq1_before = 0.0_rk
+                 wtsum = sum(wt_bit(1:en_npts))
+                 if (wtsum>small_) ssq1_before = sqrt(sum(eps(1:en_npts)**2*dble(wt_bit(1:en_npts)))/wtsum)
+                 best_rms_ener = ssq1_before
+                 best_dx = 0.0_rk
+                 best_svd_tol = fitting%svd_tol
+                 best_svd_scale = 1.0_rk
+                 best_NumSVD = 0
+                 step_accepted = .false.
+                 !
+                 nsvd_max = min(npts, numpar)
+                 allocate(s_svd(nsvd_max), ut_weps(nsvd_max), vt_svd(nsvd_max,numpar), w_eps(npts), stat=info)
+                 call ArrayStart('svd_workspace',info,size(vt_svd),kind(vt_svd))
+                 !
+                 ! Weight each row of Jacobian and residual by sqrt(wtall(i))
+                 do i = 1, npts
+                   w_sqrt = sqrt(max(wtall(i), 0.0_rk))
+                   rjacob(i,1:numpar) = rjacob(i,1:numpar) * w_sqrt
+                   w_eps(i) = eps(i) * w_sqrt
                  enddo
                  !
-               case ("SDD")
+                 call lapack_svd_sdd_decompose(trim(fitting%fit_type), rjacob(1:npts,1:numpar), &
+                                               s_svd, ut_weps, vt_svd, w_eps)
                  !
-                 call lapack_sdd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 ! Candidate schedule of SVD cutoff tolerances and step damping
+                 ncand = 7
+                 svd_tol_cand(1) = fitting%svd_tol
+                 svd_scale_cand(1) = 1.0_rk
+                 svd_tol_cand(2) = max(fitting%svd_tol * 0.1_rk, 1.0e-4_rk)
+                 svd_scale_cand(2) = 1.0_rk
+                 svd_tol_cand(3) = min(max(fitting%svd_tol * 3.16227766_rk, 1.0e-3_rk), 0.5_rk)
+                 svd_scale_cand(3) = 1.0_rk
+                 svd_tol_cand(4) = min(max(fitting%svd_tol * 10.0_rk, 1.0e-2_rk), 0.5_rk)
+                 svd_scale_cand(4) = 1.0_rk
+                 svd_tol_cand(5) = min(max(fitting%svd_tol * 31.6227766_rk, 3.16227766e-2_rk), 0.5_rk)
+                 svd_scale_cand(5) = 1.0_rk
+                 svd_tol_cand(6) = fitting%svd_tol
+                 svd_scale_cand(6) = 0.5_rk
+                 svd_tol_cand(7) = min(max(fitting%svd_tol * 10.0_rk, 1.0e-2_rk), 0.5_rk)
+                 svd_scale_cand(7) = 0.5_rk
                  !
-                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
+                 min_eval_cands = 1
+                 if (fitting%linear_search >= 2) min_eval_cands = min(fitting%linear_search, ncand)
+                 tested_nkeep = -1
+                 tested_scale = -1.0_rk
                  !
-                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SDD roots = ',NumSVD,'tol = ',fitting%svd_tol
+                 loop_svd_cand : do icand = 1, ncand
+                   tol_cut = svd_tol_cand(icand) * max(s_svd(1), small_)
+                   NumSVD_try = count(s_svd >= tol_cut)
+                   NumSVD_try = max(1_ik, min(NumSVD_try, nsvd_max))
+                   if (icand == 1 .and. NumSVD_try <= 2 .and. nsvd_max > 2) then
+                     min_eval_cands = max(min_eval_cands, 2_ik)
+                   endif
+                   !
+                   ! Skip duplicate (NumSVD_try, scale) pairs
+                   do kswap = 1, icand - 1
+                     if (tested_nkeep(kswap) == NumSVD_try .and. &
+                         abs(tested_scale(kswap) - svd_scale_cand(icand)) < 1.0e-9_rk) then
+                       cycle loop_svd_cand
+                     endif
+                   enddo
+                   tested_nkeep(icand) = NumSVD_try
+                   tested_scale(icand) = svd_scale_cand(icand)
+                   !
+                   solution(1:numpar) = 0.0_rk
+                   do j = 1, NumSVD_try
+                     if (s_svd(j) > small_) then
+                       solution(1:numpar) = solution(1:numpar) + (ut_weps(j) / s_svd(j)) * vt_svd(j, 1:numpar)
+                     endif
+                   enddo
+                   dx_cand(1:numpar) = solution(1:numpar) * fitting%fit_scaling * svd_scale_cand(icand)
+                   !
+                   do ncol = 1, numpar
+                     iobject = fit_index(ncol)%iobject
+                     ifield = fit_index(ncol)%ifield
+                     iterm = fit_index(ncol)%iterm
+                     param_t = params_t(ncol) + dx_cand(ncol)
+                     param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min, param_t)
+                     param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max, param_t)
+                     objects(iobject,ifield)%field%value(iterm) = param_t
+                   enddo
+                   call update_linked_parameters
+                   !
+                   call check_curve_regularity(base_turns,base_imin,base_maxabs,field_has_fit,is_regular)
+                   if (.not.is_regular) then
+                     if (verbose>=3) write(out,"('  [',a,' Line Search] Candidate tol = ',es10.3,' (Nkeep=',i0,') rejected by curve regularity gate.')") &
+                           trim(fitting%fit_type), svd_tol_cand(icand), NumSVD_try
+                     cycle loop_svd_cand
+                   endif
+                   !
+                   call evaluate_candidate_ssq(obs_N_save,obs_N_low_save,energy_cand,calc_cand,nenergies_cand,&
+                                               ssq_cand,rms_ener_cand)
+                   if (verbose>=4) then
+                     write(out,"('  [',a,' Line Search] Trial tol = ',es10.3,' (Nkeep=',i0,', scale=',f5.2,') -> w-rms = ',es12.5,' (rms_ener = ',es12.5,')')") &
+                           trim(fitting%fit_type), svd_tol_cand(icand), NumSVD_try, svd_scale_cand(icand), &
+                           sqrt(ssq_cand/float(max(nused-numpar,1))), rms_ener_cand
+                   endif
+                   !
+                   if (ssq_cand < best_ssq) then
+                     best_ssq = ssq_cand
+                     best_rms_ener = rms_ener_cand
+                     best_dx(1:numpar) = dx_cand(1:numpar)
+                     best_svd_tol = svd_tol_cand(icand)
+                     best_svd_scale = svd_scale_cand(icand)
+                     best_NumSVD = NumSVD_try
+                     energy_best = energy_cand
+                     calc_best = calc_cand
+                     nenergies_best = nenergies_cand
+                     step_accepted = .true.
+                   endif
+                   !
+                   if (step_accepted .and. icand >= min_eval_cands) exit loop_svd_cand
+                 enddo loop_svd_cand
                  !
-               case ("SVD")
+                 if (step_accepted) then
+                   NumSVD = best_NumSVD
+                   dx(1:numpar) = best_dx(1:numpar)
+                   do ncol = 1, numpar
+                     iobject = fit_index(ncol)%iobject
+                     ifield = fit_index(ncol)%ifield
+                     iterm = fit_index(ncol)%iterm
+                     param_t = params_t(ncol) + dx(ncol)
+                     param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min, param_t)
+                     param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max, param_t)
+                     objects(iobject,ifield)%field%value(iterm) = param_t
+                   enddo
+                   call update_linked_parameters
+                   have_cached_step = .true.
+                   if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") &
+                         'Number of '//trim(fitting%fit_type)//' roots = ',NumSVD,'tol = ',best_svd_tol
+                   write(out,"('  [',a,' Line Search] Accepted Nkeep = ',i0,'/',i0,' (tol = ',es10.3,', scale = ',f4.2,') | w-rms: ',es12.5,' -> ',es12.5,' | rms_ener: ',es12.5,' -> ',es12.5)") &
+                         trim(fitting%fit_type), NumSVD, nsvd_max, best_svd_tol, best_svd_scale, &
+                         sqrt(ssq0/float(max(nused-numpar,1))), sqrt(best_ssq/float(max(nused-numpar,1))), &
+                         ssq1_before, best_rms_ener
+                 else
+                   NumSVD = count(s_svd >= fitting%svd_tol * max(s_svd(1), small_))
+                   NumSVD = max(1_ik, min(NumSVD, nsvd_max))
+                   dx = 0.0_rk
+                   do ncol = 1, numpar
+                     iobject = fit_index(ncol)%iobject
+                     ifield = fit_index(ncol)%ifield
+                     iterm = fit_index(ncol)%iterm
+                     objects(iobject,ifield)%field%value(iterm) = params_t(ncol)
+                   enddo
+                   call update_linked_parameters
+                   have_cached_step = .false.
+                   converged_lm = .true.
+                   write(out,"('  [',a,' Line Search] No candidate improved w-rms (',es12.5,'); rolled back to best parameters.')") &
+                         trim(fitting%fit_type), sqrt(ssq0/float(max(nused-numpar,1)))
+                 endif
                  !
-                 call lapack_svd_pseudo_inverse(fitting%svd_tol,rjacob(1:npts,1:numpar),NumSVD)
+                 ! Compute parameter variances from the truncated SVD subspace
+                 ai(1:numpar,1:numpar) = 0.0_rk
+                 do ncol = 1, numpar
+                   do j = 1, NumSVD
+                     if (s_svd(j) > small_) then
+                       ai(ncol,ncol) = ai(ncol,ncol) + (vt_svd(j,ncol) / s_svd(j))**2
+                     endif
+                   enddo
+                 enddo
                  !
-                 solution(1:numpar) = matmul(eps(1:npts)*wtall(1:npts),rjacob(1:npts,1:numpar))
-                 !
-                 if (verbose>=4) write(out,"(/a,1x,i8,1x,a,g12.5)") 'Number of SVD roots = ',NumSVD,'tol = ',fitting%svd_tol
+                 deallocate(s_svd, ut_weps, vt_svd, w_eps)
+                 call ArrayStop('svd_workspace')
                  !
                end select
-               !
-               ! Scale the correction if required 
-               !
-               dx = solution*fitting%fit_scaling
-               !
-               !----- update the parameter values with a scaled correction------!
-               !
-               !$omp parallel do private(ncol,iobject,ifield,iterm,param_t) shared(params_t) schedule(dynamic)
-               do ncol=1,numpar
-                  !
-                  iobject = fit_index(ncol)%iobject
-                  ifield = fit_index(ncol)%ifield
-                  iterm = fit_index(ncol)%iterm
-                  !
-                  params_t(ncol) = objects(iobject,ifield)%field%value(iterm)
-                  !
-                  param_t = params_t(ncol)+dx(ncol)
-                  param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
-                  param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
-                  !
-                  objects(iobject,ifield)%field%value(iterm)=param_t
-                  !
-               enddo
-               !$omp end parallel do
-               !
                !
                ! Robust fit: adjust the fitting weights
                !
@@ -1683,8 +1993,6 @@ module refinement
                  call robust_fit(a_wats,sigma(1:npts),eps(1:npts),wtall(1:npts))
                  !
                  ssq=sum(eps(1:npts)*eps(1:npts)*wtall(1:npts))
-                 !
-                 !fitting%robust = -1.0_rk
                  !
                endif 
                !
@@ -1696,16 +2004,20 @@ module refinement
                  stadev=sqrt(ssq/nused)
                endif
                !               
-               if (stadev<stadev_old) then
-                 lambda = lambda/nu
-               else 
-                 lambda = min(lambda*nu,10000.0_rk)
+               if (.not.use_lm_linesearch) then
+                 if (stadev<stadev_old) then
+                   lambda = lambda/nu
+                 else 
+                   lambda = min(lambda*nu,10000.0_rk)
+                 endif
                endif
                !
                ! Estimate the standard errors for each parameter using 
-               ! the inverse matrix of a. 
+               ! the inverse matrix of a (or truncated SVD covariance for SVD/SDD). 
                !
-               call MLinvmat(al(1:numpar,1:numpar),ai(1:numpar,1:numpar),numpar,info)
+               if (trim(fitting%fit_type)/='SVD' .and. trim(fitting%fit_type)/='SDD') then
+                 call MLinvmat(al(1:numpar,1:numpar),ai(1:numpar,1:numpar),numpar,info)
+               endif
                !
                sum_sterr=0.d0
                do ncol=1,numpar 
@@ -1729,6 +2041,13 @@ module refinement
                ! as a relative change of stadev comparing with the step before. 
                !
                stability=abs( (stadev-stadev_old)/stadev )
+               if (use_lm_linesearch) then
+                 if (step_accepted) then
+                   stability = max(abs(sqrt(best_ssq)-sqrt(ssq0))/max(sqrt(best_ssq),small_), 1.0e-11_rk)
+                 elseif (converged_lm) then
+                   fititer = itmax + 1
+                 endif
+               endif
                stadev_old=stadev
                !
                if(do_Armijo) then
@@ -1816,7 +2135,13 @@ module refinement
                  !
                endif
                !
-               stadev=sqrt(ssq/max(nused,1))
+               if ( nused.ne.numpar .and. nused>numpar ) then 
+                 stadev=sqrt(ssq/float(nused-numpar))
+               else 
+                 stadev=sqrt(ssq/max(nused,1))
+               endif
+               if (fititer>1 .and. stadev>small_) stability = abs((stadev-stadev_old)/stadev)
+               stadev_old = stadev
                !
             endif
             !
@@ -1991,6 +2316,11 @@ module refinement
        call ArrayStop('fit-ener-deriv')
        !
        if (allocated(params_t)) deallocate(params_t)
+       if (allocated(am0)) deallocate(am0,bm0,dx_cand,best_dx)
+       if (allocated(obs_N_save)) deallocate(obs_N_save,obs_N_low_save)
+       if (allocated(base_turns)) deallocate(base_turns,base_imin,base_maxabs,field_has_fit)
+       if (allocated(energy_cand)) deallocate(energy_cand,energy_best,calc_cand,calc_best)
+       if (allocated(nenergiesR)) deallocate(nenergiesR,nenergiesL,nenergies_cand,nenergies_best)
        call ArrayStop('params_t')
        !
        deallocate (nampar,ivar,ifitparam,al,ai,bl,bi,dx,sterr,Tsing,pot_terms,solution,am,bm)
@@ -2041,6 +2371,355 @@ module refinement
 
 
   contains 
+
+
+  pure logical function same_quanta(q1, q2)
+    type(quantaT), intent(in) :: q1, q2
+    same_quanta = (q1%istate == q2%istate .and. &
+                   q1%v == q2%v .and. &
+                   abs(q1%ilambda) == abs(q2%ilambda) .and. &
+                   nint(2.0_rk*abs(q1%sigma)) == nint(2.0_rk*abs(q2%sigma)) .and. &
+                   nint(2.0_rk*abs(q1%omega)) == nint(2.0_rk*abs(q2%omega)))
+  end function same_quanta
+
+
+  subroutine eval_field_regularity_metrics(iobj, ifld, nturns, imin_loc, max_abs, is_valid)
+    integer(ik), intent(in)  :: iobj, ifld
+    integer(ik), intent(out) :: nturns, imin_loc
+    real(rk), intent(out)    :: max_abs
+    logical, intent(out)     :: is_valid
+    integer(ik)              :: ig, npts_eval, prev_sign, cur_sign
+    real(rk), allocatable    :: fvec(:)
+    real(rk)                 :: df, tol_df, fspan
+    type(fieldT), pointer    :: fld
+    !
+    nturns = 0
+    imin_loc = 1
+    max_abs = 0.0_rk
+    is_valid = .true.
+    fld => objects(iobj, ifld)%field
+    if (trim(fld%type)=='DUMMY') return
+    if (trim(fld%type)=='GRID') then
+      npts_eval = fld%Nterms
+      if (npts_eval < 3) return
+      allocate(fvec(npts_eval))
+      do ig = 1, npts_eval
+        fvec(ig) = fld%value(ig)
+        if (fvec(ig) /= fvec(ig) .or. abs(fvec(ig)) > 1.0e30_rk) then
+          is_valid = .false.
+          deallocate(fvec)
+          return
+        endif
+      enddo
+    else
+      if (.not.associated(fld%fanalytic_field)) return
+      if (fld%type(1:7)=="COUPLED") call define_complex_analytic_field_subterms(fld%type,fld%sub_type,fld%Nsub_terms)
+      npts_eval = ngrid
+      allocate(fvec(npts_eval))
+      do ig = 1, npts_eval
+        fvec(ig) = fld%fanalytic_field(grid%r(ig), fld%value)
+        if (fvec(ig) /= fvec(ig) .or. abs(fvec(ig)) > 1.0e30_rk) then
+          is_valid = .false.
+          deallocate(fvec)
+          return
+        endif
+      enddo
+    endif
+    !
+    imin_loc = minloc(fvec, dim=1)
+    max_abs = maxval(abs(fvec))
+    fspan = maxval(fvec) - minval(fvec)
+    tol_df = 1.0e-8_rk * max(1.0e-12_rk, fspan)
+    prev_sign = 0
+    do ig = 1, npts_eval - 1
+      df = fvec(ig+1) - fvec(ig)
+      if (abs(df) > tol_df) then
+        if (df > 0.0_rk) then
+          cur_sign = 1
+        else
+          cur_sign = -1
+        endif
+        if (prev_sign /= 0 .and. cur_sign /= prev_sign) nturns = nturns + 1
+        prev_sign = cur_sign
+      endif
+    enddo
+    deallocate(fvec)
+  end subroutine eval_field_regularity_metrics
+
+
+  subroutine record_baseline_curves(b_turns, b_imin, b_maxabs, has_fit)
+    integer(ik), intent(out) :: b_turns(:,:), b_imin(:,:)
+    real(rk), intent(out)    :: b_maxabs(:,:)
+    logical, intent(in)      :: has_fit(:,:)
+    integer(ik)              :: iobj, ifld, nflds, t_loc, im_loc
+    real(rk)                 :: m_abs
+    logical                  :: ok_f
+    !
+    do iobj = 1, Nobjectmax
+      nflds = fieldmap(iobj)%Nfields
+      do ifld = 1, nflds
+        if (.not.has_fit(iobj, ifld)) cycle
+        call eval_field_regularity_metrics(iobj, ifld, t_loc, im_loc, m_abs, ok_f)
+        b_turns(iobj, ifld)  = t_loc
+        b_imin(iobj, ifld)   = im_loc
+        b_maxabs(iobj, ifld) = m_abs
+      enddo
+    enddo
+  end subroutine record_baseline_curves
+
+
+  subroutine check_curve_regularity(b_turns, b_imin, b_maxabs, has_fit, ok)
+    integer(ik), intent(in) :: b_turns(:,:), b_imin(:,:)
+    real(rk), intent(in)    :: b_maxabs(:,:)
+    logical, intent(in)     :: has_fit(:,:)
+    logical, intent(out)    :: ok
+    integer(ik)             :: iobj, ifld, nflds, t_now, imin_now, npts_lim
+    real(rk)                :: maxabs_now
+    logical                 :: ok_f
+    !
+    ok = .true.
+    do iobj = 1, Nobjectmax
+      nflds = fieldmap(iobj)%Nfields
+      do ifld = 1, nflds
+        if (.not.has_fit(iobj, ifld)) cycle
+        call eval_field_regularity_metrics(iobj, ifld, t_now, imin_now, maxabs_now, ok_f)
+        if (.not.ok_f) then
+          ok = .false.
+          return
+        endif
+        npts_lim = ngrid
+        if (trim(objects(iobj, ifld)%field%type) == 'GRID') npts_lim = objects(iobj, ifld)%field%Nterms
+        if (iobj == 1) then
+          ! PEC regularity: forbid spurious extra turning points or boundary collapse
+          if (trim(objects(iobj, ifld)%field%type) == 'GRID') then
+            if (t_now > max(b_turns(iobj, ifld), 1_ik)) then
+              ok = .false.
+              return
+            endif
+          else
+            if (t_now > max(b_turns(iobj, ifld), 2_ik)) then
+              ok = .false.
+              return
+            endif
+          endif
+          if (b_imin(iobj, ifld) > 2 .and. b_imin(iobj, ifld) < npts_lim - 1) then
+            if (imin_now == 1 .or. imin_now == npts_lim) then
+              ok = .false.
+              return
+            endif
+          endif
+        else
+          ! Coupling / morphing regularity: forbid polynomial ringing or runaway excursions
+          if (t_now > b_turns(iobj, ifld) + 2_ik) then
+            ok = .false.
+            return
+          endif
+          if (maxabs_now > max(b_maxabs(iobj, ifld)*3.0_rk, 1.0e4_rk)) then
+            ok = .false.
+            return
+          endif
+        endif
+      enddo
+    enddo
+  end subroutine check_curve_regularity
+
+
+  subroutine evaluate_candidate_ssq(obs_N_in, obs_N_low_in, en_cand, c_cand, nen_cand, ssq_out, rms_ener_out)
+    integer(ik), intent(in)      :: obs_N_in(:), obs_N_low_in(:)
+    real(rk), intent(out)        :: en_cand(:,:,:), ssq_out, rms_ener_out
+    type(quantaT), intent(out)   :: c_cand(:,:,:)
+    integer(ik), intent(out)     :: nen_cand(:,:)
+    !
+    real(rk)                     :: eps_c(npts), ezero_c(Nestates), wtsum_c, lfac, jr_c, jr_c_, f_c, fsh_c, r_c
+    real(rk), allocatable        :: spline_wk_c(:)
+    integer(ik)                  :: obs_N_c(max(en_npts,1)), obs_N_low_c(max(en_npts,1))
+    character(len=1)             :: mark_c(max(en_npts,1))
+    integer(ik)                  :: ist_c, i_c, i_c_, ie_c, je_c, ir_c, ir_c_, it_c, it_c_, i0_c, i1_c, ith_c, k0_c
+    integer(ik)                  :: iobj_c, ifld_c, ifld_abi_c, nfld_c, maxit_c
+    type(fieldT), pointer        :: fld_c
+    !
+    eps_c = 0.0_rk
+    call duo_j0(0_ik, fitting%J_list, en_cand, c_cand, nen_cand)
+    !
+    ezero_c = fitting%zpe
+    if (fitting%shift_to_zpe) then
+      ezero_c = en_cand(1,1,1)
+      if (en_cand(1,2,1)<ezero_c(1) .and. nen_cand(1,2)>0) ezero_c = en_cand(1,2,1)
+    endif
+    loop_ist_c : do ist_c = 1, Nestates
+      do i_c = 1, nen_cand(1,1)
+        if (ist_c == c_cand(1,1,i_c)%istate .and. nint(2.0*c_cand(1,1,i_c)%Jrot)==nint(2.0*fitting%J_list(1))) then
+          ezero_c(ist_c) = fitting%zpe
+          if (fitting%shift_to_zpe) then
+            ezero_c(ist_c) = en_cand(1,1,i_c)
+            if (en_cand(1,2,i_c)<ezero_c(ist_c) .and. nen_cand(1,2)>0) ezero_c(ist_c) = en_cand(1,2,i_c)
+          endif
+          cycle loop_ist_c
+        endif
+      enddo
+    enddo loop_ist_c
+    !
+    if (en_npts >= 1) then
+      obs_N_c(1:en_npts) = obs_N_in(1:en_npts)
+      if (action%frequency) obs_N_low_c(1:en_npts) = obs_N_low_in(1:en_npts)
+      mark_c = ' '
+      maxit_c = maxiter_as
+      if (fitting%threshold_lock < 0) maxit_c = 1
+      !
+      if (action%frequency) then
+        if (abs(fitting%threshold_lock) > 0) then
+          do ie_c = 1, en_npts
+            mark_c(ie_c) = '*'
+            loop_th_u_c : do ith_c = 1, maxit_c
+              lfac = real(ith_c, rk)
+              do ir_c = 1, nrot
+                jr_c = fitting%J_list(ir_c)
+                if (nint(jr_c - fitting%obs(ie_c)%jrot) /= 0) cycle
+                do ir_c_ = 1, nrot
+                  jr_c_ = fitting%J_list(ir_c_)
+                  if (nint(jr_c_ - fitting%obs(ie_c)%jrot_) /= 0) cycle
+                  do it_c = 1, 2
+                    if (it_c - 1 /= fitting%obs(ie_c)%iparity) cycle
+                    do it_c_ = 1, 2
+                      if (it_c_ - 1 /= fitting%obs(ie_c)%iparity_) cycle
+                      do i0_c = 1, nen_cand(ir_c, it_c)
+                        do i1_c = 1, nen_cand(ir_c_, it_c_)
+                          if (en_cand(ir_c,it_c,i0_c) - en_cand(ir_c_,it_c_,i1_c) < 0) cycle
+                          if (abs(fitting%obs(ie_c)%energy - (en_cand(ir_c,it_c,i0_c) - en_cand(ir_c_,it_c_,i1_c))) <= &
+                              lfac*abs(fitting%threshold_lock) .and. &
+                              ((c_cand(ir_c,it_c,i0_c)%istate == fitting%obs(ie_c)%quanta%istate .and. &
+                                abs(c_cand(ir_c,it_c,i0_c)%ilambda) == abs(fitting%obs(ie_c)%quanta%ilambda) .and. &
+                                c_cand(ir_c,it_c,i0_c)%v == fitting%obs(ie_c)%quanta%v .and. &
+                                nint(abs(c_cand(ir_c,it_c,i0_c)%sigma) - abs(fitting%obs(ie_c)%quanta%sigma)) == 0 .and. &
+                                nint(abs(c_cand(ir_c,it_c,i0_c)%omega) - abs(fitting%obs(ie_c)%quanta%omega)) == 0 .and. &
+                                c_cand(ir_c_,it_c_,i1_c)%istate == fitting%obs(ie_c)%quanta_%istate .and. &
+                                abs(c_cand(ir_c_,it_c_,i1_c)%ilambda) == abs(fitting%obs(ie_c)%quanta_%ilambda) .and. &
+                                c_cand(ir_c_,it_c_,i1_c)%v == fitting%obs(ie_c)%quanta_%v .and. &
+                                nint(abs(c_cand(ir_c_,it_c_,i1_c)%sigma) - abs(fitting%obs(ie_c)%quanta_%sigma)) == 0 .and. &
+                                nint(abs(c_cand(ir_c_,it_c_,i1_c)%omega) - abs(fitting%obs(ie_c)%quanta_%omega)) == 0) .or. &
+                               (fitting%threshold_lock < 0))) then
+                            obs_N_c(ie_c) = i0_c
+                            obs_N_low_c(ie_c) = i1_c
+                            mark_c(ie_c) = ' '
+                            exit loop_th_u_c
+                          endif
+                        enddo
+                      enddo
+                    enddo
+                  enddo
+                enddo
+              enddo
+            enddo loop_th_u_c
+          enddo
+        endif
+        do ie_c = 1, en_npts
+          ir_c  = fitting%obs(ie_c)%irot
+          ir_c_ = fitting%obs(ie_c)%irot_
+          it_c  = fitting%obs(ie_c)%iparity + 1  ; if (it_c < 1 .or. it_c > 2) cycle
+          it_c_ = fitting%obs(ie_c)%iparity_ + 1 ; if (it_c_ < 1 .or. it_c_ > 2) cycle
+          i_c   = obs_N_c(ie_c)     ; if (i_c > nen_cand(ir_c, it_c)) cycle
+          i_c_  = obs_N_low_c(ie_c) ; if (i_c_ > nen_cand(ir_c_, it_c_)) cycle
+          eps_c(ie_c) = fitting%obs(ie_c)%energy - (en_cand(ir_c,it_c,i_c) - en_cand(ir_c_,it_c_,i_c_))
+        enddo
+      else
+        if (abs(fitting%threshold_lock) > 0) then
+          k0_c = 1
+          jr_c_ = fitting%obs(1)%jrot
+          it_c_ = fitting%obs(1)%iparity + 1
+          do ie_c = 1, en_npts
+            mark_c(ie_c) = '*'
+            if (jr_c_ /= fitting%obs(ie_c)%jrot .or. it_c_ /= fitting%obs(ie_c)%iparity + 1) k0_c = 1
+            jr_c_ = fitting%obs(ie_c)%jrot
+            it_c_ = fitting%obs(ie_c)%iparity + 1
+            loop_th_c : do ith_c = 1, maxit_c
+              do ir_c = 1, nrot
+                jr_c = fitting%J_list(ir_c)
+                if (nint(jr_c - fitting%obs(ie_c)%jrot) /= 0) cycle
+                do it_c = 1, 2
+                  if (it_c - 1 /= fitting%obs(ie_c)%iparity) cycle
+                  loop_i0_c : do i0_c = k0_c, nen_cand(ir_c, it_c)
+                    do je_c = max(ie_c - 10, 1), ie_c - 1
+                      if (nint(jr_c - fitting%obs(je_c)%jrot) /= 0 .or. it_c - 1 /= fitting%obs(je_c)%iparity) cycle
+                      if (obs_N_c(je_c) == i0_c) cycle loop_i0_c
+                    enddo
+                    if (abs(fitting%obs(ie_c)%energy - (en_cand(ir_c,it_c,i0_c) - ezero_c(1))) <= &
+                        real(ith_c, rk)*abs(fitting%threshold_lock) .and. &
+                        ((abs(c_cand(ir_c,it_c,i0_c)%ilambda) == abs(fitting%obs(ie_c)%quanta%ilambda) .and. &
+                          c_cand(ir_c,it_c,i0_c)%istate == fitting%obs(ie_c)%quanta%istate .and. &
+                          c_cand(ir_c,it_c,i0_c)%v == fitting%obs(ie_c)%quanta%v .and. &
+                          nint(abs(c_cand(ir_c,it_c,i0_c)%omega) - abs(fitting%obs(ie_c)%quanta%omega)) == 0 .and. &
+                          nint(abs(c_cand(ir_c,it_c,i0_c)%sigma) - abs(fitting%obs(ie_c)%quanta%sigma)) == 0) .or. &
+                         (fitting%threshold_lock < 0 .and. &
+                          c_cand(ir_c,it_c,i0_c)%istate == fitting%obs(ie_c)%quanta%istate .and. &
+                          c_cand(ir_c,it_c,i0_c)%v == fitting%obs(ie_c)%quanta%v))) then
+                      obs_N_c(ie_c) = i0_c
+                      mark_c(ie_c) = ' '
+                      exit loop_th_c
+                    endif
+                  enddo loop_i0_c
+                enddo
+              enddo
+            enddo loop_th_c
+            if (mark_c(ie_c) == ' ') k0_c = max(obs_N_c(ie_c) - 10, 1)
+          enddo
+        endif
+        do ie_c = 1, en_npts
+          i_c  = obs_N_c(ie_c)
+          ir_c = fitting%obs(ie_c)%irot
+          it_c = fitting%obs(ie_c)%iparity + 1 ; if (it_c < 1 .or. it_c > 2) cycle
+          if (i_c > nen_cand(ir_c, it_c)) cycle
+          eps_c(ie_c) = fitting%obs(ie_c)%energy - (en_cand(ir_c,it_c,i_c) - ezero_c(1))
+        enddo
+      endif
+      if (fitting%threshold_obs_calc > small_) then
+        do ie_c = 1, en_npts
+          if (abs(eps_c(ie_c)) > fitting%threshold_obs_calc .or. wtall(ie_c) <= small_) then
+            eps_c(ie_c) = 0.0_rk
+          endif
+        enddo
+      endif
+    endif
+    !
+    ! Potential / ab initio grid points contribution
+    je_c = 0
+    do iobj_c = 1, Nobjectmax
+      nfld_c = fieldmap(iobj_c)%Nfields
+      do ifld_c = 1, nfld_c
+        ifld_abi_c = objects(iobj_c, ifld_c)%field%iabi
+        if (ifld_abi_c == 0) cycle
+        fld_c => objects(iobj_c, ifld_c)%field
+        if (fld_c%type(1:7) == "COUPLED") call define_complex_analytic_field_subterms(fld_c%type, fld_c%sub_type, fld_c%Nsub_terms)
+        if (trim(fld_c%type) == 'GRID') then
+          allocate(spline_wk_c(fld_c%Nterms))
+          call spline(fld_c%grid, fld_c%value, fld_c%Nterms, 0.0_rk, 0.0_rk, spline_wk_c)
+        endif
+        do i_c = 1, abinitio(ifld_abi_c)%Nterms
+          je_c = je_c + 1
+          r_c = abinitio(ifld_abi_c)%grid(i_c)
+          if (trim(fld_c%type) == 'GRID') then
+            call splint(fld_c%grid, fld_c%value, spline_wk_c, fld_c%Nterms, r_c, f_c)
+          else
+            f_c = fld_c%fanalytic_field(r_c, fld_c%value)
+          endif
+          f_c = fld_c%factor * f_c
+          if (fld_c%morphing) f_c = f_c * abinitio(ifld_abi_c)%value(i_c) * abinitio(ifld_abi_c)%factor
+          eps_c(en_npts + je_c) = abinitio(ifld_abi_c)%value(i_c) * abinitio(ifld_abi_c)%factor - f_c
+          if (abs(abinitio(ifld_abi_c)%refvalue) > small_) then
+            fsh_c = fld_c%value(1) - abinitio(ifld_abi_c)%refvalue
+            eps_c(en_npts + je_c) = eps_c(en_npts + je_c) + fsh_c
+          endif
+        enddo
+        if (allocated(spline_wk_c)) deallocate(spline_wk_c)
+      enddo
+    enddo
+    !
+    ssq_out = sum(eps_c(1:npts)*eps_c(1:npts)*wtall(1:npts))
+    rms_ener_out = 0.0_rk
+    if (en_npts >= 1) then
+      wtsum_c = sum(wt_bit(1:en_npts))
+      if (wtsum_c > small_) rms_ener_out = sqrt(sum(eps_c(1:en_npts)**2 * dble(wt_bit(1:en_npts))) / wtsum_c)
+    endif
+  end subroutine evaluate_candidate_ssq
 
 
   subroutine update_linked_parameters
@@ -2277,15 +2956,86 @@ module refinement
        end do
   end subroutine define_jlist
 
+  subroutine lapack_svd_sdd_decompose(method,h,s_out,ut_rhs,vt_out,rhs)
+    !
+    ! Economy SVD / SDD decomposition of weighted Jacobian h (nh1 x nh2):
+    !   h = U * diag(s_out) * vt_out
+    ! Returns singular values s_out, projected right-hand side ut_rhs = U^T * rhs,
+    ! and right singular vectors vt_out = V^T.
+    !
+    character(len=*), intent(in) :: method
+    real(rk), intent(in)         :: h(:,:), rhs(:)
+    real(rk), intent(out)        :: s_out(:), ut_rhs(:), vt_out(:,:)
+    !
+    double precision, allocatable :: A(:,:), work(:), u(:,:), vt(:,:), s(:)
+    integer, allocatable          :: iwork(:)
+    integer                       :: info, nh1, nh2, nmin, lwork, j
+    !
+    nh1 = size(h, dim=1)
+    nh2 = size(h, dim=2)
+    nmin = min(nh1, nh2)
+    lwork = max(1, 50*max(nh1, nh2))
+    !
+    allocate(A(nh1,nh2), u(nh1,nmin), vt(nmin,nh2), s(nmin), work(lwork), stat=info)
+    call ArrayStart('lapack_svd_sdd_decompose',info,size(A),kind(A))
+    call ArrayStart('lapack_svd_sdd_decompose',info,size(u),kind(u))
+    call ArrayStart('lapack_svd_sdd_decompose',info,size(vt),kind(vt))
+    call ArrayStart('lapack_svd_sdd_decompose',info,size(s),kind(s))
+    call ArrayStart('lapack_svd_sdd_decompose',info,size(work),kind(work))
+    !
+    A = dble(h)
+    !
+    if (trim(method) == 'SDD') then
+      allocate(iwork(8*nmin), stat=info)
+      call dgesdd('S', nh1, nh2, A, nh1, s, u, nh1, vt, nmin, work, -1, iwork, info)
+      if (int(work(1)) > size(work)) then
+        lwork = int(work(1))
+        deallocate(work)
+        allocate(work(lwork))
+      endif
+      call dgesdd('S', nh1, nh2, A, nh1, s, u, nh1, vt, nmin, work, lwork, iwork, info)
+      deallocate(iwork)
+      if (info /= 0) then
+        ! Fallback to dgesvd if divide-and-conquer fails to converge
+        A = dble(h)
+        call dgesvd('S', 'S', nh1, nh2, A, nh1, s, u, nh1, vt, nmin, work, lwork, info)
+      endif
+    else
+      call dgesvd('S', 'S', nh1, nh2, A, nh1, s, u, nh1, vt, nmin, work, -1, info)
+      if (int(work(1)) > size(work)) then
+        lwork = int(work(1))
+        deallocate(work)
+        allocate(work(lwork))
+      endif
+      call dgesvd('S', 'S', nh1, nh2, A, nh1, s, u, nh1, vt, nmin, work, lwork, info)
+    endif
+    !
+    if (info /= 0) then
+      write(6,"(' lapack_svd_sdd_decompose returned ',i8)") info
+      stop 'lapack_svd_sdd_decompose - SVD failed'
+    endif
+    !
+    s_out(1:nmin) = real(s(1:nmin), rk)
+    vt_out(1:nmin, 1:nh2) = real(vt(1:nmin, 1:nh2), rk)
+    do j = 1, nmin
+      ut_rhs(j) = sum(real(u(1:nh1, j), rk) * rhs(1:nh1))
+    enddo
+    !
+    deallocate(A, u, vt, s, work)
+    call ArrayStop('lapack_svd_sdd_decompose')
+    !
+  end subroutine lapack_svd_sdd_decompose
+
+
   subroutine lapack_svd_pseudo_inverse(tol,h,Nkeep)
 
     real(rk), intent(in)    :: tol 
     real(rk), intent(inout) :: h(:,:)  ! In:  matrix
     !                                          ! Out: pseudo-inverse matrix V Sigma- VT
     integer(ik), intent(out)  :: Nkeep
-    character(len=1) :: jobu,jobvt,jobz
+    character(len=1) :: jobu,jobvt
     !
-    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:)
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),ut(:,:)
     integer           :: info
     integer           :: nh1, nh2,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
     integer           :: lwork
@@ -2293,58 +3043,35 @@ module refinement
     double precision  :: alpha = 1.0d0,beta=0
     !
     jobu  = 'S'
-    jobvt = 'A'
-    jobz  = 'A'
+    jobvt = 'S'
     !
     nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
     !
-    lwork = 50*nh1
+    lwork = 50*max(nh1,nh2)
     !
-    select case (jobu)
-       case('A')
-         LDU = nh1
-         nu1 = nh1
-         nu2 = nh1
-       case('S')
-         LDU = nh1
-         nu1 = nh1
-         nu2 = min(nh1,nh2)
-    end select
+    LDU = nh1
+    nu1 = nh1
+    nu2 = min(nh1,nh2)
+    LDVT = min(nh1,nh2)
+    nvt1 = min(nh1,nh2)
+    nvt2 = nh2
     !
-    select case (jobvt)
-       case('A')
-         LDVT = nh2
-         nvt1 = nh2
-         nvt2 = nh2
-       case('S')
-         LDVT = min(nh1,nh2)
-         nvt1 = min(nh1,nh2)
-         nvt2 = nh2
-    end select
-    !
-    allocate(work(lwork),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)    !
+    allocate(work(lwork),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),s(min(nh1,nh2)),stat=info)
     call ArrayStart('lapack_svd_pseudo_inverse',info,size(work),kind(work))
     call ArrayStart('lapack_svd_pseudo_inverse',info,size(u),kind(u))
     call ArrayStart('lapack_svd_pseudo_inverse',info,size(ut),kind(ut))
     call ArrayStart('lapack_svd_pseudo_inverse',info,size(vt),kind(vt))
-    call ArrayStart('lapack_svd_pseudo_inverse',info,size(v),kind(v))
     call ArrayStart('lapack_svd_pseudo_inverse',info,size(s),kind(s))
     !
     call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,-1,info)
-    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,-1,info)
     !
     if (int(work(1))>size(work)) then
-      !
       lwork = int(work(1))
-      !
       deallocate(work)
-      !
       allocate(work(lwork))
-      !
     endif
     !
     call dgesvd(jobu,jobvt,nh1,nh2,h,nh1,s,u,LDU,vt,LDVT,work,lwork,info)
-    !call dgesdd(jobz,nh1,nh2,h,nh1,s,u,nh1,vt,nh2,work,lwork,info)
     !
     if (info/=0) then
       write (6,"(' dgesvd returned ',i8)") info
@@ -2353,37 +3080,18 @@ module refinement
     !
     ! pseudo-inverse 
     !
-    Nkeep = 0
-    !
     tol_  = tol*maxval(s,dim=1)
-    !
-    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
-    !
-    Nkeep = min(Nkeep,nh1)
+    Nkeep = count(s.ge.tol_)
+    Nkeep = max(1_ik, min(Nkeep, min(nh1,nh2)))
     !
     ut = 0 
-    !
-    do  j = 1,Nkeep
-       ut(j,:) = U(:,j)/s(j)
+    do j = 1,Nkeep
+      if (s(j)>small_) ut(j,:) = u(:,j)/s(j)
     enddo
-    !
-    !v = transpose(vt)
-    u = transpose(ut)
-    !
-    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
-    !
-    !h = 0
-    !
-    !h = transpose(ut)
-    !
-    !h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
-    !
-    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
-    !h = transpose(ut)
     !
     call dgemm('T','N',LDU,nvt2,Nkeep,alpha,ut,nu2,vt,LDVT,beta,h,nh1)
     !
-    deallocate(work,u,vt,ut,v,s)
+    deallocate(work,u,vt,ut,s)
     !
     call ArrayStop('lapack_svd_pseudo_inverse')
     !
@@ -2397,64 +3105,47 @@ module refinement
     real(rk), intent(inout) :: h(:,:)  ! In:  matrix
     !                                          ! Out: pseudo-inverse matrix V Sigma- VT
     integer(ik), intent(out)  :: Nkeep
-    character(len=1) :: jobu,jobvt,jobz
+    character(len=1) :: jobz
     !
-    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),v(:,:),ut(:,:),A(:,:)
+    double precision,allocatable    :: work(:),u(:,:),vt(:,:),s(:),ut(:,:),A(:,:)
     integer,allocatable    :: iwork(:)
     integer           :: info
     integer           :: nh1, nh2,i,j,nu1,nu2,nvt1,nvt2,LDVT,LDU
     integer           :: lwork
     double precision  :: tol_
-    !double precision  :: alpha = 1.0d0,beta=0
+    double precision  :: alpha = 1.0d0,beta=0
     !
-    jobu  = 'S'
-    jobvt = 'A'
-    jobz  = 'A'
+    jobz  = 'S'
     !
     nh1 = size(h,dim=1) ; nh2 = size(h,dim=2)
     !
-    lwork = 50*nh1
+    lwork = 50*max(nh1,nh2)
     !
-    select case (jobz)
-       case('A')
-         LDU = nh1
-         nu1 = nh1
-         nu2 = nh1
-         LDVT = nh2
-         nvt1 = nh2
-         nvt2 = nh2
-       case('S')
-         LDU = nh1
-         nu1 = nh1
-         nu2 = min(nh1,nh2)
-         LDVT = min(nh1,nh2)
-         nvt1 = min(nh1,nh2)
-         nvt2 = nh2
-    end select
+    LDU = nh1
+    nu1 = nh1
+    nu2 = min(nh1,nh2)
+    LDVT = min(nh1,nh2)
+    nvt1 = min(nh1,nh2)
+    nvt2 = nh2
     !
     allocate(A(nh1,nh2),stat=info)
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(A),kind(A))
     !
     A = h
     !
-    allocate(work(lwork),iwork(8*min(nh1,nh2)),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),v(nvt2,LDVT),s(min(nh1,nh2)),stat=info)
+    allocate(work(lwork),iwork(8*min(nh1,nh2)),u(LDU,nu2),ut(nu2,LDU),vt(LDVT,nvt2),s(min(nh1,nh2)),stat=info)
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(work),kind(work))
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(u),kind(u))
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(ut),kind(ut))
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(vt),kind(vt))
-    call ArrayStart('lapack_sdd_pseudo_inverse',info,size(v),kind(v))
     call ArrayStart('lapack_sdd_pseudo_inverse',info,size(s),kind(s))
     !
     call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,-1,iwork,info)
     !
     if (int(work(1))>size(work)) then
-      !
       lwork = int(work(1))
-      !
       deallocate(work)
-      !
       allocate(work(lwork))
-      !
     endif
     !
     call dgesdd(jobz,nh1,nh2,A,nh1,s,u,LDU,vt,LDVT,work,lwork,iwork,info)
@@ -2466,39 +3157,20 @@ module refinement
     !
     ! pseudo-inverse 
     !
-    Nkeep = 0
-    !
     tol_  = tol*maxval(s,dim=1)
-    !
-    Nkeep = minloc(s,dim=1,mask=s.ge.tol_)
-    !
-    Nkeep = min(Nkeep,nh1)
+    Nkeep = count(s.ge.tol_)
+    Nkeep = max(1_ik, min(Nkeep, min(nh1,nh2)))
     !
     ut = 0 
-    !
-    do  i = 1,nu1
-      do  j = 1,Nkeep
-         ut(j,i) = U(i,j)/s(j)
+    do i = 1,nu1
+      do j = 1,Nkeep
+        if (s(j)>small_) ut(j,i) = u(i,j)/s(j)
       enddo
     enddo
     !
-    !v = transpose(vt)
-    u = transpose(ut)
+    call dgemm('T','N',LDU,nvt2,Nkeep,alpha,ut,nu2,vt,LDVT,beta,h,nh1)
     !
-    !ut(1:nh2,:) = matmul(v(1:nh2,1:nkeep),ut(1:Nkeep,:))
-    !
-    !h = 0
-    !
-    !h = transpose(ut)
-    !
-    h(1:LDU,1:nvt2) = matmul(u(1:LDU,1:Nkeep),vt(1:nkeep,1:nvt2))
-    !
-    !call dgemm('T','N',nh2,nh1,nkeep,alpha,vt,nh2,ut,nh2,beta,ut,nh2)
-    !h = transpose(ut)
-    !
-    !call dgemm('T','N',nh1,nkeep,nh2,alpha,ut,nh2,vt,nh2,beta,h,nh1)
-    !
-    deallocate(work,iwork,u,vt,ut,v,s,A)
+    deallocate(work,iwork,u,vt,ut,s,A)
     !
     call ArrayStop('lapack_sdd_pseudo_inverse')
     !

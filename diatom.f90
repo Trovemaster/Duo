@@ -172,7 +172,7 @@ module diatom_module
     character(len=cl)    :: name='(unnamed)' ! Identifying name of the function (default to avoid garbled outputs)
     character(len=cl)    :: type='NONE'  ! Identifying type of the function
     character(len=cl)    :: class='NONE' ! Identifying class of the function (poten, spinorbit,dipole,abinitio etc)
-    character(len=cl),pointer  :: sub_type(:)  ! Identifying type of sub-functions (used for coupled representations)
+    character(len=cl),pointer  :: sub_type(:) => null()  ! Identifying type of sub-functions (used for coupled representations)
     !
     ! variable used for GRID curves to specify interpolation and extrapolation  options
     !
@@ -495,7 +495,7 @@ module diatom_module
     real(rk)             :: threshold_coeff    = -1e-18
     real(rk)             :: threshold_lock     = -1e-18
     real(rk)             :: threshold_obs_calc  = -1e-16
-    real(rk)             :: svd_tol  = 0.1d0
+    real(rk)             :: svd_tol  = 1.0d-2
     real(rk)             :: zpe=0
     logical              :: shift_to_zpe = .true.   !
     real(rk)             :: fit_scaling=1.0_rk         ! scaling the fitting correction with this factor >0 and <1
@@ -1439,7 +1439,7 @@ contains
             !
             call readf(fitting%threshold_obs_calc)
             !
-          case('SVD-TOL')
+          case('SVD-TOL','SVD_TOL','SVDTOL')
             !
             call readf(fitting%svd_tol)
             !
@@ -5148,243 +5148,100 @@ contains
         case("GRID")
           !
           nterms = field%Nterms
+          N1 = 0
+          N2 = 0
+          if (field%grid(1) > rmin) N1 = 20
+          if (field%grid(nterms) < rmax) N2 = 20
+          !
+          allocate(xx(nterms+N1+N2), yy(nterms+N1+N2), stat=alloc)
+          call ArrayStart('extrap_tmp',alloc,size(xx),kind(xx))
+          call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
+          xx = 0._rk
+          yy = 0._rk
+          !
+          do i=1, nterms
+            xx(N1+i) = field%grid(i)
+            yy(N1+i) = field%value(i)
+          enddo
           !
           ! Lorenzo Lodi, 13 February 2014
           ! This section will add extrapolated points at short and long bond lengths
           ! for tabulated `GRID' functions
-          ! and only for fitting
-          if( field%grid(1) > rmin ) then
-            if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at short bond length curve ' // trim(field%name) // &
+          ! Recomputed dynamically on temporary arrays (xx, yy) so guide points update
+          ! smoothly during fitting without mutating field%grid / field%value in-place.
+          if (N1 > 0) then
+            if (iverbose>=4 .and. .not.gridvalue_allocated) &
+              write(out, '(/,A)') 'Extrapolating at short bond length curve ' // trim(field%name) // &
               ' (class ' // trim(field%class) // ')'
-
-            np = 20              ! I always add `np' short bond length guide points
-            ! I go one step `beyond' rmin to minimize interpolating artifacts at the end of the interval
-
-            x1=field%grid(1)  ; y1 =field%value(1)
-            x2=field%grid(2)  ; y2 =field%value(2)
-            allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np),stat=alloc)
-            call ArrayStart('extrap_tmp',alloc,size(xx),kind(xx))
-            call ArrayStart('extrap_tmp',alloc,size(ww),kind(ww))
-            call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
-            allocate( link_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: link_')")
-              stop 'allocation problem link_'
-            endif
-            allocate( forcename_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: forcename_')")
-              stop 'allocation problem forcename_'
-            endif
-            allocate( frange_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: frange_')")
-              stop 'allocation problem frange_'
-            endif
-            !
-            xx=0._rk
-            yy=0._rk
+            np = N1
+            x1 = field%grid(1) ; y1 = field%value(1)
+            x2 = field%grid(2) ; y2 = field%value(2)
             do i=1, np
-              xx(i) = rmin + (field%grid(1)-rmin)*real(i-2,rk) / real( np-1, rk)
+              xx(i) = rmin + (field%grid(1)-rmin)*real(i-2,rk) / real(np-1, rk)
             enddo
-            !
             select case(field%class)
-              !
             case ("POTEN")
-              !
-              if (iverbose>=4) write(out, '(A, I20)') 'Using A + B/r extrapolation; points added = ', np
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using A + B/r extrapolation; points added = ', np
               bb = -x1*x2*(y1-y2)/(x1-x2)
               aa = y1 - bb/x1
               do i=1, np
                 yy(i) = aa + bb/xx(i)
               enddo
-              !
             case ("DIPOLE")
-              if (iverbose>=4) write(out, '(A, I20)') 'Using A*r + B*r^2 extrapolation; points added = ', np
-              bb = (x2*y1- x1*y2) / (x1*x2 *(x1-x2) )
-              aa = (-bb*x1**2 + y1 ) / x1
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using A*r + B*r^2 extrapolation; points added = ', np
+              bb = (x2*y1 - x1*y2) / (x1*x2 *(x1-x2))
+              aa = (-bb*x1**2 + y1) / x1
               do i=1, np
                 yy(i) = aa*xx(i) + bb*xx(i)**2
               enddo
-              !
-            case default  ! linear extrapolation using the first two points to r = rmin - 1/(np-1)
-              if (iverbose>=4) write(out, '(A, I20)') 'Using linear extrapolation; points added = ', np
+            case default
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using linear extrapolation; points added = ', np
               do i=1, np
                 yy(i) = y1 + (xx(i)-x1) * (y1-y2)/(x1-x2)
               enddo
             end select
-            !
-            do i=np+1, np+nterms
-              xx(i) =  field%grid(i-np)
-              yy(i) =  field%value(i-np)
-            enddo
-            !
-            do i=1, np
-              write(forcename_(i),"(f8.4)") xx(i)
-            enddo
-            !
-            forcename_(np+1:) = field%forcename(1:)
-            !
-            ww(np+1:) = field%weight(1:) ; ww(1:np) = 0
-            !
-            link_(1:np)%iobject = 0
-            link_(1:np)%ifield = 0
-            link_(1:np)%iparam = 0
-            link_(np+1:) = field%link(1:)
-            !
-            frange_(1:np)%min = 0
-            frange_(1:np)%max = 0
-            frange_(1:np)%set = .false.
-            frange_(np+1:) = field%fit_range(1:)
-            !
-            nterms = np+nterms
-            field%Nterms = nterms
-            !
-            call ArrayMinus(trim(field%type),size(field%value),kind(field%value))
-            call ArrayMinus(trim(field%type),size(field%grid),kind(field%grid))
-            call ArrayMinus(trim(field%type),size(field%weight),kind(field%weight))
-            !
-            deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
-            deallocate(field%link)
-            deallocate(field%fit_range)
-            !
-            allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
-            allocate(field%link(nterms),stat=alloc)
-            allocate(field%fit_range(nterms),stat=alloc); if (alloc/=0) stop 'allocation problem fit_range'
-            !
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
-            !
-            field%link(:) = link_(:)
-            field%fit_range(:) = frange_(:)
-            field%grid  = xx
-            field%value = yy
-            field%forcename(:)= forcename_(:)
-            field%weight = ww
-            deallocate(xx, yy, ww,link_,forcename_,frange_)
-            call ArrayStop('extrap_tmp')
-            !
           endif
           !
-          !*************end of short bond length extrapolation **********************************************
-          nterms = field%Nterms
-          if( field%grid(nterms) < rmax) then
-            if (iverbose>=4) write(out, '(/,A)') 'Extrapolating at long bond length curve ' // trim(field%name) // &
+          if (N2 > 0) then
+            if (iverbose>=4 .and. .not.gridvalue_allocated) &
+              write(out, '(/,A)') 'Extrapolating at long bond length curve ' // trim(field%name) // &
               ' (class ' // trim(field%class) // ')'
-            !
-            np = 20    ! I always add `np' long bond length guide points
-            ! I go one step `beyond' rmax to minimize interpolating artifacts at the end of the interval
-            !
-            x1=field%grid(nterms-1)  ; y1 =field%value(nterms-1)
-            x2=field%grid(nterms)    ; y2 =field%value(nterms)
-            allocate( xx(nterms+np), yy(nterms+np),ww(nterms+np),stat=alloc)
-            call ArrayStart('extrap_tmp',alloc,size(xx),kind(xx))
-            call ArrayStart('extrap_tmp',alloc,size(ww),kind(ww))
-            call ArrayStart('extrap_tmp',alloc,size(yy),kind(yy))
-            allocate( link_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: link_tmp')")
-              stop 'allocation problem'
-            endif
-            !
-            allocate( forcename_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: forcename_')")
-              stop 'allocation problem forcename_'
-            endif
-            !
-            allocate( frange_(nterms+np),stat=alloc)
-            if (alloc/=0) then
-              write(out,"('allocation problem: frange_tmp')")
-              stop 'allocation problem'
-            endif
-            !
-            xx=0._rk
-            yy=0._rk
-            do i=1, nterms
-              xx(i) =  field%grid(i)
-              yy(i) =  field%value(i)
+            np = N2
+            x1 = field%grid(nterms-1) ; y1 = field%value(nterms-1)
+            x2 = field%grid(nterms)   ; y2 = field%value(nterms)
+            do i=1, np
+              xx(N1+nterms+i) = field%grid(nterms) + (rmax-field%grid(nterms))*real(i,rk) / real(np-1, rk)
             enddo
-            !
-            do i=nterms+1, nterms+np
-              xx(i) = field%grid(nterms) + (rmax-field%grid(nterms))*real(i-nterms,rk) / real( np-1, rk)
-            enddo
-            !
             select case(field%class)
-
             case ("POTEN")
-              if (iverbose>=4) write(out, '(A, I20)') 'Using De + A/r^6 extrapolation; points added = ', np
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using De + A/r^6 extrapolation; points added = ', np
               bb = (x1*x2)**6 * (y2-y1) / (x1**6 - x2**6)
               aa = y1 - bb/x1**6
-              !       write(out, '(A, 2F20.4)') 'Dissociation set to = ', aa !, bb
-              do i=nterms+1,nterms+np
+              do i=N1+nterms+1, N1+nterms+np
                 yy(i) = aa + bb / xx(i)**6
               enddo
-              !
             case ("DIPOLE")
-              if (iverbose>=4) write(out, '(A, I20)') 'Using A/r^2 + B/r^3 extrapolation; points added = ', np
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using A/r^2 + B/r^3 extrapolation; points added = ', np
               bb = x1*x2*(x1**2 * y1 - x2**2 * y2)/(x2-x1)
               aa = (y1*x1**3 - bb)/x1
-              do i=nterms+1,nterms+np
+              do i=N1+nterms+1, N1+nterms+np
                 yy(i) = aa/xx(i)**2 + bb / xx(i)**3
               enddo
-              !
-            case default  ! extrapolation using the last two points
-              if (iverbose>=4) write(out, '(A, I20)') 'Using linear extrapolation; points added = ', np
-              do i=nterms+1,nterms+np
+            case default
+              if (iverbose>=4 .and. .not.gridvalue_allocated) &
+                write(out, '(A, I20)') 'Using linear extrapolation; points added = ', np
+              do i=N1+nterms+1, N1+nterms+np
                 yy(i) = y1 + (xx(i)-x1) * (y1-y2)/(x1-x2)
               enddo
             end select
-            !
-            ww(1:nterms) = field%weight(1:nterms) ; ww(nterms+1:) = 0
-            !
-            do i=nterms+1, nterms+np
-              write(forcename_(i),"(f8.4)") xx(i)
-            enddo
-            !
-            forcename_(1:nterms) = field%forcename(1:nterms)
-            !
-            link_(1:np)%iobject = 0
-            link_(1:np)%ifield = 0
-            link_(1:np)%iparam = 0
-            link_(np+1:) = field%link(1:)
-            !
-            frange_(1:np)%min = 0
-            frange_(1:np)%max = 0
-            frange_(1:np)%set = .false.
-            frange_(np+1:) = field%fit_range(1:)
-            !
-            nterms = np+nterms
-            field%Nterms = nterms
-            !
-            call ArrayMinus(trim(field%type),size(field%value),kind(field%value))
-            call ArrayMinus(trim(field%type),size(field%grid),kind(field%grid))
-            call ArrayMinus(trim(field%type),size(field%weight),kind(field%weight))
-            !
-            deallocate(field%grid, field%value, field%weight, field%forcename,stat=alloc)
-            !
-            deallocate(field%link,field%fit_range)
-            !
-            allocate(field%value(nterms),field%forcename(nterms),field%grid(nterms),field%weight(nterms),stat=alloc)
-            allocate(field%link(nterms),field%fit_range(nterms),stat=alloc) ; if (alloc/=0) stop 'allocation error link-range'
-            !
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%value))
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%grid))
-            call ArrayStart(trim(field%type),alloc,nterms,kind(field%weight))
-            !
-            field%link(:) = link_(:)
-            field%fit_range(:) = frange_(:)
-            field%grid  = xx
-            field%value = yy
-            field%forcename(:)= forcename_(:)
-            field%weight = ww
-            deallocate(xx, yy, ww,link_,forcename_,frange_)
-            call ArrayStop('extrap_tmp')
-            !
           endif
           !
-          !*************end of long bond length extrapolation **********************************************
+          nterms = nterms + N1 + N2
           !
           ! build spline interpolant
           select case (field%interpolation_type)
@@ -5400,12 +5257,12 @@ contains
             call ArrayStart('spline_wk_vec-field',alloc,ngrid,kind(spline_wk_vec))
             !
             yp1= 0._rk ; ypn =0._rk  ! 1nd derivatives at the first and last point (ignored)
-            call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
+            call spline(xx,yy,nterms,yp1,ypn,spline_wk_vec)
             !
             !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid
               ! evaluate spline interpolant
-              call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r(i),field%gridvalue(i))
+              call splint(xx,yy,spline_wk_vec,nterms,r(i),field%gridvalue(i))
             enddo
             !$omp end parallel do
             !
@@ -5414,31 +5271,20 @@ contains
             !
             ! -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- .
           case("QUINTICSPLINES")  ! quintic spline
-            ! Lorenzo Lodi, 7 April 2016
-            ! Tests show that the present quintic spline interpolation does not give better interpolation results
-            ! than cubic splines. Furthermore the error seems to decrease as npoints**(-4)
-            ! instead of npoints**(-6). The reason for this behaviour is yet unknown, but possibly related
-            ! to a bad choice of the boundary conditions.
-            !
-            ! FOR NOW USE OF QUINTIC SPLINE INTERPOLATION IS NOT RECOMMENDED.
-            ! USE CUBIC SPLINES INSTEAD
             !
             if (iverbose>=6) write(out, '(A, I20)') 'Interpolating with quintic splines'
-            nterms=field%Nterms
             allocate(spline_wk_vec_B(nterms),stat=alloc); call ArrayStart('spline_wk_vec_B',alloc,nterms,kind(spline_wk_vec))
             allocate(spline_wk_vec_C(nterms),stat=alloc); call ArrayStart('spline_wk_vec_C',alloc,nterms,kind(spline_wk_vec))
             allocate(spline_wk_vec_D(nterms),stat=alloc); call ArrayStart('spline_wk_vec_D',alloc,nterms,kind(spline_wk_vec))
             allocate(spline_wk_vec_E(nterms),stat=alloc); call ArrayStart('spline_wk_vec_E',alloc,nterms,kind(spline_wk_vec))
             allocate(spline_wk_vec_F(nterms),stat=alloc); call ArrayStart('spline_wk_vec_F',alloc,nterms,kind(spline_wk_vec))
             !
-            call QUINAT(nterms,field%grid,field%value, spline_wk_vec_B, spline_wk_vec_C, &
+            call QUINAT(nterms,xx,yy, spline_wk_vec_B, spline_wk_vec_C, &
                         spline_wk_vec_D, spline_wk_vec_E, spline_wk_vec_F)
             !
             !$omp parallel do private(i) schedule(guided)
             do i=1,ngrid    ! evaluate spline interpolant
-!                 call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r(i),field%gridvalue(i))
-
-              call splint_quint(field%grid,field%value,nterms,r(i),field%gridvalue(i), spline_wk_vec_B, &
+              call splint_quint(xx,yy,nterms,r(i),field%gridvalue(i), spline_wk_vec_B, &
                                 spline_wk_vec_C, spline_wk_vec_D, spline_wk_vec_E, spline_wk_vec_F)
             enddo
             !$omp end parallel do
@@ -5451,6 +5297,10 @@ contains
             ! -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- . -- .
             !
           end select
+          !
+          deallocate(xx, yy)
+          call ArrayStop('extrap_tmp')
+          nterms = field%Nterms
           !
           ! for dummy fields not used in fittings
           !j
@@ -9067,11 +8917,25 @@ contains
           field%matelem = 0
           !
           select case (iobject)
+          case (1)
+            ! poten%matelem is not used in Hamiltonian construction (contrenergy is used on diagonal)
+            continue
           case default
             !
             !$omp parallel do private(ilevel,jlevel) schedule(guided)
             do ilevel = 1,totalroots
               do jlevel = 1,ilevel
+                !
+                ! Fast state-pair filter: only integrate vibrational matrix elements for electronic
+                ! state pairs coupled by this field (exact, skips unused off-block state pairs).
+                if (.not.action%overlap) then
+                  if (iobject==Nobjects-1) then
+                    if (Nl2==0 .and. icontrvib(ilevel)%istate/=icontrvib(jlevel)%istate) cycle
+                  else
+                    if (.not.( (icontrvib(ilevel)%istate==field%istate.and.icontrvib(jlevel)%istate==field%jstate) .or. &
+                               (icontrvib(ilevel)%istate==field%jstate.and.icontrvib(jlevel)%istate==field%istate) )) cycle
+                  endif
+                endif
                 !
                 ! in the grid representation of the vibrational basis set
                 ! the matrix elements are evaluated simply by a summation of over the grid points
@@ -11916,6 +11780,8 @@ contains
         loop_iso : do iso =1,Nspinorbits
           !
           field => spinorbit(iso)
+          if (.not.((istate==field%istate.and.jstate==field%jstate).or.&
+                    (istate==field%jstate.and.jstate==field%istate))) cycle
           !
           ! The selection rules are (Lefebvre-Brion and Field, Eq. (3.4.6)):
           ! Delta J = 0 ; Delta Omega  = 0 ; g<-/->u; e<->f; Sigma+<->Sigma-;
@@ -12143,6 +12009,9 @@ contains
               stop "Lx/L+ input is inconsistent with selection rules"
             endif
           endif
+          !
+          if (.not.((istate==field%istate.and.jstate==field%jstate).or.&
+                    (istate==field%jstate.and.jstate==field%istate))) cycle
           !
           ! the field entry in the input gives only one combination of the quantum numbers for
           ! the matrix element <State,Lambda,Spin|F|State',Lambda',Spin'>
