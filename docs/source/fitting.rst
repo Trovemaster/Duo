@@ -6,9 +6,8 @@ Duo fitting
 Duo can refine (fit) potential energy curves (PECs) and coupling curves by least-squares fitting to experimental term values (energies) or wavenumbers
 (line positions).
 
-Duo uses a Gauss–Newton least-squares procedure with Marquardt damping. Optionally, this can be combined with a simple line search (``linear_search``).
-The linear least-squares problem is solved using either the LAPACK routine ``DGELSS`` or Duo’s internal solver ``LINUR``, controlled by ``fit_type``
-(aliases: ``fit_type``, ``fit-type``, ``FIT_TYPE``).
+Duo uses a non-linear least-squares refinement procedure with Levenberg–Marquardt damping or truncated Singular Value Decomposition (SVD), combined with a trust-region line search (``linear_search``), a physical curve-regularity gate, and quantum-number-tracked finite-difference Jacobian derivatives.
+The linear least-squares solver and step-control strategy are selected via ``fit_type`` (aliases: ``fit_type``, ``fit-type``, ``FIT_TYPE``): ``LINUR`` (default), ``LM`` (or ``ML``), ``DGELSS``, ``SVD``, or ``SDD``.
 
 Fitting is the most delicate part of a Duo workflow. While forward calculations (energies and spectra for fixed PECs/couplings/dipoles) are usually
 straightforward-provided the phase conventions for coupling terms are consistent-fitting often requires careful data selection and some trial and
@@ -242,8 +241,14 @@ Keywords
       :math:`{\bf x}_{i+1} = {\bf x}_i + \alpha\,\Delta{\bf x}`, with
       :math:`0 \le \alpha \le 1`.
 
-      Duo tests decreasing values starting from :math:`\alpha = 1` in steps of
-      :math:`1/N` (Armijo condition), where ``N`` is the integer argument.
+      For ``LINUR`` and ``DGELSS``, Duo tests decreasing values starting from
+      :math:`\alpha = 1` in steps of :math:`1/N` (Armijo condition), where
+      ``N`` is the integer argument.
+
+      For ``LM``, ``SVD``, and ``SDD``, setting ``linear_search`` to any
+      positive integer ``N > 0`` activates an adaptive trust-region or
+      singular-value truncation/damping line search at each iteration, combined
+      with a physical curve-regularity gate and strict-descent rollback.
 
       Example:
       ::
@@ -251,18 +256,48 @@ Keywords
          linear_search 5
 
    fit_type
-      Chooses the linear solver used in the Gauss–Newton step.
+      Chooses the linear solver and regularization strategy used in the
+      non-linear least-squares step.
 
       Supported values:
 
-      * ``DGELSS`` (LAPACK; often more stable for strongly correlated problems)
-      * ``LINUR``  (internal; can be faster in some cases)
+      * ``LINUR``  (default; internal Cholesky/linear solver for the normal
+        equations; fast for well-conditioned analytical fits)
+      * ``DGELSS`` (LAPACK SVD-based least-squares solver; often more stable
+        for strongly correlated analytical problems)
+      * ``LM`` (alias: ``ML``; Levenberg–Marquardt solver with adaptive
+        Marquardt damping :math:`\lambda` and a 5-point :math:`\lambda`-grid
+        line search when ``linear_search > 0``)
+      * ``SVD`` (truncated singular value decomposition solver via LAPACK
+        ``DGESVD`` on the row-weighted Jacobian :math:`\tilde{\bf J} = {\bf W}^{1/2}{\bf J}`;
+        designed for ill-conditioned or direct ``type grid`` curve fits)
+      * ``SDD`` (divide-and-conquer truncated SVD solver via LAPACK ``DGESDD``
+        with automatic fallback to ``DGESVD``; mathematically equivalent to
+        ``SVD`` and recommended for direct ``type grid`` curve fits)
 
       Examples:
       ::
 
          fit_type dgelss
          fit_type linur
+         fit_type lm
+         fit_type svd
+         fit_type sdd
+
+   svd-tol
+      (Aliases: ``svd_tol``, ``svdtol``)
+
+      Relative singular-value cutoff tolerance :math:`\tau_{\rm svd}` used by
+      ``fit_type SVD`` and ``fit_type SDD`` (default: ``1e-2``). Singular
+      values satisfying :math:`s_k < \tau_{\rm svd}\,s_{\max}` are discarded
+      from the pseudoinverse step and parameter covariance estimate, filtering
+      out poorly determined parameter combinations (such as unconstrained high-frequency
+      grid oscillations).
+
+      Example:
+      ::
+
+         svd-tol 1e-2
 
    fit_scale
       Fixed scaling factor :math:`\alpha` applied to the parameter update
@@ -386,16 +421,82 @@ The file ``<output>.pot`` contains residuals between the fitted curve and its
 reference (if an ``abinitio`` object is provided). This file is overwritten at
 each iteration.
 
+Refinement algorithms: ``LM``, ``SVD``, and ``SDD``
+---------------------------------------------------
+
+In addition to the standard Gauss–Newton solvers (``LINUR`` and ``DGELSS``),
+Duo provides regularized solvers tailored for non-linear, strongly coupled, or
+ill-conditioned refinements:
+
+* **Levenberg–Marquardt (``fit_type LM`` or ``ML``)**:
+  Augments the weighted normal equations with a diagonal Marquardt damping
+  parameter :math:`\lambda`:
+
+  .. math::
+
+     \left({\bf J}^T {\bf W} {\bf J} + \lambda\,{\rm diag}({\bf J}^T {\bf W} {\bf J})\right) \Delta{\bf x}
+     = {\bf J}^T {\bf W} \boldsymbol{\varepsilon}\,.
+
+  When ``linear_search`` is enabled (e.g. ``linear_search 5``), Duo evaluates up
+  to 5 trial steps across a logarithmic :math:`\lambda`-grid around the current
+  trust-region parameter (:math:`\lambda/10, \lambda/3, \lambda, 3\lambda, 10\lambda`)
+  and selects the step yielding the lowest total weighted objective (experimental
+  energies/frequencies plus any *ab initio* reference constraints).
+
+* **Truncated Singular Value Decomposition (``fit_type SVD`` and ``fit_type SDD``)**:
+  Applies an explicit SVD directly to the row-weighted Jacobian
+  :math:`\tilde{\bf J} = {\bf W}^{1/2}{\bf J}` and weighted residual vector
+  :math:`\tilde{\boldsymbol{\varepsilon}} = {\bf W}^{1/2}\boldsymbol{\varepsilon}`:
+
+  .. math::
+
+     \tilde{\bf J} = {\bf U}\,\boldsymbol{\Sigma}\,{\bf V}^T, \qquad
+     \Delta{\bf x} = \sum_{s_k \ge \tau_{\rm svd}\,s_{\max}}
+     \frac{{\bf u}_k^T \tilde{\boldsymbol{\varepsilon}}}{s_k}\,{\bf v}_k\,.
+
+  ``SVD`` uses LAPACK's ``DGESVD``, whereas ``SDD`` uses the faster
+  divide-and-conquer ``DGESDD`` routine (with automatic fallback to ``DGESVD``
+  if ``DGESDD`` does not converge). Singular values below
+  :math:`\tau_{\rm svd}\,s_{\max}` (controlled by ``svd-tol``, default ``1e-2``)
+  are truncated both in the parameter update and in the covariance matrix
+  :math:`{\bf C} = \sum_{s_k \ge \tau_{\rm svd} s_{\max}} s_k^{-2} {\bf v}_k {\bf v}_k^T`,
+  preventing noise amplification along poorly determined directions. When
+  ``linear_search`` is active, Duo searches across a 7-point candidate grid
+  combining stricter singular-value cutoffs (:math:`\tau_{\rm svd}`,
+  :math:`\sqrt{10}\,\tau_{\rm svd}`, :math:`10\,\tau_{\rm svd}`,
+  :math:`100\,\tau_{\rm svd}`) and step damping factors (:math:`\alpha = 0.5, 0.25, 0.1`).
+
+* **Quantum-number-tracked Jacobian derivatives and physical curve gate**:
+  During finite-difference Jacobian evaluations, Duo tracks individual
+  rovibronic states by their assigned quantum numbers :math:`({\rm state}, v,
+  \Lambda, \Sigma, \Omega)` (with automatic fallback to running index near
+  strong avoided crossings) so that derivative rows remain smooth even when two
+  eigenvalues swap energy order under a parameter perturbation. In addition,
+  every trial step during the line search is checked by a physical curve
+  regularity gate (``check_curves_regularity``) that rejects steps introducing
+  spurious potential barriers, extra local minima, or spline wild oscillations,
+  and guarantees strict descent by rolling back any step that fails to reduce
+  the total weighted residual.
+
 Fitting grid points
 -------------------
 
 In addition to fitting analytic parameters, Duo can fit *grid values* for fields
-given in a grid representation. Duo maps the input grid
+given in a grid representation (``type grid``). Duo maps the input grid
 (:math:`N_{\rm field}` points) onto the internal Duo radial grid
 (:math:`N_{\rm Duo}` points) using cubic splines. The input grid values
-:math:`f(r_i)` can therefore be treated as fit parameters.
+:math:`f(r_i)` can therefore be treated directly as fit parameters.
 
-Example (fitting selected grid points of a spin–orbit curve):
+Because individual grid points in regions sparsely sampled by the experimental
+wavefunctions are often weakly determined or strongly correlated with
+neighboring points, direct ``type grid`` refinements are typically
+ill-conditioned. Using ``fit_type SDD`` (or ``fit_type SVD``) together with
+``svd-tol`` and ``linear_search`` is strongly recommended when fitting grid
+points directly, as the truncated SVD automatically filters out unconstrained
+high-frequency spline oscillations while adjusting the well-determined linear
+combinations of grid points.
+
+Example (fitting grid points of potential and spin–orbit curves using ``SDD``):
 ::
 
   spin-orbit  1 1
@@ -412,6 +513,16 @@ Example (fitting selected grid points of a spin–orbit curve):
       2.000000000000  -603.9980000  fit
       3.000000000000  -603.0000000  fit
     end
+
+  FITTING
+    JLIST 0.5 - 10.5
+    itmax 20
+    fit_type SDD
+    svd-tol 1e-2
+    linear_search 5
+    fit_factor 1e4
+    ...
+  END
 
 Constrained fit to *ab initio*
 ------------------------------
