@@ -221,6 +221,25 @@ Keywords
 
          target_rms 0.1
 
+   weighting
+      Specifies how the final column of the ``energies`` or ``frequencies``
+      table in the ``FITTING`` block is interpreted.
+
+      Supported values:
+
+      * ``weights`` (or ``weight``; default) - the column provides fitting
+        weights :math:`w_i` directly.
+      * ``uncertainties`` (or ``uncertainty``) - the column provides
+        experimental uncertainties :math:`\sigma_i` (in cm\ :sup:`-1`), which
+        Duo converts into fitting weights as :math:`w_i = 1/\sigma_i` (with
+        :math:`\sigma_i \le 0` mapped to :math:`w_i = 0`).
+
+      Examples:
+      ::
+
+         weighting uncertainties
+         weighting uncertainty
+
    output
       Output prefix used for auxiliary per-iteration files:
 
@@ -337,8 +356,10 @@ Keywords
          matched by absolute value).
       9. :math:`\Omega` - projection of total electronic angular momentum (integer
          or half-integer; matched by absolute value).
-      10. weight - typically :math:`\sigma^{-2}`, where :math:`\sigma` is the
-          experimental uncertainty.
+      10. weight - typically :math:`\sigma^{-2}` (or :math:`\sigma^{-1}`), or
+          the experimental uncertainty :math:`\sigma` (in cm\ :sup:`-1`) when
+          ``weighting uncertainties`` (alias ``weighting uncertainty``) is
+          specified in the ``FITTING`` block.
 
    frequencies
       (Aliases: ``frequency``, ``wavenumbers``)
@@ -633,6 +654,24 @@ For example:
     end
 
 For a non-diagonal coupling between states :math:`i` and :math:`j`, Duo uses the potential of the first index (:math:`i`) to define :math:`V(r)-V_{\rm min}`.
+
+Alternatively, if point-by-point *ab initio* uncertainties (e.g. error envelopes :math:`\Delta V(r_i)` in cm\ :sup:`-1`) are available in the third column of ``values``, specifying ``weighting uncertainties`` (or ``weighting uncertainty``) instructs Duo to convert the third column into fitting weights via :math:`w(r_i) = 1/\Delta V(r_i)` (with :math:`\Delta V(r_i) \le 0` mapped to :math:`w(r_i) = 0`):
+::
+
+  abinitio poten 1
+    name "X1Sigmag+"
+    lambda 0
+    symmetry g +
+    mult   1
+    type   grid
+    weighting uncertainties
+    fit_factor 1e-2
+    values
+      1.100   8200.500   165.20
+      1.200   1250.300    35.40
+      1.242      0.000    14.10
+      1.300   1180.700    28.60
+    end
 
 Example: refinement of the BeH PEC
 ----------------------------------

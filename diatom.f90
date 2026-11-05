@@ -492,6 +492,7 @@ module diatom_module
     character(len=cl)    :: geom_file = 'pot.fit'
     character(len=cl)    :: output_file = 'fitting'
     character(len=cl)    :: fit_type = 'LINUR'      ! to switch between fitting methods.
+    character(len=cl)    :: weighting = 'WEIGHTS'   ! 'WEIGHTS' (default) or 'UNCERTAINTIES'/'UNCERTAINTY' (1/unc)
     real(rk)             :: threshold_coeff    = -1e-18
     real(rk)             :: threshold_lock     = -1e-18
     real(rk)             :: threshold_obs_calc  = -1e-16
@@ -1430,6 +1431,17 @@ contains
             !
             call readu(fitting%fit_type)
             !
+          case('WEIGHTING')
+            !
+            call readu(fitting%weighting)
+            !
+            select case (trim(fitting%weighting))
+            case ('UNCERTAINTIES','UNCERTAINTY','WEIGHTS','WEIGHT','NONE','DEFAULT')
+              continue
+            case default
+              call report ("Unrecognized WEIGHTING option in FITTING: "//trim(fitting%weighting),.true.)
+            end select
+            !
           case('THRESH_ASSIGN','THRESH_REASSIGN','THRESH_LOCK','LOCK','LOCK_QUANTA')
             !
             call readf(fitting%threshold_lock)
@@ -1793,6 +1805,19 @@ contains
         enddo
         !
         fitting%Nenergies = iobs
+        !
+        if (associated(fitting%obs)) then
+          select case (trim(fitting%weighting))
+          case ('UNCERTAINTIES','UNCERTAINTY')
+            do iobs = 1, fitting%Nenergies
+              if (fitting%obs(iobs)%weight > small_) then
+                fitting%obs(iobs)%weight = 1.0_rk / fitting%obs(iobs)%weight
+              else
+                fitting%obs(iobs)%weight = 0.0_rk
+              endif
+            enddo
+          end select
+        endif
         !
         if (trim(w)/="".and.trim(w)/="END") then
           call report ('wrong last line in FITTING ',.false.)
@@ -2805,12 +2830,21 @@ contains
             !
             call readu(field%weighting%wtype)
             !
-            if (trim(field%weighting%wtype)=="PS1997") then
+            select case (trim(field%weighting%wtype))
+            case ("PS1997")
               !
               call readf(field%weighting%alpha)
               call readf(field%weighting%Vtop)
               !
-            endif
+            case ("UNCERTAINTIES","UNCERTAINTY","GRID","WEIGHT","WEIGHTS","NONE","DEFAULT")
+              !
+              continue
+              !
+            case default
+              !
+              call report ("Unrecognized WEIGHTING option: "//trim(field%weighting%wtype),.true.)
+              !
+            end select
             !
           case("MORPHING","MORPH")
             !
@@ -3317,6 +3351,19 @@ contains
           call read_line(eof,iut) ; if (eof) exit
           call readu(w)
         enddo
+        !
+        if (trim(field%class(1:4))=="ABIN" .and. associated(field%weight)) then
+          select case (trim(field%weighting%wtype))
+          case ("UNCERTAINTIES","UNCERTAINTY")
+            do iparam = 1, field%Nterms
+              if (field%weight(iparam) > small_) then
+                field%weight(iparam) = 1.0_rk / field%weight(iparam)
+              else
+                field%weight(iparam) = 0.0_rk
+              endif
+            enddo
+          end select
+        endif
         !
       case("SYMGROUP","SYMMETRY","SYMM","SYM","SYM_GROUP")
         !

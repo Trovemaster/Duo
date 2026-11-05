@@ -2263,7 +2263,7 @@ module refinement
                       !
                       if (conf_int>1e8) conf_int = 0 
                       !
-                      write(my_fmt, '(A,I0,A)') "(a8,1x,f8.1,2x,f22.",ndigits,"'(',i14,')',2x,'[',3i5,']')"
+                      write(my_fmt, '(A,I0,A)') "(a8,1x,f8.1,2x,f22.",ndigits,",'(',i14,')',2x,'[',3i5,']')"
                       write (out,my_fmt) objects(iobject,ifield)%field%forcename(iterm),&
                                          objects(iobject,ifield)%field%weight(iterm),objects(iobject,ifield)%field%value(iterm),&
                                          nint(conf_int),iobject,ifield,iterm
