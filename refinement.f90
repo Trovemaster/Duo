@@ -108,8 +108,9 @@ module refinement
       integer(ik),allocatable   :: obs_N_save(:),obs_N_low_save(:),base_turns(:,:),base_imin(:,:)
       real(rk),allocatable      :: base_maxabs(:,:)
       logical,allocatable       :: field_has_fit(:,:)
-      integer(ik)               :: iR,iL,kswap,icand,ncand,min_eval_cands,nsvd_max,NumSVD_try,best_NumSVD,tested_nkeep(7)
+      integer(ik)               :: iR,iL,kswap,icand,ncand,min_eval_cands,nsvd_max,NumSVD_try,best_NumSVD,tested_nkeep(7),jobject
       logical                   :: qn_matchR,qn_matchL,have_cached_step,use_lm_linesearch,step_accepted,is_regular,converged_lm
+      logical                   :: is_linked_par
       real(rk)                  :: ssq0,best_ssq,ssq_cand,rms_ener_cand,best_rms_ener,ssq1_before,best_lambda,lambda_try
       real(rk)                  :: lambda_cand(7),svd_tol_cand(7),svd_scale_cand(7),tested_scale(7)
       real(rk)                  :: w_sqrt,tol_cut,best_svd_tol,best_svd_scale
@@ -541,7 +542,7 @@ module refinement
           !
           use_lm_linesearch = .false.
           select case (trim(fitting%fit_type))
-          case ('LINUR','DGELSS','LM','LM_PARALLEL','MARQUARDT','SVD','SDD')
+          case ('LM','LM_PARALLEL','MARQUARDT','SVD','SDD')
             use_lm_linesearch = .true.
           end select
           have_cached_step = .false.
@@ -1486,26 +1487,40 @@ module refinement
                           !
                           rjacob(en_npts+j,ifitpar) = 0
                           !
+                          jobject = fit_index(ifitpar)%iobject
                           jfield = fit_index(ifitpar)%ifield
                           iterm = fit_index(ifitpar)%iterm
                           !
                           ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
                           if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
                           !
-                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          is_linked_par = (iobject==jobject .and. ifield==jfield)
+                          if (.not.is_linked_par) then
+                            do k_ = 1,objects(iobject,ifield)%field%Nterms
+                              if (objects(iobject,ifield)%field%link(k_)%iobject==jobject .and. &
+                                  objects(iobject,ifield)%field%link(k_)%ifield==jfield .and. &
+                                  objects(iobject,ifield)%field%link(k_)%iparam==iterm) then
+                                is_linked_par = .true.
+                                exit
+                              endif
+                            enddo
+                          endif
+                          if (.not.is_linked_par) cycle
                           !
-                          param_t = field%value(iterm)
+                          param_t = objects(jobject,jfield)%field%value(iterm)
                           !
                           delta = max(1e-3_rk*abs(param_t), 1.0_rk)
                           !
-                          field%value(iterm) = param_t + delta
+                          objects(jobject,jfield)%field%value(iterm) = param_t + delta
+                          call update_linked_parameters
                           !
                           call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
                           !
                           ! evaluate spline interpolant
                           call splint(field%grid,field%value,spline_wk_vec,field%Nterms,r_t,FR)
                           !
-                          field%value(iterm) = param_t - delta
+                          objects(jobject,jfield)%field%value(iterm) = param_t - delta
+                          call update_linked_parameters
                           !
                           call spline(field%grid,field%value,field%Nterms,yp1,ypn,spline_wk_vec)
                           !
@@ -1514,7 +1529,8 @@ module refinement
                           !
                           rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*field%factor
                           !
-                          field%value(iterm) = param_t
+                          objects(jobject,jfield)%field%value(iterm) = param_t
+                          call update_linked_parameters
                           !
                         enddo
                         !
@@ -1529,31 +1545,46 @@ module refinement
                           !
                           !if (objects(iobject,ifield)%field%type=='GRID') cycle
                           !
+                          jobject = fit_index(ifitpar)%iobject
                           jfield = fit_index(ifitpar)%ifield
                           iterm = fit_index(ifitpar)%iterm
                           !
                           ! when the constraint applied to the reference field the derivative wrt the first parameter is zero
                           if (abs(abinitio(ifield_)%refvalue)>small_.and.iterm==1) cycle
                           !
-                          if (ifield/=jfield.or.iobject/=fit_index(ifitpar)%iobject)cycle 
+                          is_linked_par = (iobject==jobject .and. ifield==jfield)
+                          if (.not.is_linked_par) then
+                            do k_ = 1,objects(iobject,ifield)%field%Nterms
+                              if (objects(iobject,ifield)%field%link(k_)%iobject==jobject .and. &
+                                  objects(iobject,ifield)%field%link(k_)%ifield==jfield .and. &
+                                  objects(iobject,ifield)%field%link(k_)%iparam==iterm) then
+                                is_linked_par = .true.
+                                exit
+                              endif
+                            enddo
+                          endif
+                          if (.not.is_linked_par) cycle
                           !
-                          param_t = objects(iobject,ifield)%field%value(iterm)
+                          param_t = objects(jobject,jfield)%field%value(iterm)
                           !
                           delta = 1e-4*abs(param_t)
                           !
                           if (delta < small_) delta = sqrt(small_)*10.0
                           !
-                          objects(iobject,ifield)%field%value(iterm) = param_t + delta
+                          objects(jobject,jfield)%field%value(iterm) = param_t + delta
+                          call update_linked_parameters
                           !
                           fR =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                           !
-                          objects(iobject,ifield)%field%value(iterm) = param_t - delta
+                          objects(jobject,jfield)%field%value(iterm) = param_t - delta
+                          call update_linked_parameters
                           !
                           fL =  objects(iobject,ifield)%field%fanalytic_field(r_t,objects(iobject,ifield)%field%value)
                           !
                           rjacob(en_npts+j,ifitpar) = (fR-fL)/(2.0_rk*delta)*objects(iobject,ifield)%field%factor
                           !
-                          objects(iobject,ifield)%field%value(iterm) = param_t
+                          objects(jobject,jfield)%field%value(iterm) = param_t
+                          call update_linked_parameters
                           !
                         enddo
                         !
@@ -1611,6 +1642,7 @@ module refinement
                       !
                       objects(iobject,ifield)%field%weight(iterm) = 0
                       objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                      call update_linked_parameters
                       !
                       write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
                       !
@@ -1639,7 +1671,64 @@ module refinement
                  write (out,"('fit_type ',a,' unknown')") trim(fitting%fit_type)
                  stop 'fit_type unknown'
                  !
-               case('LINUR','DGELSS','LM','LM_PARALLEL','MARQUARDT') 
+               case('LINUR','DGELSS')
+                  !
+                  ! Standard Marquardt fitting method (single step per iteration)
+                  !
+                  do irow=1,numpar
+                    do icolumn=1,irow
+                      am(irow,icolumn)=al(irow,icolumn)/sqrt( al(irow,irow)*al(icolumn,icolumn) )
+                      am(icolumn,irow)=am(irow,icolumn)
+                    enddo
+                    bm(irow) = bl(irow)/sqrt(al(irow,irow))
+                  enddo
+                  do irow=1,numpar
+                    am(irow,irow)=am(irow,irow)*(1.0_rk+lambda)
+                  enddo
+                  select case (trim(fitting%fit_type))
+                  case('LINUR')
+                    call MLlinur(numpar,numpar,am(1:numpar,1:numpar),bm(1:numpar),solution(1:numpar),ierror)
+                    if (ierror.ne.0) then
+                      do ncol=1,numpar
+                        if (ncol.eq.ierror) then
+                          iobject = fit_index(ncol)%iobject
+                          ifield = fit_index(ncol)%ifield
+                          iterm = fit_index(ncol)%iterm
+                          objects(iobject,ifield)%field%weight(iterm) = 0
+                          objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                          call update_linked_parameters
+                          write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
+                        endif
+                      enddo
+                      cycle outer_loop
+                    endif
+                  case('DGELSS')
+                    ai(1:numpar,1:numpar) = am(1:numpar,1:numpar)
+                    bi(1:numpar) = bm(1:numpar)
+                    call dgelss(numpar,numpar,1,ai(1:numpar,1:numpar),numpar,bi(1:numpar),numpar,Tsing,-1.D-12,rank,&
+                                wspace,lwork,info)
+                    if (info/=0) then
+                      write(out,"('dgelss:error',i0)") info
+                      stop 'dgelss'
+                    endif
+                    solution(1:numpar) = bi(1:numpar)
+                  end select
+                  do ncol=1,numpar
+                    solution(ncol) = solution(ncol)/sqrt(al(ncol,ncol))
+                  enddo
+                  dx(1:numpar) = solution(1:numpar)*fitting%fit_scaling
+                  do ncol=1,numpar
+                    iobject = fit_index(ncol)%iobject
+                    ifield = fit_index(ncol)%ifield
+                    iterm = fit_index(ncol)%iterm
+                    param_t = params_t(ncol) + dx(ncol)
+                    param_t = max(objects(iobject,ifield)%field%fit_range(iterm)%min,param_t)
+                    param_t = min(objects(iobject,ifield)%field%fit_range(iterm)%max,param_t)
+                    objects(iobject,ifield)%field%value(iterm) = param_t
+                  enddo
+                  call update_linked_parameters
+                  !
+               case('LM','LM_PARALLEL','MARQUARDT') 
                   !
                   ! Using Marquardt trust-region fitting with lambda-grid line search,
                   ! curve regularity gate, and strict-descent rollback.
@@ -1706,6 +1795,7 @@ module refinement
                               iterm = fit_index(ncol)%iterm
                               objects(iobject,ifield)%field%weight(iterm) = 0
                               objects(iobject,ifield)%field%value(iterm) = object0(iobject,ifield)%value(iterm)
+                              call update_linked_parameters
                               write(out,"(i0,'-th is out - ',a8)") i,objects(iobject,ifield)%field%forcename(iterm)
                             endif
                           enddo
@@ -2044,8 +2134,6 @@ module refinement
                if (use_lm_linesearch) then
                  if (step_accepted) then
                    stability = max(abs(sqrt(best_ssq)-sqrt(ssq0))/max(sqrt(best_ssq),small_), 1.0e-11_rk)
-                 elseif (converged_lm) then
-                   fititer = itmax + 1
                  endif
                endif
                stadev_old=stadev
@@ -2147,6 +2235,7 @@ module refinement
             !
             ! Print the updated parameters. 
             !
+            call update_linked_parameters
             write(out,"(/'Parameters:')")
             !
             ifield_ = 0
@@ -2307,6 +2396,8 @@ module refinement
             !
             if (verbose>=4) call TimerReport
             !
+            if (use_lm_linesearch .and. converged_lm) exit loop_fititer
+            !
           enddo loop_fititer  ! --- fititer
           !
        enddo outer_loop
@@ -2429,7 +2520,7 @@ module refinement
     imin_loc = minloc(fvec, dim=1)
     max_abs = maxval(abs(fvec))
     fspan = maxval(fvec) - minval(fvec)
-    tol_df = 1.0e-8_rk * max(1.0e-12_rk, fspan)
+    tol_df = 5.0e-2_rk * max(1.0e-12_rk, fspan)
     prev_sign = 0
     do ig = 1, npts_eval - 1
       df = fvec(ig+1) - fvec(ig)
@@ -2724,32 +2815,34 @@ module refinement
 
   subroutine update_linked_parameters
     !
-    integer(ik) :: ifield,iterm,iobject,Nfields
+    integer(ik) :: ipass,ifield,iterm,iobject,Nfields
     type(linkT),pointer :: flink
     !
     ! update linked parameters 
     !
-    do iobject =1,Nobjectmax
-       !
-       Nfields = fieldmap(iobject)%Nfields
-       !
-       do ifield =1,Nfields
+    do ipass = 1,2
+      do iobject =1,Nobjectmax
          !
-         !ifield_ = ifield_ + 1
+         Nfields = fieldmap(iobject)%Nfields
          !
-         do iterm = 1,objects(iobject,ifield)%field%Nterms
+         do ifield =1,Nfields
            !
-           flink => objects(iobject,ifield)%field%link(iterm)
+           !ifield_ = ifield_ + 1
            !
-           if (flink%iobject/=0) then
+           do iterm = 1,objects(iobject,ifield)%field%Nterms
              !
-             objects(iobject,ifield)%field%value(iterm) = objects(flink%iobject,flink%ifield)%field%value(flink%iparam)
+             flink => objects(iobject,ifield)%field%link(iterm)
              !
-           endif 
+             if (flink%iobject/=0) then
+               !
+               objects(iobject,ifield)%field%value(iterm) = objects(flink%iobject,flink%ifield)%field%value(flink%iparam)
+               !
+             endif 
+             !
+           enddo
            !
          enddo
-         !
-       enddo
+      enddo
     enddo
     !
   end subroutine update_linked_parameters

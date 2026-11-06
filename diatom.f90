@@ -4312,7 +4312,7 @@ contains
          dst%forcename = src%forcename
          dst%grid = src%grid
          dst%weight = src%weight
-         dst%link(Nparam) = src%link(Nparam)
+         dst%link = src%link
          dst%fit_range = src%fit_range
          !
       else
@@ -5127,6 +5127,8 @@ contains
       !
     endif
     !
+    call update_linked_fields
+    !
     object_loop: do iobject = 1,Nobjects
       !
       Nmax = fieldmap(iobject)%Nfields
@@ -5600,7 +5602,8 @@ contains
         !
         if (trim(field%weighting%wtype)=="PS1997") then
           !
-          istate = field%iref
+          istate = field%istate
+          if (istate < 1 .or. istate > Nestates) istate = field%iref
           beta = field%weighting%alpha
           Vtop = field%weighting%Vtop
           !imin = (field%grid(1)-rmin) / real( np-1, rk)
@@ -7303,6 +7306,84 @@ contains
       r  = r_
       !
     end function find_crossing_point_of_PECs
+    !
+    function get_field_ptr(iobj, ifld) result(fptr)
+      integer(ik), intent(in) :: iobj, ifld
+      type(fieldT), pointer :: fptr
+      fptr => null()
+      if (iobj < 1 .or. iobj > Nobjects) return
+      if (ifld < 1 .or. ifld > fieldmap(iobj)%Nfields) return
+      select case (iobj)
+      case (1)
+        fptr => poten(ifld)
+      case (2)
+        fptr => spinorbit(ifld)
+      case (3)
+        fptr => l2(ifld)
+      case (4)
+        fptr => lxly(ifld)
+      case (5)
+        fptr => spinspin(ifld)
+      case (6)
+        fptr => spinspino(ifld)
+      case (7)
+        fptr => bobrot(ifld)
+      case (8)
+        fptr => spinrot(ifld)
+      case (9)
+        fptr => diabatic(ifld)
+      case (10)
+        fptr => lambdaopq(ifld)
+      case (11)
+        fptr => lambdap2q(ifld)
+      case (12)
+        fptr => lambdaq(ifld)
+      case (13)
+        fptr => nac(ifld)
+      case (14)
+        fptr => bobvib(ifld)
+      case (21, 22, 23, 24, 25, 26, 27, 28)
+        fptr => hfcc1(iobj - 20)%field(ifld)
+      case (Nobjects-5)
+        fptr => magnetrot(ifld)
+      case (Nobjects-4)
+        fptr => magnetictm(ifld)
+      case (Nobjects-3)
+        fptr => quadrupoletm(ifld)
+      case (Nobjects-2)
+        fptr => abinitio(ifld)
+      case (Nobjects)
+        fptr => dipoletm(ifld)
+      end select
+    end function get_field_ptr
+    !
+    subroutine update_linked_fields
+      integer(ik) :: ipass, iobj, ifld, ip, nfld
+      type(fieldT), pointer :: fsrc, fdst
+      type(linkT), pointer :: flnk
+      do ipass = 1, 2
+        do iobj = 1, Nobjects
+          if (iobj == Nobjects - 1) cycle
+          nfld = fieldmap(iobj)%Nfields
+          do ifld = 1, nfld
+            fdst => get_field_ptr(iobj, ifld)
+            if (.not.associated(fdst)) cycle
+            if (.not.associated(fdst%link) .or. .not.associated(fdst%value)) cycle
+            do ip = 1, fdst%Nterms
+              flnk => fdst%link(ip)
+              if (flnk%iobject /= 0) then
+                fsrc => get_field_ptr(flnk%iobject, flnk%ifield)
+                if (associated(fsrc)) then
+                  if (associated(fsrc%value) .and. flnk%iparam >= 1 .and. flnk%iparam <= fsrc%Nterms) then
+                    fdst%value(ip) = fsrc%value(flnk%iparam)
+                  endif
+                endif
+              endif
+            enddo
+          enddo
+        enddo
+      enddo
+    end subroutine update_linked_fields
     !
   end subroutine map_fields_onto_grid
 
