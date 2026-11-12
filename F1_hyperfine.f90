@@ -264,7 +264,7 @@ contains
                                 qnum2a(quanta%Itot, 5), &  
                                 qnum2a(quanta%Jrot, 7), &
                                 trim(poten(quanta%istate)%name), &
-                                quanta%v, &
+                                eigen_all_hfs(index_Ftot, index_represC2v)%quanta(maxlocation2)%v, &
                                 quanta%ilambda, & 
                                 qnum2a(quanta%sigma, 5), &
                                 qnum2a(quanta%omega, 5) 
@@ -890,7 +890,7 @@ contains
                             qnum2a(quanta%F1, 7), &
                             qnum2a(quanta%Jrot, 7), &
                             trim(poten(quanta%istate)%name), &
-                            quanta%v, &
+                            eigen_all_hfs(index_Ftot, index_represCs)%quanta(maxlocation2)%v, &
                             quanta%ilambda, &
                             qnum2a(quanta%sigma, 5), &
                             qnum2a(quanta%omega, 5)
@@ -1283,7 +1283,7 @@ contains
         integer(ik), INTENT(IN) :: iverbose
         INTEGER(ik) :: index_J, index_J_min, index_J_max 
         INTEGER(ik) :: index_F1, index_represCs, iroot, iF_ID
-        INTEGER(ik) :: Ndimen_F1, Nlevels_F1, index_levels_F1, maxlocation
+        INTEGER(ik) :: Ndimen_F1, Nlevels_F1, index_levels_F1, maxlocation, maxlocation2
         REAL(rk), ALLOCATABLE :: eigen_value_F1(:), &
                                     parity_conserved_F1_matrix(:, :), &
                                     primitive_F1_hyperfine_matrix(:,:), &
@@ -1446,6 +1446,7 @@ contains
                 iF_ID = 0
                 do index_levels_F1 = 1, Nlevels_F1
                     maxlocation = MAXLOC(ABS(eigen_vector_F1(:, index_levels_F1)), DIM=1)
+                    maxlocation2 = MAXLOC(ABS(parity_conserved_F1_matrix(:, index_levels_F1)), DIM=1)
                     quanta => primitive_hfs_basis(index_F1)%icontr(maxlocation)
 
                     iroot = iroot + 1
@@ -1467,7 +1468,7 @@ contains
                             qnum2a(quanta%I1, 5), &       
                             qnum2a(quanta%Jrot, 7), &
                             trim(poten(quanta%istate)%name), &
-                            quanta%v, &
+                            eigen_all_hfs(index_F1, index_represCs)%quanta(maxlocation2)%v, &
                             quanta%ilambda, &
                             qnum2a(quanta%sigma, 5), &
                             qnum2a(quanta%omega, 5)
