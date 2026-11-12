@@ -6,13 +6,14 @@ module F1_hyperfine
     use diatom_module, only: basis, three_j, faclog, eigen, jmax, job,&
                             vibrational_totalroots, vibrational_contrfunc, vibrational_quantum_number, &
                             hfcc1, hfcc2, hfcc12, hyperfine_setup, GLOBAL_NUM_HFCC_OBJECT, GLOBAL_NUM_HFCC12_OBJECT, poten, &
-                            symbol1, symbol2, Nspin1, Nspin2 , &
-                            eigenT, basisT, quantaT, fieldT, linkT
+                            hyperfine_case, &
+                            eigenT, basisT, quantaT, fieldT, FieldListT, linkT
 
     implicit none
     
     
     TYPE(basisT), ALLOCATABLE :: primitive_hfs_basis(:)
+    TYPE(FieldListT), POINTER :: active_hfcc(:) => hfcc1
     
     REAL(rk), ALLOCATABLE :: F1_list(:)
     REAL(rk), ALLOCATABLE :: Itot_list(:)
@@ -35,30 +36,24 @@ contains
     subroutine hyperfine_structure(iverbose)   ! control different nuclear-spin cases
         implicit none
         integer(ik), INTENT(IN) :: iverbose
-        logical :: has_I1, has_I2
         
         write(out, '(/A)') "Start: hyperfine energies calculation"
         open(unit=unit_hyperfine_states, file="hyperfine.states")
 
-        has_I1 = (abs(Nspin1) > 10.0_rk*small_)
-        has_I2 = (abs(Nspin2) > 10.0_rk*small_)
-        
-        if (.not. has_I1 .and. .not. has_I2) then 
-            stop 'ERROR: please switch-off hyperfine since both nuclei have zero nuclear spin.'
-        elseif (has_I1 .neqv. has_I2) then
+        active_hfcc => hfcc1
+        select case(hyperfine_case)
+        case(1)
             write(out, '(/A)') " Hyperfine case: single non-zero-spin nucleus."
             call F1_hyperfine_structure(iverbose)
-        elseif (trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2)) then
-            if (sym%Nrepresen == 4) then 
-                write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; homonuclear."
-                call IF_hyperfine_structure(iverbose) 
-            else
-                stop ' ERROR: homonuclear hyperfine requires 4 symmetry irreps (C2v-like).'
-            endif 
-        else 
-            write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; heteronuclear."
+        case(2)
+            write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; homonuclear."
+            call IF_hyperfine_structure(iverbose)
+        case(3)
+            write(out, '(/A)') " Hyperfine case: heteronuclear two-spin coupling."
             call F1F_hyperfine_structure(iverbose)
-        endif
+        case default
+            stop 'ERROR: hyperfine nuclear-spin case has not been initialized.'
+        end select
     end subroutine hyperfine_structure
 
     subroutine IF_hyperfine_structure(iverbose)
@@ -78,10 +73,6 @@ contains
         TYPE(quantaT), POINTER :: quanta
 
         I1 = hyperfine_setup%I1
-        if (abs(I1 - Nspin1) > 1.0e-12_rk .or. abs(I1 - Nspin2) > 1.0e-12_rk) then
-            write (out, *) "Hyperfine input inconsistent with nuclear spins."
-            stop 
-        end if 
         
         Itot_max = 2.0_rk*I1   ! = 2*I1, integer
 
@@ -736,11 +727,6 @@ contains
 
         I1 = hyperfine_setup%I1
         I2 = hyperfine_setup%I2
-        if (I2 < 0.0_rk) I2 = Nspin2
-        if (abs(I1 - Nspin1) > 1.0e-12_rk .or. abs(I2 - Nspin2) > 1.0e-12_rk) then
-            write (out, *) "Hyperfine input inconsistent with nuclear spins."
-            stop
-        end if
 
         J_global_max = jmax
         if (J_global_max < I1 + I2) then
@@ -1305,7 +1291,12 @@ contains
                                     eigen_vector_F1(:, :)
         TYPE(quantaT), POINTER :: quanta
 
-        I1 = hyperfine_setup%I1
+        I1 = max(hyperfine_setup%I1,hyperfine_setup%I2)
+        if (hyperfine_setup%I1>0.0_rk) then
+            active_hfcc => hfcc1
+        else
+            active_hfcc => hfcc2
+        endif
  
         J_global_max = jmax
         if (J_global_max < I1) then
@@ -1821,9 +1812,9 @@ contains
                 if (state_bra == state_ket) then
 
                     do index_hfcc1 = 1, GLOBAL_NUM_HFCC_OBJECT
-                        do index_field = 1, hfcc1(index_hfcc1)%num_field
-                            if ( (state_bra == hfcc1(index_hfcc1)%field(index_field)%istate) &
-                                .and. (state_ket == hfcc1(index_hfcc1)%field(index_field)%jstate)) then
+                        do index_field = 1, active_hfcc(index_hfcc1)%num_field
+                            if ( (state_bra == active_hfcc(index_hfcc1)%field(index_field)%istate) &
+                                .and. (state_ket == active_hfcc(index_hfcc1)%field(index_field)%jstate)) then
 
                                 primitive_F1_hyperfine_matrix(bra, ket) = &
                                     primitive_F1_hyperfine_matrix(bra, ket) &
@@ -2046,7 +2037,7 @@ contains
                     * Wigner3j(J_ket, J_bra, 1.0_rk, &
                                Omega_ket, -Omega_bra, REAL(q, rk)) &
                     * sqrt(S_bra * (S_bra + 1.0_rk)) &
-                    * hfcc1(1)%field(index_field)%matelem(index_v_bra, index_v_ket)
+                    * active_hfcc(1)%field(index_field)%matelem(index_v_bra, index_v_ket)
                     
                 exit
             end if
@@ -2107,7 +2098,7 @@ contains
                     * Wigner3j(J_ket, J_bra, 1.0_rk, &
                                 Omega_ket, -Omega_bra, REAL(p, rk)) &
                     * Lambda_bra &
-                    * hfcc1(2)%field(index_field)%matelem(index_v_bra, index_v_ket)
+                    * active_hfcc(2)%field(index_field)%matelem(index_v_bra, index_v_ket)
                 exit              
             end if
         end do
@@ -2152,7 +2143,7 @@ contains
                     * Wigner3j(J_ket, J_bra, 1.0_rk, &
                                 Omega_ket, -Omega_bra, REAL(p+q, rk)) &
                     * sqrt(30.0_rk) * sqrt(S_bra * (S_bra + 1.0_rk)) &
-                    * hfcc1(3)%field(index_field)%matelem(index_v_bra, index_v_ket) / (3.0_rk) 
+                    * active_hfcc(3)%field(index_field)%matelem(index_v_bra, index_v_ket) / (3.0_rk)
                 exit 
             end if
         end do        
@@ -2218,7 +2209,7 @@ contains
                         * Wigner3j(J_ket, J_bra, 1.0_rk, &
                                     Omega_ket, -Omega_bra, REAL(p+q, rk)) &
                         * sqrt(30.0_rk) * sqrt(S_bra * (S_bra + 1.0_rk)) &
-                        * hfcc1(4)%field(index_field)%matelem(index_v_bra, index_v_ket) /(-sqrt(6.0_rk))
+                        * active_hfcc(4)%field(index_field)%matelem(index_v_bra, index_v_ket) /(-sqrt(6.0_rk))
                     exit outer
                 end if
             end do            
@@ -2279,7 +2270,7 @@ contains
                 * Wigner6j(I1, J_bra, F1, J_bra, I1, 1.0_rk) &
                 * sqrt(J_bra * (J_bra + 1.0_rk) * (2.0_rk * J_bra + 1.0_rk) &
                         * I1 * (I1 + 1.0_rk) * (2.0_rk * I1 + 1.0_rk)) &
-                * hfcc1(5)%field(index_field)%matelem(index_v_bra, index_v_ket)
+                * active_hfcc(5)%field(index_field)%matelem(index_v_bra, index_v_ket)
         end if
 
     end function H_IJ_element
@@ -2308,7 +2299,7 @@ contains
             * Wigner6j(I1, J_bra, F1, J_ket, I1, 1.0_rk) &
             * sqrt(I1*(I1 + 1.0_rk)*(2.0_rk*I1 + 1.0_rk)) &
             * reduced_A1 &
-            * hfcc1(6)%field(index_field)%matelem(index_v_bra, index_v_ket)
+            * active_hfcc(6)%field(index_field)%matelem(index_v_bra, index_v_ket)
 
     end function H_CIp_element
     
@@ -2366,7 +2357,7 @@ contains
                 * get_sign(J_bra - Omega_bra) &
                 * Wigner3j(J_bra, 2.0_rk, J_ket, -Omega_bra, REAL(p, rk), Omega_ket) &
                 * sqrt((2.0_rk * J_bra + 1.0_rk) * (2.0_rk * J_ket + 1.0_rk)) &
-                * hfcc1(7)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-2.0_rk)
+                * active_hfcc(7)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-2.0_rk)
         end if
     end function H_EQQ0_element
 
@@ -2424,7 +2415,7 @@ contains
                     * get_sign(J_bra - Omega_bra) &
                     * Wigner3j(J_bra, 2.0_rk, J_ket, -Omega_bra, REAL(p, rk), Omega_ket) &
                     * sqrt((2.0_rk * J_bra + 1.0_rk) * (2.0_rk * J_ket + 1.0_rk)) &
-                    * hfcc1(8)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-sqrt(24.0_rk))
+                    * active_hfcc(8)%field(index_field)%matelem(index_v_bra, index_v_ket) / (-sqrt(24.0_rk))
                 exit
             end if
         end do

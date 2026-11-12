@@ -3,7 +3,7 @@ module F1_intensity
     use accuracy
     use symmetry, only : sym, correlate_to_Cs
     use diatom_module, only : Ndipoles, dipoletm, intensity, job, fieldT, poten, &
-                            symbol1, symbol2, Nspin1, Nspin2, nQuadrupoles, quadrupoletm, action
+                            hyperfine_case, nQuadrupoles, quadrupoletm, action
     use F1_hyperfine, only : primitive_hfs_basis, &
                             F1_list, Ftot_list, eigen_all_hfs, min_eigen_value_hfs, &
                             get_sign, I1, I2, Wigner3j, Wigner6j, num_F1, num_Ftot, get_quanta
@@ -16,17 +16,12 @@ contains
 
     subroutine hyperfine_transition ! control different nuclear-spin cases
         implicit none
-        logical :: has_I1, has_I2
 
         write(out, '(/A)') "Start: hyperfine transitions calculation"
         open(unit=unit_hyperfine_transitions, file="hyperfine.trans")
 
-        has_I1 = (abs(Nspin1) > 10.0_rk*small_)
-        has_I2 = (abs(Nspin2) > 10.0_rk*small_)
-        
-        if (.not. has_I1 .and. .not. has_I2) then
-            stop 'ERROR: please switch-off hyperfine since both nuclei have zero nuclear spin.'
-        elseif (has_I1 .neqv. has_I2) then
+        select case(hyperfine_case)
+        case(1)
             write(out, '(/A)') " Hyperfine case: single non-zero-spin nucleus."
             if (action%quadrupole) then
                 stop 'E2 transition intensity is not supported for single non-zero-spin case.'
@@ -36,7 +31,7 @@ contains
                 if (Ndipoles <= 0) stop 'Error: No dipole curve is given for the intensity calculation.'
                 call F1_hyperfine_intensity
             endif
-        elseif (trim(symbol1)/="Undefined".and.trim(symbol1)==trim(symbol2)) then
+        case(2)
             write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; homonuclear."
             if (action%quadrupole) then
                 if (nQuadrupoles <= 0) stop 'Error: No quadrupole curve is given for E2 intensity calculation.'
@@ -47,8 +42,8 @@ contains
                 if (Ndipoles <= 0) stop 'Error: No dipole curve is given for the intensity calculation.'
                 call IF_hyperfine_E1_intensity
             endif
-        else
-            write(out, '(/A)') " Hyperfine case: two non-zero-spin nuclei; heteronuclear."
+        case(3)
+            write(out, '(/A)') " Hyperfine case: heteronuclear two-spin coupling."
             if (action%quadrupole) then
                 if (nQuadrupoles <= 0) stop 'Error: No quadrupole curve is given for E2 intensity calculation.'
                 call F1F_hyperfine_E2_intensity
@@ -58,7 +53,9 @@ contains
                 if (Ndipoles <= 0) stop 'Error: No dipole curve is given for the intensity calculation.'
                 call F1F_hyperfine_E1_intensity
             endif
-        endif
+        case default
+            stop 'ERROR: hyperfine nuclear-spin case has not been initialized.'
+        end select
     end subroutine hyperfine_transition 
 
     subroutine IF_hyperfine_E1_intensity

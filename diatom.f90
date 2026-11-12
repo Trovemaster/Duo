@@ -610,6 +610,7 @@ module diatom_module
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
   type(hyperfine_setup_T) :: hyperfine_setup
+  integer(ik) :: hyperfine_case = 0
   integer(ik), parameter :: GLOBAL_NUM_HFCC_OBJECT = 8
   integer(ik), parameter :: GLOBAL_NUM_HFCC12_OBJECT = 2
   type(FieldListT), target :: hfcc1(GLOBAL_NUM_HFCC_OBJECT)
@@ -1351,17 +1352,20 @@ contains
         !
         job%basis_set = 'KEEP'
         !
+        call read_line(eof,iut) ; if (eof) exit
+        call readu(w)
         do while (trim(w)/="".and.trim(w)/="END")
-          call read_line(eof,iut) ; if (eof) exit
-          call readu(w)
           select case(w)
           case("I")
-            call readf(hyperfine_setup%I1)
-            if (nitems > 2) call readf(hyperfine_setup%I2)
+            if (nitems<2.or.nitems>3) call report("HYPERFINE: Please only enter one or two spin values.")
+            call read_spin(hyperfine_setup%I1)
+            if (nitems > 2) call read_spin(hyperfine_setup%I2)
           case("I1")
-            call readf(hyperfine_setup%I1)
+            if (nitems/=2) call report("HYPERFINE: Please only enter one spin value.")
+            call read_spin(hyperfine_setup%I1)
           case("I2")
-            call readf(hyperfine_setup%I2)
+            if (nitems/=2) call report("HYPERFINE: Please only enter one spin value.")
+            call read_spin(hyperfine_setup%I2)
           case default
             call report ("Unrecognized hyperfine keyword: "//trim(w),.true.)
           end select
@@ -3868,9 +3872,131 @@ contains
     !enddo
     !
 
+    if (action%hyperfine) call validate_hyperfine_spins()
+
     if( job%zEchoInput) write(out,"('(<--- End of the input.)'/)")
 
   contains
+    subroutine read_spin(spin)
+      use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+      real(rk), intent(inout) :: spin
+      character(len=cl) :: text
+      integer :: spin_iostat
+
+      if (spin>=0.0_rk) call report("HYPERFINE: a nuclear-spin value was supplied more than once.")
+      call reada(text)
+      read(text,*,iostat=spin_iostat) spin
+      if (spin_iostat/=0) call report("HYPERFINE: invalid nuclear-spin value: "//trim(text))
+      if (.not.ieee_is_finite(spin)) call report("HYPERFINE: nuclear spins must be finite.")
+      if (spin<0.0_rk) call report("HYPERFINE: nuclear spins must be non-negative.")
+      if (abs(spin-0.5_rk*anint(2.0_rk*spin))>10.0_rk*small_) &
+        call report("HYPERFINE: nuclear spins must be integers or half-integers.")
+    end subroutine read_spin
+
+    subroutine validate_hyperfine_spins()
+      use atomic_and_nuclear_data, only: get_z,get_a,get_m,nuclear_spin
+      use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+      real(rk) :: expected(2),supplied(2),spins_used(2)
+      character(len=len(symbol1)) :: atoms(2)
+      integer :: i,z,a,m,nactive,ninput
+
+      if (trim(symbol1)=="Undefined".or.trim(symbol2)=="Undefined") &
+        call report("HYPERFINE requires an explicit ATOMS specification.")
+      atoms = [symbol1,symbol2]
+      supplied = [hyperfine_setup%I1,hyperfine_setup%I2]
+      ninput = count(supplied>=0.0_rk)
+      if (ninput==1.and.supplied(1)<0.0_rk) &
+        call report("HYPERFINE: I2 must be supplied together with I1. For one spin, use I or I1.")
+
+      ! Read the nuclear spins of the specified isotopes from the internal database.
+      do i=1,2
+        z = get_z(atoms(i))
+        a = get_a(atoms(i))
+        m = get_m(atoms(i))
+        if (z<=0.or.(index(atoms(i),'-')>0.and.a<=0)) then
+          write(out,'(a,i0,3a)') 'HYPERFINE: cannot identify atom ',i,' (',trim(atoms(i)),').'
+          call report("Cannot validate the nuclear spin from ATOMS.")
+        endif
+        if (a>0.and.m>=0) then
+          expected(i) = nuclear_spin(z,a,m)
+        elseif (a>0) then
+          expected(i) = nuclear_spin(z,a)
+        elseif (m>=0) then
+          expected(i) = nuclear_spin(z,m=m)
+        else
+          expected(i) = nuclear_spin(z)
+        endif
+        if (.not.ieee_is_finite(expected(i)).or.expected(i)<0.0_rk) then
+          write(out,'(a,i0,3a)') 'HYPERFINE: nuclear spin unavailable for atom ',i,' (',trim(atoms(i)),').'
+          call report("Cannot validate the nuclear spin from the isotope database.")
+        endif
+      enddo
+
+      ! If no input, use database values. 
+      ! Otherwise, use the input values and warn if they differ from the database.
+      ! If a nucleus has zero spin in the database, it cannot be assigned a non-zero value.
+      spins_used = expected
+      nactive = count(spins_used>10.0_rk*small_)
+      if (ninput==0) write(out,'(/a)') 'HYPERFINE: using nuclear spins from the isotope database.'
+      select case(nactive)
+      case(0)
+        call report("HYPERFINE: both isotope nuclei have zero spin. "// &
+                    "Disable hyperfine calculations or check the isotope information.")
+      case(1)
+        ! DATABASE: Heteronuclear molecule with only one non-zero spin
+        select case(ninput)
+        case(1)
+          do i=1,2
+            if (expected(i)>10.0_rk*small_) spins_used(i) = supplied(1)
+          enddo
+        case(2)
+          do i=1,2
+            if (expected(i)<=10.0_rk*small_.and.supplied(i)>10.0_rk*small_) then
+              write(out,'(a,i0,3a)') 'HYPERFINE: atom ',i,' (',trim(atoms(i)), &
+                ') has zero nuclear spin in the database.'
+              call report("HYPERFINE: a zero-spin isotope cannot be assigned a non-zero nuclear spin.")
+            endif
+          enddo
+          spins_used = supplied
+        end select
+        hyperfine_case = 1
+        write(out,'(a)') 'Hyperfine coupling case: single non-zero-spin nucleus, J + I = F.'
+      case(2)
+        if (trim(symbol1)==trim(symbol2)) then
+          ! DATABASE: Homonuclear diatomic with two non-zero spins
+          if (ninput>1) &
+            call report("HYPERFINE: Homonuclear diatomics only require one common nuclear spin, not two values.")
+          if (ninput==1) spins_used = supplied(1)
+          if (sym%Nrepresen/=4) call report("Homonuclear hyperfine requires 4 symmetry irreps (C2v-like).")
+          hyperfine_case = 2
+          write(out,'(a)') 'Hyperfine coupling case: homonuclear, I1 + I2 = I, I + J = F.'
+        else
+          ! DATABASE: Heteronuclear diatomic with two non-zero spins
+          if (ninput==1) &
+            call report("HYPERFINE: both isotope nuclei have non-zero spin, but only one value was supplied. "// &
+                        "Specify both I1 and I2 in ATOMS order. "// &
+                        "To test zero spin, explicitly enter 0 for the corresponding nucleus.")
+          if (ninput==2) spins_used = supplied
+          hyperfine_case = 3
+          write(out,'(a)') 'Hyperfine coupling case: heteronuclear, J + I1 = F1, F1 + I2 = F.'
+        endif
+      end select
+
+      if (all(spins_used<=10.0_rk*small_)) &
+        call report("Please disable hyperfine calculation, as both nuclear spins used are zero.")
+      hyperfine_setup%I1 = spins_used(1)
+      hyperfine_setup%I2 = spins_used(2)
+
+      write(out,'(/a)') 'Hyperfine nuclear spins used:'
+      do i=1,2
+        write(out,'(a,i0,3a,f4.1)') '  Atom ',i,': ',trim(atoms(i)),', I = ',spins_used(i)
+        if (abs(spins_used(i)-expected(i))>10.0_rk*small_) then
+          write(out,'(a,i0,3a,f4.1,a,f4.1)') 'WARNING: HYPERFINE atom ',i,' (',trim(atoms(i)), &
+            '): database spin = ',expected(i),'; using spin = ',spins_used(i)
+        endif
+      enddo
+    end subroutine validate_hyperfine_spins
+
     !
     subroutine input_quanta(w,field)
       !
