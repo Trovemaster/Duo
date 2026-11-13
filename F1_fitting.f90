@@ -1,11 +1,11 @@
 module F1_fitting
     use accuracy    
     use nlopt_constants
-    use F1_hyperfine, only : eigen_all_F1, F1_global_min, &
-                             F1_hyperfine_structrure, min_eigen_value_F1, &
-                             F1_list, primitive_F1_basis
+    use F1_hyperfine, only : eigen_all_hfs, F1_global_min, &
+                             F1_hyperfine_structure, min_eigen_value_hfs, &
+                             F1_list, primitive_hfs_basis
     use diatom_module, only : action, job, duo_j0, fieldmap, fieldT, &
-        grid, fitting, linkT, F1_hyperfine_setup, &
+        grid, fitting, linkT, hyperfine_setup, &
         poten, spinorbit, l2, lxly, spinspin, spinspino, spinrot, &
         bobrot, diabatic, lambdaopq, lambdap2q, lambdaq, &
         l_omega_obj, s_omega_obj, quadrupoletm, hfcc1, &
@@ -32,7 +32,7 @@ module F1_fitting
         real(rk) :: term_value
         real(rk) :: F1 
         integer(ik) :: index_represCs
-        integer(ik) :: iF1_ID
+        integer(ik) :: iF_ID
     endtype states_containerT
 
     integer(ik), parameter :: unit_hyperfine_states_fit = 67
@@ -188,7 +188,7 @@ contains
         job%basis_set = 'KEEP'
 
         optimization_algorithm = &
-            get_nlopt_algorithm(F1_hyperfine_setup%fit_optimization_algorithm) 
+            get_nlopt_algorithm(hyperfine_setup%fit_optimization_algorithm)
         
         call read_F1_hyperfine_states_fit
 
@@ -308,7 +308,7 @@ contains
 
         implicit none
 
-        integer(ik) :: parity, index_represCs, iF1_ID
+        integer(ik) :: parity, index_represCs, iF_ID
         integer(ik) :: index_F1_hyperfine_state, open_state, read_state
         real(rk) :: term_value, F1
         type(states_containerT), allocatable :: temp_states_array(:)
@@ -328,7 +328,7 @@ contains
                 read(unit=unit_hyperfine_states_fit, &
                     fmt = "(F24.14, F10.1, I10, I10)", &
                     iostat=read_state) &
-                    term_value, F1, parity, iF1_ID
+                    term_value, F1, parity, iF_ID
                 if (read_state /= 0) exit
                 if (term_value < 0) cycle
 
@@ -340,7 +340,7 @@ contains
                     index_represCs = 1_ik
                 end if
                 F1_hyperfine_states_fit(index_F1_hyperfine_state)%index_represCs = index_represCs
-                F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF1_ID = iF1_ID
+                F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF_ID = iF_ID
 
                 index_F1_hyperfine_state = index_F1_hyperfine_state + 1
 
@@ -376,7 +376,7 @@ contains
             term_value = F1_hyperfine_states_fit(index_F1_hyperfine_state)%term_value
             F1 = F1_hyperfine_states_fit(index_F1_hyperfine_state)%F1
             index_represCs = F1_hyperfine_states_fit(index_F1_hyperfine_state)%index_represCs
-            iF1_ID = F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF1_ID
+            iF_ID = F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF_ID
             
             measured_F1_hyperfine_energies(index_F1_hyperfine_state) = term_value
         enddo
@@ -391,7 +391,7 @@ contains
         call update_refined_parameters(x)
         call update_linked_parameters
         call duo_j0(0_ik)
-        call F1_hyperfine_structrure(0_ik)
+        call F1_hyperfine_structure(0_ik)
     
     end subroutine forward
 
@@ -474,16 +474,16 @@ contains
     subroutine deallocate_intermediate_variables
         deallocate(basis)
         deallocate(eigen)
-        deallocate(eigen_all_F1)
+        deallocate(eigen_all_hfs)
         deallocate(F1_list)
-        deallocate(primitive_F1_basis)   
+        deallocate(primitive_hfs_basis)
         deallocate(calculated_F1_hyperfine_energies)
     end subroutine deallocate_intermediate_variables
 
     subroutine extract_calculated_F1_hyperfine_energies
         implicit none
 
-        integer(ik) :: iF1_ID, index_represCs, index_F1, index_F1_hyperfine_state
+        integer(ik) :: iF_ID, index_represCs, index_F1, index_F1_hyperfine_state
         real(rk) :: term_value, F1
 
         allocate(calculated_F1_hyperfine_energies(num_F1_hyperfine_states_fit))   
@@ -492,15 +492,15 @@ contains
             term_value = F1_hyperfine_states_fit(index_F1_hyperfine_state)%term_value
             F1 = F1_hyperfine_states_fit(index_F1_hyperfine_state)%F1
             index_represCs = F1_hyperfine_states_fit(index_F1_hyperfine_state)%index_represCs
-            iF1_ID = F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF1_ID
+            iF_ID = F1_hyperfine_states_fit(index_F1_hyperfine_state)%iF_ID
 
             index_F1 = 1 + int(F1 - F1_global_min)
             
             calculated_F1_hyperfine_energies(index_F1_hyperfine_state) &
-                = eigen_all_F1(index_F1, index_represCs + 1)%val(iF1_ID)
+                = eigen_all_hfs(index_F1, index_represCs + 1)%val(iF_ID)
         end do
 
-        calculated_F1_hyperfine_energies = calculated_F1_hyperfine_energies - min_eigen_value_F1
+        calculated_F1_hyperfine_energies = calculated_F1_hyperfine_energies - min_eigen_value_hfs
     
     end subroutine extract_calculated_F1_hyperfine_energies
 
