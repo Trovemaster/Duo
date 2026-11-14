@@ -66,17 +66,29 @@ Upon transforming the radial kinetic-energy operator, one obtains additional ter
    =
    -\frac{\hbar^2}{2\mu}\left[
      \frac{d^2}{dr^2}
+     + \left(\mathbf{W}\frac{d}{dr} + \frac{d}{dr}\mathbf{W}\right)
      + \mathbf{W}^2
-     -\left(\frac{d}{dr}\mathbf{W} - \mathbf{W}\frac{d}{dr}\right)
    \right],
 
 where
 
 .. math::
 
-   \mathbf{W}(r) = \mathbf{U}(r)\,\frac{d\mathbf{U}^\dagger(r)}{dr}
+   \mathbf{W}(r) = \mathbf{U}^\dagger(r)\,\frac{d\mathbf{U}(r)}{dr}, \qquad W_{ij}(r) = \langle i | \frac{d}{dr} | j \rangle,
 
-is a skew-Hermitian matrix of derivative couplings. The diagonal elements of :math:`\mathbf{W}^2` act as additional diagonal corrections (analogous in spirit to DBOC-like terms), while off-diagonal terms mediate non-adiabatic transitions between channels of the same :math:`\Omega`.
+is a skew-Hermitian (real antisymmetric) matrix of derivative couplings (the columns of :math:`\mathbf{U}` are the
+:math:`\Omega`-eigenvectors, see Eq. :eq:`eq-omega-diagonalisation`). The terms :math:`\mathbf{W}\frac{d}{dr} + \frac{d}{dr}\mathbf{W}`
+mediate non-adiabatic transitions between channels of the same :math:`\Omega`, while
+:math:`-\frac{\hbar^2}{2\mu}\mathbf{W}^2 = \frac{\hbar^2}{2\mu}\mathbf{W}\mathbf{W}^\dagger` act as additional, DBOC-like corrections:
+diagonal for two channels with the same :math:`\Omega`, and with off-diagonal elements when there are three or more channels.
+All of these terms are included in Duo.
+
+.. note::
+   The relative phases of the :math:`\Omega`-eigenvectors are arbitrary at each :math:`r`. Duo fixes them by requiring
+   a positive diagonal component at the first grid point and a positive overlap between the eigenvectors at neighbouring
+   grid points, so that :math:`\mathbf{U}(r)` is a smooth function of :math:`r`. The same :math:`\mathbf{U}(r)` is used
+   for :math:`\mathbf{W}(r)` and for all other transformed couplings (spin, dipoles etc.), which is required
+   for the equivalence with the :math:`\Lambda S` representation.
 
 .. note::
    In the :math:`\Omega` representation, “simplifying” the potential by diagonalisation relocates the physics into  induced non-adiabatic terms. Neglecting these terms can lead to substantial errors in energies and wavefunctions, and therefore also in intensities and lifetimes (see, e.g. :cite:p:`10TaKlKr.KC`, :cite:p:`24BrDrYu`, :cite:p:`26BrYu`).
@@ -106,7 +118,7 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
    .. note::
       The “extended matrix” used for diagonalisation includes spin–orbit together with other *J*-independent electronic terms available in the model. Any terms not included at this stage are still handled in the full rovibronic Hamiltonian, but the precise partitioning of terms between “diagonalisation” and “final Hamiltonian” affects the  structure of the induced NACs and should be treated consistently.
 
-2. Solve the pure vibrational problems for each :math:`\Omega` channel using the chosen DVR method (e.g. sinc DVR), obtaining vibrational functions :math:`|\Omega, v\rangle`.
+2. Solve the pure vibrational problems for each :math:`\Omega` channel using the chosen DVR method (sinc DVR, 5-point finite differences or Lobatto DVR, see below), obtaining vibrational functions :math:`|\Omega, v\rangle`.
 
 3. Use these vibrational functions to compute vibrational matrix elements of all required operators and curves (PECs, DMCs, couplings) in the :math:`\Omega` representation.
 
@@ -119,6 +131,55 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
    which are then symmetrised (Wang functions) and used to build and diagonalise the rovibronic Hamiltonian.
 
 5. If requested, compute rovibronic intensities and/or line lists using the same workflows as in the ``Lambda–S`` mode.
+
+.. note::
+   The vibrational basis functions :math:`|\Omega, v\rangle` are solutions of the single-channel problems with the
+   :math:`\Omega`-PECs only, while the NAC and DBOC-like terms are added to the rovibronic Hamiltonian. For very sharp
+   avoided crossings (strongly localised NACs) the convergence with respect to ``vmax`` can therefore be slow and should be checked.
+
+
+Grids and DVR methods: sinc and Lobatto
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :math:`\Omega` representation can be used with all solution methods of Duo, including the Lobatto DVR
+(Gauss–Lobatto quadrature grid, ``type 6``), e.g.
+
+::
+
+   SOLUTIONMETHOD LOBATTO
+
+   grid
+     npoints 1000
+     range   0.80 4.00
+     type    6
+   end
+
+   contraction
+     omega
+     vmax 80
+   end
+
+The derivative couplings :math:`\mathbf{W}(r)=\mathbf{U}^\dagger d\mathbf{U}/dr` require :math:`d\mathbf{U}/dr` on the grid.
+By default it is evaluated with 9-point finite-difference formulas using the Fornberg weights for the actual
+(in general non-uniformly spaced, e.g. Lobatto) grid points; for a uniform grid these are the standard central
+(one-sided at the grid edges) formulas. For the Lobatto grid, the spectral derivative of the Lagrange interpolating polynomial
+through all Lobatto points (the same polynomial representation as used by the Lobatto DVR) can be requested instead:
+
+::
+
+   contraction
+     omega
+     vmax 80
+     derivatives spectral
+   end
+
+The spectral derivative converges very fast for smooth, well resolved :math:`\mathbf{U}(r)`, but, being global, it spreads the
+errors of any under-resolved sharp features of :math:`\mathbf{U}(r)` (e.g. a near crossing of two weakly coupled states of the same
+:math:`\Omega`) over the whole grid; the local finite-difference formulas (``derivatives FD``, default) are more robust.
+
+The matrix of :math:`d/dr` used for the NAC terms is the antisymmetrised Lobatto-DVR derivative matrix
+:math:`\langle u_i|d/dr|u_j\rangle` for ``LOBATTO`` and the sinc-DVR derivative matrix for ``SINC``.
+As for the ``Lambda–S`` contraction, ``LOBATTO`` requires the grid ``type 6`` and an even number of grid points.
 
 Omega-specific output
 ---------------------
@@ -178,6 +239,11 @@ Keywords
 
    vib
       Standard option in the ``contraction`` block for the Hund’s case (a) ``Lambda–S`` representation  (the default behaviour in Duo). In this manual it may also be referred to as the ``Lambda–S`` contraction.
+
+   derivatives
+      Option in the ``contraction`` block (``omega`` only) defining how :math:`d\mathbf{U}/dr` for the NACs is computed:
+      ``FD`` (default, 9-point finite differences on the actual grid) or ``SPECTRAL`` (Lagrange-interpolation derivative,
+      ``SOLUTIONMETHOD LOBATTO`` only).
 
       Example:
       ::

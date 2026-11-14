@@ -147,6 +147,14 @@ for the 5 points stencil finite differences to derive the kinetic energy operato
 
 Since Sinc is also currently the default method, this does not have to be specified.
 
+A DVR based on the Gauss-Lobatto quadrature (Lobatto DVR) is switched on with
+::
+
+    SOLUTIONMETHOD  LOBATTO
+
+It requires the Lobatto grid (``type 6`` in the ``grid`` section) with an even number of points and can be used
+with both the ``vib`` (Lambda-Sigma) and ``omega`` contractions.
+
 
 
 Defining the grid
