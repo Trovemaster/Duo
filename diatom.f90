@@ -293,6 +293,9 @@ module diatom_module
     character(len=cl)   :: contraction = 'VIB' ! contraction
     character(len=cl)   :: omega_derivatives = 'FD' ! Omega contraction: method for dU/dr (NACs): FD (9-point finite
     !                                                   differences, default) or SPECTRAL (Lobatto grid only)
+    logical             :: omega_coupled = .false.  ! Omega contraction: the J=0 vibrational basis set from the coupled-channel
+    !                                                 problems (adiabatic Omega-PECs+NACs+DBOC) for each Omega (COUPLED)
+    !                                                 instead of the single-channel problems (UNCOUPLED, default)
     real(rk),pointer    :: vibenermax(:)    !     contraction parameter: energy
     integer(ik),pointer :: vibmax(:)           !     contraction parameter: vibration quantum
     real(rk)            :: potmin              ! absolute minimum of the PEC with the lowest rotational-vibrational state
@@ -610,6 +613,8 @@ module diatom_module
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed
 
   real(rk), allocatable :: vibrational_contrfunc(:,:)
+  integer(ik) :: vibrational_Nchannels = 1  ! number of channel components of each function in vibrational_contrfunc
+  !                                           (>1 only for the coupled Omega basis set, CONTRACTION OMEGA COUPLED)
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
   type(hyperfine_setup_T) :: hyperfine_setup
@@ -1037,6 +1042,33 @@ contains
             !
             if (trim(job%contraction)=="LAMBDA-SIGMA") job%contraction='VIB'
             !
+            ! OMEGA COUPLED or OMEGA UNCOUPLED (default): the J=0 vibrational basis set for the Omega representation
+            ! is obtained from the coupled-channel problem for each Omega (including the NACs and DBOC) or from the
+            ! single-channel problems for each Omega-state (NACs and DBOC are then included in the rovibronic matrix)
+            !
+            if (trim(job%contraction)=="OMEGA".and.Nitems>1) then
+              !
+              call readu(w)
+              !
+              select case (trim(w))
+              case ("COUPLED")
+                job%omega_coupled = .true.
+              case ("UNCOUPLED")
+                job%omega_coupled = .false.
+              case default
+                write(out,"('Input error: illegal OMEGA option in CONTRACTION ',a,', use COUPLED or UNCOUPLED')") trim(w)
+                stop 'Input error: illegal OMEGA option in CONTRACTION'
+              end select
+              !
+            endif
+            !
+          case("COUPLED","UNCOUPLED")
+            !
+            ! Omega contraction: the J=0 vibrational basis set from the coupled-channel (COUPLED) or single-channel
+            ! (UNCOUPLED, default) problems for each Omega, same as OMEGA COUPLED/UNCOUPLED
+            !
+            job%omega_coupled = (trim(w)=="COUPLED")
+            !
           case("DERIVATIVES","DERIVATIVE","NAC-DERIVATIVES")
             !
             ! Omega contraction: method for the r-derivatives of the Omega-transformation (NACs)
@@ -1150,6 +1182,13 @@ contains
           !
           write (out,"('input: wrong last line in CONTRACTION =',a)") trim(w)
           stop 'input - illegal last line in CONTRACTION'
+          !
+        endif
+        !
+        if (job%omega_coupled.and.trim(job%contraction)/="OMEGA") then
+          !
+          write (out,"('input error: COUPLED in CONTRACTION can be used only with the OMEGA contraction')")
+          stop 'input error: COUPLED in CONTRACTION can be used only with the OMEGA contraction'
           !
         endif
         !
@@ -7404,6 +7443,8 @@ contains
     logical     :: bound_state = .true.,check_symmetry=.false.
     !
     type(contract_solT),allocatable :: contracted(:,:)
+    integer(ik),allocatable         :: ilabel_omega(:)  ! label (dominant) channel of each Omega-contracted function
+    integer(ik)                     :: ilevel_c,jlevel_c,ioff,joff,ilabel
     real(rk),allocatable            :: vect_i(:),vect_j(:)
     real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:),kinmatcalc_(:,:)
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0,alpha_minus = -1.0d0
@@ -8047,6 +8088,13 @@ contains
         !
         Nlambdasigmas = omega_grid(iomega)%Nstates
         do ilevel = 1,Nlambdasigmas
+          !
+          ! for the coupled Omega basis set the (multi-channel) contracted functions are allocated by the solver
+          if (job%omega_coupled) then
+            contracted(iomega,ilevel)%Ndimen = 0
+            cycle
+          endif
+          !
           Ndimen = ngrid
           contracted(iomega,ilevel)%Ndimen = Ndimen
           !
@@ -8069,15 +8117,38 @@ contains
       allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
       call ArrayStart('icontrvib',alloc,size(icontrvib)*(14+5*2),kind(iomega))
       !
-      !call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contracted)
+      allocate(ilabel_omega(ngrid*Nomega_states),stat=alloc)
+      call ArrayStart('ilabel_omega',alloc,size(ilabel_omega),kind(ilabel_omega))
+      ilabel_omega = 1
       !
-      if (trim(solution_method)=="LOBATTO") then
-        call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
-                                                                      contrenergy,Nlambdasigmas_max,contracted,&
-                                                                      LobWeights=LobWeights,LobDerivs=LobDerivs)
+      if (job%omega_coupled) then
+        !
+        ! The J=0 vibrational basis set from the coupled-channel problem for each Omega (adiabatic Omega-PECs + NACs + DBOC).
+        ! The contracted functions are multi-channel functions, labelled by their dominant channel (ilabel_omega);
+        ! they all are assigned to the pseudo-channel ilevel=1 in the rovibronic basis set.
+        !
+        if (trim(solution_method)=="LOBATTO") then
+          call Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                  contrenergy,Nlambdasigmas_max,contracted,ilabel_omega,&
+                                                                  LobWeights=LobWeights,LobDerivs=LobDerivs)
+        else
+          call Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                  contrenergy,Nlambdasigmas_max,contracted,ilabel_omega)
+        endif
+        !
       else
-        call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
-                                                                      contrenergy,Nlambdasigmas_max,contracted)
+        !
+        if (trim(solution_method)=="LOBATTO") then
+          call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                        contrenergy,Nlambdasigmas_max,contracted,&
+                                                                        LobWeights=LobWeights,LobDerivs=LobDerivs)
+        else
+          call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                        contrenergy,Nlambdasigmas_max,contracted)
+        endif
+        !
+        ilabel_omega(1:totalroots) = icontrvib(1:totalroots)%ilevel
+        !
       endif
       !
       ! Now we need to compute all vibrational matrix elements of all field of the Hamiltonian, except for the potentials V,
@@ -8090,10 +8161,19 @@ contains
       !
       nroots = totalroots
       !
-      if (job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE') then
+      ! Contracted functions on the grid (also needed for the reduced densities, e.g. for the bound/unbound filter).
+      ! For the coupled Omega basis set all channel components of the multi-channel functions are kept,
+      ! contrfunc((ichannel-1)*ngrid+igrid,i), ichannel=1..Nlambdasigmas_max (zero for the missing channels)
+      !
+      vibrational_Nchannels = 1
+      if (job%omega_coupled) vibrational_Nchannels = Nlambdasigmas_max
+      !
+      if (job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE'.or.trim(job%basis_set)=='KEEP') then
         !
-        allocate(contrfunc(ngrid,totalroots),stat=alloc)
+        allocate(contrfunc(ngrid*vibrational_Nchannels,totalroots),stat=alloc)
         call ArrayStart('contrfunc',alloc,1_ik,kind(contrfunc),size(contrfunc,kind=hik))
+        !
+        contrfunc = 0
         !
         do i = 1,totalroots
           !
@@ -8101,7 +8181,12 @@ contains
           ilevel = icontrvib(i)%ilevel
           iomega = icontrvib(i)%iomega
           !
-          contrfunc(:,i) =   contracted(iomega,ilevel)%vector(:,iroot)
+          if (job%omega_coupled) then
+            Ndimen = Omega_grid(iomega)%Nstates*ngrid
+            contrfunc(1:Ndimen,i) = contracted(iomega,1)%vector(1:Ndimen,iroot)
+          else
+            contrfunc(:,i) =   contracted(iomega,ilevel)%vector(:,iroot)
+          endif
           !
         enddo
         !
@@ -8320,6 +8405,40 @@ contains
             stop 'illegal object in LambdaSigma-Omega'
           end select
           !
+          ! The coupled Omega basis set: the NACs and the DBOC-like terms are already included in the coupled J=0
+          ! vibrational solution and are skipped here; the matrix elements of all other fields are accumulated over
+          ! all pairs of channels (ilevel,jlevel) of the two Omega-blocks into the pseudo-channel element (1,1)
+          ! of the corresponding *_omega_tot objects.
+          !
+          if (job%omega_coupled) then
+            !
+            if (iobject==9.or.iobject==10) cycle
+            !
+            ! BRot is the transformed unit matrix, i.e. diagonal in the channels (as in the uncoupled case,
+            ! where only its diagonal elements are used)
+            if (iobject==7.and.field%ilevel/=field%jlevel) cycle
+            !
+            select case (iobject)
+            case (1)
+              field_ => L_omega_tot(iomega,jomega,1,1)
+            case (2)
+              field_ => S_omega_tot(iomega,jomega,1,1)
+            case (3)
+              field_ => SR_omega_tot(iomega,jomega,1,1)
+            case (4)
+              field_ => Bob_omega_tot(iomega,1,1)
+            case (5)
+              field_ => p2q_omega_tot(iomega,jomega,1,1)
+            case (6)
+              field_ => q_omega_tot(iomega,jomega,1,1)
+            case (7)
+              field_ => brot_omega_tot(iomega,1,1)
+            case (8)
+              field_ => Dipole_omega_tot(iomega,jomega,1,1)
+            end select
+            !
+          endif
+          !
           ! check if the field wass not allocated at previous call to prevent multiple allocatetions
           !
           !if (.not.fields_allocated) then
@@ -8346,8 +8465,18 @@ contains
             jomega_= jomega_ +1
           enddo
           !
-          nroots_i = contracted(iomega_,ilevel)%Ndimen
-          nroots_j = contracted(jomega_,jlevel)%Ndimen
+          ! contracted functions: channel slots (ilevel_c,jlevel_c) and the offsets of the channel components
+          ! (ioff,joff) within the multi-channel functions of the coupled Omega basis set
+          !
+          ilevel_c = ilevel ; jlevel_c = jlevel ; ioff = 0 ; joff = 0
+          !
+          if (job%omega_coupled) then
+            ilevel_c = 1 ; jlevel_c = 1
+            ioff = (ilevel-1)*ngrid ; joff = (jlevel-1)*ngrid
+          endif
+          !
+          nroots_i = contracted(iomega_,ilevel_c)%Ndimen
+          nroots_j = contracted(jomega_,jlevel_c)%Ndimen
           !
           if (associated(field_%matelem) .eqv. .false.) then
             !
@@ -8365,8 +8494,8 @@ contains
           field_%iomega = iomega
           field_%jomega = jomega
           !
-          field_%ilevel = ilevel
-          field_%jlevel = jlevel
+          field_%ilevel = ilevel_c
+          field_%jlevel = jlevel_c
           !
           ! a special case of a NAC
           !
@@ -8407,7 +8536,7 @@ contains
                !
                !vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
                !
-               vect_i= contracted(iomega_,ilevel)%vector(:,iroot)
+               vect_i(1:ngrid) = contracted(iomega_,ilevel_c)%vector(ioff+1:ioff+ngrid,iroot)
                !
                !if (iomega/=iomega_.and.jomega/=iomega_) cycle
                !
@@ -8421,7 +8550,7 @@ contains
                  !
                  !vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
                  !
-                 vect_j = contracted(jomega_,jlevel)%vector(:,jroot)         
+                 vect_j(1:ngrid) = contracted(jomega_,jlevel_c)%vector(joff+1:joff+ngrid,jroot)
                  !
                  ! in the grid representation of the vibrational basis set
                  ! the matrix elements are evaluated simply by a summation of over the grid points
@@ -8437,7 +8566,8 @@ contains
                  !
                  !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
                  !
-                 if (iobject==8) then
+                 ! (for the coupled Omega basis set the threshold is applied to the accumulated values below)
+                 if (iobject==8.and..not.job%omega_coupled) then
                    if (abs(field_%matelem(iroot,jroot))<intensity%threshold%dipole) field_%matelem(iroot,jroot) = 0
                  endif
                  !
@@ -8448,7 +8578,7 @@ contains
           !
           ! printing out transition moments
           !
-          if ( iobject==8.and. iverbose>=4.and.action%intensity.and.intensity%tdm ) then
+          if ( iobject==8.and. iverbose>=4.and.action%intensity.and.intensity%tdm.and..not.job%omega_coupled ) then
             !
             do iroot = 1,nroots_i
               !
@@ -8490,6 +8620,59 @@ contains
       !
       deallocate(vect_i,vect_j)
       call ArrayStop('vect_ij')
+      !
+      ! The coupled Omega basis set: the dipole threshold and the printout of the vibrational transition moments
+      ! are applied to the matrix elements accumulated over all channels
+      !
+      if (job%omega_coupled.and.NDipole_omega>0) then
+        !
+        do iomega = 1,Nomegas
+          do jomega = 1,Nomegas
+            !
+            field_ => Dipole_omega_tot(iomega,jomega,1,1)
+            !
+            if (.not.associated(field_%matelem)) cycle
+            !
+            where (abs(field_%matelem)<intensity%threshold%dipole) field_%matelem = 0
+            !
+            if ( iverbose>=4.and.action%intensity.and.intensity%tdm ) then
+              !
+              iomega_ = 1
+              do while (nint(Omega_grid(iomega_)%omega-abs(Omega_grid(iomega)%omega) )/=0)
+                iomega_= iomega_ +1
+              enddo
+              !
+              jomega_ = 1
+              do while (nint(Omega_grid(jomega_)%omega-abs(Omega_grid(jomega)%omega) )/=0)
+                jomega_= jomega_ +1
+              enddo
+              !
+              do iroot = 1,size(field_%matelem,dim=1)
+                !
+                i = contracted(iomega_,1)%ilevel(iroot)
+                !
+                do jroot = 1,size(field_%matelem,dim=2)
+                  !
+                  j = contracted(jomega_,1)%ilevel(jroot)
+                  !
+                  if ( abs(field_%matelem(iroot,jroot))>sqrt(small_) ) then
+                    !
+                    write(out,'("<",i2,2(",",i4),",",f8.1,"|","mu","|",i2,2(",",i4),",",f8.1,"> = ",es18.8)') &
+                      icontrvib(i)%istate,i,icontrvib(i)%v,Omega_grid(iomega)%omega,&
+                      icontrvib(j)%istate,j,icontrvib(j)%v,Omega_grid(jomega)%omega,&
+                      field_%matelem(iroot,jroot)
+                    !
+                  endif
+                  !
+                enddo
+              enddo
+              !
+            endif
+            !
+          enddo
+        enddo
+        !
+      endif
       !
       if (allocated(kinmat1)) then
         deallocate(kinmat1,kinmatcalc)
@@ -9307,7 +9490,7 @@ contains
       if (.not.allocated(vibrational_contrfunc)) then
         !
         allocate(vibrational_quantum_number(totalroots),stat=alloc)
-        allocate(vibrational_contrfunc(ngrid,totalroots),stat=alloc)
+        allocate(vibrational_contrfunc(ngrid*vibrational_Nchannels,totalroots),stat=alloc)
         call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
         call ArrayStart('vibrational_quantum_number',alloc,totalroots*(14+6*2),ik)
         !
@@ -9339,13 +9522,22 @@ contains
       open(unit = vibunit, action = 'write',status='replace' , file = filename)
       !
       write(vibunit,'("totalroots   = ",i8)') totalroots
-      write(vibunit,'(" Npoints   = ",i8)') grid%npoints
+      !
+      ! For the coupled Omega basis set (CONTRACTION OMEGA COUPLED) each contracted function has Nchannels components
+      ! (channels of its Omega-block in the Omega representation, zero for the missing channels), written one after
+      ! another, i.e. Npoints*Nchannels values per function
+      !
+      if (vibrational_Nchannels>1) then
+        write(vibunit,'(" Npoints   = ",i8,"   Nchannels = ",i4)') grid%npoints,vibrational_Nchannels
+      else
+        write(vibunit,'(" Npoints   = ",i8)') grid%npoints
+      endif
       !
       do i = 1,totalroots
         istate = icontrvib(i)%istate
         write(vibunit,'(i5,f18.6,3x,2i4,3x,a)') i,(contrenergy(i)-contrenergy(1))/sc,icontrvib(i)%istate,icontrvib(i)%v, &
           trim(poten(istate)%name)
-        do k = 1,grid%npoints
+        do k = 1,grid%npoints*vibrational_Nchannels
           write(vibunit,'(e20.12)') contrfunc(k,i)
         enddo
         !
@@ -9442,9 +9634,10 @@ contains
           !
           if ( nint(2.0_rk*omega)==0) then
              !
-             ! assume the parity to be (-1)^J and J is always integer if omega==0
-             ! ipar = 1 is A' and ipar=2 is A"
-             ipar = mod( nint(jval),2 )+1
+             ! the parity of an Omega=0 function is (-1)^J p, where p is the sigma_v parity of its (label) channel
+             ! (iparity = 0 for p=+1 and 1 for p=-1, see Transform_Sigma_Lambda_to_Omega_representation);
+             ! J is always integer if omega==0; ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval)+Omega_grid(icontrvib(ivib)%iomega)%qn(ilabel_omega(ivib))%iparity,2 )+1
              !
              Nsym(ipar) = Nsym(ipar) + 1
              !
@@ -9524,10 +9717,16 @@ contains
           ivib = icontrvib(iroot)%ivib
           tau_lambdai = 0 ; if (omega<0) tau_lambdai = 1
           !
-          istate      =  Omega_grid(iomega)%qn(ilevel)%istate
-          sigma       =  Omega_grid(iomega)%qn(ilevel)%sigma
-          ilambda     =  Omega_grid(iomega)%qn(ilevel)%ilambda
-          spini       =  Omega_grid(iomega)%qn(ilevel)%spin
+          ! the quantum numbers (labels) are taken from the label channel: for the uncoupled basis set this is ilevel,
+          ! for the coupled basis set it is the dominant channel of the multi-channel function (ilevel = 1 is then a
+          ! pseudo-channel used to address the matrix elements)
+          !
+          ilabel      =  ilabel_omega(iroot)
+          !
+          istate      =  Omega_grid(iomega)%qn(ilabel)%istate
+          sigma       =  Omega_grid(iomega)%qn(ilabel)%sigma
+          ilambda     =  Omega_grid(iomega)%qn(ilabel)%ilambda
+          spini       =  Omega_grid(iomega)%qn(ilabel)%spin
           !
           do ipar = 1,2
              !
@@ -9535,7 +9734,7 @@ contains
              !
              i = i + 1
              !
-             icontr(i) = omega_grid(iomega)%qn(ilevel)
+             icontr(i) = omega_grid(iomega)%qn(ilabel)
              icontr(i)%ivib = ivib
              icontr(i)%iroot = iroot
              icontr(i)%ilevel = ilevel
@@ -9555,7 +9754,7 @@ contains
              !
              !icontrvib(i)%iomega = iomega
              !
-             icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
+             icontr(i)%spin = Omega_grid(iomega)%qn(ilabel)%spin
              !
              ! print the quantum numbers
              if (iverbose>=4) then
@@ -9568,9 +9767,9 @@ contains
           !
           if ( nint(2.0_rk*omega)==0) then
              !
-             ! assume the parity to be (-1)^J and J is always integer if omega==0
-             ! ipar = 1 is A' and ipar=2 is A"
-             ipar = mod( nint(jval),2 )+1
+             ! the parity of an Omega=0 function is (-1)^J p, where p is the sigma_v parity of its (label) channel
+             ! (iparity = 0 for p=+1 and 1 for p=-1); J is always integer if omega==0; ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval)+Omega_grid(icontrvib(iroot)%iomega)%qn(ilabel_omega(iroot))%iparity,2 )+1
              !
              Nsym(ipar) = Nsym(ipar) + 1
              !
@@ -9592,9 +9791,14 @@ contains
                 !
                 isym = Nsym(ipar) 
                 !
-                ! here jval - omega is always integer and parity=0,1, i.e. ipar-1
-                !ipower = nint(jval-omega)+ipar-1
-                ipower = ipar-1+mod(int(Jval),2)
+                ! here jval - omega is always integer and parity=0,1, i.e. ipar-1.
+                ! The channel i of the -Omega block is the sigma_v image of the channel i of the +Omega block,
+                ! U(-Omega)_{n',i} = (-1)^(e_n) U(+Omega)_{n,i} (see Transform_Sigma_Lambda_to_Omega_representation),
+                ! i.e. sigma_v |J,Omega,i> = (-1)^(J-Omega) |J,-Omega,i>, consistent with the Lambda-Sigma (vib) parity
+                ! (previously (-1)^int(J) was used, which is wrong when (-1)^(e_n-Omega+int(Omega)) differs between
+                ! the states, e.g. for 2Sigma-, 3Pi or 4Pi states)
+                !
+                ipower = ipar-1+mod(nint(Jval-abs(omega)),2)
                 !
                 ! symmetry unitary transformation matrix elements. 
                 ! Here i should correspond to omega, while i-1 is for -omega
@@ -14290,7 +14494,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     type(quantaT),intent(in) :: icontrvib(:)
     !
     real(rk)    :: psi_vib,vec_t,omegai,omegaj
-    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,ich,k
 
     !
     if (igrid>grid%npoints-npoints_last) then
@@ -14317,7 +14521,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           !
           i = i + 1
           !
-          vec_t = vec(i)*vibrational_contrfunc(igrid,iroot)
+          if (vibrational_Nchannels==1) then
+            vec_t = vec(i)*vibrational_contrfunc(igrid,iroot)
+          else
+            vec_t = vec(i)
+          endif
           !
           j = 0
           !
@@ -14336,7 +14544,18 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
                 !
                 if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
                 !
-                psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
+                ! only the same Omega-components (+Omega or -Omega) contribute to the density
+                if (ipar/=jpar) cycle
+                !
+                if (vibrational_Nchannels==1) then
+                  psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
+                else
+                  ! coupled Omega basis set: sum over the channel components
+                  do ich = 1,vibrational_Nchannels
+                    k = (ich-1)*grid%npoints+igrid
+                    psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(k,iroot)*vibrational_contrfunc(k,jroot)
+                  enddo
+                endif
                 !
              enddo
           enddo
@@ -14355,7 +14574,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     real(rk),intent(out)     :: psi_vib(grid%npoints)
     !
     real(rk)    :: omegai,omegaj
-    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,alloc
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,alloc,ich,k
     real(rk),allocatable  :: T(:,:)
 
     allocate(T(totalroots,totalroots),stat=alloc)
@@ -14408,8 +14627,23 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
        !
        do jroot = 1,totalroots
           !
-          psi_vib(ifirst:) = psi_vib(ifirst:) +  & 
-                            vibrational_contrfunc(ifirst:,iroot)*T(iroot,jroot)*vibrational_contrfunc(ifirst:,jroot)
+          if (vibrational_Nchannels==1) then
+            psi_vib(ifirst:) = psi_vib(ifirst:) +  &
+                              vibrational_contrfunc(ifirst:,iroot)*T(iroot,jroot)*vibrational_contrfunc(ifirst:,jroot)
+          else
+            !
+            ! coupled Omega basis set: sum over the channel components
+            !
+            if (abs(T(iroot,jroot))<tiny(1.0_rk)) cycle
+            !
+            do ich = 1,vibrational_Nchannels
+              k = (ich-1)*grid%npoints
+              psi_vib(ifirst:) = psi_vib(ifirst:) +  &
+                     vibrational_contrfunc(k+ifirst:k+grid%npoints,iroot)*T(iroot,jroot)*&
+                     vibrational_contrfunc(k+ifirst:k+grid%npoints,jroot)
+            enddo
+            !
+          endif
           !
        enddo
     enddo
@@ -14808,6 +15042,15 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     !
     real(rk), allocatable :: mat_1(:,:),mat_2(:,:),vect(:,:,:),vector_(:)
     real(rk), allocatable :: omegamat(:,:),omegaenergy(:)
+    real(rk), allocatable :: hsave(:,:,:),sigmav_phase(:),sigmav_dev(:),hmax_block(:)
+    integer(ik),allocatable :: isigmav_image(:)
+    !
+    ! sigma_v adaptation of the Omega=0 block
+    integer(ik) :: omega0_iomega,omega0_N,omega0_Nplus,omega0_Nminus,omega0_k,omega0_ib,omega0_im,omega0_pass
+    real(rk)    :: omega0_eps,omega0_dev,omega0_hmax
+    logical     :: omega0_mixed,omega0_pair
+    real(rk),allocatable    :: omega0_Q(:,:),omega0_H(:,:),omega0_Hp(:,:),omega0_Ep(:)
+    integer(ik),allocatable :: omega0_p(:),omega0_chpar(:)
     real(rk), allocatable :: L_LambdaSigma(:,:)
     integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
     real(rk),allocatable    :: dmat(:,:),dvect(:,:,:)
@@ -14862,6 +15105,119 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     ! Vector at the previous step to keep track of the phase of the wavefunctions
     allocate(vect(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
     call ArrayStart('vect',alloc,size(vect),kind(vect))
+    !
+    ! electronic (Omega-block) matrices at the current grid point, sigma_v images and phases for the -Omega blocks
+    allocate(hsave(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),sigmav_phase(Nlambdasigmas_max),&
+             isigmav_image(Nlambdasigmas_max),sigmav_dev(Nomegas),hmax_block(Nomegas),stat=alloc)
+    call ArrayStart('hsave',alloc,size(hsave),kind(hsave))
+    hsave = 0
+    sigmav_dev = 0
+    hmax_block = 0
+    !
+    ! sigma_v adaptation of the Omega=0 block.
+    ! sigma_v maps the Omega=0 block onto itself, sigma_v|n> = (-1)^(e_n) |n'>, with n' = (state,-Lambda,-Sigma) and
+    ! e_n = -Lambda+S-Sigma (+1 for Sigma- states), the same phase convention as for the -Omega blocks and for the parity
+    ! of the Lambda-Sigma basis functions. The electronic Hamiltonian commutes with sigma_v and is block-diagonal in the
+    ! sigma_v-adapted basis q_+/- = (|n> +/- (-1)^(e_n)|n'>)/sqrt(2) (q = |n>, with the parity p=(-1)^(e_n), for
+    ! Lambda=Sigma=0). If the Omega=0 block contains functions of both parities (e.g. 3Pi_0+/-, 1Sigma+ and 1Sigma-,
+    ! 3Sigma+ and 1Sigma+), it is diagonalised separately in the two parity subspaces, so that each Omega=0 channel
+    ! has a well defined sigma_v parity p (stored as Omega_grid%qn(i)%iparity = 0 for p=+1 and 1 for p=-1), which
+    ! defines the parity (-1)^J p of the corresponding rovibronic basis functions. The channels with p=+1 come first,
+    ! followed by those with p=-1 (each group ordered by energy). Previously all Omega=0 channels were assumed to have
+    ! the parity (-1)^J, which is wrong for p=-1 channels (e.g. 3Pi_0-, 1Sigma-, 3Sigma+(Sigma=0)).
+    !
+    omega0_iomega = 0
+    do iomega = 1,Nomegas
+      if (nint(2.0_rk*Omega_grid(iomega)%omega)==0.and.Omega_grid(iomega)%Nstates>0) omega0_iomega = iomega
+    enddo
+    !
+    omega0_mixed = .false.
+    omega0_dev = 0
+    omega0_hmax = 0
+    omega0_Nplus = 0
+    !
+    if (omega0_iomega>0) then
+      !
+      omega0_N = Omega_grid(omega0_iomega)%Nstates
+      !
+      allocate(omega0_Q(omega0_N,omega0_N),omega0_p(omega0_N),omega0_chpar(omega0_N),stat=alloc)
+      call ArrayStart('omega0_Q',alloc,size(omega0_Q),kind(omega0_Q))
+      !
+      omega0_Q = 0
+      omega0_p = 0
+      omega0_pair = .false.
+      omega0_k = 0
+      !
+      do omega0_pass = 0,1
+        !
+        do omega0_ib = 1,omega0_N
+          !
+          istate  = Omega_grid(omega0_iomega)%basis(omega0_ib)%istate
+          ilambda = Omega_grid(omega0_iomega)%basis(omega0_ib)%ilambda
+          sigmai  = Omega_grid(omega0_iomega)%basis(omega0_ib)%sigma
+          spini   = Omega_grid(omega0_iomega)%basis(omega0_ib)%spin
+          !
+          ! the sigma_v image (state,-Lambda,-Sigma)
+          !
+          omega0_im = 0
+          do j = 1,omega0_N
+            if (Omega_grid(omega0_iomega)%basis(j)%istate==istate.and.&
+                Omega_grid(omega0_iomega)%basis(j)%ilambda==-ilambda.and.&
+                nint(2.0_rk*(Omega_grid(omega0_iomega)%basis(j)%sigma+sigmai))==0) then
+              omega0_im = j
+              exit
+            endif
+          enddo
+          !
+          if (omega0_im==0) stop 'Error in the Omega-transformation: no sigma_v image in the Omega=0 block'
+          !
+          itau = -ilambda+nint(spini-sigmai)
+          if (ilambda==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+          omega0_eps = (-1.0_rk)**itau
+          !
+          if (omega0_im==omega0_ib) then
+            !
+            ! Lambda = Sigma = 0: a sigma_v eigenfunction with the parity (-1)^(e_n)
+            !
+            if ( (omega0_eps>0.0_rk.and.omega0_pass==0).or.(omega0_eps<0.0_rk.and.omega0_pass==1) ) then
+              omega0_k = omega0_k + 1
+              omega0_Q(omega0_ib,omega0_k) = 1.0_rk
+              omega0_p(omega0_k) = omega0_pass
+            endif
+            !
+          elseif (omega0_im>omega0_ib) then
+            !
+            ! q_+/- = (|n> +/- (-1)^(e_n)|n'>)/sqrt(2)
+            !
+            omega0_pair = .true.
+            omega0_k = omega0_k + 1
+            omega0_Q(omega0_ib,omega0_k) = 1.0_rk/sqrt(2.0_rk)
+            omega0_Q(omega0_im,omega0_k) = (-1.0_rk)**omega0_pass*omega0_eps/sqrt(2.0_rk)
+            omega0_p(omega0_k) = omega0_pass
+            !
+          endif
+          !
+        enddo
+        !
+      enddo
+      !
+      if (omega0_k/=omega0_N) stop 'Error in the Omega-transformation: sigma_v adaptation of the Omega=0 block failed'
+      !
+      omega0_Nplus = count(omega0_p==0)
+      !
+      ! the adapted diagonalisation is only needed if the block contains sigma_v pairs or functions of both parities;
+      ! otherwise the original diagonalisation is used and all channels have the common parity of the basis functions
+      !
+      omega0_mixed = omega0_pair.or.(omega0_Nplus>0.and.omega0_Nplus<omega0_N)
+      !
+      if (omega0_mixed) then
+        omega0_chpar(1:omega0_Nplus) = 0
+        omega0_chpar(omega0_Nplus+1:omega0_N) = 1
+      else
+        omega0_chpar(:) = omega0_p(1)
+      endif
+      !
+    endif
     !
     ! index to keep track of the state of the wavefunctions
     allocate(imax_contr(Nomegas,Nlambdasigmas_max),stat=alloc)
@@ -15478,6 +15834,9 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           enddo  ! j
         enddo  ! i
         !
+        ! keep the electronic matrix (used for the sigma_v consistency check of the -Omega blocks below)
+        hsave(iomega,1:Nlambdasigmas,1:Nlambdasigmas) = omegamat(1:Nlambdasigmas,1:Nlambdasigmas)
+        !
         !Solve the Sigma-Lambda-State Hamiltonian at each grid point
         !
         !if (iomega==2) then 
@@ -15491,7 +15850,64 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         !
         !call lapack_syev(omegamat,omegaenergy)
         !
-        if (Nlambdasigmas==1) then 
+        if (iomega==omega0_iomega.and.omega0_mixed) then
+          !
+          ! sigma_v-adapted diagonalisation of the Omega=0 block (see above): the p=+1 and p=-1 subspaces are
+          ! diagonalised separately
+          !
+          N_i = Nlambdasigmas
+          omega0_Nminus = N_i-omega0_Nplus
+          !
+          allocate(omega0_H(N_i,N_i),stat=alloc)
+          if (alloc/=0) stop 'Cannot allocate omega0_H'
+          !
+          omega0_H = matmul(transpose(omega0_Q),matmul(omegamat,omega0_Q))
+          !
+          omega0_hmax = max(omega0_hmax,maxval(abs(omega0_H)))
+          !
+          ! the coupling between the two parity blocks must vanish
+          !
+          if (omega0_Nplus>0.and.omega0_Nminus>0) then
+            omega0_dev = max(omega0_dev,maxval(abs(omega0_H(1:omega0_Nplus,omega0_Nplus+1:N_i))))
+          endif
+          !
+          omegamat = 0
+          !
+          if (omega0_Nplus>0) then
+            !
+            allocate(omega0_Hp(omega0_Nplus,omega0_Nplus),omega0_Ep(omega0_Nplus),stat=alloc)
+            if (alloc/=0) stop 'Cannot allocate omega0_Hp'
+            !
+            omega0_Hp = omega0_H(1:omega0_Nplus,1:omega0_Nplus)
+            !
+            call lapack_syev(omega0_Hp,omega0_Ep)
+            !
+            omegamat(1:N_i,1:omega0_Nplus) = matmul(omega0_Q(1:N_i,1:omega0_Nplus),omega0_Hp)
+            omegaenergy(1:omega0_Nplus) = omega0_Ep
+            !
+            deallocate(omega0_Hp,omega0_Ep)
+            !
+          endif
+          !
+          if (omega0_Nminus>0) then
+            !
+            allocate(omega0_Hp(omega0_Nminus,omega0_Nminus),omega0_Ep(omega0_Nminus),stat=alloc)
+            if (alloc/=0) stop 'Cannot allocate omega0_Hp'
+            !
+            omega0_Hp = omega0_H(omega0_Nplus+1:N_i,omega0_Nplus+1:N_i)
+            !
+            call lapack_syev(omega0_Hp,omega0_Ep)
+            !
+            omegamat(1:N_i,omega0_Nplus+1:N_i) = matmul(omega0_Q(1:N_i,omega0_Nplus+1:N_i),omega0_Hp)
+            omegaenergy(omega0_Nplus+1:N_i) = omega0_Ep
+            !
+            deallocate(omega0_Hp,omega0_Ep)
+            !
+          endif
+          !
+          deallocate(omega0_H)
+          !
+        elseif (Nlambdasigmas==1) then 
           !
           omegaenergy(1) = omegamat(1,1)
           omegamat(1,1) = 1.0_rk
@@ -15593,7 +16009,17 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         if (igrid==1) then
           !
           do i = 1,N_i
-            if (omegamat(i,i)<0) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+            !
+            ! positive diagonal component (or the largest component if the diagonal one vanishes, e.g. for the
+            ! sigma_v-adapted Omega=0 channels)
+            !
+            if (abs(omegamat(i,i))>1.0e-8_rk) then
+              if (omegamat(i,i)<0) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+            else
+              j = maxloc(abs(omegamat(1:N_i,i)),dim=1)
+              if (omegamat(j,i)<0) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+            endif
+            !
           enddo
           !
           omega_grid(iomega)%mat(1:N_i,1:N_i) = omegamat(1:N_i,1:N_i)
@@ -15618,7 +16044,114 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         !
       enddo
       !
+      ! sigma_v consistency of the -Omega blocks.
+      ! The eigenvectors of each -Omega block are defined as the sigma_v images of the eigenvectors of the +Omega block:
+      !
+      !   U(-Omega)_{n',i} = (-1)^(e_n) U(+Omega)_{n,i},  n' = sigma_v(n) = (state,-Lambda,-Sigma),
+      !   e_n = -Lambda+S-Sigma (+1 for Sigma- states),
+      !
+      ! i.e. with the same phase convention as used for the sigma_v images of the couplings and for the parity of the
+      ! Lambda-Sigma basis functions (vib). The channel i of the -Omega block is then the sigma_v image of the channel i
+      ! of the +Omega block with a phase common to all channels, as assumed when the parity-adapted combinations are
+      ! formed (duo_j0), and all J-independent couplings (e.g. the NACs and DBOC) are identical in the two blocks.
+      ! Previously the phases of the -Omega eigenvectors were fixed independently (positive diagonal elements), which
+      ! gives wrong parities and couplings between the parity blocks whenever (-1)^(e_n) differs between the states
+      ! (e.g. 2Pi + 2Sigma-, 3Pi + 1Pi).
+      !
+      do iomega=1,Nomegas
+        !
+        omegai = Omega_grid(iomega)%omega
+        N_i = Omega_grid(iomega)%Nstates
+        !
+        if (omegai>-0.25_rk.or.N_i==0) cycle
+        !
+        jomega = Nomegas+1-iomega
+        !
+        if (nint(2.0_rk*(Omega_grid(jomega)%omega+omegai))/=0.or.Omega_grid(jomega)%Nstates/=N_i) then
+          write(out,"('Error in the Omega-transformation: inconsistent +/-Omega blocks',2f8.1,2i5)") &
+                omegai,Omega_grid(jomega)%omega,N_i,Omega_grid(jomega)%Nstates
+          stop 'Error in the Omega-transformation: inconsistent +/-Omega blocks'
+        endif
+        !
+        ! sigma_v images n' -> n and the phases (-1)^(e_n)
+        !
+        do i = 1,N_i
+          !
+          istate  = Omega_grid(iomega)%basis(i)%istate
+          ilambda = Omega_grid(iomega)%basis(i)%ilambda
+          sigmai  = Omega_grid(iomega)%basis(i)%sigma
+          !
+          isigmav_image(i) = 0
+          !
+          do j = 1,N_i
+            if (Omega_grid(jomega)%basis(j)%istate==istate.and.Omega_grid(jomega)%basis(j)%ilambda==-ilambda.and.&
+                nint(2.0_rk*(Omega_grid(jomega)%basis(j)%sigma+sigmai))==0) then
+              isigmav_image(i) = j
+              exit
+            endif
+          enddo
+          !
+          if (isigmav_image(i)==0) then
+            write(out,"('Error in the Omega-transformation: no sigma_v image for the basis function ',i4,' of Omega = ',f8.1)") &
+                  i,omegai
+            stop 'Error in the Omega-transformation: no sigma_v image found'
+          endif
+          !
+          j = isigmav_image(i)
+          !
+          jstate  = Omega_grid(jomega)%basis(j)%istate
+          jlambda = Omega_grid(jomega)%basis(j)%ilambda
+          sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+          spinj   = Omega_grid(jomega)%basis(j)%spin
+          !
+          itau = -jlambda+nint(spinj-sigmaj)
+          if (jlambda==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
+          !
+          sigmav_phase(i) = (-1.0_rk)**itau
+          !
+        enddo
+        !
+        ! check that the electronic matrices of the two blocks are related by the same sigma_v transformation
+        !
+        do i = 1,N_i
+          do j = 1,N_i
+            f_t = hsave(iomega,i,j)-sigmav_phase(i)*sigmav_phase(j)*hsave(jomega,isigmav_image(i),isigmav_image(j))
+            sigmav_dev(iomega) = max(sigmav_dev(iomega),abs(f_t))
+            hmax_block(iomega) = max(hmax_block(iomega),abs(hsave(iomega,i,j)))
+          enddo
+        enddo
+        !
+        do i = 1,N_i
+          omega_grid(iomega)%vector(i,1:N_i,igrid) = sigmav_phase(i)*omega_grid(jomega)%vector(isigmav_image(i),1:N_i,igrid)
+        enddo
+        !
+        omega_grid(iomega)%energy(1:N_i,igrid) = omega_grid(jomega)%energy(1:N_i,igrid)
+        !
+        vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+        !
+        if (igrid==1) omega_grid(iomega)%mat(1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+        !
+      enddo
+      !
     enddo
+    !
+    do iomega=1,Nomegas
+      if (sigmav_dev(iomega)>1.0e-8_rk*max(1.0_rk,hmax_block(iomega))) then
+        write(out,"(/'Warning: the electronic matrix of the Omega = ',f6.1,' block is not the sigma_v image of the +Omega block,')") &
+              Omega_grid(iomega)%omega
+        write(out,"('         max deviation = ',es12.4,' (max element ',es12.4,'). Check the sigma_v phases of the couplings.')") &
+              sigmav_dev(iomega),hmax_block(iomega)
+      endif
+    enddo
+    !
+    if (omega0_mixed.and.omega0_dev>1.0e-8_rk*max(1.0_rk,omega0_hmax)) then
+      write(out,"(/'Warning: the electronic matrix of the Omega = 0 block is not sigma_v-symmetric,')")
+      write(out,"('         max coupling between the parity blocks = ',es12.4,' (max element ',es12.4,')')") &
+            omega0_dev,omega0_hmax
+    endif
+    !
+    deallocate(hsave,sigmav_phase,isigmav_image,sigmav_dev,hmax_block)
+    call ArrayStop('hsave')
     !
     ! Now we can use the eigenfunctions to  unitary transform different objects to the Omega representation
     do igrid =1, ngrid
@@ -16490,10 +17023,19 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         Omega_grid(iomega)%qn(i)%omega   = omegai
         Omega_grid(iomega)%qn(i)%ilevel  = Omega_grid(iomega)%basis(imaxcontr)%ilevel
         !
+        ! sigma_v parity of the Omega=0 channels (0 for p=+1, 1 for p=-1); not used for Omega/=0
+        !
+        Omega_grid(iomega)%qn(i)%iparity = 0
+        if (iomega==omega0_iomega) Omega_grid(iomega)%qn(i)%iparity = omega0_chpar(i)
+        !
       enddo
       !
     enddo
     !
+    if (omega0_iomega>0) then
+      deallocate(omega0_Q,omega0_p,omega0_chpar)
+      call ArrayStop('omega0_Q')
+    endif
     !
   end subroutine Transform_Sigma_Lambda_to_Omega_representation  
   
@@ -17639,6 +18181,422 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     !
   end subroutine Solve_vibrational_problem_for_Omega_states_independently
 
+
+
+  subroutine Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,&
+                                                                icontrvib,contrenergy,Nlambdasigmas_max,contracted,&
+                                                                ilabel,LobWeights,LobDerivs)
+    !
+    ! The J=0 vibrational basis set for the Omega representation from the coupled-channel problems
+    ! (CONTRACTION OMEGA COUPLED).
+    !
+    ! For each Omega>=0 block the J-independent vibrational problem is solved on the grid for all channels
+    ! (adiabatic Omega-states) of this Omega simultaneously:
+    !
+    !   H = T + V_Omega(r) - hbar^2/(2mu) (A d/dr + d/dr A) + hbar^2/(2mu) A A^T,  A = U^T dU/dr,
+    !
+    ! where V_Omega(r) are the adiabatic Omega-potentials. In the grid (DVR) representation the NAC matrix element
+    ! between the channel i at r_g and the channel j at r_g' is K1(g,g') [A_ij(r_g)+A_ij(r_g')], where K1 = kinmat1
+    ! is the antisymmetric first-derivative matrix (see kinetic_energy_grid_points), i.e. the same representation of
+    ! the NACs as used in the rovibronic matrix for the uncoupled basis set.
+    ! For the Omega=0 block with channels of both sigma_v parities the coupled problems are solved separately for each
+    ! parity (the NACs between channels of different parities vanish), so that each contracted function has a well
+    ! defined parity.
+    ! The lowest eigenvectors are used as (multi-channel) contracted vibrational functions. Their number is the sum of
+    ! vmax of the channels (the same as in the uncoupled case), optionally limited by enermax.
+    ! They are stored in contracted(iomega,1), with the components of the channel ilevel in the elements
+    ! (ilevel-1)*ngrid+1:ilevel*ngrid, sorted by energy and labelled by their dominant channel (ilabel).
+    ! In the rovibronic basis set they are all assigned to the pseudo-channel ilevel = 1.
+    !
+    use lapack
+    !
+    implicit none
+    !
+    integer(ik),intent(in)    :: iverbose,Nomega_states,ngrid,Nlambdasigmas_max
+    real(rk),intent(in)       :: sc
+    integer(ik),intent(out)   :: totalroots
+    type(contract_solT),intent(inout) :: contracted(Nomegas,Nlambdasigmas_max)
+    type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
+    real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
+    integer(ik),intent(out)   :: ilabel(ngrid*Nomega_states)
+    real(rk),intent(in),optional :: LobWeights(ngrid),LobDerivs(ngrid,ngrid) ! Lobatto weights and derivatives (LOBATTO)
+    !
+    integer(ik) :: alloc,iomega,ilevel,jlevel,Nchannels,Ndimen,Ndimen_g,igrid,jgrid,iterm,i,j,k,nroots,nkeep
+    integer(ik) :: nkeep_g,nroots_g,icount_state,ivibmax,istate,ioff,joff,u1,irange(2),ngroups,igroup,nch_g,ich,jch
+    real(rk)    :: omega,f_nac,enermax_,energy_
+    real(rk),allocatable    :: vibmat(:,:),vibener(:),kinmat(:,:),kinmat1(:,:),weights(:),weight_max(:)
+    real(rk),allocatable    :: vec_block(:,:),ener_block(:)
+    integer(ik),allocatable :: vcount(:),vmax_channel(:),chan(:),ichan_local(:),isort(:)
+    type(fieldT),pointer    :: field
+    character(len=1)        :: rng,jobz
+    !
+    if (iverbose>=6.or.action%intensity.and.intensity%overlap) then
+      !
+      stop "overlap option is not working in omega"
+      !
+    endif
+    !
+    allocate(kinmat(ngrid,ngrid),kinmat1(ngrid,ngrid),stat=alloc)
+    call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
+    call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+    !
+    ! vibrational kinetic energy and the antisymmetric first-derivative matrix (NACs)
+    !
+    if (present(LobWeights).and.present(LobDerivs)) then
+      call kinetic_energy_grid_points(ngrid,kinmat,kinmat1,LobWeights=LobWeights,LobDerivs=LobDerivs)
+    else
+      call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
+    endif
+    !
+    allocate(weight_max(ngrid*Nomega_states),stat=alloc)
+    call ArrayStart('weight_max',alloc,size(weight_max),kind(weight_max))
+    !
+    totalroots = 0
+    icount_state = 0
+    ivibmax = ngrid
+    !
+    if (iverbose>=3) write(out,'(/"Coupled-channel J=0 vibrational problems for each Omega (CONTRACTION OMEGA COUPLED):")')
+    !
+    do iomega = 1,Nomegas
+      !
+      omega = Omega_grid(iomega)%omega
+      !
+      if (omega<0) cycle
+      !
+      Nchannels = Omega_grid(iomega)%Nstates
+      !
+      if (Nchannels==0) cycle
+      !
+      Ndimen = Nchannels*ngrid
+      !
+      allocate(vmax_channel(Nchannels),chan(Nchannels),ichan_local(Nchannels),weights(Nchannels),vcount(Nchannels),&
+               stat=alloc)
+      if (alloc/=0) stop 'Solve_vibrational_problem_for_Omega_states_coupled: cannot allocate vmax_channel'
+      !
+      ! vmax of each channel, mapped onto the channels in the same order as for the uncoupled basis set
+      !
+      do ilevel = 1,Nchannels
+        icount_state = icount_state + 1
+        if (icount_state<=size(job%vibmax)) ivibmax = job%vibmax(icount_state)
+        vmax_channel(ilevel) = max(0,min(ivibmax,ngrid))
+      enddo
+      !
+      ! channel groups: the Omega=0 channels of different sigma_v parities are treated separately
+      !
+      ngroups = 1
+      !
+      if (nint(2.0_rk*omega)==0) then
+        if (any(Omega_grid(iomega)%qn(1:Nchannels)%iparity/=Omega_grid(iomega)%qn(1)%iparity)) ngroups = 2
+      endif
+      !
+      ! the total number of roots to be kept for this Omega
+      !
+      nkeep = 0
+      !
+      do igroup = 1,ngroups
+        nch_g = 0
+        nkeep_g = 0
+        do ilevel = 1,Nchannels
+          if (ngroups==2.and.Omega_grid(iomega)%qn(ilevel)%iparity/=igroup-1) cycle
+          nch_g = nch_g + 1
+          nkeep_g = nkeep_g + vmax_channel(ilevel)
+        enddo
+        if (nch_g>0) nkeep = nkeep + max(1,min(nkeep_g,nch_g*ngrid))
+      enddo
+      !
+      allocate(vec_block(Ndimen,nkeep),ener_block(nkeep),isort(nkeep),stat=alloc)
+      call ArrayStart('vec_block',alloc,size(vec_block),kind(vec_block))
+      !
+      vec_block = 0
+      nroots = 0
+      !
+      do igroup = 1,ngroups
+        !
+        ! the channels of this group
+        !
+        nch_g = 0
+        ichan_local = 0
+        !
+        do ilevel = 1,Nchannels
+          if (ngroups==2.and.Omega_grid(iomega)%qn(ilevel)%iparity/=igroup-1) cycle
+          nch_g = nch_g + 1
+          chan(nch_g) = ilevel
+          ichan_local(ilevel) = nch_g
+        enddo
+        !
+        if (nch_g==0) cycle
+        !
+        Ndimen_g = nch_g*ngrid
+        !
+        nkeep_g = 0
+        do ich = 1,nch_g
+          nkeep_g = nkeep_g + vmax_channel(chan(ich))
+        enddo
+        nkeep_g = max(1,min(nkeep_g,Ndimen_g))
+        !
+        allocate(vibmat(Ndimen_g,Ndimen_g),vibener(Ndimen_g),stat=alloc)
+        call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
+        call ArrayStart('vibener',alloc,size(vibener),kind(vibener))
+        !
+        if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
+        !
+        vibmat = 0
+        !
+        ! kinetic energy and the adiabatic Omega-potentials (diagonal in the channels)
+        !
+        do ich = 1,nch_g
+          !
+          ioff = (ich-1)*ngrid
+          !
+          vibmat(ioff+1:ioff+ngrid,ioff+1:ioff+ngrid) = kinmat(1:ngrid,1:ngrid)
+          !
+          do igrid = 1,ngrid
+            vibmat(ioff+igrid,ioff+igrid) = vibmat(ioff+igrid,ioff+igrid) + Omega_grid(iomega)%energy(chan(ich),igrid)*sc
+          enddo
+          !
+        enddo
+        !
+        ! NACs, -hbar^2/(2mu) (A d/dr + d/dr A): <i,g|..|j,g'> = K1(g,g') [A_ij(r_g)+A_ij(r_g')], with A_ji = -A_ij
+        !
+        do iterm = 1,NNAC_omega
+          !
+          field => NAC_omega_obj(iterm)
+          !
+          if (field%iomega/=iomega) cycle
+          !
+          ilevel = field%ilevel
+          jlevel = field%jlevel
+          !
+          if (ilevel>=jlevel) cycle
+          !
+          ich = ichan_local(ilevel)
+          jch = ichan_local(jlevel)
+          !
+          ! channels of different parities (vanishing NACs)
+          if (ich==0.or.jch==0) cycle
+          !
+          ioff = (ich-1)*ngrid
+          joff = (jch-1)*ngrid
+          !
+          !$omp parallel do private(jgrid,igrid,f_nac) shared(vibmat) schedule(static)
+          do jgrid = 1,ngrid
+            do igrid = 1,ngrid
+              !
+              f_nac = kinmat1(igrid,jgrid)*(field%gridvalue(igrid)+field%gridvalue(jgrid))
+              !
+              vibmat(ioff+igrid,joff+jgrid) = vibmat(ioff+igrid,joff+jgrid) + f_nac
+              vibmat(joff+jgrid,ioff+igrid) = vibmat(joff+jgrid,ioff+igrid) + f_nac
+              !
+            enddo
+          enddo
+          !$omp end parallel do
+          !
+        enddo
+        !
+        ! DBOC-like term hbar^2/(2mu) (A A^T)_ij (the objects are defined for all pairs i,j)
+        !
+        do iterm = 1,NDiab_omega
+          !
+          field => Diab_omega_obj(iterm)
+          !
+          if (field%iomega/=iomega) cycle
+          !
+          ich = ichan_local(field%ilevel)
+          jch = ichan_local(field%jlevel)
+          !
+          if (ich==0.or.jch==0) cycle
+          !
+          ioff = (ich-1)*ngrid
+          joff = (jch-1)*ngrid
+          !
+          do igrid = 1,ngrid
+            vibmat(ioff+igrid,joff+igrid) = vibmat(ioff+igrid,joff+igrid) + field%gridvalue(igrid)*sc
+          enddo
+          !
+        enddo
+        !
+        if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
+        !
+        ! the lowest nkeep_g eigenvalues and eigenvectors
+        !
+        if (nkeep_g<Ndimen_g) then
+          !
+          jobz = 'V'
+          rng = 'I'
+          irange(1) = 1 ; irange(2) = nkeep_g
+          !
+          call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots_g,irange=irange)
+          !
+        else
+          !
+          call lapack_syev(vibmat,vibener)
+          nroots_g = Ndimen_g
+          !
+        endif
+        !
+        nroots_g = max(1,min(nroots_g,nkeep_g))
+        !
+        if (iverbose>=3) then
+          if (ngroups==2) then
+            write(out,'("  Omega = ",f6.1,": ",i3," channels (sigma_v parity ",a1,"), coupled problem of size ",i8)') &
+                  omega,nch_g,merge('-','+',igroup==2),Ndimen_g
+          else
+            write(out,'("  Omega = ",f6.1,": ",i3," channels, coupled problem of size ",i8)') omega,nch_g,Ndimen_g
+          endif
+        endif
+        !
+        ! store the eigenvectors in the full (all channels) layout
+        !
+        do i = 1,nroots_g
+          !
+          nroots = nroots + 1
+          ener_block(nroots) = vibener(i)
+          !
+          do ich = 1,nch_g
+            ioff = (chan(ich)-1)*ngrid
+            joff = (ich-1)*ngrid
+            vec_block(ioff+1:ioff+ngrid,nroots) = vibmat(joff+1:joff+ngrid,i)
+          enddo
+          !
+        enddo
+        !
+        deallocate(vibmat,vibener)
+        call ArrayStop('vibmat')
+        call ArrayStop('vibener')
+        !
+      enddo
+      !
+      ! sort the roots of this Omega by energy
+      !
+      do i = 1,nroots
+        isort(i) = i
+      enddo
+      !
+      do i = 2,nroots
+        k = isort(i)
+        energy_ = ener_block(k)
+        j = i-1
+        do while (j>=1)
+          if (ener_block(isort(j))<=energy_) exit
+          isort(j+1) = isort(j)
+          j = j-1
+        enddo
+        isort(j+1) = k
+      enddo
+      !
+      ! or only those below enermax if required by the input
+      !
+      istate = Omega_grid(iomega)%basis(1)%istate
+      !
+      if (job%vibenermax(istate)<safe_max) then
+        enermax_ = job%vibenermax(istate)*sc
+        nroots = max(1,count(ener_block(1:nroots)<=enermax_))
+      endif
+      !
+      ! keep the multi-channel contracted functions in the channel slot 1
+      !
+      contracted(iomega,1)%Ndimen = nroots
+      !
+      allocate(contracted(iomega,1)%vector(Ndimen,nroots),contracted(iomega,1)%energy(nroots),&
+               contracted(iomega,1)%ilevel(nroots),stat=alloc)
+      call ArrayStart('contracted%vector',alloc,size(contracted(iomega,1)%vector),kind(contracted(iomega,1)%vector))
+      call ArrayStart('contracted%energy',alloc,size(contracted(iomega,1)%energy),kind(contracted(iomega,1)%energy))
+      call ArrayStart('contracted%ilevel',alloc,size(contracted(iomega,1)%ilevel),kind(contracted(iomega,1)%ilevel))
+      !
+      do i = 1,nroots
+        contracted(iomega,1)%vector(1:Ndimen,i) = vec_block(1:Ndimen,isort(i))
+        contracted(iomega,1)%energy(i) = ener_block(isort(i))
+      enddo
+      !
+      do ilevel = 2,Nchannels
+        contracted(iomega,ilevel)%Ndimen = 0
+      enddo
+      !
+      ! labels: the dominant channel and the vibrational quantum number counted within this channel
+      !
+      vcount = 0
+      !
+      do i = 1,nroots
+        !
+        do ilevel = 1,Nchannels
+          ioff = (ilevel-1)*ngrid
+          weights(ilevel) = sum(contracted(iomega,1)%vector(ioff+1:ioff+ngrid,i)**2)
+        enddo
+        !
+        ilevel = maxloc(weights,dim=1)
+        vcount(ilevel) = vcount(ilevel) + 1
+        !
+        k = totalroots + i
+        !
+        contracted(iomega,1)%ilevel(i) = k
+        contrenergy(k) = contracted(iomega,1)%energy(i)
+        ilabel(k) = ilevel
+        weight_max(k) = weights(ilevel)
+        !
+        icontrvib(k)%ilevel  = 1
+        icontrvib(k)%omega   = omega
+        icontrvib(k)%iomega  = iomega
+        icontrvib(k)%istate  = Omega_grid(iomega)%qn(ilevel)%istate
+        icontrvib(k)%ilambda = Omega_grid(iomega)%qn(ilevel)%ilambda
+        icontrvib(k)%sigma   = Omega_grid(iomega)%qn(ilevel)%sigma
+        icontrvib(k)%spin    = Omega_grid(iomega)%qn(ilevel)%spin
+        icontrvib(k)%v       = vcount(ilevel)-1
+        icontrvib(k)%ivib    = i
+        icontrvib(k)%iroot   = i
+        !
+      enddo
+      !
+      if (iverbose>=3) write(out,'("  Omega = ",f6.1,": ",i6," roots kept")') omega,nroots
+      !
+      totalroots = totalroots + nroots
+      !
+      deallocate(vec_block,ener_block,isort)
+      call ArrayStop('vec_block')
+      deallocate(vmax_channel,chan,ichan_local,weights,vcount)
+      !
+    enddo
+    !
+    deallocate(kinmat,kinmat1)
+    call ArrayStop('kinmat')
+    call ArrayStop('kinmat1')
+    !
+    ! print out the contracted energies
+    !
+    if (iverbose>=4) then
+      !
+      write(out,'(/"Vibrational (contracted) energies, coupled Omega basis set: ")')
+      write(out,'("    i        Energy/cm    Channel  v  Omega   Weight  State"/)')
+      !
+      do i = 1,totalroots
+        write(out,'(i5,f18.6," [ ",2i4,f8.1," ] ",f8.4,2x,a)') i,(contrenergy(i)-contrenergy(1))/sc,ilabel(i),&
+          icontrvib(i)%v,icontrvib(i)%omega,weight_max(i),trim(poten(icontrvib(i)%istate)%name)
+      enddo
+      !
+    endif
+    !
+    if (job%print_vibrational_energies_to_file ) then
+      !
+      call IOstart("print vibrational energies to file",u1)
+      !
+      open(unit=u1, file='J0_vibrational_energies.dat',status='replace',action='write')
+      write(u1,'(/"Vibrational (contracted) energies, coupled Omega basis set: ")')
+      write(u1,'("    i        Energy/cm    Channel  v  Omega   Weight  State"/)')
+      do i = 1,totalroots
+        write(u1,'(i5,f18.6," [ ",2i4,f8.1," ] ",f8.4,2x,a)') i,contrenergy(i)/sc,ilabel(i),icontrvib(i)%v,&
+          icontrvib(i)%omega,weight_max(i),trim(poten(icontrvib(i)%istate)%name)
+      enddo
+      close(u1)
+      !
+      call IOstop("print vibrational energies to file")
+      !
+    endif
+    !
+    deallocate(weight_max)
+    call ArrayStop('weight_max')
+    !
+    if (iverbose>=4) call TimerStop('Solve vibrational part')
+    !
+  end subroutine Solve_vibrational_problem_for_Omega_states_coupled
 
 
   subroutine L_omega_create(NLplus_omega,onlycount)

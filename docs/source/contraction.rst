@@ -11,7 +11,7 @@ of ``npoints``. Then a certain number  of the resulted
 vibrational eigenfunctions :math:`|v\rangle` with :math:`0 \le v\le` vmax and :math:`\tilde{E} \le` ``EnerMax``  is selected to
 form the vibrational part of the basis set.
 
-There is currently one contraction scheme supported by Duo: vibrational ``vib``. The  ``Omega`` is under construction.
+Two contraction schemes are supported by Duo: vibrational ``vib`` (``Lambda-S``) and ``omega``, see :doc:`omega`.
 
 The contraction type is defined in the section ``CONTRACTION`` (aliases: ``vibrationalbasis`` and ``vibrations``)
 by the keyword ``vib`` (``sigma-lambda``).
@@ -41,15 +41,15 @@ Example :
 
 
 
-Omega (diabatic) contraction - under construciton
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Omega contraction
+^^^^^^^^^^^^^^^^^
 
-This contraction is based on a solution of vibronically coupled :math:`J=0` problems for each value of :math:`\Omega=\Lambda+\Sigma`.
+This contraction is based on the :math:`\Omega` representation, see :doc:`omega` for details.
 This contraction consists of two steps.
 
-  1. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis :math:`|S\Sigma\rangle|\Lambda\rangle` for each values of :math:`\Omega=\Lambda+\Sigma` independently to form diabatic PECs.
+  1. For each grid value of :math:`r_i` the electronic-orbital-spin-spin-orbit coupling is diagonalised on the Sigma/Lambda basis :math:`|S\Sigma\rangle|\Lambda\rangle` for each values of :math:`\Omega=\Lambda+\Sigma` independently to form adiabatic :math:`\Omega`-PECs; the :math:`r`-dependence of the eigenvectors gives rise to non-adiabatic couplings (NACs).
 
-  2. Vibrational (:math:`J=0`) Schrödinger equations are solved for each diabatic PEC curve to obtain a Omega-vibrational basis set :math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`).
+  2. Vibrational (:math:`J=0`) Schrödinger equations are solved either for each adiabatic :math:`\Omega`-PEC curve (``uncoupled``, default) or, with the option ``coupled``, as coupled-channel problems (:math:`\Omega`-PECs + NACs) for each value of :math:`\Omega`, to obtain an Omega-vibrational basis set :math:`|v,\Omega,n^{\Omega}\rangle` (:math:`n^{\Omega}` is a manyfold count within the same value of :math:`\Omega`).
 
 The rovibronic basis set in the Omega representation is given by
 
@@ -68,6 +68,14 @@ Example 2:
        vmax  30  10 10
      end
 
+Example 3 (coupled-channel :math:`J=0` vibrational basis set for each :math:`\Omega`):
+::
+
+     contraction
+       omega coupled
+       vmax  30
+     end
+
 
 
 
@@ -76,6 +84,8 @@ Keywords
 
 
 * `vib` and `omega`: contraction types
+
+* `coupled` and `uncoupled` (``omega`` only): the vibrational basis set from the coupled-channel or single-channel (default) :math:`J=0` problems for each :math:`\Omega`, see :doc:`omega`.
 
 
 * nmax

@@ -118,7 +118,7 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
    .. note::
       The “extended matrix” used for diagonalisation includes spin–orbit together with other *J*-independent electronic terms available in the model. Any terms not included at this stage are still handled in the full rovibronic Hamiltonian, but the precise partitioning of terms between “diagonalisation” and “final Hamiltonian” affects the  structure of the induced NACs and should be treated consistently.
 
-2. Solve the pure vibrational problems for each :math:`\Omega` channel using the chosen DVR method (sinc DVR, 5-point finite differences or Lobatto DVR, see below), obtaining vibrational functions :math:`|\Omega, v\rangle`.
+2. Solve the pure vibrational (:math:`J=0`) problems for each :math:`\Omega` using the chosen DVR method (sinc DVR, 5-point finite differences or Lobatto DVR, see below), obtaining vibrational functions :math:`|\Omega, v\rangle`. By default (``uncoupled``) these are solutions of the single-channel problems for each :math:`\Omega` channel; with the ``coupled`` option they are solutions of the coupled-channel problem for each :math:`\Omega`, see :ref:`omega-coupled` below.
 
 3. Use these vibrational functions to compute vibrational matrix elements of all required operators and curves (PECs, DMCs, couplings) in the :math:`\Omega` representation.
 
@@ -133,9 +133,83 @@ When ``omega`` is selected, Duo performs (conceptually) the following steps:
 5. If requested, compute rovibronic intensities and/or line lists using the same workflows as in the ``Lambda–S`` mode.
 
 .. note::
-   The vibrational basis functions :math:`|\Omega, v\rangle` are solutions of the single-channel problems with the
-   :math:`\Omega`-PECs only, while the NAC and DBOC-like terms are added to the rovibronic Hamiltonian. For very sharp
-   avoided crossings (strongly localised NACs) the convergence with respect to ``vmax`` can therefore be slow and should be checked.
+   The parity-adapted (Wang) combinations of the :math:`+\Omega` and :math:`-\Omega` functions require the
+   channel :math:`i` of the :math:`-\Omega` block to be the :math:`\sigma_v` image of the channel :math:`i` of the
+   :math:`+\Omega` block. Duo therefore defines the eigenvectors of each :math:`-\Omega` block as
+   :math:`U^{(-\Omega)}_{n',i} = (-1)^{e_n}\, U^{(+\Omega)}_{n,i}`, where :math:`n'=\sigma_v(n)` is the
+   :math:`(\mathrm{state},-\Lambda,-\Sigma)` partner of the :math:`\Lambda S` basis function :math:`n` and
+   :math:`e_n=-\Lambda+S-\Sigma` (+1 for :math:`\Sigma^-` states) is the same phase as used for the parity of the
+   :math:`\Lambda S` basis functions. The NACs and all other :math:`J`-independent couplings are then identical in the
+   :math:`\pm\Omega` blocks, and the parity of :math:`\frac{1}{\sqrt{2}}\left(|J,\Omega,i\rangle\pm(-1)^{J-\Omega}|J,-\Omega,i\rangle\right)`
+   agrees with the ``Lambda-S`` calculation for all states (e.g. :math:`^2\Sigma^-`, :math:`^3\Pi` and :math:`^4\Pi`
+   states, for which the earlier phase convention gave wrong parities).
+
+   The :math:`\Omega=0` block is mapped onto itself by :math:`\sigma_v`. It is diagonalised in the :math:`\sigma_v`-adapted basis
+   :math:`(|n\rangle\pm(-1)^{e_n}|n'\rangle)/\sqrt{2}` (:math:`|n\rangle` for :math:`\Lambda=\Sigma=0`), separately for the two
+   :math:`\sigma_v` parities :math:`p=\pm1`, so that each :math:`\Omega=0` channel has a well defined parity and the parity of
+   :math:`|J,0,i\rangle` is :math:`(-1)^J p_i`. Previously :math:`(-1)^J` was assumed for all :math:`\Omega=0` channels, which is wrong
+   e.g. for :math:`^3\Pi_{0^-}`, :math:`^1\Sigma^-` and the :math:`\Sigma=0` component of :math:`^3\Sigma^+`. In the output the
+   :math:`\Omega=0` channels with :math:`p=+1` are listed first.
+
+
+.. _omega-coupled:
+
+Uncoupled and coupled vibrational basis sets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Two choices of the vibrational (:math:`J=0`) basis set are available in the :math:`\Omega` representation.
+
+``uncoupled`` (default)
+   The vibrational functions :math:`|\Omega,i,v\rangle` are solutions of the single-channel problems with the
+   adiabatic :math:`\Omega`-PECs :math:`V^{\Omega}_i(r)` only. The NAC and DBOC-like terms are added to the rovibronic
+   Hamiltonian together with all other couplings. This basis is compact and well labelled when the :math:`\Omega`
+   representation is the natural one (smooth, weak NACs), but for sharp avoided crossings (strongly localised NACs, cusps of
+   the adiabatic PECs) the convergence with respect to ``vmax`` can be very slow.
+
+``coupled``
+   For each :math:`\Omega` the :math:`J`-independent coupled-channel problem
+
+   .. math::
+
+      \hat{H}_\Omega = -\frac{\hbar^2}{2\mu}\frac{d^2}{dr^2} + \mathbf{V}^{\Omega}(r)
+      -\frac{\hbar^2}{2\mu}\left(\mathbf{W}\frac{d}{dr}+\frac{d}{dr}\mathbf{W}\right)+\frac{\hbar^2}{2\mu}\mathbf{W}\mathbf{W}^{T}
+
+   is solved on the grid for all channels of this :math:`\Omega` simultaneously (a dense matrix of dimension
+   :math:`N_\Omega\times N_{\rm grid}`, where :math:`N_\Omega` is the number of channels). The NACs are represented
+   with the same grid derivative matrix as used for the rovibronic Hamiltonian (sinc, 5-point or Lobatto DVR).
+   The lowest eigenvectors, i.e. multi-channel vibronic functions :math:`|\Omega,k\rangle`, form the vibrational basis set;
+   their number for each :math:`\Omega` is the sum of ``vmax`` of its channels (the same basis size as for ``uncoupled``),
+   optionally limited by ``enermax``. The NAC and DBOC-like terms are then exactly included at :math:`J=0` within each
+   :math:`\Omega` block and are not added to the rovibronic Hamiltonian again; the remaining (:math:`J`-dependent) couplings
+   between the :math:`\Omega` blocks are evaluated with the multi-channel functions. Each function is labelled by its dominant
+   channel (``state``, :math:`\Lambda`, :math:`\Sigma`) and by the vibrational quantum number counted within this channel.
+   This option is recommended for sharp avoided crossings, long-range and predissociation problems.
+
+::
+
+   contraction
+     omega coupled
+     vmax 20
+   end
+
+(``coupled`` or ``uncoupled`` can also be given on a separate line of the ``contraction`` block.)
+
+As an example, for the :math:`X\,^3\Sigma^-`/:math:`b\,^1\Sigma^+` model of SO with a sharp crossing at 1.63 Å
+(:math:`\approx` 12800 cm\ :sup:`-1`, adiabatic gap 153 cm\ :sup:`-1`), the errors of the :math:`J=0` energies relative to the
+converged ``Lambda-S`` values on the same grid (sinc, 1001 points) are:
+
+============  ==================  ====================  ====================  ============================
+Level/cm-1    ``vib``, vmax=20    ``omega``, vmax=20    ``omega``, vmax=80    ``omega coupled``, vmax=20
+============  ==================  ====================  ====================  ============================
+9170          2e-4                0.19                  0.06                  < 1e-6
+10024         7e-4                1.2                   0.40                  < 1e-6
+11910         4e-4                22                    8.1                   1e-5
+12606         8e-3                61                    23                    6e-5
+============  ==================  ====================  ====================  ============================
+
+With ``eigenvectors save`` in the ``checkpoint`` section, each contracted function of the ``coupled`` basis set is written to
+the ``*_vib.chk`` file as :math:`N_{\rm channels}\times N_{\rm points}` values (the channel components one after another,
+zeros for the missing channels of a given :math:`\Omega`), and ``Nchannels`` is given in the ``Npoints`` line.
 
 
 Grids and DVR methods: sinc and Lobatto
@@ -249,9 +323,27 @@ Keywords
       ::
 
          contraction
-           vib
-           vmax 20 40 40
+           omega
+           vmax 80
+           derivatives spectral
          end
+
+   coupled
+      Option in the ``contraction`` block (``omega`` only): the vibrational basis set is obtained from the :math:`J=0`
+      coupled-channel problem for each :math:`\Omega` (adiabatic :math:`\Omega`-PECs + NACs + DBOC), see
+      :ref:`omega-coupled`. It can be given as ``omega coupled`` or on a separate line.
+
+      Example:
+      ::
+
+         contraction
+           omega coupled
+           vmax 20
+         end
+
+   uncoupled
+      Option in the ``contraction`` block (``omega`` only, default): the vibrational basis set is obtained from the
+      single-channel problems for each :math:`\Omega` channel, see :ref:`omega-coupled`.
 
 References
 ----------
