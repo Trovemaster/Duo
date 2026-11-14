@@ -312,6 +312,40 @@ A typical structure is:
 Here, ``Size`` is the length of each vector (i.e. the contracted basis size for this run, typically ``Ntotal``). Each
 root block then lists exactly ``Size`` floating-point numbers (one coefficient per line).
 
+.. _vib-chk:
+
+Example: structure of ``*_vib.chk`` (contracted vibrational basis)
+-------------------------------------------------------------------
+
+The file ``<prefix>_vib.chk`` contains the contracted vibrational basis functions on the radial grid:
+::
+
+  totalroots   =       60
+   Npoints   =     1001
+      1          0.000000      1   0   X3Sigma-
+    0.124463012363E-15
+    ...
+      2        968.440554      1   1   X3Sigma-
+    ...
+  End of contracted basis
+
+After the two header lines, each function starts with a line giving its index, its energy relative to the lowest contracted
+energy (cm\ :sup:`-1`), the state index, the vibrational quantum number and the state name, followed by the ``Npoints``
+coefficients of the function in the grid (DVR) representation, one per line. For the ``omega`` contraction the state and
+:math:`v` refer to the :math:`\Omega` channel of the function (the dominant channel for the ``coupled`` basis). For
+``SOLUTIONMETHOD LOBATTO`` the file ends with the Lobatto quadrature weights (between the lines ``Start of Lobatto Weights`` and
+``End of Lobatto Weights``).
+
+For the coupled :math:`\Omega` basis set (``omega coupled``, see :ref:`omega-coupled`) each contracted function is a
+multi-channel function. In this case the second header line also gives the number of channels,
+::
+
+   Npoints   =     1001   Nchannels =    2
+
+and each function is followed by ``Npoints`` :math:`\times` ``Nchannels`` values: the components of the channels
+1, 2, ..., ``Nchannels`` of its :math:`\Omega` (in the :math:`\Omega` representation) one after another, with zeros for the
+channels that do not exist for this :math:`\Omega`.
+
 Example: structure of ``*_values.chk`` (eigenvalue checkpoint file)
 -------------------------------------------------------------------
 
