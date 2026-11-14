@@ -109,9 +109,11 @@ contains
                 ilambdaF_ = ilambdaF_*(-1)**isigmav
 
                 if (ilambdaI_/=ilambdaI.or.ilambdaF_/=ilambdaF) cycle
-                if (abs(ilambdaI-ilambdaF)/=1) cycle
+                ! Delta Lambda = +/-1 and Delta Sigma = 0 (L does not act on spin)
+                if (abs(ilambdaI-ilambdaF)/=1.or.nint(2.0_rk*(sigmaI-sigmaF))/=0) cycle
 
-                f_t = (ilambdaI_-ilambdaF_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
+                ! f_t = (-1)**q <F|T_q|I> with T(+1) = -(L+ + g_s S+)/sqrt(2): same sign as the spin ladders above
+                f_t = (ilambdaF_-ilambdaI_)/sqrt(2.0_rk)*magnetictm(idip)%matelem(ivibI,ivibF)
 
                 if (isigmav==1) then
                   itau = 0

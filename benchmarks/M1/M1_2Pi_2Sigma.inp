@@ -1,0 +1,95 @@
+(M1 test C: X2Sigma+, A2Pi and B2Sigma- with different potentials, constant)
+(L+ couplings and spin-rotation in X. check_m1.py contracts the saved Duo)
+(eigenvectors separately with T(+1) = -(L+ + g_s S+)/sqrt(2), and compares)
+(the line strengths with the Duo MAGDIPOLE output.)
+masses 1.0 16.0
+molecule fictitious
+nstates 3
+jrot 0.5 - 3.5
+symmetry Cs(M)
+grid
+  npoints 151
+  range  0.55 2.0
+  type 0
+end
+contraction
+  vib
+  vmax 3 3 3
+end
+checkpoint
+  eigenfunc save ascii
+  filename M1_2Pi_2Sigma
+end
+poten 1
+name "X2Sigma+"
+type polynomial
+lambda 0
+mult 2
+symmetry +
+units cm-1
+values
+c0     0.0
+re     0.97
+c1     0.0
+c2 40000.0
+end
+poten 2
+name "A2Pi"
+type polynomial
+lambda 1
+mult 2
+units cm-1
+values
+c0   400.0
+re     1.00
+c1     0.0
+c2 36000.0
+end
+poten 3
+name "B2Sigma-"
+type polynomial
+lambda 0
+mult 2
+symmetry -
+units cm-1
+values
+c0   900.0
+re     1.03
+c1     0.0
+c2 33000.0
+end
+L+ 2 1
+name "<A|L+|X>"
+lambda 1 0
+spin 0.5 0.5
+type polynomial
+values
+c0 0.8
+end
+L+ 2 3
+name "<A|L+|B>"
+lambda 1 0
+spin 0.5 0.5
+type polynomial
+values
+c0 0.6
+end
+spin-rotation 1 1
+name "<X|SR|X>"
+lambda 0 0
+spin 0.5 0.5
+type polynomial
+values
+c0 0.5
+end
+intensity
+  magdipole
+  absorption
+  thresh_intes 1e-300
+  thresh_line 1e-300
+  temperature 300
+  gns 1.0 1.0
+  J, 0.5, 3.5
+  freq-window 0.001, 50000
+  energy low -0.001, 50000, upper -0.001, 50000
+end

@@ -1,0 +1,50 @@
+(M1 test A: one 2Sigma+ state with constant spin-rotation gamma: Hund's case (b).)
+(The M1 operator g_s S cannot change N, so the parity-allowed line)
+(J=0.5,N=0 -> J=1.5,N=2 must vanish. F1-F2 spin-flip lines inside one N)
+(have the analytic strength g_s^2 (2J+1)(2J'+1) {S J' N; J S 1}^2 S(S+1)(2S+1).)
+masses 1.0 16.0
+molecule fictitious
+nstates 1
+jrot 0.5 - 3.5
+symmetry Cs(M)
+grid
+  npoints 151
+  range  0.55 2.0
+  type 0
+end
+contraction
+  vib
+  vmax 4
+end
+poten 1
+name "X2Sigma+"
+type polynomial
+lambda 0
+mult 2
+symmetry +
+units cm-1
+values
+c0     0.0
+re     0.97
+c1     0.0
+c2 40000.0
+end
+spin-rotation 1 1
+name "<X|SR|X>"
+lambda 0 0
+spin 0.5 0.5
+type polynomial
+values
+c0 0.5
+end
+intensity
+  magdipole
+  absorption
+  thresh_intes 1e-300
+  thresh_line 1e-300
+  temperature 300
+  gns 1.0 1.0
+  J, 0.5, 3.5
+  freq-window 0.001, 50000
+  energy low -0.001, 50000, upper -0.001, 50000
+end
