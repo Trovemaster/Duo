@@ -57,7 +57,11 @@ module diatom_module
   !        case (12) lambdaq(iterm)
   !        case (13) nac(iterm)
   !        case (14) bobvib(iterm)
-  !        case (15 - 20) reserved
+  !        case (15) lambdam(iterm)
+  !        case (16) lambdan(iterm)
+  !        case (17) spinorbit_eta(iterm)
+  !        case (18) spinspin_theta(iterm)
+  !        case (19 - 20) reserved
   !        case (21) hfcc1(1) for nucleus-1 Fermi contact, bF
   !        case (22) hfcc1(2) for nucleus-1 nuclear spin - orbit, a
   !        case (23) hfcc1(3) for nucleus-1 nuclear dipole - spin dipole, c
@@ -98,7 +102,7 @@ module diatom_module
     "DIABATIC", &
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
-    "BOBVIB", "", "", "", "", "", "", & ! reserved
+    "BOBVIB", "LAMBDAM", "LAMBDAN", "SPIN-ORBIT-ETA", "SPIN-SPIN-THETA", "", "", & ! reserved
     "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "", "", & ! reserved
     "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", "", "", & ! reserved
     "HFCC-II-12", "HFCC-IIS", "", "", "", & ! reserved
@@ -563,7 +567,8 @@ module diatom_module
   integer,parameter  :: states_max = 50
   type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
                           dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
-                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
+                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null(),&
+                          lambdam(:)=>null(),lambdan(:)=>null(),spinorbit_eta(:)=>null(),spinspin_theta(:)=>null()
   type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null(),bobvib(:)=>null(),magnetrot(:)=>null()
   !
   ! Fields in the Omega representation
@@ -596,7 +601,8 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,vmax,nQuadrupoles,NBrot,nrefstates = 1,&
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,Nlambdam=0,Nlambdan=0,Nso_eta=0,Nss_theta=0,&
+                   vmax,nQuadrupoles,NBrot,nrefstates = 1,&
                    nMagneticDipoles,nMagneticRotDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
@@ -937,6 +943,7 @@ contains
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
                  lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),bobvib(nestates),&
+                 lambdam(nestates),lambdan(nestates),spinorbit_eta(nestates),spinspin_theta(nestates),&
                  quadrupoletm(ncouples),magnetictm(ncouples),magnetrot(nestates),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
@@ -1917,6 +1924,9 @@ contains
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
+           "LAMBDA-O","LAMBDAO","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q",&
+           "LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ","LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ",&
+           "SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3","SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4",&
            "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
            "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", &
            "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", &
@@ -2109,7 +2119,7 @@ contains
           !
           idiab = iobject(9)
           !
-        case("LAMBDA-OPQ","LAMBDAOPQ")  ! o+p+q
+        case("LAMBDA-OPQ","LAMBDAOPQ","LAMBDA-O","LAMBDAO")  ! o+p+q (Pi) or o+3p+6q (Delta)
           !
           call input_non_diagonal_field(Nobjects,10,iobject(10),lambdaopq,ierr)
           !
@@ -2117,9 +2127,9 @@ contains
           !
           field => lambdaopq(iobject(10))
           !
-          ! -(p+2q)
+          ! -(p+2q) (Pi) or -(p+4q) (Delta)
           !
-        case("LAMBDA-P2Q","LAMBDAP2Q")
+        case("LAMBDA-P2Q","LAMBDAP2Q","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q")
           !
           call input_non_diagonal_field(Nobjects,11,iobject(11),lambdap2q,ierr)
           !
@@ -2150,6 +2160,38 @@ contains
           if (ierr>0) cycle
           !
           field => bobvib(iobject(14))
+          !
+        case("LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ")
+          !
+          call input_non_diagonal_field(Nobjects,15,iobject(15),lambdam,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => lambdam(iobject(15))
+          !
+        case("LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ")
+          !
+          call input_non_diagonal_field(Nobjects,16,iobject(16),lambdan,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => lambdan(iobject(16))
+          !
+        case("SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3")
+          !
+          call input_non_diagonal_field(Nobjects,17,iobject(17),spinorbit_eta,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => spinorbit_eta(iobject(17))
+          !
+        case("SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4")
+          !
+          call input_non_diagonal_field(Nobjects,18,iobject(18),spinspin_theta,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => spinspin_theta(iobject(18))
           !
         case("QUADRUPOLE")
           !
@@ -3712,6 +3754,10 @@ contains
     Nlambdaq = iobject(12)
     Nnac = iobject(13)
     Nbobvib  = iobject(14)
+    Nlambdam = iobject(15)
+    Nlambdan = iobject(16)
+    Nso_eta  = iobject(17)
+    Nss_theta = iobject(18)
     nMagneticRotDipoles = iobject(Nobjects-5)
     nMagneticDipoles = iobject(Nobjects-4)
     nQuadrupoles = iobject(Nobjects-3)
@@ -4437,6 +4483,14 @@ contains
             field => nac(ifield)
           case (14)
             field => bobvib(ifield)
+          case (15)
+            field => lambdam(ifield)
+          case (16)
+            field => lambdan(ifield)
+          case (17)
+            field => spinorbit_eta(ifield)
+          case (18)
+            field => spinspin_theta(ifield)
           case (Nobjects-5)
             field => magnetrot(ifield)
           case (Nobjects-4)
@@ -4493,17 +4547,33 @@ contains
         !
         out = "DIABATIC"
         !
-      case("LAMBDA-OPQ","LAMBDAOPQ")
+      case("LAMBDA-OPQ","LAMBDAOPQ","LAMBDA-O","LAMBDAO")
         !
-        out = "LAMBDA-OPQ"
+        out = "LAMBDAOPQ"
         !
-      case("LAMBDA-P2Q","LAMBDAP2Q")
+      case("LAMBDA-P2Q","LAMBDAP2Q","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q")
         !
-        out = "LAMBDA-P2Q"
+        out = "LAMBDAP2Q"
         !
       case("LAMBDA-Q","LAMBDAQ")
         !
-        out = "LAMBDA-Q"
+        out = "LAMBDAQ"
+        !
+      case("LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ")
+        !
+        out = "LAMBDAM"
+        !
+      case("LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ")
+        !
+        out = "LAMBDAN"
+        !
+      case("SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3")
+        !
+        out = "SPIN-ORBIT-ETA"
+        !
+      case("SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4")
+        !
+        out = "SPIN-SPIN-THETA"
         !
       case default
         !
@@ -5149,6 +5219,14 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
+        case (15)
+          field => lambdam(iterm)
+        case (16)
+          field => lambdan(iterm)
+        case (17)
+          field => spinorbit_eta(iterm)
+        case (18)
+          field => spinspin_theta(iterm)
         case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (31, 32, 33, 34, 35, 36, 37, 38)
@@ -5535,6 +5613,14 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
+        case (15)
+          field => lambdam(iterm)
+        case (16)
+          field => lambdan(iterm)
+        case (17)
+          field => spinorbit_eta(iterm)
+        case (18)
+          field => spinspin_theta(iterm)
         case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (31, 32, 33, 34, 35, 36, 37, 38)
@@ -5814,6 +5900,10 @@ contains
     call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
+    call check_and_print_coupling(Nlambdam,   iverbose,lambdam,  "Lambda-m:")
+    call check_and_print_coupling(Nlambdan,   iverbose,lambdan,  "Lambda-n:")
+    call check_and_print_coupling(Nso_eta,    iverbose,spinorbit_eta, "Spin-orbit-eta:")
+    call check_and_print_coupling(Nss_theta,  iverbose,spinspin_theta,"Spin-spin-theta:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
     call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib correction:")
     if(associated(dipoletm)) &
@@ -7333,6 +7423,14 @@ contains
         fptr => nac(ifld)
       case (14)
         fptr => bobvib(ifld)
+      case (15)
+        fptr => lambdam(ifld)
+      case (16)
+        fptr => lambdan(ifld)
+      case (17)
+        fptr => spinorbit_eta(ifld)
+      case (18)
+        fptr => spinspin_theta(ifld)
       case (21, 22, 23, 24, 25, 26, 27, 28)
         fptr => hfcc1(iobj - 20)%field(ifld)
       case (Nobjects-5)
@@ -9198,6 +9296,14 @@ contains
             field => nac(iterm)
           case (14)
             field => bobvib(iterm)
+          case (15)
+            field => lambdam(iterm)
+          case (16)
+            field => lambdan(iterm)
+          case (17)
+            field => spinorbit_eta(iterm)
+          case (18)
+            field => spinspin_theta(iterm)
           case (Nobjects-5)
             field => magnetrot(iterm)
           case (Nobjects-4)
@@ -11390,11 +11496,12 @@ contains
     !    
     integer(ik) ::i,ivib,ilevel,istate,imulti,ilambda,v_i,j,jvib,jlevel,jstate,jmulti,jlambda,v_j
     integer(ik) :: ibobrot,isr,iL2,idiab,iNAC,iss,isso,ilxly,ild,istate_,jstate_,ilambda_we,jlambda_we,iso,&
-                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute,ibobvib
+                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute,ibobvib,ieta,n_S,n_J,m_ld,two_L
     integer(ik) :: alloc
     real(rk)    :: omegai,sigmai,spini,sigmaj,omegaj,spinj,f_nac
     real(rk)    :: erot,f_rot,f_bobrot,f_ss,f_sr,f_l2,f_diabatic,q_we,three_j_ref,three_j_,SO,f_s,f_t,f_grid,f_s2,f_s1,f_lo,&
-                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__,f_bobvib
+                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__,f_bobvib,&
+                   s_sq,sig_sq,f_val,f_j,jval_sq
     !
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
@@ -11407,6 +11514,7 @@ contains
     if (iverbose>=4) call MemoryReport
     !
     hmat = 0
+    jval_sq = jval*(jval+1.0_rk)
     !
     if (iverbose>=4) call TimerStart('Construct the hamiltonian')
     !
@@ -11416,7 +11524,8 @@ contains
     !$omp & jlambda,omegaj,spinj,v_j,f_rot,ibobrot,field,f_bobrot,erot,iss,f_ss,isr,f_sr,ibobvib,f_bobvib,iL2,f_l2,idiab,&
     !$omp & ipermute,istate_,jstate_,f_diabatic,iNAC,f_nac,q_we,three_j_ref,ilambda_we,spini_,spinj_,sigmai_we,sigmaj_we,&
     !$omp & jlambda_we,isigma2,sigmai_,sigmaj_,three_j_,SO,ilambda_,jlambda_,omegai_,omegaj_,itau,isso,&
-    !$omp & f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1,printout_) shared(hmat) schedule(guided)    
+    !$omp & f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1,printout_,&
+    !$omp & ieta,n_S,n_J,m_ld,two_L,s_sq,sig_sq,f_val,f_j) shared(hmat) schedule(guided)    
     do i = 1,Ntotal
       !
       ivib = icontr(i)%ivib
@@ -11538,6 +11647,27 @@ contains
                 endif
               endif
 
+              exit
+            endif
+          enddo
+          !
+          ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) terms (Brown et al. 1987 Eq. 16)
+          s_sq = spini*(spini+1.0_rk)
+          sig_sq = sigmai*sigmai
+          do ieta = 1,Nso_eta
+            if (spinorbit_eta(ieta)%istate==istate.and.spinorbit_eta(ieta)%jstate==istate) then
+              field => spinorbit_eta(ieta)
+              f_val = field%matelem(ivib,jvib)*real(ilambda,rk)*sigmai*(sig_sq-(3.0_rk*s_sq-1.0_rk)/5.0_rk)*sc
+              hmat(i,j) = hmat(i,j) + f_val
+              exit
+            endif
+          enddo
+          do ieta = 1,Nss_theta
+            if (spinspin_theta(ieta)%istate==istate.and.spinspin_theta(ieta)%jstate==istate) then
+              field => spinspin_theta(ieta)
+              f_val = field%matelem(ivib,jvib)*(1.0_rk/12.0_rk)*&
+                      (35.0_rk*sig_sq*sig_sq-30.0_rk*s_sq*sig_sq+25.0_rk*sig_sq-6.0_rk*s_sq+3.0_rk*s_sq*s_sq)*sc
+              hmat(i,j) = hmat(i,j) + f_val
               exit
             endif
           enddo
@@ -12551,121 +12681,72 @@ contains
         enddo loop_ilxly
         !
         !
-        ! Non-diagonal lambda-opq doubling
+        ! Non-diagonal lambda-doubling terms (Brown & Merer 1979 for Pi; Brown, Cheung & Merer 1987 for Delta/general |Lambda|)
         !
-        do ild = 1,Nlambdaopq
-          !
-          field => lambdaopq(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-          if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
-              .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
-            !
-            f_s2 = sigmai-sigmaj
-            f_s1 = sign(1.0_rk,f_s2)
-            !
-            f_t = sqrt( spini*(spini+1.0_rk)-(sigmaj     )*(sigmaj+f_s1) )*&
-                  sqrt( spini*(spini+1.0_rk)-(sigmaj+f_s1)*(sigmaj+f_s2) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then 
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LO",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                endif
-                !$omp end critical
-              endif
+        if (istate==jstate.and.ilambda/=0.and.ilambda==-jlambda.and.nint(spini-spinj)==0) then
+          two_L = 2*abs(ilambda)
+          n_S = abs(nint(sigmaj-sigmai))
+          n_J = abs(nint(omegai-omegaj))
+          if (n_S+n_J==two_L.and.(ilambda-jlambda)==nint(sigmaj-sigmai)+nint(omegai-omegaj)) then
+            s_sq = spini*(spini+1.0_rk)
+            f_s = 1.0_rk
+            if (n_S>0) then
+              f_s1 = sign(1.0_rk,sigmai-sigmaj)
+              do m_ld = 0,n_S-1
+                f_s = f_s*sqrt(max(0.0_rk,s_sq-(sigmaj+real(m_ld,rk)*f_s1)*(sigmaj+real(m_ld+1,rk)*f_s1)))
+              enddo
             endif
-            !
-          endif
-          !
-        enddo
-        !
-        ! Non-diagonal lambda-p2q doubling
-        !
-        do ild = 1,Nlambdap2q
-          !
-          field => lambdap2q(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-p|Sigma+/-1,Omega-/+1,Lambda>
-          if (lambdap2q(ild)%istate==istate.and.lambdap2q(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.abs(nint(sigmaj-sigmai))==1.and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.&
-              abs(nint(omegai-omegaj))==1.and.nint(sigmaj-sigmai)==nint(omegai-omegaj)) then
-            !
-            f_s = sigmai-sigmaj
-            !
-            f_t = sqrt( spini*(spini+1.0_rk)-sigmaj*(sigmaj+f_s) )*&
-                  sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj-f_s) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then 
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LP",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                endif
-                !$omp end critical
-              endif
+            f_j = 1.0_rk
+            if (n_J>0) then
+              f_o1 = sign(1.0_rk,omegaj-omegai)
+              do m_ld = 0,n_J-1
+                f_j = f_j*sqrt(max(0.0_rk,jval_sq-(omegaj-real(m_ld,rk)*f_o1)*(omegaj-real(m_ld+1,rk)*f_o1)))
+              enddo
             endif
-            !
-          endif
-          !
-        enddo
-        !
-        ! Non-diagonal lambda-q doubling
-        !
-        do ild = 1,Nlambdaq
-          !
-          field => lambdaq(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-          if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegai-omegaj).and.abs(nint(sigmaj-sigmai))==0.and.&
-              (ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==2) then
-            !
-            f_o2 = omegaj-omegai
-            f_o1 = sign(1.0_rk,f_o2)
-            !
-            f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
-                  sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LO",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+            select case (n_S)
+            case (4)
+              do ild = 1,Nlambdam
+                if (lambdam(ild)%istate==istate.and.lambdam(ild)%jstate==jstate) then
+                  field => lambdam(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                 endif
-                !$omp end critical
-              endif
-            endif
-            !
+              enddo
+            case (3)
+              do ild = 1,Nlambdan
+                if (lambdan(ild)%istate==istate.and.lambdan(ild)%jstate==jstate) then
+                  field => lambdan(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
+                endif
+              enddo
+            case (2)
+              do ild = 1,Nlambdaopq
+                if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate) then
+                  field => lambdaopq(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
+                endif
+              enddo
+            case (1)
+              do ild = 1,Nlambdap2q
+                if (lambdap2q(ild)%istate==istate.and.lambdap2q(ild)%jstate==jstate) then
+                  field => lambdap2q(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
+                endif
+              enddo
+            case (0)
+              do ild = 1,Nlambdaq
+                if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate) then
+                  field => lambdaq(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
+                endif
+              enddo
+            end select
           endif
-          !
-        enddo
+        endif
         !
       enddo  ! j
     enddo  ! i
@@ -12817,6 +12898,9 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
           !
           ! Diagonal spin-rotation term
           call add_diagonal_spinrot(isr, istate, ivib, jvib, spini, sigmai, hmat(i,j))
+          !
+          ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) terms (Brown et al. 1987 Eq. 16)
+          call add_diagonal_so_eta_ss_theta(istate, ilambda, ivib, jvib, spini, sigmai, hmat(i,j))
           !
           ! BOB vibrational (alpha) term
           call add_bobvib_correction(ibobvib, istate, ivib, jvib, hmat(i,j), ilevel, printout, use_debug_print)
@@ -13728,7 +13812,43 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
     end subroutine add_lxly_coupling
 
     !---------------------------------------------------------------------------
-    ! Lambda-doubling terms (all three types: opq, p2q, and q)
+    ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) (Brown et al. 1987 Eq. 16)
+    !---------------------------------------------------------------------------
+    subroutine add_diagonal_so_eta_ss_theta(istate, ilambda, ivib, jvib, spini, sigmai, hmat_elem)
+      integer(ik), intent(in) :: istate, ilambda, ivib, jvib
+      real(rk), intent(in) :: spini, sigmai
+      real(rk), intent(inout) :: hmat_elem
+      integer(ik) :: ieta
+      real(rk) :: s_sq, sig_sq, f_val
+      type(fieldT), pointer :: field
+
+      s_sq = spini * (spini + 1.0_rk)
+      sig_sq = sigmai * sigmai
+
+      do ieta = 1, Nso_eta
+        if (spinorbit_eta(ieta)%istate == istate .and. spinorbit_eta(ieta)%jstate == istate) then
+          field => spinorbit_eta(ieta)
+          f_val = field%matelem(ivib, jvib) * real(ilambda, rk) * sigmai * &
+                  (sig_sq - (3.0_rk * s_sq - 1.0_rk) / 5.0_rk) * sc
+          hmat_elem = hmat_elem + f_val
+          exit
+        endif
+      enddo
+
+      do ieta = 1, Nss_theta
+        if (spinspin_theta(ieta)%istate == istate .and. spinspin_theta(ieta)%jstate == istate) then
+          field => spinspin_theta(ieta)
+          f_val = field%matelem(ivib, jvib) * (1.0_rk / 12.0_rk) * &
+                  (35.0_rk * sig_sq * sig_sq - 30.0_rk * s_sq * sig_sq + 25.0_rk * sig_sq - &
+                   6.0_rk * s_sq + 3.0_rk * s_sq * s_sq) * sc
+          hmat_elem = hmat_elem + f_val
+          exit
+        endif
+      enddo
+    end subroutine add_diagonal_so_eta_ss_theta
+
+    !---------------------------------------------------------------------------
+    ! Lambda-doubling terms (Brown & Merer 1979 for Pi; Brown, Cheung & Merer 1987 for Delta/general |Lambda|)
     !---------------------------------------------------------------------------
     subroutine add_lambda_doubling(ild, istate, jstate, ilambda, jlambda, spini, spinj, &
                                    sigmai, sigmaj, omegai, omegaj, jval_sq, ivib, jvib, &
@@ -13741,101 +13861,108 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
       logical, intent(in) :: use_debug_print
       !
       type(fieldT), pointer :: field
-      real(rk) :: f_s2, f_s1, f_t, f_lo, f_s, f_o2, f_o1
+      integer(ik) :: n_S, n_J, m_ld, two_L
+      real(rk) :: f_s1, f_o1, f_s, f_j, f_lo, s_sq
       character(cl) :: printout_
-      
-      ! ===== Lambda-opq doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-      do ild = 1, Nlambdaopq
-        if (lambdaopq(ild)%istate == istate .and. lambdaopq(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            (ilambda - jlambda) == nint(sigmaj - sigmai) .and. &
-            abs(nint(sigmaj - sigmai)) == 2 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. nint(omegai - omegaj) == 0) then
-          
-          field => lambdaopq(ild)
-          
-          f_s2 = sigmai - sigmaj
-          f_s1 = sign(1.0_rk, f_s2)
-          f_t = sqrt(spini*(spini+1.0_rk) - sigmaj*(sigmaj+f_s1)) * &
-                sqrt(spini*(spini+1.0_rk) - (sigmaj+f_s1)*(sigmaj+f_s2))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem + f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LO",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+
+      if (istate /= jstate .or. ilambda == 0 .or. ilambda /= -jlambda .or. nint(spini - spinj) /= 0) return
+
+      two_L = 2 * abs(ilambda)
+      n_S = abs(nint(sigmaj - sigmai))
+      n_J = abs(nint(omegai - omegaj))
+
+      if (n_S + n_J /= two_L) return
+      if ((ilambda - jlambda) /= nint(sigmaj - sigmai) + nint(omegai - omegaj)) return
+
+      s_sq = spini * (spini + 1.0_rk)
+      f_s = 1.0_rk
+      if (n_S > 0) then
+        f_s1 = sign(1.0_rk, sigmai - sigmaj)
+        do m_ld = 0, n_S - 1
+          f_s = f_s * sqrt(max(0.0_rk, s_sq - (sigmaj + real(m_ld,rk)*f_s1)*(sigmaj + real(m_ld+1,rk)*f_s1)))
+        enddo
+      endif
+
+      f_j = 1.0_rk
+      if (n_J > 0) then
+        f_o1 = sign(1.0_rk, omegaj - omegai)
+        do m_ld = 0, n_J - 1
+          f_j = f_j * sqrt(max(0.0_rk, jval_sq - (omegaj - real(m_ld,rk)*f_o1)*(omegaj - real(m_ld+1,rk)*f_o1)))
+        enddo
+      endif
+
+      select case (n_S)
+      case (4)
+        ! ===== Lambda-m doubling (Delta states: n_S = 4, n_J = 0, +0.5 * m_tilde * (S+^4 + S-^4)) =====
+        do ild = 1, Nlambdam
+          if (lambdam(ild)%istate == istate .and. lambdam(ild)%jstate == jstate) then
+            field => lambdam(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
           endif
-        endif
-      enddo
-      
-      ! ===== Lambda-p2q doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-p|Sigma+/-1,Omega-/+1,Lambda>
-      do ild = 1, Nlambdap2q
-        if (lambdap2q(ild)%istate == istate .and. lambdap2q(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            abs(nint(sigmaj - sigmai)) == 1 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. abs(nint(omegai - omegaj)) == 1 .and. &
-            nint(sigmaj - sigmai) == nint(omegai - omegaj)) then
-          
-          field => lambdap2q(ild)
-          
-          f_s = sigmai - sigmaj
-          f_t = sqrt(spini*(spini+1.0_rk) - sigmaj*(sigmaj+f_s)) * &
-                sqrt(jval_sq - omegaj*(omegaj-f_s))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem - f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LP",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+        enddo
+      case (3)
+        ! ===== Lambda-n doubling (Delta states: n_S = 3, n_J = 1, -0.5 * n_tilde * (S+^3 J+ + S-^3 J-)) =====
+        do ild = 1, Nlambdan
+          if (lambdan(ild)%istate == istate .and. lambdan(ild)%jstate == jstate) then
+            field => lambdan(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem - f_lo * 0.5_rk
           endif
-        endif
-      enddo
-      
-      ! ===== Lambda-q doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-Q|Sigma,Omega+/-2,-Lambda>
-      do ild = 1, Nlambdaq
-        if (lambdaq(ild)%istate == istate .and. lambdaq(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            (ilambda - jlambda) == nint(omegai - omegaj) .and. &
-            abs(nint(sigmaj - sigmai)) == 0 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. nint(omegai - omegaj) == 2) then
-          
-          field => lambdaq(ild)
-          
-          f_o2 = omegaj - omegai
-          f_o1 = sign(1.0_rk, f_o2)
-          f_t = sqrt(jval_sq - omegaj*(omegaj-f_o1)) * &
-                sqrt(jval_sq - (omegaj-f_o1)*(omegaj-f_o2))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem + f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LQ",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+        enddo
+      case (2)
+        ! ===== Lambda-opq / Lambda-o doubling (n_S = 2, n_J = 2|Lambda|-2, +0.5 * o_tilde * S+-^2 J+-^(2|Lambda|-2)) =====
+        do ild = 1, Nlambdaopq
+          if (lambdaopq(ild)%istate == istate .and. lambdaopq(ild)%jstate == jstate) then
+            field => lambdaopq(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LO",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
           endif
-        endif
-      enddo
-      
+        enddo
+      case (1)
+        ! ===== Lambda-p2q / Lambda-p doubling (n_S = 1, n_J = 2|Lambda|-1, -0.5 * p_tilde * S+- J+-^(2|Lambda|-1)) =====
+        do ild = 1, Nlambdap2q
+          if (lambdap2q(ild)%istate == istate .and. lambdap2q(ild)%jstate == jstate) then
+            field => lambdap2q(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem - f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LP",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
+          endif
+        enddo
+      case (0)
+        ! ===== Lambda-q doubling (n_S = 0, n_J = 2|Lambda|, +0.5 * q * J+-^(2|Lambda|)) =====
+        do ild = 1, Nlambdaq
+          if (lambdaq(ild)%istate == istate .and. lambdaq(ild)%jstate == jstate) then
+            field => lambdaq(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LQ",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
+          endif
+        enddo
+      end select
+
     end subroutine add_lambda_doubling
 
     
