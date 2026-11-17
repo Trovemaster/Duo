@@ -28,6 +28,8 @@ Welcome to Duo's documentation!
 Recent news
 ===========
 
+14.11.2026: Omega representation: the Lobatto DVR (``SOLUTIONMETHOD LOBATTO``) can now be used with the ``omega`` contraction; a new option ``omega coupled`` builds the vibrational basis from the coupled-channel :math:`J=0` problems for each :math:`\Omega` (recommended for sharp avoided crossings and predissociation problems); several fixes of the NACs, phases and parities in the Omega representation. See :doc:`omega`.
+
 28.08.2028: Duo benchmarks have been added organised as python scripts with reference Duo outputs. 
 
 09.04.2026: The new funcitonality Omega-representation has been added currently only for spin-orbit and spin.

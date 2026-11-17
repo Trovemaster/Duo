@@ -2514,7 +2514,7 @@ contains
           !
           !dms_tmp = dipole_me
           !
-          call TimerStart('do_1st_half_linestr')
+          ! call TimerStart('do_1st_half_linestr') ! not thread-safe: called inside an OpenMP region (as in do_1st_half_linestrength)
           !
           half_ls    = 0
           !
@@ -2572,7 +2572,7 @@ contains
             end do   loop_F
             !$omp end parallel do
             !
-            call TimerStop('do_1st_half_linestr')
+            ! call TimerStop('do_1st_half_linestr')
             !
       end subroutine do_1st_half_linestrength_omega
 

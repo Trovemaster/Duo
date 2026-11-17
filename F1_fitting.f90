@@ -8,6 +8,7 @@ module F1_fitting
         grid, fitting, linkT, F1_hyperfine_setup, &
         poten, spinorbit, l2, lxly, spinspin, spinspino, spinrot, &
         bobrot, diabatic, lambdaopq, lambdap2q, lambdaq, &
+        lambdam, lambdan, spinorbit_eta, spinspin_theta, &
         l_omega_obj, s_omega_obj, quadrupoletm, hfcc1, &
         Nobjects, abinitio, eigen, basis
     ! use refinement, only: fit_indexT, object_containerT
@@ -234,6 +235,14 @@ contains
                         objects(iobject,ifield)%field => lambdap2q(ifield)
                     case (12)
                         objects(iobject,ifield)%field => lambdaq(ifield)
+                    case (15)
+                        objects(iobject,ifield)%field => lambdam(ifield)
+                    case (16)
+                        objects(iobject,ifield)%field => lambdan(ifield)
+                    case (17)
+                        objects(iobject,ifield)%field => spinorbit_eta(ifield)
+                    case (18)
+                        objects(iobject,ifield)%field => spinspin_theta(ifield)
                     case (21, 22, 23, 24, 25, 26, 27)
                         objects(iobject,ifield)%field => hfcc1(iobject - 20)%field(ifield)
                     case (13)

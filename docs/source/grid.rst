@@ -72,6 +72,10 @@ Transformed variable currently implemented are (Phys. Rev. A, 78:052510, 2008):
 All the transformed grids have the property of decreasing the density of points for large `r`, so that one does not `waste` too many points in
 regions where the potential is almost constant and the corresponding vibrational wave function slowly varying.
 
+* ``type 6``: Gauss-Lobatto quadrature points in the interval [rmin, rmax], including both end points. This grid is required by
+  (and can only be used with) the Lobatto DVR, ``SOLUTIONMETHOD LOBATTO``; the number of points must be even. The Lobatto DVR can be
+  used with both the ``vib`` and ``omega`` contractions.
+
 * re:  (alias ``ref``)  Reference bond length used for ``type`` > 0 (see above). 
 
 * alpha:  Parameter :math:`\alpha` for ``type >0`` (see above). 

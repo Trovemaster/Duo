@@ -57,16 +57,32 @@ module diatom_module
   !        case (12) lambdaq(iterm)
   !        case (13) nac(iterm)
   !        case (14) bobvib(iterm)
-  !        case (15 - 20) reserved
-  !        case (21) hfcc1(1) for Fermi contact, bF
-  !        case (22) hfcc1(2) for nuclear spin - orbit, a
-  !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
-  !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
-  !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
-  !        case (26) hfcc1(6) for electric dipole, eQq0
-  !        case (27) hfcc1(7) for electric diople, eQq2
-  !        case (28) hfcc1(8) for nuclear - nuclear spin dipole, ii
-  !        case (29) reserved
+  !        case (15) lambdam(iterm)
+  !        case (16) lambdan(iterm)
+  !        case (17) spinorbit_eta(iterm)
+  !        case (18) spinspin_theta(iterm)
+  !        case (19 - 20) reserved
+  !        case (21) hfcc1(1) for nucleus-1 Fermi contact, bF
+  !        case (22) hfcc1(2) for nucleus-1 nuclear spin - orbit, a
+  !        case (23) hfcc1(3) for nucleus-1 nuclear dipole - spin dipole, c
+  !        case (24) hfcc1(4) for nucleus-1 nuclear dipole - spin dipole, d
+  !        case (25) hfcc1(5) for nucleus-1 nuclear spin - rotation, cI
+  !        case (26) hfcc1(6) for nucleus-1 nuclear spin - rotation, cIp
+  !        case (27) hfcc1(7) for nucleus-1 electric quadrupole, eQq0
+  !        case (28) hfcc1(8) for nucleus-1 electric quadrupole, eQq2
+  !        case (29 - 30) reserved
+  !        case (31) hfcc2(1) for nucleus-2 Fermi contact, bF
+  !        case (32) hfcc2(2) for nucleus-2 nuclear spin - orbit, a
+  !        case (33) hfcc2(3) for nucleus-2 nuclear dipole - spin dipole, c
+  !        case (34) hfcc2(4) for nucleus-2 nuclear dipole - spin dipole, d
+  !        case (35) hfcc2(5) for nucleus-2 nuclear spin - rotation, cI
+  !        case (36) hfcc2(6) for nucleus-2 nuclear spin - rotation, cIp
+  !        case (37) hfcc2(7) for nucleus-2 electric quadrupole, eQq0
+  !        case (38) hfcc2(8) for nucleus-2 electric quadrupole, eQq2
+  !        case (39 - 40) reserved
+  !        case (41) hfcc12(1) for dipolar nuclear spin - spin, ii
+  !        case (42) hfcc12(2) for scalar nuclear spin - spin, iis
+  !        case (43 - 45) reserved
   !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
@@ -86,9 +102,10 @@ module diatom_module
     "DIABATIC", &
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
-    "BOBVIB", "", "", "", "", "", "", & ! reserved
-    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "HFCC-II-12", &
-    "", & ! reserved
+    "BOBVIB", "LAMBDAM", "LAMBDAN", "SPIN-ORBIT-ETA", "SPIN-SPIN-THETA", "", "", & ! reserved
+    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "", "", & ! reserved
+    "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", "", "", & ! reserved
+    "HFCC-II-12", "HFCC-IIS", "", "", "", & ! reserved
     "MAGNETROT",&
     "MAGNETIC",&
     "QUADRUPOLE", &
@@ -212,7 +229,7 @@ module diatom_module
     real(rk),pointer     :: gridvalue(:) ! Expansion parameter or a grid value on the grid used inside the program
     real(rk),pointer     :: weight(:)    ! fit (1) or no fit (0)
     real(rk),pointer     :: grid(:)      ! grid value
-    real(rk),pointer     :: matelem(:,:) ! matrix elements
+    real(rk),pointer     :: matelem(:,:)=>null() ! matrix elements (null by default, checked with associated() in the Omega code)
     real(rk)             :: refvalue = 0 ! reference value will be used as a shift to be applied to the ab initio function used
     !                                         for the fitting constraints
     character(len=cl),pointer :: forcename(:) ! The parameter name
@@ -278,6 +295,11 @@ module diatom_module
     character(len=cl)   :: diagonalizer = 'SYEV'
     character(len=cl)   :: molecule = 'H2'
     character(len=cl)   :: contraction = 'VIB' ! contraction
+    character(len=cl)   :: omega_derivatives = 'FD' ! Omega contraction: method for dU/dr (NACs): FD (9-point finite
+    !                                                   differences, default) or SPECTRAL (Lobatto grid only)
+    logical             :: omega_coupled = .false.  ! Omega contraction: the J=0 vibrational basis set from the coupled-channel
+    !                                                 problems (adiabatic Omega-PECs+NACs+DBOC) for each Omega (COUPLED)
+    !                                                 instead of the single-channel problems (UNCOUPLED, default)
     real(rk),pointer    :: vibenermax(:)    !     contraction parameter: energy
     integer(ik),pointer :: vibmax(:)           !     contraction parameter: vibration quantum
     real(rk)            :: potmin              ! absolute minimum of the PEC with the lowest rotational-vibrational state
@@ -541,7 +563,8 @@ module diatom_module
   integer,parameter  :: states_max = 50
   type(fieldT),pointer :: poten(:)=>null(),spinorbit(:)=>null(),l2(:)=>null(),lxly(:)=>null(),abinitio(:)=>null(),&
                           dipoletm(:)=>null(),spinspin(:)=>null(),spinspino(:)=>null(),bobrot(:)=>null(),spinrot(:)=>null(),&
-                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null()
+                          diabatic(:)=>null(),lambdaopq(:)=>null(),lambdap2q(:)=>null(),lambdaq(:)=>null(),nac(:)=>null(),&
+                          lambdam(:)=>null(),lambdan(:)=>null(),spinorbit_eta(:)=>null(),spinspin_theta(:)=>null()
   type(fieldT),pointer :: brot(:)=>null(),quadrupoletm(:)=>null(),magnetictm(:)=>null(),bobvib(:)=>null(),magnetrot(:)=>null()
   !
   ! Fields in the Omega representation
@@ -551,7 +574,7 @@ module diatom_module
   type(Omega_gridT),allocatable :: omega_grid(:)
   integer(ik),allocatable :: iLplus_omega(:,:,:,:),iSplus_omega(:,:,:,:),iSR_omega(:,:,:,:),iBOB_omega(:,:,:)
   integer(ik),allocatable :: iP2Q_omega(:,:,:,:),iQ_omega(:,:,:,:),iKin_omega(:,:,:),iBRot_omega(:,:,:),iNAC_omega(:,:,:),&
-                             iDiab_omega(:,:),iDipole_omega(:,:,:,:)
+                             iDiab_omega(:,:,:),iDipole_omega(:,:,:,:)
                              !
   integer(ik),allocatable :: NSplus_omega_each(:,:)
   !
@@ -574,7 +597,8 @@ module diatom_module
   !type(symmetryT)             :: sym
   !
   integer(ik)   :: nestates=-1,Nspinorbits,Ndipoles,Nlxly,Nl2,Nabi,Ntotalfields=0,Nss,Nsso,Nbobrot,Nsr,Ndiabatic,&
-                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,vmax,nQuadrupoles,NBrot,nrefstates = 1,&
+                   Nlambdaopq,Nlambdap2q,Nlambdaq,Nnac,Nbobvib,Nlambdam=0,Nlambdan=0,Nso_eta=0,Nss_theta=0,&
+                   vmax,nQuadrupoles,NBrot,nrefstates = 1,&
                    nMagneticDipoles,nMagneticRotDipoles
   real(rk)      :: m1=-1._rk,m2=-1._rk ! impossible, negative initial values for the atom masses
   real(rk)      :: jmin,jmax,amass,hstep,Nspin1=-1.0,Nspin2=-1.0
@@ -591,6 +615,8 @@ module diatom_module
   real(rk),parameter :: enermax = safe_max  ! largest energy allowed
 
   real(rk), allocatable :: vibrational_contrfunc(:,:)
+  integer(ik) :: vibrational_Nchannels = 1  ! number of channel components of each function in vibrational_contrfunc
+  !                                           (>1 only for the coupled Omega basis set, CONTRACTION OMEGA COUPLED)
   type(quantaT), allocatable :: vibrational_quantum_number(:)
   integer(ik) :: vibrational_totalroots
   type(F1_hyperfine_steup_T) :: F1_hyperfine_setup
@@ -909,6 +935,7 @@ contains
         allocate(poten(nestates),spinorbit(ncouples),l2(ncouples),lxly(ncouples),spinspin(ncouples),spinspino(ncouples), &
                  bobrot(nestates),spinrot(nestates),job%vibmax(nestates),job%vibenermax(nestates),diabatic(ncouples),&
                  lambdaopq(nestates),lambdap2q(nestates),lambdaq(nestates),nac(ncouples),bobvib(nestates),&
+                 lambdam(nestates),lambdan(nestates),spinorbit_eta(nestates),spinspin_theta(nestates),&
                  quadrupoletm(ncouples),magnetictm(ncouples),magnetrot(nestates),stat=alloc)
 
         do i = 1, GLOBAL_NUM_HFCC_OBJECT
@@ -1010,6 +1037,49 @@ contains
             !
             if (trim(job%contraction)=="LAMBDA-SIGMA") job%contraction='VIB'
             !
+            ! OMEGA COUPLED or OMEGA UNCOUPLED (default): the J=0 vibrational basis set for the Omega representation
+            ! is obtained from the coupled-channel problem for each Omega (including the NACs and DBOC) or from the
+            ! single-channel problems for each Omega-state (NACs and DBOC are then included in the rovibronic matrix)
+            !
+            if (trim(job%contraction)=="OMEGA".and.Nitems>1) then
+              !
+              call readu(w)
+              !
+              select case (trim(w))
+              case ("COUPLED")
+                job%omega_coupled = .true.
+              case ("UNCOUPLED")
+                job%omega_coupled = .false.
+              case default
+                write(out,"('Input error: illegal OMEGA option in CONTRACTION ',a,', use COUPLED or UNCOUPLED')") trim(w)
+                stop 'Input error: illegal OMEGA option in CONTRACTION'
+              end select
+              !
+            endif
+            !
+          case("COUPLED","UNCOUPLED")
+            !
+            ! Omega contraction: the J=0 vibrational basis set from the coupled-channel (COUPLED) or single-channel
+            ! (UNCOUPLED, default) problems for each Omega, same as OMEGA COUPLED/UNCOUPLED
+            !
+            job%omega_coupled = (trim(w)=="COUPLED")
+            !
+          case("DERIVATIVES","DERIVATIVE","NAC-DERIVATIVES")
+            !
+            ! Omega contraction: method for the r-derivatives of the Omega-transformation (NACs)
+            !
+            call readu(w)
+            !
+            select case (trim(w))
+            case ("FD","FINITE-DIFFERENCES","FINITE-DIFFERENCE")
+              job%omega_derivatives = 'FD'
+            case ("SPECTRAL","LOBATTO")
+              job%omega_derivatives = 'SPECTRAL'
+            case default
+              write(out,"('Input error: illegal DERIVATIVES option in CONTRACTION ',a,', use FD or SPECTRAL')") trim(w)
+              stop 'Input error: illegal DERIVATIVES option in CONTRACTION'
+            end select
+            !
           case ("VMAX","VIBMAX","NMAX")
             !
             vmax = 1
@@ -1107,6 +1177,13 @@ contains
           !
           write (out,"('input: wrong last line in CONTRACTION =',a)") trim(w)
           stop 'input - illegal last line in CONTRACTION'
+          !
+        endif
+        !
+        if (job%omega_coupled.and.trim(job%contraction)/="OMEGA") then
+          !
+          write (out,"('input error: COUPLED in CONTRACTION can be used only with the OMEGA contraction')")
+          stop 'input error: COUPLED in CONTRACTION can be used only with the OMEGA contraction'
           !
         endif
         !
@@ -1827,6 +1904,9 @@ contains
            "LPLUS","L+","L_+","LX","DIPOLE","TM","DIPOLE-MOMENT","DIPOLE-X",&
            "SPIN-SPIN","SPIN-SPIN-O","BOBROT","BOB-ROT","BETA","SPIN-ROT","SPIN-ROTATION","DIABATIC","DIABAT",&
            "LAMBDA-OPQ","LAMBDA-P2Q","LAMBDA-Q","LAMBDAOPQ","LAMBDAP2Q","LAMBDAQ","NAC","BOBVIB","ALPHA",&
+           "LAMBDA-O","LAMBDAO","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q",&
+           "LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ","LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ",&
+           "SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3","SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4",&
            "MAGNETIC","MAGNETIC-X","QUADRUPOLE","MAGNETROT","MAGNETIC-ROT", &
            "HFCC-BF", "HFCC-A", "HFCC-C", "HFCC-D", "HFCC-CI", "HFCC-EQQ0", "HFCC-EQQ2", "HFCC-II")
         !
@@ -2016,7 +2096,7 @@ contains
           !
           idiab = iobject(9)
           !
-        case("LAMBDA-OPQ","LAMBDAOPQ")  ! o+p+q
+        case("LAMBDA-OPQ","LAMBDAOPQ","LAMBDA-O","LAMBDAO")  ! o+p+q (Pi) or o+3p+6q (Delta)
           !
           call input_non_diagonal_field(Nobjects,10,iobject(10),lambdaopq,ierr)
           !
@@ -2024,9 +2104,9 @@ contains
           !
           field => lambdaopq(iobject(10))
           !
-          ! -(p+2q)
+          ! -(p+2q) (Pi) or -(p+4q) (Delta)
           !
-        case("LAMBDA-P2Q","LAMBDAP2Q")
+        case("LAMBDA-P2Q","LAMBDAP2Q","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q")
           !
           call input_non_diagonal_field(Nobjects,11,iobject(11),lambdap2q,ierr)
           !
@@ -2057,6 +2137,38 @@ contains
           if (ierr>0) cycle
           !
           field => bobvib(iobject(14))
+          !
+        case("LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ")
+          !
+          call input_non_diagonal_field(Nobjects,15,iobject(15),lambdam,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => lambdam(iobject(15))
+          !
+        case("LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ")
+          !
+          call input_non_diagonal_field(Nobjects,16,iobject(16),lambdan,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => lambdan(iobject(16))
+          !
+        case("SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3")
+          !
+          call input_non_diagonal_field(Nobjects,17,iobject(17),spinorbit_eta,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => spinorbit_eta(iobject(17))
+          !
+        case("SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4")
+          !
+          call input_non_diagonal_field(Nobjects,18,iobject(18),spinspin_theta,ierr)
+          !
+          if (ierr>0) cycle
+          !
+          field => spinspin_theta(iobject(18))
           !
         case("QUADRUPOLE")
           !
@@ -3906,6 +4018,10 @@ contains
     Nlambdaq = iobject(12)
     Nnac = iobject(13)
     Nbobvib  = iobject(14)
+    Nlambdam = iobject(15)
+    Nlambdan = iobject(16)
+    Nso_eta  = iobject(17)
+    Nss_theta = iobject(18)
     nMagneticRotDipoles = iobject(Nobjects-5)
     nMagneticDipoles = iobject(Nobjects-4)
     nQuadrupoles = iobject(Nobjects-3)
@@ -4454,6 +4570,14 @@ contains
             field => nac(ifield)
           case (14)
             field => bobvib(ifield)
+          case (15)
+            field => lambdam(ifield)
+          case (16)
+            field => lambdan(ifield)
+          case (17)
+            field => spinorbit_eta(ifield)
+          case (18)
+            field => spinspin_theta(ifield)
           case (Nobjects-5)
             field => magnetrot(ifield)
           case (Nobjects-4)
@@ -4510,17 +4634,33 @@ contains
         !
         out = "DIABATIC"
         !
-      case("LAMBDA-OPQ","LAMBDAOPQ")
+      case("LAMBDA-OPQ","LAMBDAOPQ","LAMBDA-O","LAMBDAO")
         !
-        out = "LAMBDA-OPQ"
+        out = "LAMBDAOPQ"
         !
-      case("LAMBDA-P2Q","LAMBDAP2Q")
+      case("LAMBDA-P2Q","LAMBDAP2Q","LAMBDA-P","LAMBDAP","LAMBDA-P4Q","LAMBDAP4Q")
         !
-        out = "LAMBDA-P2Q"
+        out = "LAMBDAP2Q"
         !
       case("LAMBDA-Q","LAMBDAQ")
         !
-        out = "LAMBDA-Q"
+        out = "LAMBDAQ"
+        !
+      case("LAMBDA-M","LAMBDAM","LAMBDA-MNOPQ","LAMBDAMNOPQ")
+        !
+        out = "LAMBDAM"
+        !
+      case("LAMBDA-N","LAMBDAN","LAMBDA-NOPQ","LAMBDANOPQ")
+        !
+        out = "LAMBDAN"
+        !
+      case("SPIN-ORBIT-ETA","SPINORBIT-ETA","SPIN-ORBIT-3")
+        !
+        out = "SPIN-ORBIT-ETA"
+        !
+      case("SPIN-SPIN-THETA","SPINSPIN-THETA","SPIN-SPIN-4")
+        !
+        out = "SPIN-SPIN-THETA"
         !
       case default
         !
@@ -5166,6 +5306,14 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
+        case (15)
+          field => lambdam(iterm)
+        case (16)
+          field => lambdan(iterm)
+        case (17)
+          field => spinorbit_eta(iterm)
+        case (18)
+          field => spinspin_theta(iterm)
         case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-5)
@@ -5548,6 +5696,14 @@ contains
           field => nac(iterm)
         case (14)
           field => bobvib(iterm)
+        case (15)
+          field => lambdam(iterm)
+        case (16)
+          field => lambdan(iterm)
+        case (17)
+          field => spinorbit_eta(iterm)
+        case (18)
+          field => spinspin_theta(iterm)
         case (21, 22, 23, 24, 25, 26, 27, 28)
           field => hfcc1(iobject - 20)%field(iterm)
         case (Nobjects-5)
@@ -5823,6 +5979,10 @@ contains
     call check_and_print_coupling(Nlambdaopq, iverbose,lambdaopq,"Lambda-opq:")
     call check_and_print_coupling(Nlambdap2q, iverbose,lambdap2q,"Lambda-p2q:")
     call check_and_print_coupling(Nlambdaq,   iverbose,lambdaq,  "Lambda-q:")
+    call check_and_print_coupling(Nlambdam,   iverbose,lambdam,  "Lambda-m:")
+    call check_and_print_coupling(Nlambdan,   iverbose,lambdan,  "Lambda-n:")
+    call check_and_print_coupling(Nso_eta,    iverbose,spinorbit_eta, "Spin-orbit-eta:")
+    call check_and_print_coupling(Nss_theta,  iverbose,spinspin_theta,"Spin-spin-theta:")
     call check_and_print_coupling(Nnac,       iverbose,nac,  "NACouplings")
     call check_and_print_coupling(Nbobvib,    iverbose,bobvib,   "Bob-Vib correction:")
     if(associated(dipoletm)) &
@@ -7342,6 +7502,14 @@ contains
         fptr => nac(ifld)
       case (14)
         fptr => bobvib(ifld)
+      case (15)
+        fptr => lambdam(ifld)
+      case (16)
+        fptr => lambdan(ifld)
+      case (17)
+        fptr => spinorbit_eta(ifld)
+      case (18)
+        fptr => spinspin_theta(ifld)
       case (21, 22, 23, 24, 25, 26, 27, 28)
         fptr => hfcc1(iobj - 20)%field(ifld)
       case (Nobjects-5)
@@ -7452,6 +7620,8 @@ contains
     logical     :: bound_state = .true.,check_symmetry=.false.
     !
     type(contract_solT),allocatable :: contracted(:,:)
+    integer(ik),allocatable         :: ilabel_omega(:)  ! label (dominant) channel of each Omega-contracted function
+    integer(ik)                     :: ilevel_c,jlevel_c,ioff,joff,ilabel
     real(rk),allocatable            :: vect_i(:),vect_j(:)
     real(rk),allocatable            :: nacmat_(:,:),bobvibmat_(:,:),kinmatcalc_(:,:)
     double precision,parameter :: alpha_ = 1.0d0,beta_=0.0d0,beta_1=1.0d0,alpha_minus = -1.0d0
@@ -7600,6 +7770,26 @@ contains
         write(out,'(a)') "Please reported any bugs to Sergey Yurchenko"
       endif
       !
+      ! Lobatto DVR: Lobatto abscissas, weights and derivatives of the Lobatto shape functions; computed once here
+      ! and used for the kinetic energy and derivative (NAC) matrices and in the checkpoints, as in the VIB case
+      !
+      if (trim(solution_method)=="LOBATTO") then
+        !
+        if (grid%nsub/=6) then
+          write(out,"('Error: SOLUTIONMETHOD LOBATTO requires the Lobatto grid (type 6)')")
+          stop 'Error: SOLUTIONMETHOD LOBATTO requires the Lobatto grid (type 6)'
+        endif
+        !
+        allocate(LobAbs(ngrid),LobWeights(ngrid),LobDerivs(ngrid,ngrid),stat=alloc)
+        call ArrayStart('LobAbs',alloc,size(LobAbs),kind(LobAbs))
+        call ArrayStart('LobWeights',alloc,size(LobWeights),kind(LobWeights))
+        call ArrayStart('LobDerivs',alloc,size(LobDerivs),kind(LobDerivs))
+        !
+        call LobattoAbsWeights(LobAbs,LobWeights,ngrid,grid%rmin,grid%rmax)
+        call derLobattoMat(LobDerivs,ngrid-2,LobAbs,LobWeights)
+        !
+      endif
+      !
       multi_max = 1
       lambda_max = 0
       lambda_min = 10000
@@ -7716,7 +7906,7 @@ contains
       iNAC_omega = 0
       !
       ! counter iDiab_omega
-      allocate(iDiab_omega(Nomegas,Nlambdasigmas_max),stat=alloc)
+      allocate(iDiab_omega(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
       call ArrayStart('iDiab_omega',alloc,size(iDiab_omega),kind(iDiab_omega))
       iDiab_omega = 0
       !
@@ -7798,6 +7988,8 @@ contains
         allocate(L_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Lomega_tot cannot be allocated'
         !
+        L_omega_tot(:,:,:,:)%Nterms = 0
+        !
       endif
       !
       ! count the number of different Splus objects
@@ -7821,6 +8013,8 @@ contains
         !
         allocate(S_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'S_omega_tot cannot be allocated'
+        !
+        S_omega_tot(:,:,:,:)%Nterms = 0
         !
       endif
       !
@@ -7846,6 +8040,8 @@ contains
         allocate(SR_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'SR_omega_tot cannot be allocated'
         !
+        SR_omega_tot(:,:,:,:)%Nterms = 0
+        !
       endif
       !
       ! count the number of different BOB objects
@@ -7869,6 +8065,8 @@ contains
         !
         allocate(BOB_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'BOB_omega_tot cannot be allocated'
+        !
+        BOB_omega_tot(:,:,:)%Nterms = 0
         !
       endif
       !
@@ -7894,6 +8092,8 @@ contains
         allocate(P2Q_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'P2Q_omega_tot cannot be allocated'
         !
+        P2Q_omega_tot(:,:,:,:)%Nterms = 0
+        !
       endif
       !
       ! count the number of different p2q objects
@@ -7918,6 +8118,8 @@ contains
         allocate(Q_omega_tot(Nomegas,Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'Q_omega_tot cannot be allocated'
         !
+        Q_omega_tot(:,:,:,:)%Nterms = 0
+        !
       endif
       !
       ! count the number of different BRot objects
@@ -7941,6 +8143,8 @@ contains
         !
         allocate(BRot_omega_tot(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
         if (alloc/=0) stop 'BRot_omega_tot cannot be allocated'
+        !
+        BRot_omega_tot(:,:,:)%Nterms = 0
         !
       endif
       !
@@ -8026,7 +8230,12 @@ contains
       !
       ! Copy the PECs+SOCs+couplings to the Omega representation
       !
-      call Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      if (trim(solution_method)=="LOBATTO") then
+        call Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states,&
+                                                            LobWeights=LobWeights,LobDerivs=LobDerivs)
+      else
+        call Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+      endif
       !
       deallocate(iLPlus_omega,iSPlus_omega,iSR_omega,iBob_omega,ip2q_omega,iQ_omega,iKin_omega,iBRot_omega,&
                  iNAC_omega,iDiab_omega,iDipole_omega,NSplus_omega_each)
@@ -8056,6 +8265,13 @@ contains
         !
         Nlambdasigmas = omega_grid(iomega)%Nstates
         do ilevel = 1,Nlambdasigmas
+          !
+          ! for the coupled Omega basis set the (multi-channel) contracted functions are allocated by the solver
+          if (job%omega_coupled) then
+            contracted(iomega,ilevel)%Ndimen = 0
+            cycle
+          endif
+          !
           Ndimen = ngrid
           contracted(iomega,ilevel)%Ndimen = Ndimen
           !
@@ -8078,10 +8294,39 @@ contains
       allocate(icontrvib(ngrid*Nomega_states),stat=alloc)
       call ArrayStart('icontrvib',alloc,size(icontrvib)*(14+5*2),kind(iomega))
       !
-      !call Solve_vibrational_problem_for_Omega_states(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,contrenergy,contracted)
+      allocate(ilabel_omega(ngrid*Nomega_states),stat=alloc)
+      call ArrayStart('ilabel_omega',alloc,size(ilabel_omega),kind(ilabel_omega))
+      ilabel_omega = 1
       !
-      call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
-                                                                    contrenergy,Nlambdasigmas_max,contracted)
+      if (job%omega_coupled) then
+        !
+        ! The J=0 vibrational basis set from the coupled-channel problem for each Omega (adiabatic Omega-PECs + NACs + DBOC).
+        ! The contracted functions are multi-channel functions, labelled by their dominant channel (ilabel_omega);
+        ! they all are assigned to the pseudo-channel ilevel=1 in the rovibronic basis set.
+        !
+        if (trim(solution_method)=="LOBATTO") then
+          call Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                  contrenergy,Nlambdasigmas_max,contracted,ilabel_omega,&
+                                                                  LobWeights=LobWeights,LobDerivs=LobDerivs)
+        else
+          call Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                  contrenergy,Nlambdasigmas_max,contracted,ilabel_omega)
+        endif
+        !
+      else
+        !
+        if (trim(solution_method)=="LOBATTO") then
+          call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                        contrenergy,Nlambdasigmas_max,contracted,&
+                                                                        LobWeights=LobWeights,LobDerivs=LobDerivs)
+        else
+          call Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,icontrvib,&
+                                                                        contrenergy,Nlambdasigmas_max,contracted)
+        endif
+        !
+        ilabel_omega(1:totalroots) = icontrvib(1:totalroots)%ilevel
+        !
+      endif
       !
       ! Now we need to compute all vibrational matrix elements of all field of the Hamiltonian, except for the potentials V,
       ! which together with the vibrational kinetic energy operator are diagonal on the contracted basis developed
@@ -8093,10 +8338,19 @@ contains
       !
       nroots = totalroots
       !
-      if (job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE') then
+      ! Contracted functions on the grid (also needed for the reduced densities, e.g. for the bound/unbound filter).
+      ! For the coupled Omega basis set all channel components of the multi-channel functions are kept,
+      ! contrfunc((ichannel-1)*ngrid+igrid,i), ichannel=1..Nlambdasigmas_max (zero for the missing channels)
+      !
+      vibrational_Nchannels = 1
+      if (job%omega_coupled) vibrational_Nchannels = Nlambdasigmas_max
+      !
+      if (job%IO_eigen=='SAVE'.or.job%IO_density=='SAVE'.or.trim(job%basis_set)=='KEEP') then
         !
-        allocate(contrfunc(ngrid,totalroots),stat=alloc)
+        allocate(contrfunc(ngrid*vibrational_Nchannels,totalroots),stat=alloc)
         call ArrayStart('contrfunc',alloc,1_ik,kind(contrfunc),size(contrfunc,kind=hik))
+        !
+        contrfunc = 0
         !
         do i = 1,totalroots
           !
@@ -8104,7 +8358,12 @@ contains
           ilevel = icontrvib(i)%ilevel
           iomega = icontrvib(i)%iomega
           !
-          contrfunc(:,i) =   contracted(iomega,ilevel)%vector(:,iroot)
+          if (job%omega_coupled) then
+            Ndimen = Omega_grid(iomega)%Nstates*ngrid
+            contrfunc(1:Ndimen,i) = contracted(iomega,1)%vector(1:Ndimen,iroot)
+          else
+            contrfunc(:,i) =   contracted(iomega,ilevel)%vector(:,iroot)
+          endif
           !
         enddo
         !
@@ -8129,7 +8388,11 @@ contains
         allocate(kinmat1(Ngrid,Ngrid),kinmatcalc(Ngrid,Ngrid),stat=alloc)
         call ArrayStart('kinmat1',alloc,2_ik*size(kinmat1),kind(kinmat1))
         !
-        call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
+        if (trim(solution_method)=="LOBATTO") then
+          call kinetic_energy_grid_points(ngrid,kinmat,kinmat1,LobWeights=LobWeights,LobDerivs=LobDerivs)
+        else
+          call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
+        endif
         !
         if (iverbose>=4) call TimerStop('Compute kinmat1 nac')
         !
@@ -8319,6 +8582,40 @@ contains
             stop 'illegal object in LambdaSigma-Omega'
           end select
           !
+          ! The coupled Omega basis set: the NACs and the DBOC-like terms are already included in the coupled J=0
+          ! vibrational solution and are skipped here; the matrix elements of all other fields are accumulated over
+          ! all pairs of channels (ilevel,jlevel) of the two Omega-blocks into the pseudo-channel element (1,1)
+          ! of the corresponding *_omega_tot objects.
+          !
+          if (job%omega_coupled) then
+            !
+            if (iobject==9.or.iobject==10) cycle
+            !
+            ! BRot is the transformed unit matrix, i.e. diagonal in the channels (as in the uncoupled case,
+            ! where only its diagonal elements are used)
+            if (iobject==7.and.field%ilevel/=field%jlevel) cycle
+            !
+            select case (iobject)
+            case (1)
+              field_ => L_omega_tot(iomega,jomega,1,1)
+            case (2)
+              field_ => S_omega_tot(iomega,jomega,1,1)
+            case (3)
+              field_ => SR_omega_tot(iomega,jomega,1,1)
+            case (4)
+              field_ => Bob_omega_tot(iomega,1,1)
+            case (5)
+              field_ => p2q_omega_tot(iomega,jomega,1,1)
+            case (6)
+              field_ => q_omega_tot(iomega,jomega,1,1)
+            case (7)
+              field_ => brot_omega_tot(iomega,1,1)
+            case (8)
+              field_ => Dipole_omega_tot(iomega,jomega,1,1)
+            end select
+            !
+          endif
+          !
           ! check if the field wass not allocated at previous call to prevent multiple allocatetions
           !
           !if (.not.fields_allocated) then
@@ -8345,8 +8642,18 @@ contains
             jomega_= jomega_ +1
           enddo
           !
-          nroots_i = contracted(iomega_,ilevel)%Ndimen
-          nroots_j = contracted(jomega_,jlevel)%Ndimen
+          ! contracted functions: channel slots (ilevel_c,jlevel_c) and the offsets of the channel components
+          ! (ioff,joff) within the multi-channel functions of the coupled Omega basis set
+          !
+          ilevel_c = ilevel ; jlevel_c = jlevel ; ioff = 0 ; joff = 0
+          !
+          if (job%omega_coupled) then
+            ilevel_c = 1 ; jlevel_c = 1
+            ioff = (ilevel-1)*ngrid ; joff = (jlevel-1)*ngrid
+          endif
+          !
+          nroots_i = contracted(iomega_,ilevel_c)%Ndimen
+          nroots_j = contracted(jomega_,jlevel_c)%Ndimen
           !
           if (associated(field_%matelem) .eqv. .false.) then
             !
@@ -8364,8 +8671,8 @@ contains
           field_%iomega = iomega
           field_%jomega = jomega
           !
-          field_%ilevel = ilevel
-          field_%jlevel = jlevel
+          field_%ilevel = ilevel_c
+          field_%jlevel = jlevel_c
           !
           ! a special case of a NAC
           !
@@ -8406,7 +8713,7 @@ contains
                !
                !vect_i(1:Ngrid) = contracted(iomega_)%vector((ilevel-1)*ngrid+1:ilevel*ngrid,i)
                !
-               vect_i= contracted(iomega_,ilevel)%vector(:,iroot)
+               vect_i(1:ngrid) = contracted(iomega_,ilevel_c)%vector(ioff+1:ioff+ngrid,iroot)
                !
                !if (iomega/=iomega_.and.jomega/=iomega_) cycle
                !
@@ -8420,7 +8727,7 @@ contains
                  !
                  !vect_j(1:Ngrid) = contracted(jomega_)%vector((jlevel-1)*ngrid+1:jlevel*ngrid,j)
                  !
-                 vect_j = contracted(jomega_,jlevel)%vector(:,jroot)         
+                 vect_j(1:ngrid) = contracted(jomega_,jlevel_c)%vector(joff+1:joff+ngrid,jroot)
                  !
                  ! in the grid representation of the vibrational basis set
                  ! the matrix elements are evaluated simply by a summation of over the grid points
@@ -8436,7 +8743,8 @@ contains
                  !
                  !field_%matelem(jroot,iroot) = field_%matelem(iroot,jroot)
                  !
-                 if (iobject==8) then
+                 ! (for the coupled Omega basis set the threshold is applied to the accumulated values below)
+                 if (iobject==8.and..not.job%omega_coupled) then
                    if (abs(field_%matelem(iroot,jroot))<intensity%threshold%dipole) field_%matelem(iroot,jroot) = 0
                  endif
                  !
@@ -8447,7 +8755,7 @@ contains
           !
           ! printing out transition moments
           !
-          if ( iobject==8.and. iverbose>=4.and.action%intensity.and.intensity%tdm ) then
+          if ( iobject==8.and. iverbose>=4.and.action%intensity.and.intensity%tdm.and..not.job%omega_coupled ) then
             !
             do iroot = 1,nroots_i
               !
@@ -8489,6 +8797,59 @@ contains
       !
       deallocate(vect_i,vect_j)
       call ArrayStop('vect_ij')
+      !
+      ! The coupled Omega basis set: the dipole threshold and the printout of the vibrational transition moments
+      ! are applied to the matrix elements accumulated over all channels
+      !
+      if (job%omega_coupled.and.NDipole_omega>0) then
+        !
+        do iomega = 1,Nomegas
+          do jomega = 1,Nomegas
+            !
+            field_ => Dipole_omega_tot(iomega,jomega,1,1)
+            !
+            if (.not.associated(field_%matelem)) cycle
+            !
+            where (abs(field_%matelem)<intensity%threshold%dipole) field_%matelem = 0
+            !
+            if ( iverbose>=4.and.action%intensity.and.intensity%tdm ) then
+              !
+              iomega_ = 1
+              do while (nint(Omega_grid(iomega_)%omega-abs(Omega_grid(iomega)%omega) )/=0)
+                iomega_= iomega_ +1
+              enddo
+              !
+              jomega_ = 1
+              do while (nint(Omega_grid(jomega_)%omega-abs(Omega_grid(jomega)%omega) )/=0)
+                jomega_= jomega_ +1
+              enddo
+              !
+              do iroot = 1,size(field_%matelem,dim=1)
+                !
+                i = contracted(iomega_,1)%ilevel(iroot)
+                !
+                do jroot = 1,size(field_%matelem,dim=2)
+                  !
+                  j = contracted(jomega_,1)%ilevel(jroot)
+                  !
+                  if ( abs(field_%matelem(iroot,jroot))>sqrt(small_) ) then
+                    !
+                    write(out,'("<",i2,2(",",i4),",",f8.1,"|","mu","|",i2,2(",",i4),",",f8.1,"> = ",es18.8)') &
+                      icontrvib(i)%istate,i,icontrvib(i)%v,Omega_grid(iomega)%omega,&
+                      icontrvib(j)%istate,j,icontrvib(j)%v,Omega_grid(jomega)%omega,&
+                      field_%matelem(iroot,jroot)
+                    !
+                  endif
+                  !
+                enddo
+              enddo
+              !
+            endif
+            !
+          enddo
+        enddo
+        !
+      endif
       !
       if (allocated(kinmat1)) then
         deallocate(kinmat1,kinmatcalc)
@@ -9014,6 +9375,14 @@ contains
             field => nac(iterm)
           case (14)
             field => bobvib(iterm)
+          case (15)
+            field => lambdam(iterm)
+          case (16)
+            field => lambdan(iterm)
+          case (17)
+            field => spinorbit_eta(iterm)
+          case (18)
+            field => spinspin_theta(iterm)
           case (Nobjects-5)
             field => magnetrot(iterm)
           case (Nobjects-4)
@@ -9306,7 +9675,7 @@ contains
       if (.not.allocated(vibrational_contrfunc)) then
         !
         allocate(vibrational_quantum_number(totalroots),stat=alloc)
-        allocate(vibrational_contrfunc(ngrid,totalroots),stat=alloc)
+        allocate(vibrational_contrfunc(ngrid*vibrational_Nchannels,totalroots),stat=alloc)
         call ArrayStart('vibrational_contrfunc',alloc,size(vibrational_contrfunc),kind(vibrational_contrfunc))
         call ArrayStart('vibrational_quantum_number',alloc,totalroots*(14+6*2),ik)
         !
@@ -9338,13 +9707,22 @@ contains
       open(unit = vibunit, action = 'write',status='replace' , file = filename)
       !
       write(vibunit,'("totalroots   = ",i8)') totalroots
-      write(vibunit,'(" Npoints   = ",i8)') grid%npoints
+      !
+      ! For the coupled Omega basis set (CONTRACTION OMEGA COUPLED) each contracted function has Nchannels components
+      ! (channels of its Omega-block in the Omega representation, zero for the missing channels), written one after
+      ! another, i.e. Npoints*Nchannels values per function
+      !
+      if (vibrational_Nchannels>1) then
+        write(vibunit,'(" Npoints   = ",i8,"   Nchannels = ",i4)') grid%npoints,vibrational_Nchannels
+      else
+        write(vibunit,'(" Npoints   = ",i8)') grid%npoints
+      endif
       !
       do i = 1,totalroots
         istate = icontrvib(i)%istate
         write(vibunit,'(i5,f18.6,3x,2i4,3x,a)') i,(contrenergy(i)-contrenergy(1))/sc,icontrvib(i)%istate,icontrvib(i)%v, &
           trim(poten(istate)%name)
-        do k = 1,grid%npoints
+        do k = 1,grid%npoints*vibrational_Nchannels
           write(vibunit,'(e20.12)') contrfunc(k,i)
         enddo
         !
@@ -9441,9 +9819,10 @@ contains
           !
           if ( nint(2.0_rk*omega)==0) then
              !
-             ! assume the parity to be (-1)^J and J is always integer if omega==0
-             ! ipar = 1 is A' and ipar=2 is A"
-             ipar = mod( nint(jval),2 )+1
+             ! the parity of an Omega=0 function is (-1)^J p, where p is the sigma_v parity of its (label) channel
+             ! (iparity = 0 for p=+1 and 1 for p=-1, see Transform_Sigma_Lambda_to_Omega_representation);
+             ! J is always integer if omega==0; ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval)+Omega_grid(icontrvib(ivib)%iomega)%qn(ilabel_omega(ivib))%iparity,2 )+1
              !
              Nsym(ipar) = Nsym(ipar) + 1
              !
@@ -9523,10 +9902,16 @@ contains
           ivib = icontrvib(iroot)%ivib
           tau_lambdai = 0 ; if (omega<0) tau_lambdai = 1
           !
-          istate      =  Omega_grid(iomega)%qn(ilevel)%istate
-          sigma       =  Omega_grid(iomega)%qn(ilevel)%sigma
-          ilambda     =  Omega_grid(iomega)%qn(ilevel)%ilambda
-          spini       =  Omega_grid(iomega)%qn(ilevel)%spin
+          ! the quantum numbers (labels) are taken from the label channel: for the uncoupled basis set this is ilevel,
+          ! for the coupled basis set it is the dominant channel of the multi-channel function (ilevel = 1 is then a
+          ! pseudo-channel used to address the matrix elements)
+          !
+          ilabel      =  ilabel_omega(iroot)
+          !
+          istate      =  Omega_grid(iomega)%qn(ilabel)%istate
+          sigma       =  Omega_grid(iomega)%qn(ilabel)%sigma
+          ilambda     =  Omega_grid(iomega)%qn(ilabel)%ilambda
+          spini       =  Omega_grid(iomega)%qn(ilabel)%spin
           !
           do ipar = 1,2
              !
@@ -9534,7 +9919,7 @@ contains
              !
              i = i + 1
              !
-             icontr(i) = omega_grid(iomega)%qn(ilevel)
+             icontr(i) = omega_grid(iomega)%qn(ilabel)
              icontr(i)%ivib = ivib
              icontr(i)%iroot = iroot
              icontr(i)%ilevel = ilevel
@@ -9554,7 +9939,7 @@ contains
              !
              !icontrvib(i)%iomega = iomega
              !
-             icontr(i)%spin = Omega_grid(iomega)%qn(ilevel)%spin
+             icontr(i)%spin = Omega_grid(iomega)%qn(ilabel)%spin
              !
              ! print the quantum numbers
              if (iverbose>=4) then
@@ -9567,9 +9952,9 @@ contains
           !
           if ( nint(2.0_rk*omega)==0) then
              !
-             ! assume the parity to be (-1)^J and J is always integer if omega==0
-             ! ipar = 1 is A' and ipar=2 is A"
-             ipar = mod( nint(jval),2 )+1
+             ! the parity of an Omega=0 function is (-1)^J p, where p is the sigma_v parity of its (label) channel
+             ! (iparity = 0 for p=+1 and 1 for p=-1); J is always integer if omega==0; ipar = 1 is A' and ipar=2 is A"
+             ipar = mod( nint(jval)+Omega_grid(icontrvib(iroot)%iomega)%qn(ilabel_omega(iroot))%iparity,2 )+1
              !
              Nsym(ipar) = Nsym(ipar) + 1
              !
@@ -9591,9 +9976,14 @@ contains
                 !
                 isym = Nsym(ipar) 
                 !
-                ! here jval - omega is always integer and parity=0,1, i.e. ipar-1
-                !ipower = nint(jval-omega)+ipar-1
-                ipower = ipar-1+mod(int(Jval),2)
+                ! here jval - omega is always integer and parity=0,1, i.e. ipar-1.
+                ! The channel i of the -Omega block is the sigma_v image of the channel i of the +Omega block,
+                ! U(-Omega)_{n',i} = (-1)^(e_n) U(+Omega)_{n,i} (see Transform_Sigma_Lambda_to_Omega_representation),
+                ! i.e. sigma_v |J,Omega,i> = (-1)^(J-Omega) |J,-Omega,i>, consistent with the Lambda-Sigma (vib) parity
+                ! (previously (-1)^int(J) was used, which is wrong when (-1)^(e_n-Omega+int(Omega)) differs between
+                ! the states, e.g. for 2Sigma-, 3Pi or 4Pi states)
+                !
+                ipower = ipar-1+mod(nint(Jval-abs(omega)),2)
                 !
                 ! symmetry unitary transformation matrix elements. 
                 ! Here i should correspond to omega, while i-1 is for -omega
@@ -11185,11 +11575,12 @@ contains
     !    
     integer(ik) ::i,ivib,ilevel,istate,imulti,ilambda,v_i,j,jvib,jlevel,jstate,jmulti,jlambda,v_j
     integer(ik) :: ibobrot,isr,iL2,idiab,iNAC,iss,isso,ilxly,ild,istate_,jstate_,ilambda_we,jlambda_we,iso,&
-                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute,ibobvib
+                   ilambda_,jlambda_,itau,isigma2,isigmav,ipermute,ibobvib,ieta,n_S,n_J,m_ld,two_L
     integer(ik) :: alloc
     real(rk)    :: omegai,sigmai,spini,sigmaj,omegaj,spinj,f_nac
     real(rk)    :: erot,f_rot,f_bobrot,f_ss,f_sr,f_l2,f_diabatic,q_we,three_j_ref,three_j_,SO,f_s,f_t,f_grid,f_s2,f_s1,f_lo,&
-                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__,f_bobvib
+                   sigmai_,sigmaj_,sigmai_we,sigmaj_we,spinj_,spini_,omegai_,omegaj_,f_o2,f_o1,f_l,three_j__,f_bobvib,&
+                   s_sq,sig_sq,f_val,f_j,jval_sq
     !
     character(len=250),allocatable :: printout(:)
     character(cl)         :: printout_
@@ -11202,6 +11593,7 @@ contains
     if (iverbose>=4) call MemoryReport
     !
     hmat = 0
+    jval_sq = jval*(jval+1.0_rk)
     !
     if (iverbose>=4) call TimerStart('Construct the hamiltonian')
     !
@@ -11211,7 +11603,8 @@ contains
     !$omp & jlambda,omegaj,spinj,v_j,f_rot,ibobrot,field,f_bobrot,erot,iss,f_ss,isr,f_sr,ibobvib,f_bobvib,iL2,f_l2,idiab,&
     !$omp & ipermute,istate_,jstate_,f_diabatic,iNAC,f_nac,q_we,three_j_ref,ilambda_we,spini_,spinj_,sigmai_we,sigmaj_we,&
     !$omp & jlambda_we,isigma2,sigmai_,sigmaj_,three_j_,SO,ilambda_,jlambda_,omegai_,omegaj_,itau,isso,&
-    !$omp & f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1,printout_) shared(hmat) schedule(guided)    
+    !$omp & f_s,f_t,isigmav,f_grid,iso,ilxly,f_l,ild,f_s2,f_s1,f_lo,f_o2,f_o1,printout_,&
+    !$omp & ieta,n_S,n_J,m_ld,two_L,s_sq,sig_sq,f_val,f_j) shared(hmat) schedule(guided)    
     do i = 1,Ntotal
       !
       ivib = icontr(i)%ivib
@@ -11333,6 +11726,27 @@ contains
                 endif
               endif
 
+              exit
+            endif
+          enddo
+          !
+          ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) terms (Brown et al. 1987 Eq. 16)
+          s_sq = spini*(spini+1.0_rk)
+          sig_sq = sigmai*sigmai
+          do ieta = 1,Nso_eta
+            if (spinorbit_eta(ieta)%istate==istate.and.spinorbit_eta(ieta)%jstate==istate) then
+              field => spinorbit_eta(ieta)
+              f_val = field%matelem(ivib,jvib)*real(ilambda,rk)*sigmai*(sig_sq-(3.0_rk*s_sq-1.0_rk)/5.0_rk)*sc
+              hmat(i,j) = hmat(i,j) + f_val
+              exit
+            endif
+          enddo
+          do ieta = 1,Nss_theta
+            if (spinspin_theta(ieta)%istate==istate.and.spinspin_theta(ieta)%jstate==istate) then
+              field => spinspin_theta(ieta)
+              f_val = field%matelem(ivib,jvib)*(1.0_rk/12.0_rk)*&
+                      (35.0_rk*sig_sq*sig_sq-30.0_rk*s_sq*sig_sq+25.0_rk*sig_sq-6.0_rk*s_sq+3.0_rk*s_sq*s_sq)*sc
+              hmat(i,j) = hmat(i,j) + f_val
               exit
             endif
           enddo
@@ -12346,121 +12760,72 @@ contains
         enddo loop_ilxly
         !
         !
-        ! Non-diagonal lambda-opq doubling
+        ! Non-diagonal lambda-doubling terms (Brown & Merer 1979 for Pi; Brown, Cheung & Merer 1987 for Delta/general |Lambda|)
         !
-        do ild = 1,Nlambdaopq
-          !
-          field => lambdaopq(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-          if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.(ilambda-jlambda)==nint(sigmaj-sigmai).and.abs(nint(sigmaj-sigmai))==2 &
-              .and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==0) then
-            !
-            f_s2 = sigmai-sigmaj
-            f_s1 = sign(1.0_rk,f_s2)
-            !
-            f_t = sqrt( spini*(spini+1.0_rk)-(sigmaj     )*(sigmaj+f_s1) )*&
-                  sqrt( spini*(spini+1.0_rk)-(sigmaj+f_s1)*(sigmaj+f_s2) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then 
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LO",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                endif
-                !$omp end critical
-              endif
+        if (istate==jstate.and.ilambda/=0.and.ilambda==-jlambda.and.nint(spini-spinj)==0) then
+          two_L = 2*abs(ilambda)
+          n_S = abs(nint(sigmaj-sigmai))
+          n_J = abs(nint(omegai-omegaj))
+          if (n_S+n_J==two_L.and.(ilambda-jlambda)==nint(sigmaj-sigmai)+nint(omegai-omegaj)) then
+            s_sq = spini*(spini+1.0_rk)
+            f_s = 1.0_rk
+            if (n_S>0) then
+              f_s1 = sign(1.0_rk,sigmai-sigmaj)
+              do m_ld = 0,n_S-1
+                f_s = f_s*sqrt(max(0.0_rk,s_sq-(sigmaj+real(m_ld,rk)*f_s1)*(sigmaj+real(m_ld+1,rk)*f_s1)))
+              enddo
             endif
-            !
-          endif
-          !
-        enddo
-        !
-        ! Non-diagonal lambda-p2q doubling
-        !
-        do ild = 1,Nlambdap2q
-          !
-          field => lambdap2q(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-p|Sigma+/-1,Omega-/+1,Lambda>
-          if (lambdap2q(ild)%istate==istate.and.lambdap2q(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.abs(nint(sigmaj-sigmai))==1.and.(ilambda==-jlambda).and.nint(spini-spinj)==0.and.&
-              abs(nint(omegai-omegaj))==1.and.nint(sigmaj-sigmai)==nint(omegai-omegaj)) then
-            !
-            f_s = sigmai-sigmaj
-            !
-            f_t = sqrt( spini*(spini+1.0_rk)-sigmaj*(sigmaj+f_s) )*&
-                  sqrt( jval* (jval +1.0_rk)-omegaj*(omegaj-f_s) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then 
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LP",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                endif
-                !$omp end critical
-              endif
+            f_j = 1.0_rk
+            if (n_J>0) then
+              f_o1 = sign(1.0_rk,omegaj-omegai)
+              do m_ld = 0,n_J-1
+                f_j = f_j*sqrt(max(0.0_rk,jval_sq-(omegaj-real(m_ld,rk)*f_o1)*(omegaj-real(m_ld+1,rk)*f_o1)))
+              enddo
             endif
-            !
-          endif
-          !
-        enddo
-        !
-        ! Non-diagonal lambda-q doubling
-        !
-        do ild = 1,Nlambdaq
-          !
-          field => lambdaq(ild)
-          !
-          ! 1. <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-          if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate.and.istate==jstate.and.&
-              abs(ilambda)==1.and.(ilambda-jlambda)==nint(omegai-omegaj).and.abs(nint(sigmaj-sigmai))==0.and.&
-              (ilambda==-jlambda).and.nint(spini-spinj)==0.and.nint(omegai-omegaj)==2) then
-            !
-            f_o2 = omegaj-omegai
-            f_o1 = sign(1.0_rk,f_o2)
-            !
-            f_t = sqrt( jval*(jval+1.0_rk)-(omegaj     )*(omegaj-f_o1) )*&
-                  sqrt( jval*(jval+1.0_rk)-(omegaj-f_o1)*(omegaj-f_o2) )
-            !
-            f_lo = field%matelem(ivib,jvib)*f_t*sc
-            !
-            hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
-            !
-            ! print out the internal matrix at the first grid point
-            if (zDebug) then
-              if (iverbose>=4.and.abs(hmat(i,j))>sqrt(small_)) then
-                !$omp critical
-                write(printout_,'("    LO",2i3)') ilevel,jlevel
-                printout(ilevel) = trim(printout(ilevel))//trim(printout_)
-                if (abs(hmat(i,j))>sqrt(small_)) then
-                  write(printout_,'(g12.4)') hmat(i,j)/sc
-                  printout(ilevel) = trim(printout(ilevel))//trim(printout_)
+            select case (n_S)
+            case (4)
+              do ild = 1,Nlambdam
+                if (lambdam(ild)%istate==istate.and.lambdam(ild)%jstate==jstate) then
+                  field => lambdam(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
                 endif
-                !$omp end critical
-              endif
-            endif
-            !
+              enddo
+            case (3)
+              do ild = 1,Nlambdan
+                if (lambdan(ild)%istate==istate.and.lambdan(ild)%jstate==jstate) then
+                  field => lambdan(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
+                endif
+              enddo
+            case (2)
+              do ild = 1,Nlambdaopq
+                if (lambdaopq(ild)%istate==istate.and.lambdaopq(ild)%jstate==jstate) then
+                  field => lambdaopq(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
+                endif
+              enddo
+            case (1)
+              do ild = 1,Nlambdap2q
+                if (lambdap2q(ild)%istate==istate.and.lambdap2q(ild)%jstate==jstate) then
+                  field => lambdap2q(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) - f_lo*0.5_rk
+                endif
+              enddo
+            case (0)
+              do ild = 1,Nlambdaq
+                if (lambdaq(ild)%istate==istate.and.lambdaq(ild)%jstate==jstate) then
+                  field => lambdaq(ild)
+                  f_lo = field%matelem(ivib,jvib)*f_s*f_j*sc
+                  hmat(i,j) = hmat(i,j) + f_lo*0.5_rk
+                endif
+              enddo
+            end select
           endif
-          !
-        enddo
+        endif
         !
       enddo  ! j
     enddo  ! i
@@ -12612,6 +12977,9 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
           !
           ! Diagonal spin-rotation term
           call add_diagonal_spinrot(isr, istate, ivib, jvib, spini, sigmai, hmat(i,j))
+          !
+          ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) terms (Brown et al. 1987 Eq. 16)
+          call add_diagonal_so_eta_ss_theta(istate, ilambda, ivib, jvib, spini, sigmai, hmat(i,j))
           !
           ! BOB vibrational (alpha) term
           call add_bobvib_correction(ibobvib, istate, ivib, jvib, hmat(i,j), ilevel, printout, use_debug_print)
@@ -13523,7 +13891,43 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
     end subroutine add_lxly_coupling
 
     !---------------------------------------------------------------------------
-    ! Lambda-doubling terms (all three types: opq, p2q, and q)
+    ! Higher-order diagonal spin-orbit (eta) and spin-spin (theta) (Brown et al. 1987 Eq. 16)
+    !---------------------------------------------------------------------------
+    subroutine add_diagonal_so_eta_ss_theta(istate, ilambda, ivib, jvib, spini, sigmai, hmat_elem)
+      integer(ik), intent(in) :: istate, ilambda, ivib, jvib
+      real(rk), intent(in) :: spini, sigmai
+      real(rk), intent(inout) :: hmat_elem
+      integer(ik) :: ieta
+      real(rk) :: s_sq, sig_sq, f_val
+      type(fieldT), pointer :: field
+
+      s_sq = spini * (spini + 1.0_rk)
+      sig_sq = sigmai * sigmai
+
+      do ieta = 1, Nso_eta
+        if (spinorbit_eta(ieta)%istate == istate .and. spinorbit_eta(ieta)%jstate == istate) then
+          field => spinorbit_eta(ieta)
+          f_val = field%matelem(ivib, jvib) * real(ilambda, rk) * sigmai * &
+                  (sig_sq - (3.0_rk * s_sq - 1.0_rk) / 5.0_rk) * sc
+          hmat_elem = hmat_elem + f_val
+          exit
+        endif
+      enddo
+
+      do ieta = 1, Nss_theta
+        if (spinspin_theta(ieta)%istate == istate .and. spinspin_theta(ieta)%jstate == istate) then
+          field => spinspin_theta(ieta)
+          f_val = field%matelem(ivib, jvib) * (1.0_rk / 12.0_rk) * &
+                  (35.0_rk * sig_sq * sig_sq - 30.0_rk * s_sq * sig_sq + 25.0_rk * sig_sq - &
+                   6.0_rk * s_sq + 3.0_rk * s_sq * s_sq) * sc
+          hmat_elem = hmat_elem + f_val
+          exit
+        endif
+      enddo
+    end subroutine add_diagonal_so_eta_ss_theta
+
+    !---------------------------------------------------------------------------
+    ! Lambda-doubling terms (Brown & Merer 1979 for Pi; Brown, Cheung & Merer 1987 for Delta/general |Lambda|)
     !---------------------------------------------------------------------------
     subroutine add_lambda_doubling(ild, istate, jstate, ilambda, jlambda, spini, spinj, &
                                    sigmai, sigmaj, omegai, omegaj, jval_sq, ivib, jvib, &
@@ -13536,101 +13940,108 @@ subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt(iverbose,jval,ngrid,
       logical, intent(in) :: use_debug_print
       !
       type(fieldT), pointer :: field
-      real(rk) :: f_s2, f_s1, f_t, f_lo, f_s, f_o2, f_o1
+      integer(ik) :: n_S, n_J, m_ld, two_L
+      real(rk) :: f_s1, f_o1, f_s, f_j, f_lo, s_sq
       character(cl) :: printout_
-      
-      ! ===== Lambda-opq doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-O|Sigma+/-2,Omega,-Lambda>
-      do ild = 1, Nlambdaopq
-        if (lambdaopq(ild)%istate == istate .and. lambdaopq(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            (ilambda - jlambda) == nint(sigmaj - sigmai) .and. &
-            abs(nint(sigmaj - sigmai)) == 2 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. nint(omegai - omegaj) == 0) then
-          
-          field => lambdaopq(ild)
-          
-          f_s2 = sigmai - sigmaj
-          f_s1 = sign(1.0_rk, f_s2)
-          f_t = sqrt(spini*(spini+1.0_rk) - sigmaj*(sigmaj+f_s1)) * &
-                sqrt(spini*(spini+1.0_rk) - (sigmaj+f_s1)*(sigmaj+f_s2))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem + f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LO",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+
+      if (istate /= jstate .or. ilambda == 0 .or. ilambda /= -jlambda .or. nint(spini - spinj) /= 0) return
+
+      two_L = 2 * abs(ilambda)
+      n_S = abs(nint(sigmaj - sigmai))
+      n_J = abs(nint(omegai - omegaj))
+
+      if (n_S + n_J /= two_L) return
+      if ((ilambda - jlambda) /= nint(sigmaj - sigmai) + nint(omegai - omegaj)) return
+
+      s_sq = spini * (spini + 1.0_rk)
+      f_s = 1.0_rk
+      if (n_S > 0) then
+        f_s1 = sign(1.0_rk, sigmai - sigmaj)
+        do m_ld = 0, n_S - 1
+          f_s = f_s * sqrt(max(0.0_rk, s_sq - (sigmaj + real(m_ld,rk)*f_s1)*(sigmaj + real(m_ld+1,rk)*f_s1)))
+        enddo
+      endif
+
+      f_j = 1.0_rk
+      if (n_J > 0) then
+        f_o1 = sign(1.0_rk, omegaj - omegai)
+        do m_ld = 0, n_J - 1
+          f_j = f_j * sqrt(max(0.0_rk, jval_sq - (omegaj - real(m_ld,rk)*f_o1)*(omegaj - real(m_ld+1,rk)*f_o1)))
+        enddo
+      endif
+
+      select case (n_S)
+      case (4)
+        ! ===== Lambda-m doubling (Delta states: n_S = 4, n_J = 0, +0.5 * m_tilde * (S+^4 + S-^4)) =====
+        do ild = 1, Nlambdam
+          if (lambdam(ild)%istate == istate .and. lambdam(ild)%jstate == jstate) then
+            field => lambdam(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
           endif
-        endif
-      enddo
-      
-      ! ===== Lambda-p2q doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-p|Sigma+/-1,Omega-/+1,Lambda>
-      do ild = 1, Nlambdap2q
-        if (lambdap2q(ild)%istate == istate .and. lambdap2q(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            abs(nint(sigmaj - sigmai)) == 1 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. abs(nint(omegai - omegaj)) == 1 .and. &
-            nint(sigmaj - sigmai) == nint(omegai - omegaj)) then
-          
-          field => lambdap2q(ild)
-          
-          f_s = sigmai - sigmaj
-          f_t = sqrt(spini*(spini+1.0_rk) - sigmaj*(sigmaj+f_s)) * &
-                sqrt(jval_sq - omegaj*(omegaj-f_s))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem - f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LP",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+        enddo
+      case (3)
+        ! ===== Lambda-n doubling (Delta states: n_S = 3, n_J = 1, -0.5 * n_tilde * (S+^3 J+ + S-^3 J-)) =====
+        do ild = 1, Nlambdan
+          if (lambdan(ild)%istate == istate .and. lambdan(ild)%jstate == jstate) then
+            field => lambdan(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem - f_lo * 0.5_rk
           endif
-        endif
-      enddo
-      
-      ! ===== Lambda-q doubling =====
-      ! <Sigma,Omega,Lambda|Lambda-Q|Sigma,Omega+/-2,-Lambda>
-      do ild = 1, Nlambdaq
-        if (lambdaq(ild)%istate == istate .and. lambdaq(ild)%jstate == jstate .and. &
-            istate == jstate .and. abs(ilambda) == 1 .and. &
-            (ilambda - jlambda) == nint(omegai - omegaj) .and. &
-            abs(nint(sigmaj - sigmai)) == 0 .and. (ilambda == -jlambda) .and. &
-            nint(spini - spinj) == 0 .and. nint(omegai - omegaj) == 2) then
-          
-          field => lambdaq(ild)
-          
-          f_o2 = omegaj - omegai
-          f_o1 = sign(1.0_rk, f_o2)
-          f_t = sqrt(jval_sq - omegaj*(omegaj-f_o1)) * &
-                sqrt(jval_sq - (omegaj-f_o1)*(omegaj-f_o2))
-          
-          f_lo = field%matelem(ivib, jvib) * f_t * sc
-          hmat_elem = hmat_elem + f_lo * 0.5_rk
-          
-          ! Debug printing
-          if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
-            !$omp critical
-            write(printout_, '("    LQ",2i3)') ilevel, jlevel
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            write(printout_, '(g12.4)') hmat_elem / sc
-            printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
-            !$omp end critical
+        enddo
+      case (2)
+        ! ===== Lambda-opq / Lambda-o doubling (n_S = 2, n_J = 2|Lambda|-2, +0.5 * o_tilde * S+-^2 J+-^(2|Lambda|-2)) =====
+        do ild = 1, Nlambdaopq
+          if (lambdaopq(ild)%istate == istate .and. lambdaopq(ild)%jstate == jstate) then
+            field => lambdaopq(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LO",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
           endif
-        endif
-      enddo
-      
+        enddo
+      case (1)
+        ! ===== Lambda-p2q / Lambda-p doubling (n_S = 1, n_J = 2|Lambda|-1, -0.5 * p_tilde * S+- J+-^(2|Lambda|-1)) =====
+        do ild = 1, Nlambdap2q
+          if (lambdap2q(ild)%istate == istate .and. lambdap2q(ild)%jstate == jstate) then
+            field => lambdap2q(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem - f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LP",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
+          endif
+        enddo
+      case (0)
+        ! ===== Lambda-q doubling (n_S = 0, n_J = 2|Lambda|, +0.5 * q * J+-^(2|Lambda|)) =====
+        do ild = 1, Nlambdaq
+          if (lambdaq(ild)%istate == istate .and. lambdaq(ild)%jstate == jstate) then
+            field => lambdaq(ild)
+            f_lo = field%matelem(ivib, jvib) * f_s * f_j * sc
+            hmat_elem = hmat_elem + f_lo * 0.5_rk
+            if (use_debug_print .and. abs(hmat_elem) > sqrt(small_)) then
+              !$omp critical
+              write(printout_, '("    LQ",2i3)') ilevel, jlevel
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              write(printout_, '(g12.4)') hmat_elem / sc
+              printout(ilevel) = trim(printout(ilevel)) // trim(printout_)
+              !$omp end critical
+            endif
+          endif
+        enddo
+      end select
+
     end subroutine add_lambda_doubling
 
     
@@ -13756,13 +14167,14 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           !
         endif
         !
-        ! Diabatic = DBOC term 
+        ! Diabatic = DBOC-like term hbar^2/(2mu) (A A^T)_ij, A = U^T dU/dr
+        ! (diagonal for two states with the same Omega, also off-diagonal for more states)
         !
         if (abs(nint(omegaj-omegai))==0.and.NDiab_omega>0) then
           !
           field => Diab_omega_tot(iomega,ilevel,jlevel)
           !
-          if (field%Nterms/=0.and.ilevel==jlevel) then
+          if (field%Nterms/=0) then
             !
             f_t = 0
             !
@@ -13797,7 +14209,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           !
           if (field_i%Nterms/=0.and.ilevel/=jlevel) then
             !
-            f_t = (field_i%matelem(ivib,jvib)-field_j%matelem(jvib,ivib))
+            ! NAC_omega_tot(iomega,i,j)%matelem = <i,v|A_ij(r) K1|j,v'>, where A_ij = <i|d/dr|j> = -A_ji 
+            ! and K1 = kinmat1 = -12 h^2 d/dr (antisymmetric), so that 
+            ! <i,v| -hbar^2/(2mu) (A d/dr + d/dr A) |j,v'> = <i,v|A_ij K1|j,v'> + <j,v'|A_ji K1|i,v>
+            !
+            f_t = field_i%matelem(ivib,jvib)+field_j%matelem(jvib,ivib)
             !
             hmat(i,j) = hmat(i,j) + f_t
             hmat(j,i) = hmat(i,j) 
@@ -13856,48 +14272,37 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         !
         if (abs(nint(omegaj-omegai))==1.and.NLplus_omega>0) then
           !
-          field => L_omega_tot(iomega,jomega,ilevel,jlevel)
+          ! The L+ objects in the Omega representation are defined for Omega_i = Omega_j + 1 only
+          ! (the sigma_v-related components are already included in each Omega-block), i.e.
+          ! for Omega_i = Omega_j - 1 the transposed matrix elements are used
+          !
+          if (nint(omegai-omegaj)==1) then
+            field => L_omega_tot(iomega,jomega,ilevel,jlevel)
+          else
+            field => L_omega_tot(jomega,iomega,jlevel,ilevel)
+          endif
           !
           if (field%Nterms/=0) then
             !
-            f_t = field%matelem(ivib,jvib)
+            if (nint(omegai-omegaj)==1) then
+              f_t = field%matelem(ivib,jvib)
+            else
+              f_t = field%matelem(jvib,ivib)
+            endif
             !
-            !if (ilevel_/=ilevel.or.jlevel_/=jlevel) cycle
+            ! L*J part (L-uncoupling): omega changes by 1 (via J+/-) exactly as l_omega
+            ! sqrt( J(J+1)-Omega_i*Omega_j ), as in the Lambda-Sigma representation
             !
-            do isigmav = 0,1
-              !
-              ! the permutation is only needed if at least some of the quanta is not zero. otherwise it should be skipped to
-              ! avoid the double counting.
-              if( isigmav==1.and. nint(abs( field%omegai ) + abs( field%omegaj ))==0 ) cycle
-              !
-              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-              omegai_ = omegai_*(-1)**isigmav
-              omegaj_ = omegaj_*(-1)**isigmav
-              !
-              ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-              !
-              if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
-              !
-              ! L*J part (L-uncoupling)
-              !
-              !  omega should change by 1 (via J+/-) exactly as l_omega
-              f_w = nint(omegai-omegaj)
-              !
-              !f_t = field%matelem(ivib,jvib)
-              !f_t = sqrt( (jval-f_w*omegai)*(jval+f_w*omegai-1.0_rk) )*f_t
-              !
-              f_t = sqrt( jval* (jval +1.0_rk)-omegai*(omegai-f_w) )*field%matelem(ivib,jvib)
-              !
-              hmat(i,j) = hmat(i,j) - f_t
-              hmat(j,i) = hmat(i,j)  
-              !
-            enddo
+            f_t = sqrt( jval* (jval +1.0_rk)-omegai*omegaj )*f_t
+            !
+            hmat(i,j) = hmat(i,j) - f_t
+            hmat(j,i) = hmat(i,j)  
             !
             ! print out the internal matrix at the first grid point
             if (zDebug .and. iverbose>=5.and.abs(f_t)>small_) then
-              write(printout_,'(i3,"-LJ",2i3)') iLplus_omega_,iomega,jomega
+              write(printout_,'("  LJ",2i3)') i,j
               printout(i) = trim(printout(i))//trim(printout_)
-              write(iomega,'(g12.4)') -f_t/sc
+              write(printout_,'(g12.4)') -f_t/sc
               printout(i) = trim(printout(i))//trim(printout_)
             endif
             !
@@ -13930,9 +14335,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
             !  omegai_ = omegai_*(-1)**isigmav
             !  omegaj_ = omegaj_*(-1)**isigmav
             !
-            ! proceed only if the quantum numbers of the field equal to the corresponding <i| and |j> quantum numbers:
-            !
-            if( nint(omegai_-omegai)/=0.or.nint(omegaj_-omegaj)/=0 ) cycle
+            ! (SR_omega_tot are defined for both Omega_i = Omega_j +/- 1)
             !
             f_w = nint(omegai-omegaj)
             !
@@ -14297,7 +14700,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     type(quantaT),intent(in) :: icontrvib(:)
     !
     real(rk)    :: psi_vib,vec_t,omegai,omegaj
-    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,ich,k
 
     !
     if (igrid>grid%npoints-npoints_last) then
@@ -14324,7 +14727,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           !
           i = i + 1
           !
-          vec_t = vec(i)*vibrational_contrfunc(igrid,iroot)
+          if (vibrational_Nchannels==1) then
+            vec_t = vec(i)*vibrational_contrfunc(igrid,iroot)
+          else
+            vec_t = vec(i)
+          endif
           !
           j = 0
           !
@@ -14343,7 +14750,18 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
                 !
                 if (nint(omegai-omegaj)/=0.or.ilevel/=jlevel) cycle
                 !
-                psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
+                ! only the same Omega-components (+Omega or -Omega) contribute to the density
+                if (ipar/=jpar) cycle
+                !
+                if (vibrational_Nchannels==1) then
+                  psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(igrid,jroot)
+                else
+                  ! coupled Omega basis set: sum over the channel components
+                  do ich = 1,vibrational_Nchannels
+                    k = (ich-1)*grid%npoints+igrid
+                    psi_vib = psi_vib + vec_t*vec(j)*vibrational_contrfunc(k,iroot)*vibrational_contrfunc(k,jroot)
+                  enddo
+                endif
                 !
              enddo
           enddo
@@ -14362,7 +14780,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     real(rk),intent(out)     :: psi_vib(grid%npoints)
     !
     real(rk)    :: omegai,omegaj
-    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,alloc
+    integer(ik) :: i,j,ilevel,jlevel,iroot,jroot,ipar,jpar,alloc,ich,k
     real(rk),allocatable  :: T(:,:)
 
     allocate(T(totalroots,totalroots),stat=alloc)
@@ -14415,8 +14833,23 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
        !
        do jroot = 1,totalroots
           !
-          psi_vib(ifirst:) = psi_vib(ifirst:) +  & 
-                            vibrational_contrfunc(ifirst:,iroot)*T(iroot,jroot)*vibrational_contrfunc(ifirst:,jroot)
+          if (vibrational_Nchannels==1) then
+            psi_vib(ifirst:) = psi_vib(ifirst:) +  &
+                              vibrational_contrfunc(ifirst:,iroot)*T(iroot,jroot)*vibrational_contrfunc(ifirst:,jroot)
+          else
+            !
+            ! coupled Omega basis set: sum over the channel components
+            !
+            if (abs(T(iroot,jroot))<tiny(1.0_rk)) cycle
+            !
+            do ich = 1,vibrational_Nchannels
+              k = (ich-1)*grid%npoints
+              psi_vib(ifirst:) = psi_vib(ifirst:) +  &
+                     vibrational_contrfunc(k+ifirst:k+grid%npoints,iroot)*T(iroot,jroot)*&
+                     vibrational_contrfunc(k+ifirst:k+grid%npoints,jroot)
+            enddo
+            !
+          endif
           !
        enddo
     enddo
@@ -14426,14 +14859,21 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
   end subroutine vibrational_reduced_density_omega_fast
 
   !
+  ! Kinetic energy matrix (kinmat) and, optionally, the matrix of the first derivative d/dr (kinmat1) on the grid,
+  ! both in the scaled units of the vibrational Hamiltonian used in Duo (i.e. multiplied by sc = 12 h^2 mu/aston), 
+  ! in the form required for the vibrational kinetic energy -(hbar^2/2mu) d^2/dr^2 (kinmat) 
+  ! and for the NAC/BOB-vib terms (kinmat1 = -12 h^2 <i|d/dr|j>). 
+  ! For the Lobatto DVR the Lobatto weights and the derivatives of the Lobatto shape functions
+  ! (LobWeights, LobDerivs) can be provided by the caller; if not present they are computed here. 
+  !
   subroutine kinetic_energy_grid_points(ngrid,kinmat,kinmat1,LobWeights,LobDerivs)
     !
     integer(ik),intent(in)  :: ngrid
     real(rk),intent(inout)  :: kinmat(ngrid,ngrid)
     real(rk),intent(inout),optional  :: kinmat1(ngrid,ngrid)
     real(rk),intent(in),optional  :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
-    real(rk),allocatable  :: vibTmat(:,:)
-    integer(ik)   :: jgrid,kgrid,igrid,alloc
+    real(rk),allocatable  :: vibTmat(:,:),LobAbs_(:),LobWeights_(:),LobDerivs_(:,:)
+    integer(ik)   :: jgrid,igrid,alloc
     !
     kinmat  = 0
     if (present(kinmat1)) kinmat1 = 0
@@ -14476,9 +14916,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           !
           ! f'(0) = [ f(h) - f(-h) ] / (2 h)
           ! kinetic factor is  12*h**2/(2*h) = 6*h
+          ! The same sign convention as for SINC and LOBATTO is used: kinmat1 = -12 h^2 d/dr
+          ! (previously +12 h^2 d/dr, which gave the opposite sign of the NAC terms for 5POINTDIFFERENCES)
           !
           if (igrid>1) then
-            kinmat1(igrid,igrid-1) = -z(igrid-1)*hstep*6.0_rk
+            kinmat1(igrid,igrid-1) = z(igrid-1)*hstep*6.0_rk
             kinmat1(igrid-1,igrid) = -kinmat1(igrid,igrid-1)
           endif
           !
@@ -14537,29 +14979,36 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         stop 'The Lobatto DVR method currently only works with even Ngrid values'
       endif  
       !
-      do igrid =1, ngrid
+      if(grid%nsub /= 6) then
+        write(out, '(A)') 'The Lobatto DVR method only works with the'
+        write(out, '(A)') 'Lobatto grid (grid type 6).'
+        stop 'The Lobatto DVR method only works with the Lobatto grid (grid type 6)'
+      endif
+      !
+      ! Lobatto weights w_k and derivatives of the normalised Lobatto shape functions,
+      ! LobDerivs(n,k) = u_n'(r_k), u_n(r) = L_n(r)/sqrt(w_n), with L_n(r) the Lagrange interpolating polynomials,
+      ! are computed here unless provided by the caller
+      !
+      if (present(LobWeights).and.present(LobDerivs)) then
         !
-        if(grid%nsub /= 6) then
-          write(out, '(A)') 'The Lobatto DVR method only works with the'
-          write(out, '(A)') 'Lobatto grid (grid type 6).'
-          stop
-        endif
+        call Lobatto_kinetic_and_derivative_matrices(ngrid,LobWeights,LobDerivs,vibTmat,kinmat,kinmat1)
         !
-        vibTmat = 0
+      else
         !
-        !$omp parallel do private(jgrid,kgrid) shared(kinmat,vibTmat) schedule(dynamic)
-        do jgrid = igrid,ngrid
-          do kgrid=1,ngrid
-            vibTmat(igrid,jgrid) = vibTmat(igrid,jgrid) + (12._rk)*(hstep**2)*(LobWeights(kgrid))*&
-                                   LobDerivs(igrid,kgrid)*LobDerivs(jgrid,kgrid)
-          enddo
-          vibTmat(jgrid,igrid) = vibTmat(igrid,jgrid)
-          kinmat(igrid,jgrid) = kinmat(igrid,jgrid) + vibTmat(igrid,jgrid)
-          kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
-        enddo
-        !$omp end parallel do
+        allocate(LobAbs_(ngrid),LobWeights_(ngrid),LobDerivs_(ngrid,ngrid),stat=alloc)
+        call ArrayStart('LobDerivs_',alloc,size(LobDerivs_),kind(LobDerivs_))
+        call ArrayStart('LobDerivs_',alloc,size(LobWeights_),kind(LobWeights_))
+        call ArrayStart('LobDerivs_',alloc,size(LobAbs_),kind(LobAbs_))
         !
-      enddo
+        call LobattoAbsWeights(LobAbs_,LobWeights_,ngrid,grid%rmin,grid%rmax)
+        call derLobattoMat(LobDerivs_,ngrid-2,LobAbs_,LobWeights_)
+        !
+        call Lobatto_kinetic_and_derivative_matrices(ngrid,LobWeights_,LobDerivs_,vibTmat,kinmat,kinmat1)
+        !
+        deallocate(LobAbs_,LobWeights_,LobDerivs_)
+        call ArrayStop('LobDerivs_')
+        !
+      endif
       !
     case default
         write(out, '(A)') 'Error: unrecognized solution method' // trim(solution_method)
@@ -14577,9 +15026,203 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
   end subroutine kinetic_energy_grid_points
   !
   !
+  ! Lobatto DVR: the kinetic energy matrix
+  !    kinmat(i,j) = 12 h^2 sum_k w_k u_i'(r_k) u_j'(r_k)  (= 12 h^2 <u_i'|u_j'>, exact with the Lobatto quadrature)
+  ! and, optionally, the matrix of d/dr, kinmat1 = -12 h^2 (D-D^T)/2, where
+  !    D(i,j) = <u_i|d/dr|u_j> = sqrt(w_i) u_j'(r_i)  (exact with the Lobatto quadrature).
+  ! D+D^T is non-zero only for the two boundary points (surface terms u_i*u_j at rmin and rmax), which are removed by
+  ! the antisymmetrisation, as for the anti-Hermitian sinc-DVR derivative matrix; the same convention as for the
+  ! SINC method is used. Here LobDerivs(n,k) = u_n'(r_k) and LobWeights(k) = w_k; vibTmat is a work array.
+  !
+  subroutine Lobatto_kinetic_and_derivative_matrices(ngrid,LobWeights,LobDerivs,vibTmat,kinmat,kinmat1)
+    !
+    integer(ik),intent(in)  :: ngrid
+    real(rk),intent(in)     :: LobWeights(ngrid),LobDerivs(ngrid,ngrid)
+    real(rk),intent(inout)  :: vibTmat(ngrid,ngrid),kinmat(ngrid,ngrid)
+    real(rk),intent(inout),optional :: kinmat1(ngrid,ngrid)
+    integer(ik) :: igrid,jgrid,kgrid
+    !
+    do igrid =1, ngrid
+      !
+      vibTmat = 0
+      !
+      !$omp parallel do private(jgrid,kgrid) shared(kinmat,vibTmat) schedule(dynamic)
+      do jgrid = igrid,ngrid
+        do kgrid=1,ngrid
+          vibTmat(igrid,jgrid) = vibTmat(igrid,jgrid) + (12._rk)*(hstep**2)*(LobWeights(kgrid))*&
+                                 LobDerivs(igrid,kgrid)*LobDerivs(jgrid,kgrid)
+        enddo
+        vibTmat(jgrid,igrid) = vibTmat(igrid,jgrid)
+        kinmat(igrid,jgrid) = kinmat(igrid,jgrid) + vibTmat(igrid,jgrid)
+        kinmat(jgrid,igrid) = kinmat(igrid,jgrid)
+      enddo
+      !$omp end parallel do
+      !
+    enddo
+    !
+    if (present(kinmat1)) then
+      !
+      !$omp parallel do private(igrid,jgrid) shared(kinmat1) schedule(dynamic)
+      do jgrid = 1,ngrid
+        do igrid = 1,ngrid
+          kinmat1(igrid,jgrid) = -6.0_rk*(hstep**2)*( sqrt(LobWeights(igrid))*LobDerivs(jgrid,igrid) &
+                                                     -sqrt(LobWeights(jgrid))*LobDerivs(igrid,jgrid) )
+        enddo
+      enddo
+      !$omp end parallel do
+      !
+    endif
+    !
+  end subroutine Lobatto_kinetic_and_derivative_matrices
+  !
+  !
+  ! Weights c(1:n,0:m) of the finite-difference formulas for the derivatives of the orders 0..m at the point z 
+  ! using the values at n arbitrarily spaced points x(1:n): f^(k)(z) ~ sum_j c(j,k) f(x(j)).
+  ! B. Fornberg, Math. Comp. 51, 699 (1988); SIAM Review 40, 685 (1998).
+  ! For a uniform grid these are the standard (central or one-sided) finite-difference formulas.
+  !
+  subroutine fornberg_fd_weights(z,x,n,m,c)
+    !
+    integer(ik),intent(in) :: n,m
+    real(rk),intent(in)    :: z,x(n)
+    real(rk),intent(out)   :: c(n,0:m)
+    integer(ik) :: i,j,k,mn
+    real(rk)    :: c1,c2,c3,c4,c5
+    !
+    c = 0
+    c1 = 1.0_rk
+    c4 = x(1)-z
+    c(1,0) = 1.0_rk
+    !
+    do i = 2,n
+      mn = min(i-1,m)
+      c2 = 1.0_rk
+      c5 = c4
+      c4 = x(i)-z
+      do j = 1,i-1
+        c3 = x(i)-x(j)
+        c2 = c2*c3
+        if (j==i-1) then
+          do k = mn,1,-1
+            c(i,k) = c1*(real(k,rk)*c(i-1,k-1)-c5*c(i-1,k))/c2
+          enddo
+          c(i,0) = -c1*c5*c(i-1,0)/c2
+        endif
+        do k = mn,1,-1
+          c(j,k) = (c4*c(j,k)-real(k,rk)*c(j,k-1))/c3
+        enddo
+        c(j,0) = c4*c(j,0)/c3
+      enddo
+      c1 = c2
+    enddo
+    !
+  end subroutine fornberg_fd_weights
+  !
+  !
+  ! Matrix of the first derivative of a function tabulated on the grid r(1:ngrid): f'(r_i) = sum_j dmat(i,j) f(r_j).
+  !
+  ! Default (job%omega_derivatives = 'FD'): 9-point finite-difference formulas (2/3-point for ngrid<=15) with the
+  !   Fornberg weights for the actual, in general non-uniform (e.g. Lobatto), grid points r(:). On a uniform grid these
+  !   coincide with the central/one-sided formulas used previously for the Omega-NACs (Fornberg, Math. Comp. 51, 699 (1988)).
+  ! 'SPECTRAL' (LOBATTO only, grid type 6): the derivative of the Lagrange interpolating polynomial through all the
+  !   Lobatto points, dmat(i,j) = L_j'(r_i) = sqrt(w_j) u_j'(r_i), i.e. the same polynomial representation as in the
+  !   Lobatto DVR (exact for polynomials of degree ngrid-1). It converges very fast for smooth, well-resolved U(r),
+  !   but, being global, it spreads the errors of any under-resolved (sharp) features of U(r) over the whole grid.
+  !
+  subroutine grid_first_derivative_matrix(ngrid,dmat,LobWeights,LobDerivs)
+    !
+    integer(ik),intent(in) :: ngrid
+    real(rk),intent(out)   :: dmat(ngrid,ngrid)
+    real(rk),intent(in),optional :: LobWeights(ngrid),LobDerivs(ngrid,ngrid) ! can be provided for the LOBATTO grid
+    !
+    integer(ik) :: igrid,jgrid,i1,np,alloc
+    real(rk)    :: c(9,0:1)
+    real(rk),allocatable :: LobAbs_(:),LobWeights_(:),LobDerivs_(:,:)
+    !
+    dmat = 0
+    !
+    if (trim(job%omega_derivatives)=="SPECTRAL") then
+      !
+      if (trim(solution_method)/="LOBATTO".or.grid%nsub/=6) then
+        write(out,'(a)') 'Error: DERIVATIVES SPECTRAL (CONTRACTION) requires SOLUTIONMETHOD LOBATTO and the grid type 6'
+        stop 'Error: DERIVATIVES SPECTRAL requires SOLUTIONMETHOD LOBATTO and the grid type 6'
+      endif
+      !
+      if (present(LobWeights).and.present(LobDerivs)) then
+        !
+        do jgrid = 1,ngrid
+          dmat(:,jgrid) = sqrt(LobWeights(jgrid))*LobDerivs(jgrid,:)
+        enddo
+        !
+      else
+        !
+        allocate(LobAbs_(ngrid),LobWeights_(ngrid),LobDerivs_(ngrid,ngrid),stat=alloc)
+        call ArrayStart('LobDerivs-dmat',alloc,size(LobDerivs_),kind(LobDerivs_))
+        call ArrayStart('LobDerivs-dmat',alloc,size(LobAbs_),kind(LobAbs_))
+        call ArrayStart('LobDerivs-dmat',alloc,size(LobWeights_),kind(LobWeights_))
+        !
+        call LobattoAbsWeights(LobAbs_,LobWeights_,ngrid,grid%rmin,grid%rmax)
+        call derLobattoMat(LobDerivs_,ngrid-2,LobAbs_,LobWeights_)
+        !
+        do jgrid = 1,ngrid
+          dmat(:,jgrid) = sqrt(LobWeights_(jgrid))*LobDerivs_(jgrid,:)
+        enddo
+        !
+        deallocate(LobAbs_,LobWeights_,LobDerivs_)
+        call ArrayStop('LobDerivs-dmat')
+        !
+      endif
+      !
+      return
+      !
+    endif
+    !
+    if (ngrid<2) then
+      write(out,'(a,i8)') 'grid_first_derivative_matrix error: too few grid points ',ngrid
+      stop 'grid_first_derivative_matrix error: too few grid points'
+    endif
+    !
+    do igrid = 1,ngrid
+      !
+      if (ngrid<=15) then
+        !
+        ! very small grids: two-point formulas at the ends and the central three-point formula elsewhere
+        !
+        if (igrid==1) then
+          i1 = 1 ; np = 2
+        elseif (igrid==ngrid) then
+          i1 = ngrid-1 ; np = 2
+        else
+          i1 = igrid-1 ; np = 3
+        endif
+        !
+      else
+        !
+        ! 9-point stencils: central, or one-sided close to the grid edges
+        !
+        np = 9
+        if (igrid>=ngrid-4) then
+          i1 = igrid-8
+        elseif (igrid<=4) then
+          i1 = igrid
+        else
+          i1 = igrid-4
+        endif
+        !
+      endif
+      !
+      call fornberg_fd_weights(r(igrid),r(i1:i1+np-1),np,1_ik,c(1:np,0:1))
+      !
+      dmat(igrid,i1:i1+np-1) = c(1:np,1)
+      !
+    enddo
+    !
+  end subroutine grid_first_derivative_matrix
+  !
+  !
   ! Transform the PECs+SOCs+couplings from the input to the Omega representation
   !
-  subroutine Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states)
+  subroutine Transform_Sigma_Lambda_to_Omega_representation(iverbose,sc,Nlambdasigmas_max,Nomega_states,LobWeights,LobDerivs)
     !
     use lapack,only : lapack_syev,lapack_heev,lapack_syevr,MLdiag_ulen_ark
     !
@@ -14587,40 +15230,38 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     !
     integer(ik),intent(in) ::iverbose,Nlambdasigmas_max,Nomega_states
     real(rk),intent(in)    :: sc
+    real(rk),intent(in),optional :: LobWeights(:),LobDerivs(:,:)  ! Lobatto weights and derivatives (LOBATTO only)
     !
     integer(ik) :: omega_min,omega_max,iomega,jomega
     integer(ik) :: igrid,istate,jstate,imulti,jmulti,ilambda,jlambda,iL2,ieq,nspins
-    integer(ik) :: i,j,k,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
+    integer(ik) :: i,j,idiab,ipermute,istate_,jstate_,ilambda_we,jlambda_we,isigma2,isigmav,itau,N_i,N_j
     integer(ik) :: alloc,ngrid,Nlambdasigmas,iso,ibob,ilambda_,jlambda_,ilxly,iLplus_omega_,iomega_count
     integer(ik) :: multi_max,iSplus_omega_,iSR_omega_,ibob_omega_,ip2q_omega_,iq_omega_,iBRot_omega_
     integer(ik) :: imaxcontr,isr,iss,isso,ild,ip2q,iq,ibobrot,iNAC_omega_,iDiab_omega_,iDipole_omega_,iDipole
     !
     real(rk)    :: f_rot,omegai,omegaj,sigmai,sigmaj,spini,spinj,epot,f_l2,sigmai_we,sigmaj_we,spini_,spinj_,q_we,f_centrif
     real(rk)    :: three_j_ref,three_j_,SO,omegai_,omegaj_,f_grid,f_s,b_rot,erot,f_diabatic
-    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo,f_p,f_m
-    real(rk)    :: V1,V2,VD,beta,discr,VD1,VD2,energy_,energy_j,sign_diag
+    real(rk)    :: sigmai_,sigmaj_,f_t,spin_min,f_sr,f_ss,f_s1,f_s2,f_lo
+    real(rk)    :: V1,V2,VD,beta,discr,VD1,VD2,energy_,energy_j
     !
     type(fieldT),pointer      :: field
     !
     real(rk), allocatable :: mat_1(:,:),mat_2(:,:),vect(:,:,:),vector_(:)
     real(rk), allocatable :: omegamat(:,:),omegaenergy(:)
+    real(rk), allocatable :: hsave(:,:,:),sigmav_phase(:),sigmav_dev(:),hmax_block(:)
+    integer(ik),allocatable :: isigmav_image(:)
+    !
+    ! sigma_v adaptation of the Omega=0 block
+    integer(ik) :: omega0_iomega,omega0_N,omega0_Nplus,omega0_Nminus,omega0_k,omega0_ib,omega0_im,omega0_pass
+    real(rk)    :: omega0_eps,omega0_dev,omega0_hmax
+    logical     :: omega0_mixed,omega0_pair
+    real(rk),allocatable    :: omega0_Q(:,:),omega0_H(:,:),omega0_Hp(:,:),omega0_Ep(:)
+    integer(ik),allocatable :: omega0_p(:),omega0_chpar(:)
     real(rk), allocatable :: L_LambdaSigma(:,:)
     integer(ik),allocatable :: iomega_state(:,:),imax_contr(:,:)
-    real(rk),allocatable    :: vibmat(:,:),kinmat(:,:)
+    real(rk),allocatable    :: dmat(:,:),dvect(:,:,:)
     real(ark), allocatable :: omegamat_ark(:,:),omegaenergy_ark(:),omegavecs_ark(:,:)
     character(len=130)     :: my_fmt
-    !
-    real(rk) :: f(9)
-    !
-    ! Numerical derivatives from Fornberg MATHEMATICS OF COMPUTATION 51 (1988) 699-706
-    ! asymmetric 1st order 
-    real(rk),parameter :: delta_a(9)=(/-761.0_rk/280.0_rk, 8.0_rk, -14.0_rk, 56.0_rk/3.0_rk, -35.0_rk/2.0_rk, &
-                                      56.0_rk/5.0_rk, -14.0_rk/3.0_rk, 8.0_rk/7.0_rk, -1.0_rk/8.0_rk/)
-    ! symmetric 1st order 
-    !real(rk),parameter :: a_sym7(7)= (/-1.0_rk/60.0_rk,3.0_rk/20.0_rk,-3.0_rk/4.0_rk,0.0_rk,3.0_rk/4.0_rk,-3.0_rk/20.0_rk,1.0_rk/60.0_rk/)
-    !
-    real(rk),parameter :: delta_s(9)=(/1.0_rk/280.0_rk,-4.0_rk/105.0_rk,1.0_rk/5.0_rk,-4.0_rk/5.0_rk,0.0_rk,&
-                                       4.0_rk/5.0_rk,-1.0_rk/5.0_rk,4.0_rk/105.0_rk,-1.0_rk/280.0_rk/)
     !
     ngrid = grid%npoints
     !
@@ -14670,6 +15311,119 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     ! Vector at the previous step to keep track of the phase of the wavefunctions
     allocate(vect(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),stat=alloc)
     call ArrayStart('vect',alloc,size(vect),kind(vect))
+    !
+    ! electronic (Omega-block) matrices at the current grid point, sigma_v images and phases for the -Omega blocks
+    allocate(hsave(Nomegas,Nlambdasigmas_max,Nlambdasigmas_max),sigmav_phase(Nlambdasigmas_max),&
+             isigmav_image(Nlambdasigmas_max),sigmav_dev(Nomegas),hmax_block(Nomegas),stat=alloc)
+    call ArrayStart('hsave',alloc,size(hsave),kind(hsave))
+    hsave = 0
+    sigmav_dev = 0
+    hmax_block = 0
+    !
+    ! sigma_v adaptation of the Omega=0 block.
+    ! sigma_v maps the Omega=0 block onto itself, sigma_v|n> = (-1)^(e_n) |n'>, with n' = (state,-Lambda,-Sigma) and
+    ! e_n = -Lambda+S-Sigma (+1 for Sigma- states), the same phase convention as for the -Omega blocks and for the parity
+    ! of the Lambda-Sigma basis functions. The electronic Hamiltonian commutes with sigma_v and is block-diagonal in the
+    ! sigma_v-adapted basis q_+/- = (|n> +/- (-1)^(e_n)|n'>)/sqrt(2) (q = |n>, with the parity p=(-1)^(e_n), for
+    ! Lambda=Sigma=0). If the Omega=0 block contains functions of both parities (e.g. 3Pi_0+/-, 1Sigma+ and 1Sigma-,
+    ! 3Sigma+ and 1Sigma+), it is diagonalised separately in the two parity subspaces, so that each Omega=0 channel
+    ! has a well defined sigma_v parity p (stored as Omega_grid%qn(i)%iparity = 0 for p=+1 and 1 for p=-1), which
+    ! defines the parity (-1)^J p of the corresponding rovibronic basis functions. The channels with p=+1 come first,
+    ! followed by those with p=-1 (each group ordered by energy). Previously all Omega=0 channels were assumed to have
+    ! the parity (-1)^J, which is wrong for p=-1 channels (e.g. 3Pi_0-, 1Sigma-, 3Sigma+(Sigma=0)).
+    !
+    omega0_iomega = 0
+    do iomega = 1,Nomegas
+      if (nint(2.0_rk*Omega_grid(iomega)%omega)==0.and.Omega_grid(iomega)%Nstates>0) omega0_iomega = iomega
+    enddo
+    !
+    omega0_mixed = .false.
+    omega0_dev = 0
+    omega0_hmax = 0
+    omega0_Nplus = 0
+    !
+    if (omega0_iomega>0) then
+      !
+      omega0_N = Omega_grid(omega0_iomega)%Nstates
+      !
+      allocate(omega0_Q(omega0_N,omega0_N),omega0_p(omega0_N),omega0_chpar(omega0_N),stat=alloc)
+      call ArrayStart('omega0_Q',alloc,size(omega0_Q),kind(omega0_Q))
+      !
+      omega0_Q = 0
+      omega0_p = 0
+      omega0_pair = .false.
+      omega0_k = 0
+      !
+      do omega0_pass = 0,1
+        !
+        do omega0_ib = 1,omega0_N
+          !
+          istate  = Omega_grid(omega0_iomega)%basis(omega0_ib)%istate
+          ilambda = Omega_grid(omega0_iomega)%basis(omega0_ib)%ilambda
+          sigmai  = Omega_grid(omega0_iomega)%basis(omega0_ib)%sigma
+          spini   = Omega_grid(omega0_iomega)%basis(omega0_ib)%spin
+          !
+          ! the sigma_v image (state,-Lambda,-Sigma)
+          !
+          omega0_im = 0
+          do j = 1,omega0_N
+            if (Omega_grid(omega0_iomega)%basis(j)%istate==istate.and.&
+                Omega_grid(omega0_iomega)%basis(j)%ilambda==-ilambda.and.&
+                nint(2.0_rk*(Omega_grid(omega0_iomega)%basis(j)%sigma+sigmai))==0) then
+              omega0_im = j
+              exit
+            endif
+          enddo
+          !
+          if (omega0_im==0) stop 'Error in the Omega-transformation: no sigma_v image in the Omega=0 block'
+          !
+          itau = -ilambda+nint(spini-sigmai)
+          if (ilambda==0.and.poten(istate)%parity%pm==-1) itau = itau+1
+          omega0_eps = (-1.0_rk)**itau
+          !
+          if (omega0_im==omega0_ib) then
+            !
+            ! Lambda = Sigma = 0: a sigma_v eigenfunction with the parity (-1)^(e_n)
+            !
+            if ( (omega0_eps>0.0_rk.and.omega0_pass==0).or.(omega0_eps<0.0_rk.and.omega0_pass==1) ) then
+              omega0_k = omega0_k + 1
+              omega0_Q(omega0_ib,omega0_k) = 1.0_rk
+              omega0_p(omega0_k) = omega0_pass
+            endif
+            !
+          elseif (omega0_im>omega0_ib) then
+            !
+            ! q_+/- = (|n> +/- (-1)^(e_n)|n'>)/sqrt(2)
+            !
+            omega0_pair = .true.
+            omega0_k = omega0_k + 1
+            omega0_Q(omega0_ib,omega0_k) = 1.0_rk/sqrt(2.0_rk)
+            omega0_Q(omega0_im,omega0_k) = (-1.0_rk)**omega0_pass*omega0_eps/sqrt(2.0_rk)
+            omega0_p(omega0_k) = omega0_pass
+            !
+          endif
+          !
+        enddo
+        !
+      enddo
+      !
+      if (omega0_k/=omega0_N) stop 'Error in the Omega-transformation: sigma_v adaptation of the Omega=0 block failed'
+      !
+      omega0_Nplus = count(omega0_p==0)
+      !
+      ! the adapted diagonalisation is only needed if the block contains sigma_v pairs or functions of both parities;
+      ! otherwise the original diagonalisation is used and all channels have the common parity of the basis functions
+      !
+      omega0_mixed = omega0_pair.or.(omega0_Nplus>0.and.omega0_Nplus<omega0_N)
+      !
+      if (omega0_mixed) then
+        omega0_chpar(1:omega0_Nplus) = 0
+        omega0_chpar(omega0_Nplus+1:omega0_N) = 1
+      else
+        omega0_chpar(:) = omega0_p(1)
+      endif
+      !
+    endif
     !
     ! index to keep track of the state of the wavefunctions
     allocate(imax_contr(Nomegas,Nlambdasigmas_max),stat=alloc)
@@ -14733,7 +15487,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           f_l2 = 0 ! real(ilambda*(ilambda+1),rk)*f_rot
           do iL2 = 1,Nl2
             if (L2(iL2)%istate==istate.and.L2(iL2)%jstate==istate) then
-              f_l2 = f_rot*L2(iL2)%gridvalue(igrid)
+              f_l2 = f_centrif*L2(iL2)%gridvalue(igrid)
               exit
             endif
           enddo
@@ -14743,11 +15497,12 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           f_rot=f_centrif
           !
           ! BOB centrifugal (rotational) term, i.e. a correction to f_rot
+          ! (bobrot is a dimensionless correction to the rotational factor, as in the Lambda-Sigma representation)
           !
           do ibobrot = 1,Nbobrot
             if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==istate) then
               field => bobrot(ibobrot)
-              f_rot = f_rot + field%gridvalue(igrid)*sc
+              f_rot = f_rot + field%gridvalue(igrid)*f_centrif
               exit
             endif
           enddo
@@ -15285,6 +16040,9 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           enddo  ! j
         enddo  ! i
         !
+        ! keep the electronic matrix (used for the sigma_v consistency check of the -Omega blocks below)
+        hsave(iomega,1:Nlambdasigmas,1:Nlambdasigmas) = omegamat(1:Nlambdasigmas,1:Nlambdasigmas)
+        !
         !Solve the Sigma-Lambda-State Hamiltonian at each grid point
         !
         !if (iomega==2) then 
@@ -15298,7 +16056,64 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         !
         !call lapack_syev(omegamat,omegaenergy)
         !
-        if (Nlambdasigmas==1) then 
+        if (iomega==omega0_iomega.and.omega0_mixed) then
+          !
+          ! sigma_v-adapted diagonalisation of the Omega=0 block (see above): the p=+1 and p=-1 subspaces are
+          ! diagonalised separately
+          !
+          N_i = Nlambdasigmas
+          omega0_Nminus = N_i-omega0_Nplus
+          !
+          allocate(omega0_H(N_i,N_i),stat=alloc)
+          if (alloc/=0) stop 'Cannot allocate omega0_H'
+          !
+          omega0_H = matmul(transpose(omega0_Q),matmul(omegamat,omega0_Q))
+          !
+          omega0_hmax = max(omega0_hmax,maxval(abs(omega0_H)))
+          !
+          ! the coupling between the two parity blocks must vanish
+          !
+          if (omega0_Nplus>0.and.omega0_Nminus>0) then
+            omega0_dev = max(omega0_dev,maxval(abs(omega0_H(1:omega0_Nplus,omega0_Nplus+1:N_i))))
+          endif
+          !
+          omegamat = 0
+          !
+          if (omega0_Nplus>0) then
+            !
+            allocate(omega0_Hp(omega0_Nplus,omega0_Nplus),omega0_Ep(omega0_Nplus),stat=alloc)
+            if (alloc/=0) stop 'Cannot allocate omega0_Hp'
+            !
+            omega0_Hp = omega0_H(1:omega0_Nplus,1:omega0_Nplus)
+            !
+            call lapack_syev(omega0_Hp,omega0_Ep)
+            !
+            omegamat(1:N_i,1:omega0_Nplus) = matmul(omega0_Q(1:N_i,1:omega0_Nplus),omega0_Hp)
+            omegaenergy(1:omega0_Nplus) = omega0_Ep
+            !
+            deallocate(omega0_Hp,omega0_Ep)
+            !
+          endif
+          !
+          if (omega0_Nminus>0) then
+            !
+            allocate(omega0_Hp(omega0_Nminus,omega0_Nminus),omega0_Ep(omega0_Nminus),stat=alloc)
+            if (alloc/=0) stop 'Cannot allocate omega0_Hp'
+            !
+            omega0_Hp = omega0_H(omega0_Nplus+1:N_i,omega0_Nplus+1:N_i)
+            !
+            call lapack_syev(omega0_Hp,omega0_Ep)
+            !
+            omegamat(1:N_i,omega0_Nplus+1:N_i) = matmul(omega0_Q(1:N_i,omega0_Nplus+1:N_i),omega0_Hp)
+            omegaenergy(omega0_Nplus+1:N_i) = omega0_Ep
+            !
+            deallocate(omega0_Hp,omega0_Ep)
+            !
+          endif
+          !
+          deallocate(omega0_H)
+          !
+        elseif (Nlambdasigmas==1) then 
           !
           omegaenergy(1) = omegamat(1,1)
           omegamat(1,1) = 1.0_rk
@@ -15388,104 +16203,161 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         !
         omega_grid(iomega)%energy(1:N_i,igrid) = omegaenergy/sc
         !
-        !if (igrid==Ngrid/2) then 
-        if (igrid==1) then 
-          do i = 1,Nlambdasigmas
-            !
-            sign_diag = 1.0_rk 
-            if (omegamat(i,i)<0) sign_diag = -1.0_rk 
-            !
-            omega_grid(iomega)%mat(:,i) = omegamat(:,i)*sign_diag
-            !
-          enddo 
-          !
-        endif 
         !
-        omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = abs(omegamat)
-        !omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = omegamat
+        ! Phases of the eigenvectors (columns of U(r)):
+        ! at the first grid point each eigenvector is chosen to have a positive diagonal component;
+        ! at all other grid points the phase of each eigenvector is chosen to be consistent with the previous
+        ! grid point, i.e. to give a positive overlap <U_i(r_{k-1})|U_i(r_k)>, so that U(r) is a smooth function of r.
+        ! This is required for the r-derivatives of U (NACs) and for the consistency of all transformed couplings.
+        ! It is equivalent to the previous convention (|U(r)| with the signs of U(r_1)) as long as the components of
+        ! U(r) do not change their signs, but is also valid when they do.
+        !
+        if (igrid==1) then
+          !
+          do i = 1,N_i
+            !
+            ! positive diagonal component (or the largest component if the diagonal one vanishes, e.g. for the
+            ! sigma_v-adapted Omega=0 channels)
+            !
+            if (abs(omegamat(i,i))>1.0e-8_rk) then
+              if (omegamat(i,i)<0) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+            else
+              j = maxloc(abs(omegamat(1:N_i,i)),dim=1)
+              if (omegamat(j,i)<0) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+            endif
+            !
+          enddo
+          !
+          omega_grid(iomega)%mat(1:N_i,1:N_i) = omegamat(1:N_i,1:N_i)
+          !
+        else
+          !
+          do i = 1,N_i
+            if (sum(vect(iomega,1:N_i,i)*omegamat(1:N_i,i))<0.0_rk) omegamat(1:N_i,i) = -omegamat(1:N_i,i)
+          enddo
+          !
+        endif
+        !
+        omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) = omegamat(1:N_i,1:N_i)
         omega_grid(iomega)%Nstates = Nlambdasigmas
+        !
+        ! keep the vectors to fix the phases at the next grid point
+        !
+        vect(iomega,1:N_i,1:N_i) = omegamat(1:N_i,1:N_i)
         !
         deallocate(omegamat,omegaenergy)
         deallocate(omegamat_ark,omegaenergy_ark,omegavecs_ark)
         !
-        ! Make phases consistent by projecting U(i) onto U(i-1)
+      enddo
+      !
+      ! sigma_v consistency of the -Omega blocks.
+      ! The eigenvectors of each -Omega block are defined as the sigma_v images of the eigenvectors of the +Omega block:
+      !
+      !   U(-Omega)_{n',i} = (-1)^(e_n) U(+Omega)_{n,i},  n' = sigma_v(n) = (state,-Lambda,-Sigma),
+      !   e_n = -Lambda+S-Sigma (+1 for Sigma- states),
+      !
+      ! i.e. with the same phase convention as used for the sigma_v images of the couplings and for the parity of the
+      ! Lambda-Sigma basis functions (vib). The channel i of the -Omega block is then the sigma_v image of the channel i
+      ! of the +Omega block with a phase common to all channels, as assumed when the parity-adapted combinations are
+      ! formed (duo_j0), and all J-independent couplings (e.g. the NACs and DBOC) are identical in the two blocks.
+      ! Previously the phases of the -Omega eigenvectors were fixed independently (positive diagonal elements), which
+      ! gives wrong parities and couplings between the parity blocks whenever (-1)^(e_n) differs between the states
+      ! (e.g. 2Pi + 2Sigma-, 3Pi + 1Pi).
+      !
+      do iomega=1,Nomegas
         !
-        if (igrid>204.and.iomega==2) then
-          continue
+        omegai = Omega_grid(iomega)%omega
+        N_i = Omega_grid(iomega)%Nstates
+        !
+        if (omegai>-0.25_rk.or.N_i==0) cycle
+        !
+        jomega = Nomegas+1-iomega
+        !
+        if (nint(2.0_rk*(Omega_grid(jomega)%omega+omegai))/=0.or.Omega_grid(jomega)%Nstates/=N_i) then
+          write(out,"('Error in the Omega-transformation: inconsistent +/-Omega blocks',2f8.1,2i5)") &
+                omegai,Omega_grid(jomega)%omega,N_i,Omega_grid(jomega)%Nstates
+          stop 'Error in the Omega-transformation: inconsistent +/-Omega blocks'
         endif
         !
-        if (igrid==1) then
-          vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
-        else
+        ! sigma_v images n' -> n and the phases (-1)^(e_n)
+        !
+        do i = 1,N_i
           !
-          ! scalar product of vect with the previous step
+          istate  = Omega_grid(iomega)%basis(i)%istate
+          ilambda = Omega_grid(iomega)%basis(i)%ilambda
+          sigmai  = Omega_grid(iomega)%basis(i)%sigma
           !
-          mat_1(1:N_i,1:N_i) = &
-            matmul(transpose(vect(iomega,1:N_i,1:N_i)),omega_grid(iomega)%vector(1:N_i,1:N_i,igrid))
+          isigmav_image(i) = 0
           !
-          !do i = 1,N_i
-          !   !
-          !   cross_prod = sum(mat_1(:,i)**2)
-          !   factor = 1.0_rk/sqrt(cross_prod)
-          !   !
-          !   mat_1(:,i) = mat_1(:,i)*factor
-          !   !
-          !   do j = i+1,N_i
-          !     !
-          !     cross_prod = sum(mat_1(:,i)*mat_1(:,j))
-          !     !
-          !     mat_1(:,j) = mat_1(:,j)-mat_1(:,i)*cross_prod
-          !     !
-          !   enddo
-          !enddo
-          !
-          !mat_1 = nint(mat_1,ik)
-          !
-          mat_2(1:N_i,1:N_i) = 0
-          !
-          do i = 1,N_i
-            !
-            ! maximal component of the vector
-            imaxcontr = maxloc(mat_1(1:N_i,i)**2,dim=1,mask=mat_1(1:N_i,i)**2.ge.small_)
-            !
-            ! turn the transformation into a permutation patrix
-            !mat_2(imaxcontr,i) = sign(1.0_rk,mat_1(imaxcontr,i))
-            !
-            mat_2(i,i) = sign(1.0_rk,mat_1(i,i))
-            !
+          do j = 1,N_i
+            if (Omega_grid(jomega)%basis(j)%istate==istate.and.Omega_grid(jomega)%basis(j)%ilambda==-ilambda.and.&
+                nint(2.0_rk*(Omega_grid(jomega)%basis(j)%sigma+sigmai))==0) then
+              isigmav_image(i) = j
+              exit
+            endif
           enddo
           !
-          mat_1(1:N_i,1:N_i) =  omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+          if (isigmav_image(i)==0) then
+            write(out,"('Error in the Omega-transformation: no sigma_v image for the basis function ',i4,' of Omega = ',f8.1)") &
+                  i,omegai
+            stop 'Error in the Omega-transformation: no sigma_v image found'
+          endif
           !
-          !omega_grid(iomega)%vector(1:N_i,1:N_i,igrid) =  matmul( transpose(mat_2(1:N_i,1:N_i)),mat_1(1:N_i,1:N_i) )
+          j = isigmav_image(i)
           !
-          ! scalar product of vect with the previous step
-          !do i = 1,N_i
-          !  !
-          !  imaxcontr = maxloc(mat_1(1:N_i,i)**2,dim=1,mask=mat_1(1:N_i,i)**2.ge.small_)
-          !  !
-          !  if (mat_1(imaxcontr,i)<-small_) then
-          !    omega_grid(iomega)%vector(1:N_i,i,igrid) = -omega_grid(iomega)%vector(1:N_i,i,igrid)
-          !  endif
-          !  !
-          !enddo
+          jstate  = Omega_grid(jomega)%basis(j)%istate
+          jlambda = Omega_grid(jomega)%basis(j)%ilambda
+          sigmaj  = Omega_grid(jomega)%basis(j)%sigma
+          spinj   = Omega_grid(jomega)%basis(j)%spin
           !
-          vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+          itau = -jlambda+nint(spinj-sigmaj)
+          if (jlambda==0.and.poten(jstate)%parity%pm==-1) itau = itau+1
           !
-        endif
+          sigmav_phase(i) = (-1.0_rk)**itau
+          !
+        enddo
+        !
+        ! check that the electronic matrices of the two blocks are related by the same sigma_v transformation
+        !
+        do i = 1,N_i
+          do j = 1,N_i
+            f_t = hsave(iomega,i,j)-sigmav_phase(i)*sigmav_phase(j)*hsave(jomega,isigmav_image(i),isigmav_image(j))
+            sigmav_dev(iomega) = max(sigmav_dev(iomega),abs(f_t))
+            hmax_block(iomega) = max(hmax_block(iomega),abs(hsave(iomega,i,j)))
+          enddo
+        enddo
+        !
+        do i = 1,N_i
+          omega_grid(iomega)%vector(i,1:N_i,igrid) = sigmav_phase(i)*omega_grid(jomega)%vector(isigmav_image(i),1:N_i,igrid)
+        enddo
+        !
+        omega_grid(iomega)%energy(1:N_i,igrid) = omega_grid(jomega)%energy(1:N_i,igrid)
+        !
+        vect(iomega,1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
+        !
+        if (igrid==1) omega_grid(iomega)%mat(1:N_i,1:N_i) = omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)
         !
       enddo
       !
     enddo
     !
-    ! update the transformation vectors from all positive to the phases recorded at Ngrid/2
     do iomega=1,Nomegas
-      do i=1,Omega_grid(iomega)%Nstates
-        do j=1,Omega_grid(iomega)%Nstates
-          omega_grid(iomega)%vector(i,j,:) = sign(1.0_rk,omega_grid(iomega)%mat(i,j))*omega_grid(iomega)%vector(i,j,:) 
-        enddo
-      enddo
+      if (sigmav_dev(iomega)>1.0e-8_rk*max(1.0_rk,hmax_block(iomega))) then
+        write(out,"(/'Warning: the electronic matrix of the Omega = ',f6.1,' block is not the sigma_v image of the +Omega block,')") &
+              Omega_grid(iomega)%omega
+        write(out,"('         max deviation = ',es12.4,' (max element ',es12.4,'). Check the sigma_v phases of the couplings.')") &
+              sigmav_dev(iomega),hmax_block(iomega)
+      endif
     enddo
+    !
+    if (omega0_mixed.and.omega0_dev>1.0e-8_rk*max(1.0_rk,omega0_hmax)) then
+      write(out,"(/'Warning: the electronic matrix of the Omega = 0 block is not sigma_v-symmetric,')")
+      write(out,"('         max coupling between the parity blocks = ',es12.4,' (max element ',es12.4,')')") &
+            omega0_dev,omega0_hmax
+    endif
+    !
+    deallocate(hsave,sigmav_phase,isigmav_image,sigmav_dev,hmax_block)
+    call ArrayStop('hsave')
     !
     ! Now we can use the eigenfunctions to  unitary transform different objects to the Omega representation
     do igrid =1, ngrid
@@ -15831,7 +16703,9 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
               !
               if (field%istate==istate.and.field%jstate==istate) then
                 !
-                f_grid  = field%gridvalue(igrid)*f_t
+                ! dimensionless BOB correction to the rotational factor b_rot/r^2 (applied in duo_j0)
+                !
+                f_grid  = field%gridvalue(igrid)
                 !
                 L_LambdaSigma(i,i) = f_grid
                 !
@@ -16209,11 +17083,6 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     !  enddo
     !enddo
     !
-    allocate(vibmat(ngrid,ngrid),stat=alloc)
-    call ArrayStart('vibmat-omega',alloc,size(vibmat),kind(vibmat))
-    allocate(kinmat(ngrid,ngrid),stat=alloc)
-    call ArrayStart('kinmat-omega',alloc,size(kinmat),kind(kinmat))
-    !
     if (iverbose>=4) then
       write(out,"('Vectors: ')")
       !
@@ -16236,125 +17105,52 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
       enddo
     endif
     !
-    ! Kinetic energy part
+    ! NACs (derivative couplings) induced by the r-dependence of the Omega-transformation U(r) (eigenvectors stored as
+    ! columns of U = omega_grid%vector): A(r) = U^T dU/dr, i.e. A_ij = <i|d/dr|j> (antisymmetric).
+    ! The transformed vibrational kinetic energy operator is
+    !   U^T [-hbar^2/(2mu) d^2/dr^2] U = -hbar^2/(2mu) [ d^2/dr^2 + (A d/dr + d/dr A) + A^2 ],
+    ! where the NAC terms -hbar^2/(2mu) (A d/dr + d/dr A) are stored as the NAC-Omega objects (A_ij for all i/=j)
+    ! and the DBOC-like term -hbar^2/(2mu) A^2 = hbar^2/(2mu) A A^T as the Diab-Omega objects
+    ! (the diagonal elements and, for more than two states with the same Omega, also the off-diagonal ones).
+    ! dU/dr is evaluated with 9-point finite differences on the actual (in general non-uniform, e.g. Lobatto) grid,
+    ! or, for the Lobatto grid and on request (CONTRACTION: DERIVATIVES SPECTRAL), by spectral (Lagrange) differentiation.
     !
-    call kinetic_energy_grid_points(ngrid,kinmat,vibmat)
-    !
-    ! NAC 
-    !
-    ! Transform KEO to the Omega-represenation
-    do igrid =1, ngrid
+    if (NNAC_omega>0.or.NDiab_omega>0) then
+      !
+      allocate(dmat(ngrid,ngrid),stat=alloc)
+      call ArrayStart('dmat-omega',alloc,size(dmat),kind(dmat))
+      allocate(dvect(Nlambdasigmas_max,Nlambdasigmas_max,ngrid),stat=alloc)
+      call ArrayStart('dvect-omega',alloc,size(dvect),kind(dvect))
+      !
+      if (present(LobWeights).and.present(LobDerivs)) then
+        call grid_first_derivative_matrix(ngrid,dmat,LobWeights,LobDerivs)
+      else
+        call grid_first_derivative_matrix(ngrid,dmat)
+      endif
+      !
+      do iomega=1,Nomegas
         !
-        ! Compute the Kinetic (Kin) matrix elements in the primitive Lambda-Sigma representation
+        N_i = Omega_grid(iomega)%Nstates
         !
-        do iomega=1,Nomegas
+        if (N_i<2) cycle
+        !
+        ! dU/dr on the grid
+        !
+        do i = 1,N_i
+          do j = 1,N_i
+            dvect(i,j,1:ngrid) = matmul(dmat,omega_grid(iomega)%vector(i,j,1:ngrid))
+          enddo
+        enddo
+        !
+        do igrid =1, ngrid
           !
-          omegai = Omega_grid(iomega)%omega
-          N_i = Omega_grid(iomega)%Nstates
+          ! A = U^T dU/dr, antisymmetrised to remove the numerical noise (exact for N_i = 2)
+          !
+          mat_1(1:N_i,1:N_i) = matmul(transpose(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid)),dvect(1:N_i,1:N_i,igrid))
+          mat_2(1:N_i,1:N_i) = 0.5_rk*( mat_1(1:N_i,1:N_i)-transpose(mat_1(1:N_i,1:N_i)) )
           !
           do i = 1,N_i
             do j = 1,N_i
-              !
-              ! special case of a very small grid using one-stancil approximation for derivatives
-              if (ngrid<=15) then
-                 !
-                 if (igrid==ngrid) then
-                   !
-                   f_p = omega_grid(iomega)%vector(i,j,igrid)
-                   f_m = omega_grid(iomega)%vector(i,j,igrid-1)
-                   !
-                   L_LambdaSigma(i,j) = (f_p-f_m)/(hstep)
-                   !
-                 elseif (igrid==1) then
-                   !
-                   f_p = omega_grid(iomega)%vector(i,j,igrid+1)
-                   f_m = omega_grid(iomega)%vector(i,j,igrid)
-                   !
-                   L_LambdaSigma(i,j) = (f_p-f_m)/(hstep)
-                   !
-                 else
-                   !
-                   f_p = omega_grid(iomega)%vector(i,j,igrid+1)
-                   f_m = omega_grid(iomega)%vector(i,j,igrid-1)
-                   !
-                   L_LambdaSigma(i,j) = (f_p-f_m)/(2.0_rk*hstep)
-                   !
-                 endif
-                 !
-              else 
-                 !
-                 ! large grid with more points than 15
-                 !
-                 if (igrid>=ngrid-4) then
-                    !
-                    do k = 1,9
-                      f(k) = -omega_grid(iomega)%vector(i,j,igrid-k+1)
-                    enddo
-                    !
-                    L_LambdaSigma(i,j) = sum(delta_a*f)/hstep
-                    !
-                 elseif (igrid<=4) then
-                    !
-                    do k = 1,9
-                      f(k) = omega_grid(iomega)%vector(i,j,igrid+k-1)
-                    enddo
-                    !
-                    L_LambdaSigma(i,j) = sum(delta_a*f)/hstep
-                    !
-                 else
-                    !
-                    do k = -4,4
-                      f(k+5) = omega_grid(iomega)%vector(i,j,igrid+k)
-                    enddo
-                    !
-                    L_LambdaSigma(i,j) = sum(delta_s*f)/hstep
-                    !
-                 endif
-                 !
-              endif
-              !
-            enddo
-          enddo
-          !
-          mat_2(1:N_i,1:N_i) = matmul(omega_grid(iomega)%vector(1:N_i,1:N_i,igrid),transpose(L_LambdaSigma(1:N_i,1:N_i)))
-          !
-          do i = 1,N_i
-            do j = 1+1,N_i
-              !
-              if (i==j) cycle
-              !
-              iNAC_omega_ = iNAC_omega(iomega,i,j)
-              !
-              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid)= mat_2(i,j)
-              !
-              iNAC_omega_ = iNAC_omega(iomega,j,i)
-              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid) = mat_2(i,j)
-              !
-            enddo
-          enddo
-          !
-        enddo
-        !
-    enddo
-    !
-    ! New Diabatic from the second order NAC
-    !
-    ! Transform KEO to the Omega-represenation
-    do igrid =1, ngrid
-        !
-        ! Compute the Diabatic (Kin) matrix elements in the primitive Lambda-Sigma representation
-        !
-        do iomega=1,Nomegas
-          !
-          omegai = Omega_grid(iomega)%omega
-          N_i = Omega_grid(iomega)%Nstates
-          !
-          if (N_i<2) cycle 
-          !
-          L_LambdaSigma = 0
-          !
-          do i = 1,N_i
-            do j = i+1,N_i
               !
               if (i==j) cycle
               !
@@ -16362,34 +17158,36 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
               !
               if (iNAC_omega_==0) cycle
               !
-              L_LambdaSigma(i,j) = NAC_omega_obj(iNAC_omega_)%gridvalue(igrid)
-              L_LambdaSigma(j,i) = -L_LambdaSigma(i,j)
+              NAC_omega_obj(iNAC_omega_)%gridvalue(igrid) = mat_2(i,j)
               !
             enddo
           enddo
           !
-          mat_1(1:N_i,1:N_i) =matmul((L_LambdaSigma(1:N_i,1:N_i)),transpose(L_LambdaSigma(1:N_i,1:N_i)))
+          ! DBOC-like term (A A^T)_ij; the factor hbar^2/(2mu) is b_rot, sc is applied in the Hamiltonian
+          !
+          mat_1(1:N_i,1:N_i) = matmul(mat_2(1:N_i,1:N_i),transpose(mat_2(1:N_i,1:N_i)))
           !
           do i = 1,N_i
+            do j = 1,N_i
               !
-              iDiab_omega_ = iDiab_omega(iomega,i)
+              iDiab_omega_ = iDiab_omega(iomega,i,j)
               !
-              if (iDiab_omega_==0) stop 'Illegal iDiab_omega_=0'
+              if (iDiab_omega_==0) cycle
               !
-              ! We will need to  apply the factor (h^2/2mu) later to convert to the right units, where scale is defined
+              Diab_omega_obj(iDiab_omega_)%gridvalue(igrid) = mat_1(i,j)*b_rot
               !
-              Diab_omega_obj(iDiab_omega_)%gridvalue(igrid)= mat_1(i,i)*b_rot
-              !
+            enddo
           enddo
           !
         enddo
         !
-    enddo
-    !
-    deallocate(vibmat)
-    call ArrayStop('vibmat-omega')
-    deallocate(kinmat)
-    call ArrayStop('kinmat-omega')
+      enddo
+      !
+      deallocate(dmat,dvect)
+      call ArrayStop('dmat-omega')
+      call ArrayStop('dvect-omega')
+      !
+    endif
     !
     deallocate(L_LambdaSigma)
     call ArrayStop('L_LambdaSigma')
@@ -16431,10 +17229,19 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
         Omega_grid(iomega)%qn(i)%omega   = omegai
         Omega_grid(iomega)%qn(i)%ilevel  = Omega_grid(iomega)%basis(imaxcontr)%ilevel
         !
+        ! sigma_v parity of the Omega=0 channels (0 for p=+1, 1 for p=-1); not used for Omega/=0
+        !
+        Omega_grid(iomega)%qn(i)%iparity = 0
+        if (iomega==omega0_iomega) Omega_grid(iomega)%qn(i)%iparity = omega0_chpar(i)
+        !
       enddo
       !
     enddo
     !
+    if (omega0_iomega>0) then
+      deallocate(omega0_Q,omega0_p,omega0_chpar)
+      call ArrayStop('omega0_Q')
+    endif
     !
   end subroutine Transform_Sigma_Lambda_to_Omega_representation  
   
@@ -16726,7 +17533,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
       !
       if (NDiab_omega>0) then
         !
-        write(out,'(/10x,a)') "Diabatic in the Omega representation"
+        write(out,'(/10x,a)') "Diabatic (DBOC-like, hbar^2/2mu A A^T) in the Omega representation"
         write(out,'(10x,a)') "#    Omega State Lambda Sigma <->Omega State Lambda Sigma"
 
         do iterm=1,NDiab_omega
@@ -16736,11 +17543,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
           iomega = Diab_omega_obj(iterm)%iomega
           jomega = Diab_omega_obj(iterm)%jomega
           !
-          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
+          write(out,'(7x,i4,1x,f8.1,1x,i2,1x,i4,1x,f8.1,3x,f8.1,1x,i2,1x,i4,1x,f8.1)') iterm,&
             Diab_omega_obj(iterm)%omegai,&
-            Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma
-            !Diab_omega_obj(iterm)%omegaj,&
-            !Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
+            Omega_grid(iomega)%qn(i)%istate,Omega_grid(iomega)%qn(i)%ilambda,Omega_grid(iomega)%qn(i)%sigma,&
+            Diab_omega_obj(iterm)%omegaj,&
+            Omega_grid(jomega)%qn(j)%istate,Omega_grid(jomega)%qn(j)%ilambda,Omega_grid(jomega)%qn(j)%sigma
         enddo
         !
         write(my_fmt, '(A,I0,A)') '("            r(Ang)",', NDiab_omega, '(i22))'
@@ -17208,7 +18015,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
 
 
   subroutine Solve_vibrational_problem_for_Omega_states_independently(iverbose,ngrid,Nomega_states,sc,totalroots,&
-                                                        icontrvib,contrenergy,Nlambdasigmas_max,contracted)
+                                                        icontrvib,contrenergy,Nlambdasigmas_max,contracted,LobWeights,LobDerivs)
     !
     use lapack
     !
@@ -17221,6 +18028,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     type(contract_solT),intent(inout) :: contracted(Nomegas,Nlambdasigmas_max)
     type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
     real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
+    real(rk),intent(in),optional :: LobWeights(ngrid),LobDerivs(ngrid,ngrid) ! Lobatto weights and derivatives (LOBATTO)
     !
     integer(ik) :: alloc,iomega,jomega,ilevel,jlevel,Nlambdasigmas,igrid,Nroots,i,j,istate,u1
     integer(ik) :: Ndimen,imaxcontr,icount_state,ivibmax
@@ -17233,11 +18041,6 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     integer                 :: vibstates(Nestates,Nomegas),vibmax_omega(Nestates,Nomegas)
     !
     !
-    if (trim(solution_method)=="LOBATTO".or.grid%nsub == 6) then
-      write(out,"('The LOBATTO is currently not working for the OMEGA representation')")
-      stop 'The LOBATTO is currently not working for the OMEGA representation'
-    endif
-    !
     ! map the vbax limits to omegas from states
     !
     vibmax_omega = maxval(job%vibmax(:))
@@ -17249,7 +18052,13 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     allocate(kinmat(Ngrid,Ngrid),stat=alloc)
     call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
     !
-    call kinetic_energy_grid_points(ngrid,kinmat)
+    ! vibrational kinetic energy (for the Lobatto DVR with the precomputed Lobatto weights and derivatives if provided)
+    !
+    if (present(LobWeights).and.present(LobDerivs)) then
+      call kinetic_energy_grid_points(ngrid,kinmat,LobWeights=LobWeights,LobDerivs=LobDerivs)
+    else
+      call kinetic_energy_grid_points(ngrid,kinmat)
+    endif
     !
     Ndimen = ngrid
     !
@@ -17580,6 +18389,422 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
 
 
 
+  subroutine Solve_vibrational_problem_for_Omega_states_coupled(iverbose,ngrid,Nomega_states,sc,totalroots,&
+                                                                icontrvib,contrenergy,Nlambdasigmas_max,contracted,&
+                                                                ilabel,LobWeights,LobDerivs)
+    !
+    ! The J=0 vibrational basis set for the Omega representation from the coupled-channel problems
+    ! (CONTRACTION OMEGA COUPLED).
+    !
+    ! For each Omega>=0 block the J-independent vibrational problem is solved on the grid for all channels
+    ! (adiabatic Omega-states) of this Omega simultaneously:
+    !
+    !   H = T + V_Omega(r) - hbar^2/(2mu) (A d/dr + d/dr A) + hbar^2/(2mu) A A^T,  A = U^T dU/dr,
+    !
+    ! where V_Omega(r) are the adiabatic Omega-potentials. In the grid (DVR) representation the NAC matrix element
+    ! between the channel i at r_g and the channel j at r_g' is K1(g,g') [A_ij(r_g)+A_ij(r_g')], where K1 = kinmat1
+    ! is the antisymmetric first-derivative matrix (see kinetic_energy_grid_points), i.e. the same representation of
+    ! the NACs as used in the rovibronic matrix for the uncoupled basis set.
+    ! For the Omega=0 block with channels of both sigma_v parities the coupled problems are solved separately for each
+    ! parity (the NACs between channels of different parities vanish), so that each contracted function has a well
+    ! defined parity.
+    ! The lowest eigenvectors are used as (multi-channel) contracted vibrational functions. Their number is the sum of
+    ! vmax of the channels (the same as in the uncoupled case), optionally limited by enermax.
+    ! They are stored in contracted(iomega,1), with the components of the channel ilevel in the elements
+    ! (ilevel-1)*ngrid+1:ilevel*ngrid, sorted by energy and labelled by their dominant channel (ilabel).
+    ! In the rovibronic basis set they are all assigned to the pseudo-channel ilevel = 1.
+    !
+    use lapack
+    !
+    implicit none
+    !
+    integer(ik),intent(in)    :: iverbose,Nomega_states,ngrid,Nlambdasigmas_max
+    real(rk),intent(in)       :: sc
+    integer(ik),intent(out)   :: totalroots
+    type(contract_solT),intent(inout) :: contracted(Nomegas,Nlambdasigmas_max)
+    type(quantaT),intent(out) :: icontrvib(ngrid*Nomega_states)
+    real(rk),intent(out)      :: contrenergy(ngrid*Nomega_states)
+    integer(ik),intent(out)   :: ilabel(ngrid*Nomega_states)
+    real(rk),intent(in),optional :: LobWeights(ngrid),LobDerivs(ngrid,ngrid) ! Lobatto weights and derivatives (LOBATTO)
+    !
+    integer(ik) :: alloc,iomega,ilevel,jlevel,Nchannels,Ndimen,Ndimen_g,igrid,jgrid,iterm,i,j,k,nroots,nkeep
+    integer(ik) :: nkeep_g,nroots_g,icount_state,ivibmax,istate,ioff,joff,u1,irange(2),ngroups,igroup,nch_g,ich,jch
+    real(rk)    :: omega,f_nac,enermax_,energy_
+    real(rk),allocatable    :: vibmat(:,:),vibener(:),kinmat(:,:),kinmat1(:,:),weights(:),weight_max(:)
+    real(rk),allocatable    :: vec_block(:,:),ener_block(:)
+    integer(ik),allocatable :: vcount(:),vmax_channel(:),chan(:),ichan_local(:),isort(:)
+    type(fieldT),pointer    :: field
+    character(len=1)        :: rng,jobz
+    !
+    if (iverbose>=6.or.action%intensity.and.intensity%overlap) then
+      !
+      stop "overlap option is not working in omega"
+      !
+    endif
+    !
+    allocate(kinmat(ngrid,ngrid),kinmat1(ngrid,ngrid),stat=alloc)
+    call ArrayStart('kinmat',alloc,size(kinmat),kind(kinmat))
+    call ArrayStart('kinmat1',alloc,size(kinmat1),kind(kinmat1))
+    !
+    ! vibrational kinetic energy and the antisymmetric first-derivative matrix (NACs)
+    !
+    if (present(LobWeights).and.present(LobDerivs)) then
+      call kinetic_energy_grid_points(ngrid,kinmat,kinmat1,LobWeights=LobWeights,LobDerivs=LobDerivs)
+    else
+      call kinetic_energy_grid_points(ngrid,kinmat,kinmat1)
+    endif
+    !
+    allocate(weight_max(ngrid*Nomega_states),stat=alloc)
+    call ArrayStart('weight_max',alloc,size(weight_max),kind(weight_max))
+    !
+    totalroots = 0
+    icount_state = 0
+    ivibmax = ngrid
+    !
+    if (iverbose>=3) write(out,'(/"Coupled-channel J=0 vibrational problems for each Omega (CONTRACTION OMEGA COUPLED):")')
+    !
+    do iomega = 1,Nomegas
+      !
+      omega = Omega_grid(iomega)%omega
+      !
+      if (omega<0) cycle
+      !
+      Nchannels = Omega_grid(iomega)%Nstates
+      !
+      if (Nchannels==0) cycle
+      !
+      Ndimen = Nchannels*ngrid
+      !
+      allocate(vmax_channel(Nchannels),chan(Nchannels),ichan_local(Nchannels),weights(Nchannels),vcount(Nchannels),&
+               stat=alloc)
+      if (alloc/=0) stop 'Solve_vibrational_problem_for_Omega_states_coupled: cannot allocate vmax_channel'
+      !
+      ! vmax of each channel, mapped onto the channels in the same order as for the uncoupled basis set
+      !
+      do ilevel = 1,Nchannels
+        icount_state = icount_state + 1
+        if (icount_state<=size(job%vibmax)) ivibmax = job%vibmax(icount_state)
+        vmax_channel(ilevel) = max(0,min(ivibmax,ngrid))
+      enddo
+      !
+      ! channel groups: the Omega=0 channels of different sigma_v parities are treated separately
+      !
+      ngroups = 1
+      !
+      if (nint(2.0_rk*omega)==0) then
+        if (any(Omega_grid(iomega)%qn(1:Nchannels)%iparity/=Omega_grid(iomega)%qn(1)%iparity)) ngroups = 2
+      endif
+      !
+      ! the total number of roots to be kept for this Omega
+      !
+      nkeep = 0
+      !
+      do igroup = 1,ngroups
+        nch_g = 0
+        nkeep_g = 0
+        do ilevel = 1,Nchannels
+          if (ngroups==2.and.Omega_grid(iomega)%qn(ilevel)%iparity/=igroup-1) cycle
+          nch_g = nch_g + 1
+          nkeep_g = nkeep_g + vmax_channel(ilevel)
+        enddo
+        if (nch_g>0) nkeep = nkeep + max(1,min(nkeep_g,nch_g*ngrid))
+      enddo
+      !
+      allocate(vec_block(Ndimen,nkeep),ener_block(nkeep),isort(nkeep),stat=alloc)
+      call ArrayStart('vec_block',alloc,size(vec_block),kind(vec_block))
+      !
+      vec_block = 0
+      nroots = 0
+      !
+      do igroup = 1,ngroups
+        !
+        ! the channels of this group
+        !
+        nch_g = 0
+        ichan_local = 0
+        !
+        do ilevel = 1,Nchannels
+          if (ngroups==2.and.Omega_grid(iomega)%qn(ilevel)%iparity/=igroup-1) cycle
+          nch_g = nch_g + 1
+          chan(nch_g) = ilevel
+          ichan_local(ilevel) = nch_g
+        enddo
+        !
+        if (nch_g==0) cycle
+        !
+        Ndimen_g = nch_g*ngrid
+        !
+        nkeep_g = 0
+        do ich = 1,nch_g
+          nkeep_g = nkeep_g + vmax_channel(chan(ich))
+        enddo
+        nkeep_g = max(1,min(nkeep_g,Ndimen_g))
+        !
+        allocate(vibmat(Ndimen_g,Ndimen_g),vibener(Ndimen_g),stat=alloc)
+        call ArrayStart('vibmat',alloc,size(vibmat),kind(vibmat))
+        call ArrayStart('vibener',alloc,size(vibener),kind(vibener))
+        !
+        if (iverbose>=4) call TimerStart('Build vibrational Hamiltonian')
+        !
+        vibmat = 0
+        !
+        ! kinetic energy and the adiabatic Omega-potentials (diagonal in the channels)
+        !
+        do ich = 1,nch_g
+          !
+          ioff = (ich-1)*ngrid
+          !
+          vibmat(ioff+1:ioff+ngrid,ioff+1:ioff+ngrid) = kinmat(1:ngrid,1:ngrid)
+          !
+          do igrid = 1,ngrid
+            vibmat(ioff+igrid,ioff+igrid) = vibmat(ioff+igrid,ioff+igrid) + Omega_grid(iomega)%energy(chan(ich),igrid)*sc
+          enddo
+          !
+        enddo
+        !
+        ! NACs, -hbar^2/(2mu) (A d/dr + d/dr A): <i,g|..|j,g'> = K1(g,g') [A_ij(r_g)+A_ij(r_g')], with A_ji = -A_ij
+        !
+        do iterm = 1,NNAC_omega
+          !
+          field => NAC_omega_obj(iterm)
+          !
+          if (field%iomega/=iomega) cycle
+          !
+          ilevel = field%ilevel
+          jlevel = field%jlevel
+          !
+          if (ilevel>=jlevel) cycle
+          !
+          ich = ichan_local(ilevel)
+          jch = ichan_local(jlevel)
+          !
+          ! channels of different parities (vanishing NACs)
+          if (ich==0.or.jch==0) cycle
+          !
+          ioff = (ich-1)*ngrid
+          joff = (jch-1)*ngrid
+          !
+          !$omp parallel do private(jgrid,igrid,f_nac) shared(vibmat) schedule(static)
+          do jgrid = 1,ngrid
+            do igrid = 1,ngrid
+              !
+              f_nac = kinmat1(igrid,jgrid)*(field%gridvalue(igrid)+field%gridvalue(jgrid))
+              !
+              vibmat(ioff+igrid,joff+jgrid) = vibmat(ioff+igrid,joff+jgrid) + f_nac
+              vibmat(joff+jgrid,ioff+igrid) = vibmat(joff+jgrid,ioff+igrid) + f_nac
+              !
+            enddo
+          enddo
+          !$omp end parallel do
+          !
+        enddo
+        !
+        ! DBOC-like term hbar^2/(2mu) (A A^T)_ij (the objects are defined for all pairs i,j)
+        !
+        do iterm = 1,NDiab_omega
+          !
+          field => Diab_omega_obj(iterm)
+          !
+          if (field%iomega/=iomega) cycle
+          !
+          ich = ichan_local(field%ilevel)
+          jch = ichan_local(field%jlevel)
+          !
+          if (ich==0.or.jch==0) cycle
+          !
+          ioff = (ich-1)*ngrid
+          joff = (jch-1)*ngrid
+          !
+          do igrid = 1,ngrid
+            vibmat(ioff+igrid,joff+igrid) = vibmat(ioff+igrid,joff+igrid) + field%gridvalue(igrid)*sc
+          enddo
+          !
+        enddo
+        !
+        if (iverbose>=4) call TimerStop('Build vibrational Hamiltonian')
+        !
+        ! the lowest nkeep_g eigenvalues and eigenvectors
+        !
+        if (nkeep_g<Ndimen_g) then
+          !
+          jobz = 'V'
+          rng = 'I'
+          irange(1) = 1 ; irange(2) = nkeep_g
+          !
+          call lapack_syevr(vibmat,vibener,rng=rng,jobz=jobz,iroots=nroots_g,irange=irange)
+          !
+        else
+          !
+          call lapack_syev(vibmat,vibener)
+          nroots_g = Ndimen_g
+          !
+        endif
+        !
+        nroots_g = max(1,min(nroots_g,nkeep_g))
+        !
+        if (iverbose>=3) then
+          if (ngroups==2) then
+            write(out,'("  Omega = ",f6.1,": ",i3," channels (sigma_v parity ",a1,"), coupled problem of size ",i8)') &
+                  omega,nch_g,merge('-','+',igroup==2),Ndimen_g
+          else
+            write(out,'("  Omega = ",f6.1,": ",i3," channels, coupled problem of size ",i8)') omega,nch_g,Ndimen_g
+          endif
+        endif
+        !
+        ! store the eigenvectors in the full (all channels) layout
+        !
+        do i = 1,nroots_g
+          !
+          nroots = nroots + 1
+          ener_block(nroots) = vibener(i)
+          !
+          do ich = 1,nch_g
+            ioff = (chan(ich)-1)*ngrid
+            joff = (ich-1)*ngrid
+            vec_block(ioff+1:ioff+ngrid,nroots) = vibmat(joff+1:joff+ngrid,i)
+          enddo
+          !
+        enddo
+        !
+        deallocate(vibmat,vibener)
+        call ArrayStop('vibmat')
+        call ArrayStop('vibener')
+        !
+      enddo
+      !
+      ! sort the roots of this Omega by energy
+      !
+      do i = 1,nroots
+        isort(i) = i
+      enddo
+      !
+      do i = 2,nroots
+        k = isort(i)
+        energy_ = ener_block(k)
+        j = i-1
+        do while (j>=1)
+          if (ener_block(isort(j))<=energy_) exit
+          isort(j+1) = isort(j)
+          j = j-1
+        enddo
+        isort(j+1) = k
+      enddo
+      !
+      ! or only those below enermax if required by the input
+      !
+      istate = Omega_grid(iomega)%basis(1)%istate
+      !
+      if (job%vibenermax(istate)<safe_max) then
+        enermax_ = job%vibenermax(istate)*sc
+        nroots = max(1,count(ener_block(1:nroots)<=enermax_))
+      endif
+      !
+      ! keep the multi-channel contracted functions in the channel slot 1
+      !
+      contracted(iomega,1)%Ndimen = nroots
+      !
+      allocate(contracted(iomega,1)%vector(Ndimen,nroots),contracted(iomega,1)%energy(nroots),&
+               contracted(iomega,1)%ilevel(nroots),stat=alloc)
+      call ArrayStart('contracted%vector',alloc,size(contracted(iomega,1)%vector),kind(contracted(iomega,1)%vector))
+      call ArrayStart('contracted%energy',alloc,size(contracted(iomega,1)%energy),kind(contracted(iomega,1)%energy))
+      call ArrayStart('contracted%ilevel',alloc,size(contracted(iomega,1)%ilevel),kind(contracted(iomega,1)%ilevel))
+      !
+      do i = 1,nroots
+        contracted(iomega,1)%vector(1:Ndimen,i) = vec_block(1:Ndimen,isort(i))
+        contracted(iomega,1)%energy(i) = ener_block(isort(i))
+      enddo
+      !
+      do ilevel = 2,Nchannels
+        contracted(iomega,ilevel)%Ndimen = 0
+      enddo
+      !
+      ! labels: the dominant channel and the vibrational quantum number counted within this channel
+      !
+      vcount = 0
+      !
+      do i = 1,nroots
+        !
+        do ilevel = 1,Nchannels
+          ioff = (ilevel-1)*ngrid
+          weights(ilevel) = sum(contracted(iomega,1)%vector(ioff+1:ioff+ngrid,i)**2)
+        enddo
+        !
+        ilevel = maxloc(weights,dim=1)
+        vcount(ilevel) = vcount(ilevel) + 1
+        !
+        k = totalroots + i
+        !
+        contracted(iomega,1)%ilevel(i) = k
+        contrenergy(k) = contracted(iomega,1)%energy(i)
+        ilabel(k) = ilevel
+        weight_max(k) = weights(ilevel)
+        !
+        icontrvib(k)%ilevel  = 1
+        icontrvib(k)%omega   = omega
+        icontrvib(k)%iomega  = iomega
+        icontrvib(k)%istate  = Omega_grid(iomega)%qn(ilevel)%istate
+        icontrvib(k)%ilambda = Omega_grid(iomega)%qn(ilevel)%ilambda
+        icontrvib(k)%sigma   = Omega_grid(iomega)%qn(ilevel)%sigma
+        icontrvib(k)%spin    = Omega_grid(iomega)%qn(ilevel)%spin
+        icontrvib(k)%v       = vcount(ilevel)-1
+        icontrvib(k)%ivib    = i
+        icontrvib(k)%iroot   = i
+        !
+      enddo
+      !
+      if (iverbose>=3) write(out,'("  Omega = ",f6.1,": ",i6," roots kept")') omega,nroots
+      !
+      totalroots = totalroots + nroots
+      !
+      deallocate(vec_block,ener_block,isort)
+      call ArrayStop('vec_block')
+      deallocate(vmax_channel,chan,ichan_local,weights,vcount)
+      !
+    enddo
+    !
+    deallocate(kinmat,kinmat1)
+    call ArrayStop('kinmat')
+    call ArrayStop('kinmat1')
+    !
+    ! print out the contracted energies
+    !
+    if (iverbose>=4) then
+      !
+      write(out,'(/"Vibrational (contracted) energies, coupled Omega basis set: ")')
+      write(out,'("    i        Energy/cm    Channel  v  Omega   Weight  State"/)')
+      !
+      do i = 1,totalroots
+        write(out,'(i5,f18.6," [ ",2i4,f8.1," ] ",f8.4,2x,a)') i,(contrenergy(i)-contrenergy(1))/sc,ilabel(i),&
+          icontrvib(i)%v,icontrvib(i)%omega,weight_max(i),trim(poten(icontrvib(i)%istate)%name)
+      enddo
+      !
+    endif
+    !
+    if (job%print_vibrational_energies_to_file ) then
+      !
+      call IOstart("print vibrational energies to file",u1)
+      !
+      open(unit=u1, file='J0_vibrational_energies.dat',status='replace',action='write')
+      write(u1,'(/"Vibrational (contracted) energies, coupled Omega basis set: ")')
+      write(u1,'("    i        Energy/cm    Channel  v  Omega   Weight  State"/)')
+      do i = 1,totalroots
+        write(u1,'(i5,f18.6," [ ",2i4,f8.1," ] ",f8.4,2x,a)') i,contrenergy(i)/sc,ilabel(i),icontrvib(i)%v,&
+          icontrvib(i)%omega,weight_max(i),trim(poten(icontrvib(i)%istate)%name)
+      enddo
+      close(u1)
+      !
+      call IOstop("print vibrational energies to file")
+      !
+    endif
+    !
+    deallocate(weight_max)
+    call ArrayStop('weight_max')
+    !
+    if (iverbose>=4) call TimerStop('Solve vibrational part')
+    !
+  end subroutine Solve_vibrational_problem_for_Omega_states_coupled
+
+
   subroutine L_omega_create(NLplus_omega,onlycount)
     !
     implicit none
@@ -17591,7 +18816,7 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     integer(ik)  :: i,j,istate_,jstate_,iLxy,imulti,jmulti,multi,multj
     real(rk)     :: spini_,spinj_,omegai,omegaj,omegai_,omegaj_
     real(rk)     :: sigmai,sigmaj
-    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j
+    integer(ik)  :: ilambda_,jlambda_,iomega,jomega,N_i,N_j,isigmav,ilambda_s,jlambda_s
     type(fieldT),pointer       :: field
     !
     NLplus_omega = 0
@@ -17656,25 +18881,38 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
                 !
                 if (ipermute==1.and.istate_==jstate_.and.ilambda_==jlambda_) cycle
                 !
-                multi = nint(2.0_rk*spini_+1.0_rk)
+                ! The sigma_v-images (-Lambda,-Sigma) of the input matrix element <Lambda|L+|Lambda'> must be included 
+                ! as well (as in Transform_Sigma_Lambda_to_Omega_representation), 
+                ! otherwise the L+ couplings between the negative-Omega blocks are missing
                 !
-                sigmai = -spini_-1.0_rk
-                do imulti = 1,multi
+                do isigmav = 0,1
                   !
-                  sigmai = sigmai + 1.0_rk
-                  omegai_ = real(ilambda_,rk)+sigmai
+                  if( isigmav==1.and. abs( field%lambda ) + abs( field%lambdaj )==0 ) cycle
                   !
-                  multj = nint(2.0_rk*spinj_+1.0_rk)
-                  sigmaj = -spinj_-1.0_rk
-                  do jmulti = 1,multj
+                  ilambda_s = ilambda_*(-1)**isigmav
+                  jlambda_s = jlambda_*(-1)**isigmav
+                  !
+                  multi = nint(2.0_rk*spini_+1.0_rk)
+                  !
+                  sigmai = -spini_-1.0_rk
+                  do imulti = 1,multi
                     !
-                    sigmaj = sigmaj + 1.0_rk
-                    omegaj_ = real(jlambda_,rk)+sigmaj
+                    sigmai = sigmai + 1.0_rk
+                    omegai_ = real(ilambda_s,rk)+sigmai
                     !
-                    if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
-                      iLxy = iLxy + 1
-                      exit loop_Lxy
-                    endif
+                    multj = nint(2.0_rk*spinj_+1.0_rk)
+                    sigmaj = -spinj_-1.0_rk
+                    do jmulti = 1,multj
+                      !
+                      sigmaj = sigmaj + 1.0_rk
+                      omegaj_ = real(jlambda_s,rk)+sigmaj
+                      !
+                      if (nint(omegai_-omegai)==0.and.nint(omegaj_-omegaj)==0) then
+                        iLxy = iLxy + 1
+                        exit loop_Lxy
+                      endif
+                      !
+                    enddo
                     !
                   enddo
                   !
@@ -18284,6 +19522,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
   end subroutine NAC_omega_create
 
 
+  !
+  ! Objects for the DBOC-like term hbar^2/(2mu) (A A^T)_ij, A = U^T dU/dr, in the Omega representation.
+  ! For two states with the same Omega, A A^T is diagonal; for more states the off-diagonal elements
+  ! (i/=j, same Omega) are also needed.
+  !
   subroutine Diab_omega_create(NDiab_omega,onlycount)
     !
     implicit none
@@ -18291,34 +19534,13 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
     integer(ik),intent(inout) :: NDiab_omega
     !
     logical,intent(in) :: onlycount
-    integer(ik)  :: i
+    integer(ik)  :: i,j
     real(rk)     :: omegai
     integer(ik)  :: iomega,N_i
     !
     NDiab_omega = 0
     !
     if (nestates==0) return
-    !
-    if (onlycount) then
-       !
-       do iomega=1,Nomegas
-         !
-         omegai = Omega_grid(iomega)%omega
-         !
-         N_i = Omega_grid(iomega)%Nstates
-         !
-         if (N_i<2) cycle
-         !
-         do i = 1,N_i
-             !do iKin = 1,nestates
-             NDiab_omega = NDiab_omega + 1
-             !enddo
-         enddo
-       enddo
-       !
-       return
-       !
-    endif    
     !
     do iomega=1,Nomegas
       !
@@ -18329,19 +19551,27 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
       if (N_i<2) cycle
       !
       do i = 1,N_i
-         !
-         NDiab_omega = NDiab_omega + 1
-         !
-         iDiab_omega(iomega,i) = NDiab_omega
-         !
-         Diab_omega_obj(NDiab_omega)%ilevel = i
-         Diab_omega_obj(NDiab_omega)%omegai  = omegai
-         Diab_omega_obj(NDiab_omega)%iomega  = iomega
-         !
-         Diab_omega_obj(NDiab_omega)%jlevel = i
-         Diab_omega_obj(NDiab_omega)%omegaj  = omegai
-         Diab_omega_obj(NDiab_omega)%jomega  = iomega
-        !
+        do j = 1,N_i
+          !
+          ! off-diagonal elements vanish for two states
+          !
+          if (N_i==2.and.i/=j) cycle
+          !
+          NDiab_omega = NDiab_omega + 1
+          !
+          if (onlycount) cycle
+          !
+          iDiab_omega(iomega,i,j) = NDiab_omega
+          !
+          Diab_omega_obj(NDiab_omega)%ilevel = i
+          Diab_omega_obj(NDiab_omega)%omegai  = omegai
+          Diab_omega_obj(NDiab_omega)%iomega  = iomega
+          !
+          Diab_omega_obj(NDiab_omega)%jlevel = j
+          Diab_omega_obj(NDiab_omega)%omegaj  = omegai
+          Diab_omega_obj(NDiab_omega)%jomega  = iomega
+          !
+        enddo
       enddo
       !
     enddo

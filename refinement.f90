@@ -7,7 +7,8 @@ module refinement
   use diatom_module,only : verbose,fitting,Nobjects,Nestates,Nspinorbits,&
                            Ntotalfields,fieldT,poten,spinorbit,l2,lxly,&
                            grid,duo_j0,quantaT,fieldmap,Nabi,abinitio,quadrupoletm,dipoletm,&
-                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,bobvib,linkT,vmax,&
+                           action,spinspin,spinspino,spinrot,bobrot,diabatic,lambdaopq,lambdap2q,lambdaq,nac,bobvib,&
+                           lambdam,lambdan,spinorbit_eta,spinspin_theta,linkT,vmax,&
                            l_omega_obj,s_omega_obj,rangeT
   !
   !
@@ -17,7 +18,7 @@ module refinement
    !
    real(rk)    :: stab_best=1e-12  ! best standard error and stability 
    integer(ik) :: maxiter_as = 3                  ! maximal number of iterations to find a match for assignement
-   integer(ik) :: Nobjectmax = 14
+   integer(ik) :: Nobjectmax = 18
    integer(ik) :: vmax_ = 100                     ! if vmax in input is undefined vmax_ will be used to predife size
    !                                              !  of the matrix with energies 
    !
@@ -119,7 +120,7 @@ module refinement
        if (verbose>=2) write(out,"(/'The least-squares fitting ...')")
        !
        ! Nobjectmax = Nobjects - 3
-       Nobjectmax = 14
+       Nobjectmax = 18
        !
        call TimerStart('Simultaneous Fitting')
        !
@@ -374,6 +375,14 @@ module refinement
               objects(iobject,ifield)%field => nac(ifield)
             case (14)
               objects(iobject,ifield)%field => bobvib(ifield)
+            case (15)
+              objects(iobject,ifield)%field => lambdam(ifield)
+            case (16)
+              objects(iobject,ifield)%field => lambdan(ifield)
+            case (17)
+              objects(iobject,ifield)%field => spinorbit_eta(ifield)
+            case (18)
+              objects(iobject,ifield)%field => spinspin_theta(ifield)
             case (Nobjects-3)
               objects(iobject,ifield)%field => quadrupoletm(ifield)
             case (Nobjects)
