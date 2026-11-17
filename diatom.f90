@@ -62,27 +62,15 @@ module diatom_module
   !        case (17) spinorbit_eta(iterm)
   !        case (18) spinspin_theta(iterm)
   !        case (19 - 20) reserved
-  !        case (21) hfcc1(1) for nucleus-1 Fermi contact, bF
-  !        case (22) hfcc1(2) for nucleus-1 nuclear spin - orbit, a
-  !        case (23) hfcc1(3) for nucleus-1 nuclear dipole - spin dipole, c
-  !        case (24) hfcc1(4) for nucleus-1 nuclear dipole - spin dipole, d
-  !        case (25) hfcc1(5) for nucleus-1 nuclear spin - rotation, cI
-  !        case (26) hfcc1(6) for nucleus-1 nuclear spin - rotation, cIp
-  !        case (27) hfcc1(7) for nucleus-1 electric quadrupole, eQq0
-  !        case (28) hfcc1(8) for nucleus-1 electric quadrupole, eQq2
-  !        case (29 - 30) reserved
-  !        case (31) hfcc2(1) for nucleus-2 Fermi contact, bF
-  !        case (32) hfcc2(2) for nucleus-2 nuclear spin - orbit, a
-  !        case (33) hfcc2(3) for nucleus-2 nuclear dipole - spin dipole, c
-  !        case (34) hfcc2(4) for nucleus-2 nuclear dipole - spin dipole, d
-  !        case (35) hfcc2(5) for nucleus-2 nuclear spin - rotation, cI
-  !        case (36) hfcc2(6) for nucleus-2 nuclear spin - rotation, cIp
-  !        case (37) hfcc2(7) for nucleus-2 electric quadrupole, eQq0
-  !        case (38) hfcc2(8) for nucleus-2 electric quadrupole, eQq2
-  !        case (39 - 40) reserved
-  !        case (41) hfcc12(1) for dipolar nuclear spin - spin, ii
-  !        case (42) hfcc12(2) for scalar nuclear spin - spin, iis
-  !        case (43 - 45) reserved
+  !        case (21) hfcc1(1) for Fermi contact, bF
+  !        case (22) hfcc1(2) for nuclear spin - orbit, a
+  !        case (23) hfcc1(3) for nuclear dipole - spin dipole, c
+  !        case (24) hfcc1(4) for nuclear dipole - spind dipole, d
+  !        case (25) hfcc1(5) for nuclear spin - rotaton, cI
+  !        case (26) hfcc1(6) for electric dipole, eQq0
+  !        case (27) hfcc1(7) for electric diople, eQq2
+  !        case (28) hfcc1(8) for nuclear - nuclear spin dipole, ii
+  !        case (29) reserved
   !        case(Nobjects-5) magnetrot(iterm)
   !        case(Nobjects-4) magnetictm(iterm)
   !        case(Nobjects-3) quadrupoletm(iterm)
@@ -103,9 +91,8 @@ module diatom_module
     "LAMBDAOPQ", "LAMBDAP2Q","LAMBDAQ", &
     "NAC", &
     "BOBVIB", "LAMBDAM", "LAMBDAN", "SPIN-ORBIT-ETA", "SPIN-SPIN-THETA", "", "", & ! reserved
-    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-CIP-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "", "", & ! reserved
-    "HFCC-BF-2", "HFCC-A-2", "HFCC-C-2", "HFCC-D-2", "HFCC-CI-2", "HFCC-CIP-2", "HFCC-EQQ0-2", "HFCC-EQQ2-2", "", "", & ! reserved
-    "HFCC-II-12", "HFCC-IIS", "", "", "", & ! reserved
+    "HFCC-BF-1", "HFCC-A-1", "HFCC-C-1", "HFCC-D-1", "HFCC-CI-1", "HFCC-EQQ0-1", "HFCC-EQQ2-1", "HFCC-II-12", &
+    "", & ! reserved
     "MAGNETROT",&
     "MAGNETIC",&
     "QUADRUPOLE", &

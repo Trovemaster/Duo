@@ -77,7 +77,8 @@ dipole.o: timer.o accuracy.o diatom.o symmetry.o magnetic_dipole.o quadrupole.o 
 quadrupole.o: timer.o accuracy.o diatom.o
 intensity.o: accuracy.o diatom.o dipole.o
 duo.o: header_info.o diatom.o accuracy.o refinement.o timer.o intensity.o F1_hyperfine.o F1_intensity.o
-functions.o: accuracy.o timer.o
+functions.o: accuracy.o timer.o lapack.o
+atomic_and_nuclear_data.o: accuracy.o
 grids.o: accuracy.o Lobatto.o
 header_info.o: accuracy.o
 F1_hyperfine.o: accuracy.o diatom.o lapack.o symmetry.o
