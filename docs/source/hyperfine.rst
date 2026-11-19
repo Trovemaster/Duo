@@ -2,19 +2,26 @@ Nuclear hyperfine structure
 ===========================
 
 Provided nuclear hyperfine interaction curves,
-Duo calculates field-free hyperfine structure of diatomic molecules.
-Currently,
-Duo supports two cases: 
+Duo calculates field-free hyperfine structure of diatomic molecules
+for the following three cases:
 
-1. only one of the nuclei possess non-zero nuclear spin, e.g., 14N16O and 24MgH.
-2. two identical nuclei with non-zero nuclear spin, e.g., H2 and D2. 
+1. only one of the nuclei possesses non-zero spin, e.g., 14N16O and 24MgH.
+2. two identical nuclei with non-zero spin, e.g., H2 and D2. 
+3. two different nuclei, both with non-zero spin, e.g., 14N17O and AlF.
 
-Nuclear electric quadrupole interaction 
-and nuclear magnetic dipole interactions
-including Fermi-contact, nuclear spin-electron spin dipole-dipole,
-nuclear spin-orbit, nuclear spin-rotation, nuclear spin-nuclear spin dipole-dipole, 
-can be involved in the calculation.
-The hyperfine calculation is turned on 
+To determine which case and coupling scheme to use, 
+the nuclei and their isotopes must be specified using keyword ``ATOMS``. 
+
+.. Nuclear electric quadrupole interaction
+   and nuclear magnetic dipole interactions
+   including Fermi-contact, nuclear spin-electron spin dipole-dipole,
+   nuclear spin-orbit, nuclear spin-rotation, nuclear spin-nuclear spin dipole-dipole,
+   can be involved in the calculation.
+
+Input files
+-------------------
+
+The hyperfine calculation for case 1 or 2 is turned on 
 with the following section:
 ::
     
@@ -22,47 +29,51 @@ with the following section:
         I 1
     end
 
-where the value after the keyword ``I`` indicates the nuclear spin of each individual nucleus.
+where the value after the keyword ``I``  specifies 
+the spin of the only non-zero-spin nucleus for case 1, 
+or the common spin of both identical nuclei for case 2. 
 
-
-Two output files are generated after calculation.
-The one named ``hyperfine.states`` contains nuclear hyperfine resolved states.
-The columns in this file are:
-1. counting number, 2. energy [cm-1], 3. total degeneracy,
-4. :math:`F`, 5. symmetry label, 6. total nuclear spin :math:`I`,
-7. :math:`J`, 8. state, 9. :math:`v`,
-10. :math:`\Lambda`, 11. :math:`\Sigma`,
-12. :math:`\Omega`, respectively.
-
-The other named  ``hyperfine.trans`` contains the hyperfine transitions.
-This file has five columns which are:
-1.counting number of the upper state,
-2.counting number of the lower state,
-3.Einstein-A coefficient,
-4.transition wavenumber [cm-1],
-5.line strength.
-Line strengths in this file are calculated by
-
-:math:`S = |\langle \psi(m,\tau, F)||T^{(1)}(\mu)||\psi_(m', \tau', F') \rangle|^2`
-
-where :math:`\psi(m,\tau, F)` and :math:`\psi_(m', \tau', F')` are the wavefunctions
-of the hyperfine states. :math:`T^{(1)}(\mu)` is the tensor of transition
-electric dipole moment.
-Line strengths have the unit of :math:`Debye^2`.
-
-An electric dipole moment curve should be defined in a ``dipole`` section in the first place.
+The hyperfine calculation for case 3 can be turned on 
+using either of the following two input formats:
 ::
 
-    dipole  1 1
-    name "<X,2Pi|DMC|X,2Pi>"
-    spin   0.5 0.5
-    lambda  1  1
-    factor   1   (0, 1 or i)
-    type polynom
-    values 
-        A0           1
+    hyperfine
+        I 1 0.5
     end
 
+or
+
+::
+
+    hyperfine
+        I1 1
+        I2 0.5
+    end
+
+where the keywords ``I1`` and ``I2`` refer to 
+the first and second nuclei, respectively,
+and the two values specify the nuclear spins in the order given by ``ATOMS``. 
+
+The following rules apply to nuclear-spin inputs:
+
+* Nuclear spins must be finite, non-negative integers or half-integers.
+* An isotope with zero nuclear spin in the database cannot be assigned non-zero value.
+* For case 1 or 2, supply only single value or none. 
+* For case 3, supply either both spins or neither.
+  To neglect one nuclear spin, explicitly set its value to ``0``.
+* If no nuclear spins are supplied, Duo uses the values from the internal isotope database.
+
+The artificial model with nuclear spins different from the database values 
+may lead to unexpected results.
+Such calculations should be interpreted with care.
+
+Hyperfine interaction curves must be supplied, 
+which are typically from quantum chemistry calculations or fits to experimental data. 
+For details on specifying these curves,
+see :ref:`hyperfine-coupling-curves`.
+
+Currently, Duo does not support refinement of hyperfine curves.
+Thus, ``fitting`` and ``hyperfine`` sections cannot be activated simultaneously.
 
 You may turn off the hyperfine calculation by:
 ::
@@ -71,6 +82,9 @@ You may turn off the hyperfine calculation by:
         I 1
     end
 
+Total angular momentum
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 The global setup of ``J``,
 ::
 
@@ -78,15 +92,125 @@ The global setup of ``J``,
 
 affects the maximum of ``F``.
 :math:`F_\mathrm{max} = J_\mathrm{max}-I_\mathrm{max}`,
-where :math:`I_\mathrm{max}` is the maximum value of total nuclear spin.
+where :math:`I_\mathrm{max}` is:
+
+* the spin of the active nucleus for case 1;
+* twice the common nuclear spin for case 2;
+* :math:`I_1 + I_2` for case 3.
+
 The minimum of ``F`` is always 0 or 1/2.
 
-Currently, Duo does not support refinement of hyperfine curves.
-Thus, ``fitting`` and ``hyperfine`` sections cannot be activated simultaneously.
+Transition moment curves
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+For hyperfine-resolved transitions, 
+the electric dipole (E1) transition is supported for all three cases,
+while the electric quadrupole (E2) transition is supported only for cases 2 and 3. 
+The magnetic dipole (M1) transition is not yet supported.
+
+The electric dipole or electric quadrupole moment curves 
+for transition strength calculations
+should be defined using the same formats
+described in `dipole and dipole-x <fields.html#dipole-and-dipole-x>`_
+and :ref:`quadrupole curves`, respectively.
+
+Output files
+------------
+
+Two output files are generated after calculation.
+The one named ``hyperfine.states`` contains hyperfine-resolved states, 
+with 12 columns: 
+
+1. State ID.
+2. Energy [cm-1].
+3. Degeneracy, :math:`2F+1`.
+4. Total angular momentum, :math:`F`.
+5. Symmetry label: parity (+/-) for cases 1 and 3, and parity with g/u symmetry for case 2.
+6. Nuclear spin :math:`I` (case 1), total nuclear spin :math:`I` (case 2), or :math:`F_1` (case 3).
+7. Angular momentum excluding nuclear spin, :math:`J`.
+8. Electronic state.
+9. Vibrational quantum number, :math:`v`.
+10. :math:`\Lambda`.
+11. :math:`\Sigma`.
+12. :math:`\Omega`.
+
+The other named  ``hyperfine.trans`` contains the hyperfine-resolved transitions, 
+with 4 columns:
+
+1. State ID of the upper state.
+2. State ID of the lower state.
+3. Einstein A coefficient [s-1].
+4. Transition wavenumber [cm-1].
+
+.. 5.line strength.
+   Line strengths in this file are calculated by
+
+   :math:`S = |\langle \psi(m,\tau, F)||T^{(1)}(\mu)||\psi_(m', \tau', F') \rangle|^2`
+
+   where :math:`\psi(m,\tau, F)` and :math:`\psi_(m', \tau', F')` are the wavefunctions
+   of the hyperfine states. :math:`T^{(1)}(\mu)` is the tensor of transition
+   electric dipole moment.
+   Line strengths have the unit of :math:`Debye^2`.
+
+.. An electric dipole moment curve should be defined in a ``dipole`` section in the first place.
+   ::
+
+       dipole  1 1
+       name "<X,2Pi|DMC|X,2Pi>"
+       spin   0.5 0.5
+       lambda  1  1
+       factor   1   (0, 1 or i)
+       type polynom
+       values
+           A0           1
+       end
 
 
-The nuclear hyperfine interaction curves are introduced with the following eight key words: 
-``hfcc-a``, ``hfcc-bF``, ``hfcc-c``, ``hfcc-d``, ``hfcc-ci``, ``hfcc-eqq0``, ``hfcc-eqq2`` and ``hfcc-ii``.
+.. _hyperfine-coupling-curves:
+
+Hyperfine coupling curves
+-------------------------
+
+The nuclear hyperfine interaction curves are introduced with the following ten keywords:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Keyword
+     - Interaction
+   * - ``hfcc-a``
+     - Nuclear spin-orbit
+   * - ``hfcc-bF``
+     - Fermi-contact
+   * - ``hfcc-c``
+     - Electron spin-nuclear spin dipole-dipole, :math:`c(R)`
+   * - ``hfcc-d``
+     - Electron spin-nuclear spin dipole-dipole, :math:`d(R)`
+   * - ``hfcc-ci``
+     - Nuclear spin-rotation, :math:`c_I(R)`
+   * - ``hfcc-cip``
+     - Off-diagonal nuclear spin-rotation, :math:`c_I'(R)`
+   * - ``hfcc-eqq0``
+     - Nuclear electric quadrupole, :math:`eQq_0(R)`
+   * - ``hfcc-eqq2``
+     - Nuclear electric quadrupole, :math:`eQq_2(R)`
+   * - ``hfcc-ii``
+     - Dipolar nuclear spin-spin
+   * - ``hfcc-iis``
+     - Scalar nuclear spin-spin
+
+For the first eight keywords, the suffix ``-1`` is optional: 
+for example, ``hfcc-bF`` and ``hfcc-bF-1`` are equivalent. 
+
+For case 3, use the suffix ``-2`` for the second nucleus, 
+e.g., ``hfcc-bF-2``, following the order specified in ``ATOMS``.
+
+For case 1, use the keywords without suffix or with ``-1``,
+even if the nucleus with non-zero spin is listed second in ``ATOMS``.
+e.g., for ``ATOMS Mg-24 H-1``, 
+use ``hfcc-bF`` or ``hfcc-bF-1`` for H, not ``hfcc-bF-2``.
+
 The default units are ``angstrom`` and ``cm-1``.
 Hyperfine couplings between electronic states are not allowed at present.
 
@@ -111,6 +235,9 @@ This term is important when the electron orbital angular momentum is non-zero.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The Fermi-contact interaction curve :math:`b_F(R)` is defined by an ``hfcc-bF`` section.
 This term is important when the electron spin angular momentum is non-zero.
+The :math:`b` constant defined by Frosch and Foley can be 
+calculated by 
+:math:`b = b_F - c/3`.
 ::
 
     hfcc-bf 1 1
@@ -128,9 +255,6 @@ This term is important when the electron spin angular momentum is non-zero.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The electron spin - nuclear spin dipole-dipole
 interaction curves :math:`c(R)` and :math:`d(R)` are defined by ``hfcc-c`` and ``hfcc-d`` sections.
-The :math:`b` constant defined by Frosch and Foley can be 
-calculated by 
-:math:`b = b_F - c/3`.
 ::
 
     hfcc-c 1 1
@@ -179,14 +303,15 @@ the nuclear spin is not less than 1.
     end
 
 
-``hfcc-ci``  
+``hfcc-ci`` and ``hfcc-cip``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The nuclear spin - rotation curve :math:`c_I(R)` is defined by an ``hfcc-ci`` section.
-This term is usually negligible compared with other nuclear hyperfine interactions.
+The nuclear spin - rotation curves 
+:math:`c_I(R)` and :math:`c_I'(R)` are defined by ``hfcc-ci`` and ``hfcc-cip`` sections.
+These two terms are usually negligible compared with other nuclear hyperfine interactions.
 Nevertheless,
 when all the other hyperfine couplings are inactive,
 this term becomes important, e.g. 
-for a :math:`^1\Sigma` state of a nuclear spin 1/2 molecule.
+for :math:`^1\Sigma` state of nuclear spin 1/2 molecule.
 ::
 
     hfcc-ci 1 1
@@ -198,10 +323,20 @@ for a :math:`^1\Sigma` state of a nuclear spin 1/2 molecule.
         A0           0.1
     end
 
+    hfcc-cip 1 1
+    name "<X2Pi|NSR-prime|X2Pi>" (Off-diagonal nuclear spin-rotation)
+    spin 0.5
+    factor 1.0
+    type polynom
+    values
+        A0           0.1
+    end
+
 ``hfcc-ii``  
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The nuclear spin-nuclear spin dipole-dipole interaction curve is defined by an ``hfcc-ii`` section.
-This term is used for homonuclear molecules with two equivalent non-zero nuclear spins.
+The nuclear spin-nuclear spin dipole-dipole interaction curve is defined by an ``hfcc-ii`` section, 
+with aliases: ``hfcc-ii-d`` and ``hfcc-ii-dipole``. 
+This term is available only for cases 2 and 3.
 ::
 
     hfcc-ii 1
@@ -211,3 +346,20 @@ This term is used for homonuclear molecules with two equivalent non-zero nuclear
     values 
         A0           0.1
     end 
+
+``hfcc-iis``
+^^^^^^^^^^^^
+The scalar nuclear spin-spin interaction curve is defined
+by an ``hfcc-iis`` section, with alias ``hfcc-ii-scalar``.
+This term is available only for cases 2 and 3.
+::
+
+    hfcc-iis 1 1
+    name "<X1Sigma+|IIS|X1Sigma+>" (Scalar nuclear spin-spin)
+    spin 0
+    lambda 0
+    factor 1.0
+    type polynom
+    values
+        A0           0.1
+    end
