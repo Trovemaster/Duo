@@ -16555,9 +16555,24 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
                   !
                   if (ilambda/=jlambda) cycle
                   !
+                  ! J.S (S-uncoupling) is diagonal in the electronic state, as in the Lambda-Sigma representation
+                  ! (issue #29: states with the same S and Lambda were coupled)
+                  !
+                  if (istate/=jstate) cycle
+                  !
                   f_s = sigmaj-sigmai
                   !
                   L_LambdaSigma(i,j) = sqrt( spini*(spini+1.0_rk)-sigmai*(sigmai+f_s) )
+                  !
+                  ! BOB-rot: the dimensionless correction g(r) to the rotational factor b_rot/r^2 of this state also
+                  ! multiplies J.S, as in the Lambda-Sigma representation, where f_rot = <B> + <g B> (issue #28)
+                  !
+                  do ibobrot = 1,Nbobrot
+                    if (bobrot(ibobrot)%istate==istate.and.bobrot(ibobrot)%jstate==istate) then
+                      L_LambdaSigma(i,j) = L_LambdaSigma(i,j)*(1.0_rk+bobrot(ibobrot)%gridvalue(igrid))
+                      exit
+                    endif
+                  enddo
                   !
                 !enddo
                 !
@@ -19205,8 +19220,11 @@ end subroutine Compute_rovibron_Hamiltonian_lambda_S_repres_opt
               ! avoid the double counting.
               if( isigmav==1.and.field%lambda==0 ) cycle
               !
-              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously)
-              ilambda_ = ilambda_*(-1)**isigmav
+              ! do the sigmav transformations (it simply changes the sign of lambda and sigma simultaneously);
+              ! both lambdas must change sign, otherwise no objects are created for the -Omega blocks of Lambda>0 states
+              ! (the J-dependent BOB-rot term was missing there)
+              ilambda_ = field%lambda*(-1)**isigmav
+              jlambda_ = field%lambdaj*(-1)**isigmav
               !
               sigmai = omegai - real(ilambda_,rk)
               sigmaj = omegai - real(jlambda_,rk)

@@ -388,9 +388,10 @@ NACs and DBOC-like terms (:math:`r`-dependence of U)     included (``uncoupled``
 S-uncoupling (rotation-spin)                             included; validated
 L-uncoupling (``Lx``/``L+``)                             included; validated
 Spin-rotation                                            included; validated
+BOB-rot                                                  included; validated
 Electric dipole intensities                              included; validated
 Bound/unbound filters, reduced densities, checkpoints    included
-BOB-rot, :math:`L^2`                                     included (as for ``vib``), not separately validated
+:math:`L^2`                                              included (as for ``vib``), not separately validated
 Spin-spin, BOB-vib                                       included in the diagonalisation, not validated
 :math:`\Lambda`-doubling (``p2q``, ``q``)                not implemented (Duo stops)
 Magnetic dipole and quadrupole intensities, fitting      not validated
