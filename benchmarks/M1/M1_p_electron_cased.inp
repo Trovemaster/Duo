@@ -1,0 +1,84 @@
+(M1 test B: 2Sigma+ and 2Pi states of one p electron, Hund's case (d).)
+(Equal potentials, <L**2>=2 for both states, constant <Pi|L+|Sigma>=sqrt(2),)
+(no spin-orbit and no spin-rotation: H = T + V(r) + B(r) R**2, where R is the)
+(nuclear rotation. L + g_s S acts on electron coordinates only and commutes)
+(with R**2, so M1 joins only degenerate levels of one R. Every M1 line with)
+(nonzero frequency must vanish.)
+masses 1.0 16.0
+molecule fictitious
+nstates 2
+jrot 0.5 - 3.5
+symmetry Cs(M)
+grid
+  npoints 151
+  range  0.55 2.0
+  type 0
+end
+contraction
+  vib
+  vmax 4 4
+end
+checkpoint
+  eigenfunc save ascii
+  filename M1_p_electron_cased
+end
+poten 1
+name "X2Sigma+"
+type polynomial
+lambda 0
+mult 2
+symmetry +
+units cm-1
+values
+c0     0.0
+re     0.97
+c1     0.0
+c2 40000.0
+end
+poten 2
+name "A2Pi"
+type polynomial
+lambda 1
+mult 2
+units cm-1
+values
+c0     0.0
+re     0.97
+c1     0.0
+c2 40000.0
+end
+L2 1
+name "<X|L**2|X>"
+lambda 0
+spin 0.5
+type polynomial
+values
+c0 2.0
+end
+L2 2
+name "<A|L**2|A>"
+lambda 1
+spin 0.5
+type polynomial
+values
+c0 2.0
+end
+L+ 2 1
+name "<A|L+|X>"
+lambda 1 0
+spin 0.5 0.5
+type polynomial
+values
+c0 1.4142135623730951
+end
+intensity
+  magdipole
+  absorption
+  thresh_intes 1e-300
+  thresh_line 1e-300
+  temperature 300
+  gns 1.0 1.0
+  J, 0.5, 3.5
+  freq-window 0.001, 50000
+  energy low -0.001, 50000, upper -0.001, 50000
+end

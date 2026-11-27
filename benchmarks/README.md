@@ -4,6 +4,7 @@
 with a trusted reference result.  It deliberately ignores banners, timings,
 memory reports, echoed input, and other text that varies between machines.
 
+
 The program uses only the Python standard library and works with Python 3.9 or
 newer.  It checks:
 
@@ -100,3 +101,14 @@ and `duo_intensity_fit_benchmark.py`.
 `duo_benchmark.py` compares the numerical energies in a new Duo `.out` file
 with a trusted reference result.  It deliberately ignores banners, timings,
 memory reports, echoed input, and other text that varies between machines.
+
+## Magnetic-dipole (M1) checks
+
+`M1/check_m1.py` runs three small `MAGDIPOLE` models with a given Duo
+executable. It checks the M1 line strengths against exact Hund's case (b) and
+case (d) results and against a separate contraction of the saved Duo
+eigenvectors. The models and tolerances are described in the script.
+
+```text
+python M1/check_m1.py /path/to/duo.x
+```
